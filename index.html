@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>EMOJI ELEMENTS</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -10,7 +12,7 @@
 <body>
     <!-- Intro Video Container -->
     <div id="introContainer" class="intro-container">
-        <video id="introVideo" class="intro-video" playsinline>
+        <video id="introVideo" class="intro-video" autoplay muted playsinline webkit-playsinline>
             <source src="inspiresoftwareintro.mp4" type="video/mp4">
         </video>
     </div>

@@ -114,18 +114,38 @@
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
 
-        // Play intro video
-        introVideo.play().catch(e => {
-            console.log('Video autoplay failed:', e);
-            // Skip to menu if autoplay fails
-            skipIntro();
-        });
+        // Ensure video is ready before playing
+        introVideo.load();
+
+        // Try to play video with better mobile support
+        const playVideo = () => {
+            const playPromise = introVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('Video playing successfully');
+                }).catch(e => {
+                    console.log('Video autoplay failed:', e);
+                    // On mobile, user interaction may be required
+                    // Show a prompt to tap to start
+                    introContainer.style.cursor = 'pointer';
+                });
+            }
+        };
+
+        // Start playing video
+        playVideo();
 
         // When video ends, show start menu
         introVideo.addEventListener('ended', skipIntro);
 
-        // Allow clicking/tapping to skip
-        introContainer.addEventListener('click', skipIntro);
+        // Allow clicking/tapping to skip or start video
+        introContainer.addEventListener('click', () => {
+            if (introVideo.paused) {
+                playVideo();
+            } else {
+                skipIntro();
+            }
+        });
 
         function skipIntro() {
             introContainer.classList.add('hidden');
