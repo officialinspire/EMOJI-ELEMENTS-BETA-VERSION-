@@ -209,6 +209,7 @@
 
     // Mulligan state
     let mulliganUsed = false;
+    let playerFirstTurnCompleted = false;
 
     // Attack Phase and action processing lock (must be declared before startGame function)
     let attackPhase = false;
@@ -803,11 +804,11 @@
     // Start Game
     // Mulligan function
     function mulligan() {
-        if (mulliganUsed) {
-            alert('You can only mulligan once per game!');
+        if (mulliganUsed || playerFirstTurnCompleted) {
+            alert('You can only mulligan once at the beginning of the game!');
             return;
         }
-        
+
         if (!confirm('Mulligan? Put all cards back and draw 6 new cards?')) {
             return;
         }
@@ -887,6 +888,7 @@
 
         // Reset mulligan button
         mulliganUsed = false;
+        playerFirstTurnCompleted = false;
         document.getElementById('mulliganBtn').disabled = false;
         document.getElementById('mulliganBtn').style.opacity = '1';
 
@@ -1296,6 +1298,13 @@
         }
 
         isProcessingAction = true;
+
+        // Disable mulligan after first turn
+        if (!playerFirstTurnCompleted) {
+            playerFirstTurnCompleted = true;
+            document.getElementById('mulliganBtn').disabled = true;
+            document.getElementById('mulliganBtn').style.opacity = '0.5';
+        }
 
         // Show end turn message
         showGameLog('✅ You end your turn', false);
