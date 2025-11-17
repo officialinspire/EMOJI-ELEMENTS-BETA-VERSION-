@@ -214,6 +214,33 @@
     // Attack Phase and action processing lock (must be declared before startGame function)
     let attackPhase = false;
     let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
+    let processingActionTimer = null; // Failsafe timer to prevent permanent lock
+
+    // Failsafe function to unlock processing after timeout
+    function setProcessingLock(duration = 5000) {
+        isProcessingAction = true;
+
+        // Clear any existing timer
+        if (processingActionTimer) {
+            clearTimeout(processingActionTimer);
+        }
+
+        // Set failsafe timer to auto-unlock after duration
+        processingActionTimer = setTimeout(() => {
+            console.log('⚠️ Failsafe: Auto-unlocking processing action');
+            isProcessingAction = false;
+            updateUI();
+        }, duration);
+    }
+
+    // Function to properly release processing lock
+    function releaseProcessingLock() {
+        isProcessingAction = false;
+        if (processingActionTimer) {
+            clearTimeout(processingActionTimer);
+            processingActionTimer = null;
+        }
+    }
 
     // Mana System
     const ELEMENTS = {
@@ -894,7 +921,7 @@
 
         // Reset attack phase variable and processing lock
         attackPhase = false;
-        isProcessingAction = false;
+        releaseProcessingLock();
         document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
         document.getElementById('attackBtn').onclick = enterAttackPhase;
 
@@ -933,8 +960,8 @@
             return;
         }
 
-        // Set processing lock to prevent rapid clicking
-        isProcessingAction = true;
+        // Set processing lock to prevent rapid clicking (with 3 second failsafe)
+        setProcessingLock(3000);
 
         // Pay cost
         payCost(card.cost, gameState.playerMana);
@@ -975,7 +1002,7 @@
 
         // Release processing lock after a short delay
         setTimeout(() => {
-            isProcessingAction = false;
+            releaseProcessingLock();
         }, 200);
     }
 
@@ -1158,8 +1185,8 @@
             return;
         }
 
-        // Set processing lock
-        isProcessingAction = true;
+        // Set processing lock (with 5 second failsafe for combat)
+        setProcessingLock(5000);
 
         playSFX('attack');
         showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
@@ -1181,7 +1208,7 @@
 
         // Release processing lock after combat resolves
         setTimeout(() => {
-            isProcessingAction = false;
+            releaseProcessingLock();
         }, 300);
     }
 
@@ -1297,7 +1324,8 @@
             return;
         }
 
-        isProcessingAction = true;
+        // Set processing lock for turn transition (with 10 second failsafe)
+        setProcessingLock(10000);
 
         // Disable mulligan after first turn
         if (!playerFirstTurnCompleted) {
@@ -1344,7 +1372,7 @@
         updateUI();
 
         // Release processing lock - player can now take actions
-        isProcessingAction = false;
+        releaseProcessingLock();
     }
 
     // AI Turn
@@ -1811,16 +1839,37 @@
             enemyBoardEl.appendChild(cardEl);
         });
 
-        // Disable buttons during enemy turn to prevent cheating and provide better UX
+        // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
         const endTurnBtn = document.getElementById('endTurnBtn');
         const isPlayerTurn = gameState.turn === 'player' && gameState.phase !== 'enemy';
 
         if (attackBtn) {
-            attackBtn.disabled = !isPlayerTurn || isProcessingAction;
+            const shouldDisableAttack = !isPlayerTurn || isProcessingAction;
+            attackBtn.disabled = shouldDisableAttack;
+
+            // Visual feedback for disabled state
+            if (shouldDisableAttack) {
+                attackBtn.style.opacity = '0.5';
+                attackBtn.style.cursor = 'not-allowed';
+            } else {
+                attackBtn.style.opacity = '1';
+                attackBtn.style.cursor = 'pointer';
+            }
         }
+
         if (endTurnBtn) {
-            endTurnBtn.disabled = !isPlayerTurn || isProcessingAction || attackPhase;
+            const shouldDisableEndTurn = !isPlayerTurn || isProcessingAction || attackPhase;
+            endTurnBtn.disabled = shouldDisableEndTurn;
+
+            // Visual feedback for disabled state
+            if (shouldDisableEndTurn) {
+                endTurnBtn.style.opacity = '0.5';
+                endTurnBtn.style.cursor = 'not-allowed';
+            } else {
+                endTurnBtn.style.opacity = '1';
+                endTurnBtn.style.cursor = 'pointer';
+            }
         }
     }
 
@@ -1901,3 +1950,36 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     });
+
+    // Global error handler to prevent game from getting stuck
+    window.addEventListener('error', (event) => {
+        console.error('❌ Global error caught:', event.error);
+
+        // If there's an error, release the processing lock to prevent permanent freeze
+        if (isProcessingAction) {
+            console.log('🔓 Releasing processing lock due to error');
+            releaseProcessingLock();
+        }
+    });
+
+    // Periodic safety check to ensure buttons don't get permanently stuck
+    // This runs every 15 seconds and checks if the processing lock has been active too long
+    let lastProcessingCheckTime = Date.now();
+    setInterval(() => {
+        // Only check during active gameplay (not in menus)
+        if (document.getElementById('gameContainer').style.display === 'flex') {
+            // If it's the player's turn and processing has been locked for over 15 seconds, something is wrong
+            if (gameState.turn === 'player' && isProcessingAction) {
+                const timeSinceLastCheck = Date.now() - lastProcessingCheckTime;
+                if (timeSinceLastCheck > 15000) {
+                    console.warn('⚠️ Processing lock stuck for over 15 seconds - forcing release');
+                    releaseProcessingLock();
+                }
+            }
+
+            // Update last check time if not processing
+            if (!isProcessingAction) {
+                lastProcessingCheckTime = Date.now();
+            }
+        }
+    }, 5000); // Check every 5 seconds

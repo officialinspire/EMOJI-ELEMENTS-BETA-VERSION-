@@ -102,7 +102,7 @@
 
 body {
     font-family: 'Cinzel', serif;
-    background: linear-gradient(135deg, #1a0a0a 0%, #2d1b1b 50%, #1a0a0a 100%);
+    background: linear-gradient(135deg, #0a0510 0%, #1a0f20 25%, #150a25 50%, #1a0f20 75%, #0a0510 100%);
     color: #ffd700;
     overflow: hidden;
     touch-action: pan-y pinch-zoom;
@@ -126,9 +126,11 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-        radial-gradient(ellipse at top, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
-        radial-gradient(ellipse at bottom, rgba(255, 69, 0, 0.1) 0%, transparent 50%);
+    background:
+        radial-gradient(ellipse at top, rgba(75, 0, 130, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, rgba(139, 0, 0, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 20% 80%, rgba(138, 43, 226, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(148, 0, 211, 0.1) 0%, transparent 40%);
     pointer-events: none;
 }
 
@@ -244,6 +246,7 @@ body::before {
     flex-direction: column;
     gap: 8px;
     overflow: hidden;
+    background: radial-gradient(ellipse at center, rgba(30, 15, 45, 0.4) 0%, rgba(15, 5, 25, 0.6) 100%);
 }
 
 .player-area {
@@ -254,15 +257,15 @@ body::before {
     border: 3px double #ffd700;
     border-radius: 12px;
     padding: 8px;
-    background: linear-gradient(135deg, rgba(75, 0, 130, 0.2) 0%, rgba(138, 43, 226, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(20, 10, 40, 0.85) 0%, rgba(35, 15, 60, 0.75) 50%, rgba(20, 10, 40, 0.85) 100%);
     position: relative;
-    box-shadow: inset 0 0 30px rgba(255, 215, 0, 0.1);
+    box-shadow: inset 0 0 30px rgba(138, 43, 226, 0.3), 0 0 20px rgba(255, 215, 0, 0.15);
 }
 
 .enemy-area {
     border-color: #dc143c;
-    background: linear-gradient(135deg, rgba(139, 0, 0, 0.2) 0%, rgba(220, 20, 60, 0.1) 100%);
-    box-shadow: inset 0 0 30px rgba(220, 20, 60, 0.1);
+    background: linear-gradient(135deg, rgba(40, 5, 10, 0.85) 0%, rgba(60, 10, 20, 0.75) 50%, rgba(40, 5, 10, 0.85) 100%);
+    box-shadow: inset 0 0 30px rgba(139, 0, 0, 0.4), 0 0 20px rgba(220, 20, 60, 0.2);
 }
 
 .player-info {
@@ -451,14 +454,14 @@ body::before {
     display: flex;
     gap: 6px;
     padding: 6px;
-    background: linear-gradient(135deg, rgba(75, 0, 130, 0.3) 0%, rgba(138, 43, 226, 0.2) 100%);
+    background: linear-gradient(135deg, rgba(20, 10, 40, 0.8) 0%, rgba(35, 15, 60, 0.7) 50%, rgba(20, 10, 40, 0.8) 100%);
     border: 3px double #ffd700;
     border-radius: 12px;
     overflow-x: auto;
     overflow-y: hidden;
     min-height: 90px;
     max-height: 90px;
-    box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.1);
+    box-shadow: inset 0 0 25px rgba(138, 43, 226, 0.3), 0 0 15px rgba(255, 215, 0, 0.2);
     flex-shrink: 0;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
