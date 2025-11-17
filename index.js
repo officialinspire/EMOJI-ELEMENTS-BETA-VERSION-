@@ -886,6 +886,7 @@
         gameState.blockers = {};
         gameState.previousPlayerLife = 20;
         gameState.previousEnemyLife = 20;
+        gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
 
         // Generate decks
         gameState.playerDeck = generateDeck(gameState.selectedElements);
@@ -1158,6 +1159,12 @@
             return; // Silently block during processing
         }
 
+        // SAFETY CHECK: Prevent entering attack phase if already in it
+        if (attackPhase || gameState.phase === 'attack') {
+            console.warn('Already in attack phase, ignoring');
+            return;
+        }
+
         // Check if there are any untapped creatures that can attack
         const availableAttackers = gameState.playerBoard.filter(c =>
             c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
@@ -1268,7 +1275,10 @@
             const attacker = gameState.playerBoard.find(c => c.id === attackerId);
             if (!attacker) return;
 
-            attacker.tapped = true;
+            // CRITICAL FIX: Only tap if creature doesn't have vigilance
+            if (!attacker.abilities?.includes('vigilance')) {
+                attacker.tapped = true;
+            }
 
             const blockerId = gameState.blockers[attackerId];
             
@@ -1372,6 +1382,9 @@
         // Reset mana
         gameState.playerMana = {};
 
+        // CRITICAL FIX: Reset land counter at end of turn (safety check)
+        gameState.landsPlayedThisTurn = 0;
+
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
@@ -1389,6 +1402,12 @@
         gameState.turn = 'player';
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+
+        // CRITICAL FIX: Ensure attack phase is reset and button is restored
+        attackPhase = false;
+        gameState.attackers = [];
+        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').onclick = enterAttackPhase;
 
         // Draw card at start of turn
         drawCard('player');
