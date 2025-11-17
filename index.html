@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EMOJI ELEMENTS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <canvas id="particles"></canvas>
+
+    <!-- Game Log -->
+    <div id="gameLog" class="game-log"></div>
+
+    <!-- Card Detail Popup -->
+    <div id="cardDetailPopup" class="card-detail-popup">
+        <div class="close-detail" onclick="hideCardDetail()">✕</div>
+        <div class="card-detail-emoji" id="detailEmoji"></div>
+        <div class="card-detail-name" id="detailName"></div>
+        <div id="detailContent"></div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pauseModal" class="pause-modal">
+        <div class="pause-content">
+            <div class="pause-title">⏸️ GAME PAUSED</div>
+            <div class="pause-buttons">
+                <button class="menu-btn" onclick="resumeGame()">▶️ RESUME GAME</button>
+                <button class="menu-btn" onclick="confirmQuit()">🏠 MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="startModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            
+            <div class="menu-buttons" id="mainMenu">
+                <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
+                <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
+                <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
+            </div>
+
+            <div id="elementSelectionScreen" style="display: none;">
+                <div class="modal-subtitle">Select TWO elements for your deck:</div>
+                
+                <div class="modal-subtitle" style="margin-top: 20px;">AI Difficulty:</div>
+                <div class="difficulty-selector">
+                    <div class="difficulty-btn selected" data-difficulty="easy" onclick="selectDifficulty('easy')">Easy</div>
+                    <div class="difficulty-btn" data-difficulty="medium" onclick="selectDifficulty('medium')">Medium</div>
+                    <div class="difficulty-btn" data-difficulty="hard" onclick="selectDifficulty('hard')">Hard</div>
+                </div>
+
+                <div class="element-selector">
+                    <div class="element-btn" data-element="fire" onclick="selectElement('fire')">🔥</div>
+                    <div class="element-btn" data-element="water" onclick="selectElement('water')">💧</div>
+                    <div class="element-btn" data-element="earth" onclick="selectElement('earth')">🌍</div>
+                    <div class="element-btn" data-element="swamp" onclick="selectElement('swamp')">💀</div>
+                    <div class="element-btn" data-element="light" onclick="selectElement('light')">☀️</div>
+                </div>
+                <button class="btn" id="startBtn" onclick="startGame()" disabled>⚔️ START BATTLE ⚔️</button>
+                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK</button>
+            </div>
+
+            <div id="howToPlayScreen" style="display: none;">
+                <div class="how-to-play">
+                    <h3>🎯 Objective</h3>
+                    <p>Reduce your opponent's life from 20 to 0 using creatures, spells, and strategy!</p>
+
+                    <h3>🃏 Cards & Mana</h3>
+                    <ul>
+                        <li><strong>Lands</strong> - Play one per turn to generate mana</li>
+                        <li><strong>Creatures</strong> - Cost mana to play, can attack & block</li>
+                        <li><strong>Spells</strong> - Instant effects (damage, heal, etc.)</li>
+                        <li><strong>Artifacts</strong> - Permanent bonuses on the battlefield</li>
+                    </ul>
+
+                    <h3>⚔️ Combat</h3>
+                    <ul>
+                        <li>Tap lands to generate mana (click on them)</li>
+                        <li>Play cards from your hand using mana</li>
+                        <li>Click "ATTACK" to select attackers</li>
+                        <li>AI will declare blockers automatically</li>
+                        <li>Creatures deal damage = their power</li>
+                    </ul>
+
+                    <h3>✨ Abilities</h3>
+                    <ul>
+                        <li><strong>Flying</strong> - Can only be blocked by flying/reach</li>
+                        <li><strong>Trample</strong> - Excess damage goes through (screen shake!)</li>
+                        <li><strong>Lifelink</strong> - Damage dealt heals you (sparkles!)</li>
+                        <li><strong>Haste</strong> - Can attack immediately</li>
+                        <li><strong>Vigilance</strong> - Doesn't tap to attack</li>
+                        <li><strong>Defender</strong> - Cannot attack</li>
+                    </ul>
+
+                    <h3>📱 Controls</h3>
+                    <p>Click cards to play them, tap lands for mana, select attackers in combat phase! Right-click or long-press to see card details.</p>
+                </div>
+                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 20px;">← BACK TO MENU</button>
+            </div>
+
+            <div id="statsScreen" style="display: none;">
+                <div class="modal-subtitle">Your Battle Record</div>
+                <div class="stats-display">
+                    <div class="stat-row">
+                        <span class="stat-label">🏆 Games Won:</span>
+                        <span id="gamesWon">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">💀 Games Lost:</span>
+                        <span id="gamesLost">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">⚔️ Total Battles:</span>
+                        <span id="totalGames">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">📈 Win Rate:</span>
+                        <span id="winRate">0%</span>
+                    </div>
+                </div>
+                <button class="menu-btn" onclick="resetStats()" style="background: linear-gradient(135deg, #dc143c 0%, #8b0000 100%); color: #fff;">🔄 RESET STATS</button>
+                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK TO MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <div class="header">
+            <button class="menu-icon-btn" onclick="pauseGame()">☰</button>
+            <div class="title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
+        </div>
+
+        <div class="battlefield">
+            <!-- Enemy Area -->
+            <div class="player-area enemy-area">
+                <div class="player-info">
+                    <div class="life-counter">
+                        ❤️ <span id="enemyLife">20</span>
+                    </div>
+                    <div class="deck-counter">
+                        🎴 <span id="enemyDeckCount">60</span>
+                    </div>
+                    <div class="mana-pool" id="enemyMana"></div>
+                </div>
+                <div class="cards-row" id="enemyBoard"></div>
+            </div>
+
+            <!-- Player Area -->
+            <div class="player-area">
+                <div class="cards-row" id="playerBoard"></div>
+                <div class="player-info">
+                    <div class="life-counter">
+                        ❤️ <span id="playerLife">20</span>
+                    </div>
+                    <div class="deck-counter">
+                        🎴 <span id="playerDeckCount">60</span>
+                    </div>
+                    <div class="mana-pool" id="playerMana"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hand-area" id="playerHand"></div>
+
+        <div class="controls">
+            <button class="btn" id="mulliganBtn" onclick="mulligan()">🔄 MULLIGAN</button>
+            <button class="btn btn-attack" id="attackBtn" onclick="enterAttackPhase()">⚔️ ATTACK</button>
+            <button class="btn" id="endTurnBtn" onclick="endTurn()">END TURN</button>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>

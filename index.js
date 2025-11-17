@@ -1,0 +1,1513 @@
+    // Game State
+    const gameState = {
+        playerLife: 20,
+        enemyLife: 20,
+        playerMana: {},
+        enemyMana: {},
+        playerHand: [],
+        playerBoard: [],
+        playerDeck: [],
+        enemyHand: [],
+        enemyBoard: [],
+        enemyDeck: [],
+        selectedCard: null,
+        selectedElements: [],
+        phase: 'main',
+        turn: 'player',
+        attackers: [],
+        blockers: {},
+        difficulty: 'easy'
+    };
+
+    // Stats tracking
+    let gameStats = {
+        wins: 0,
+        losses: 0,
+        total: 0
+    };
+
+    // Load stats from localStorage
+    function loadStats() {
+        const saved = localStorage.getItem('emojiElementsStats');
+        if (saved) {
+            gameStats = JSON.parse(saved);
+        }
+    }
+
+    function saveStats() {
+        localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
+    }
+
+    loadStats();
+
+    // Mulligan state
+    let mulliganUsed = false;
+
+    // Mana System
+    const ELEMENTS = {
+        fire: { emoji: '🔥', color: '#ff4444' },
+        water: { emoji: '💧', color: '#4444ff' },
+        earth: { emoji: '🌍', color: '#44ff44' },
+        swamp: { emoji: '💀', color: '#8844ff' },
+        light: { emoji: '☀️', color: '#ffff44' }
+    };
+
+    // Card Database - MASSIVELY EXPANDED!
+    const CARD_DATABASE = {
+        // LANDS (Mana generators)
+        lands: {
+            fire: { emoji: '🔥', type: 'land', element: 'fire', name: 'Volcanic Peak' },
+            water: { emoji: '💧', type: 'land', element: 'water', name: 'Mystic Springs' },
+            earth: { emoji: '🌍', type: 'land', element: 'earth', name: 'Ancient Grove' },
+            swamp: { emoji: '💀', type: 'land', element: 'swamp', name: 'Cursed Bog' },
+            light: { emoji: '☀️', type: 'land', element: 'light', name: 'Sacred Temple' }
+        },
+        
+        // CREATURES - MASSIVELY EXPANDED
+        creatures: {
+            // Fire Creatures (17 total!)
+            dragon: { emoji: '🐉', type: 'creature', cost: { fire: 6 }, power: 6, toughness: 6, abilities: ['flying'], name: 'Ancient Dragon', desc: 'Legendary flying beast', theme: 'fantasy' },
+            phoenix: { emoji: '🦅', type: 'creature', cost: { fire: 4 }, power: 3, toughness: 2, abilities: ['flying', 'haste'], name: 'Phoenix', desc: 'Reborn from flames', theme: 'fantasy' },
+            demon: { emoji: '👹', type: 'creature', cost: { fire: 5 }, power: 5, toughness: 4, abilities: ['trample'], name: 'Infernal Demon', desc: 'Tramples all in its path', theme: 'fantasy' },
+            tiger: { emoji: '🐅', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Blazing Tiger', desc: 'Swift and fierce', theme: 'fantasy' },
+            fox: { emoji: '🦊', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Fox', desc: 'Cunning flame spirit', theme: 'fantasy' },
+            lion: { emoji: '🦁', type: 'creature', cost: { fire: 4 }, power: 4, toughness: 3, abilities: ['trample'], name: 'Fire Lion', desc: 'King of the burning plains', theme: 'fantasy' },
+            salamander: { emoji: '🦎', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Fire Salamander', desc: 'Quick striker', theme: 'fantasy' },
+            monkey: { emoji: '🐒', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Magma Monkey', desc: 'Mischievous and hot-tempered', theme: 'fantasy' },
+            bull: { emoji: '🐂', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Raging Bull', desc: 'Unstoppable force', theme: 'fantasy' },
+            horse: { emoji: '🐴', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Flame Steed', desc: 'Swift as wildfire', theme: 'fantasy' },
+            boar: { emoji: '🐗', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 3, abilities: ['trample'], name: 'Wild Boar', desc: 'Fierce and territorial', theme: 'fantasy' },
+            ram: { emoji: '🐏', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Ram', desc: 'Charges with fury', theme: 'fantasy' },
+            scorpion: { emoji: '🦂', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 1, abilities: ['haste'], name: 'Lava Scorpion', desc: 'Deadly stinger', theme: 'fantasy' },
+            crab: { emoji: '🦀', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Magma Crab', desc: 'Hard shell protector', theme: 'fantasy' },
+            lobster: { emoji: '🦞', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Lobster', desc: 'Armored attacker', theme: 'fantasy' },
+            beetle: { emoji: '🪲', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ember Beetle', desc: 'Small but resilient', theme: 'fantasy' },
+            ladybug: { emoji: '🐞', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Fire Ladybug', desc: 'Tiny flyer', theme: 'fantasy' },
+            
+            // Water Creatures (17 total!)
+            whale: { emoji: '🐋', type: 'creature', cost: { water: 5 }, power: 5, toughness: 6, abilities: ['defender'], name: 'Leviathan Whale', desc: 'Guardian of the deep', theme: 'fantasy' },
+            shark: { emoji: '🦈', type: 'creature', cost: { water: 4 }, power: 4, toughness: 3, abilities: [], name: 'Great Shark', desc: 'Ocean predator', theme: 'fantasy' },
+            octopus: { emoji: '🐙', type: 'creature', cost: { water: 3 }, power: 2, toughness: 4, abilities: ['defender'], name: 'Giant Octopus', desc: 'Master of defense', theme: 'fantasy' },
+            dolphin: { emoji: '🐬', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: [], name: 'Mystic Dolphin', desc: 'Intelligent swimmer', theme: 'fantasy' },
+            fish: { emoji: '🐟', type: 'creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: [], name: 'School Fish', desc: 'Basic sea creature', theme: 'fantasy' },
+            seal: { emoji: '🦭', type: 'creature', cost: { water: 2 }, power: 2, toughness: 3, abilities: [], name: 'Arctic Seal', desc: 'Cold water dweller', theme: 'fantasy' },
+            otter: { emoji: '🦦', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: [], name: 'River Otter', desc: 'Playful but fierce', theme: 'fantasy' },
+            penguin: { emoji: '🐧', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ice Penguin', desc: 'Cold-adapted', theme: 'fantasy' },
+            frog: { emoji: '🐸', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Swamp Frog', desc: 'Amphibious jumper', theme: 'fantasy' },
+            squid: { emoji: '🦑', type: 'creature', cost: { water: 3 }, power: 3, toughness: 3, abilities: [], name: 'Giant Squid', desc: 'Tentacled terror', theme: 'fantasy' },
+            shrimp: { emoji: '🦐', type: 'creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: [], name: 'Mantis Shrimp', desc: 'Tiny but tough', theme: 'fantasy' },
+            crocodile: { emoji: '🐊', type: 'creature', cost: { water: 4 }, power: 4, toughness: 4, abilities: [], name: 'Swamp Croc', desc: 'Apex predator', theme: 'fantasy' },
+            turtle: { emoji: '🐢', type: 'creature', cost: { water: 2 }, power: 1, toughness: 4, abilities: ['defender'], name: 'Ancient Turtle', desc: 'Impenetrable shell', theme: 'fantasy' },
+            seahorse: { emoji: '🐴', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Sea Horse', desc: 'Graceful swimmer', theme: 'fantasy' },
+            jellyfish: { emoji: '🪼', type: 'creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Stinging Jellyfish', desc: 'Floating defender', theme: 'fantasy' },
+            snail: { emoji: '🐌', type: 'creature', cost: { water: 1 }, power: 0, toughness: 3, abilities: ['defender'], name: 'Armored Snail', desc: 'Slow but safe', theme: 'fantasy' },
+            swan: { emoji: '🦢', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flying'], name: 'Crystal Swan', desc: 'Elegant flyer', theme: 'fantasy' },
+            
+            // Earth Creatures (17 total!)
+            elephant: { emoji: '🐘', type: 'creature', cost: { earth: 5 }, power: 5, toughness: 6, abilities: ['trample'], name: 'Elder Elephant', desc: 'Unstoppable might', theme: 'fantasy' },
+            gorilla: { emoji: '🦍', type: 'creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Silverback Gorilla', desc: 'Jungle king', theme: 'fantasy' },
+            bear: { emoji: '🐻', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: [], name: 'Forest Bear', desc: 'Powerful hunter', theme: 'fantasy' },
+            rabbit: { emoji: '🐰', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Swift Rabbit', desc: 'Quick hopper', theme: 'fantasy' },
+            deer: { emoji: '🦌', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Noble Deer', desc: 'Forest wanderer', theme: 'fantasy' },
+            wolf: { emoji: '🐺', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 2, abilities: [], name: 'Pack Wolf', desc: 'Cunning predator', theme: 'fantasy' },
+            rhino: { emoji: '🦏', type: 'creature', cost: { earth: 5 }, power: 5, toughness: 5, abilities: ['trample'], name: 'Armored Rhino', desc: 'Charging tank', theme: 'fantasy' },
+            hippo: { emoji: '🦛', type: 'creature', cost: { earth: 4 }, power: 4, toughness: 5, abilities: [], name: 'River Hippo', desc: 'Territorial giant', theme: 'fantasy' },
+            squirrel: { emoji: '🐿️', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Forest Squirrel', desc: 'Nimble gatherer', theme: 'fantasy' },
+            hedgehog: { emoji: '🦔', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['defender'], name: 'Spiky Hedgehog', desc: 'Defensive ball', theme: 'fantasy' },
+            badger: { emoji: '🦡', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fierce Badger', desc: 'Aggressive burrower', theme: 'fantasy' },
+            giraffe: { emoji: '🦒', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['reach'], name: 'Tall Giraffe', desc: 'Can reach high', theme: 'fantasy' },
+            zebra: { emoji: '🦓', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Striped Zebra', desc: 'Fast runner', theme: 'fantasy' },
+            camel: { emoji: '🐪', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: [], name: 'Desert Camel', desc: 'Enduring traveler', theme: 'fantasy' },
+            ox: { emoji: '🐂', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Strong Ox', desc: 'Powerful worker', theme: 'fantasy' },
+            panda: { emoji: '🐼', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: [], name: 'Bamboo Panda', desc: 'Peaceful guardian', theme: 'fantasy' },
+            koala: { emoji: '🐨', type: 'creature', cost: { earth: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Sleepy Koala', desc: 'Tree hugger', theme: 'fantasy' },
+            
+            // Swamp/Death Creatures (17 total!)
+            vampire: { emoji: '🧛', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['lifelink'], name: 'Ancient Vampire', desc: 'Drains life force', theme: 'fantasy' },
+            zombie: { emoji: '🧟', type: 'creature', cost: { swamp: 3 }, power: 3, toughness: 3, abilities: [], name: 'Risen Zombie', desc: 'Undead walker', theme: 'fantasy' },
+            ghost: { emoji: '👻', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Restless Ghost', desc: 'Ethereal spirit', theme: 'fantasy' },
+            bat: { emoji: '🦇', type: 'creature', cost: { swamp: 2 }, power: 1, toughness: 1, abilities: ['flying', 'lifelink'], name: 'Vampire Bat', desc: 'Blood drinker', theme: 'fantasy' },
+            spider: { emoji: '🕷️', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 2, abilities: ['reach'], name: 'Giant Spider', desc: 'Web spinner', theme: 'fantasy' },
+            skeleton: { emoji: '💀', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 2, abilities: [], name: 'Skeleton Warrior', desc: 'Bones reanimate', theme: 'fantasy' },
+            wizard: { emoji: '🧙', type: 'creature', cost: { swamp: 4 }, power: 3, toughness: 3, abilities: [], name: 'Dark Wizard', desc: 'Necromancer', theme: 'fantasy' },
+            witch: { emoji: '🧙‍♀️', type: 'creature', cost: { swamp: 3 }, power: 2, toughness: 3, abilities: [], name: 'Swamp Witch', desc: 'Curse caster', theme: 'fantasy' },
+            rat: { emoji: '🐀', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: [], name: 'Plague Rat', desc: 'Disease carrier', theme: 'fantasy' },
+            snake: { emoji: '🐍', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: [], name: 'Venom Snake', desc: 'Poisonous striker', theme: 'fantasy' },
+            scorpion_dark: { emoji: '🦂', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: [], name: 'Death Scorpion', desc: 'Toxic sting', theme: 'fantasy' },
+            crow: { emoji: '🐦‍⬛', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Death Crow', desc: 'Omen of doom', theme: 'fantasy' },
+            werewolf: { emoji: '🐺', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['haste'], name: 'Werewolf', desc: 'Cursed beast', theme: 'fantasy' },
+            gargoyle: { emoji: '🗿', type: 'creature', cost: { swamp: 3 }, power: 2, toughness: 4, abilities: ['flying', 'defender'], name: 'Stone Gargoyle', desc: 'Eternal sentinel', theme: 'fantasy' },
+            mummy: { emoji: '🧟‍♂️', type: 'creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: [], name: 'Ancient Mummy', desc: 'Wrapped horror', theme: 'fantasy' },
+            goblin: { emoji: '👺', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Goblin Raider', desc: 'Quick attacker', theme: 'fantasy' },
+            troll: { emoji: '🧌', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 4, abilities: [], name: 'Swamp Troll', desc: 'Regenerating brute', theme: 'fantasy' },
+            
+            // Light Creatures (17 total!)
+            unicorn: { emoji: '🦄', type: 'creature', cost: { light: 4 }, power: 3, toughness: 3, abilities: ['lifelink'], name: 'Sacred Unicorn', desc: 'Pure of heart', theme: 'fantasy' },
+            angel: { emoji: '👼', type: 'creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'vigilance'], name: 'Guardian Angel', desc: 'Divine protector', theme: 'fantasy' },
+            eagle: { emoji: '🦅', type: 'creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'vigilance'], name: 'Sky Eagle', desc: 'Ever watchful', theme: 'fantasy' },
+            dove: { emoji: '🕊️', type: 'creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Peace Dove', desc: 'Symbol of hope', theme: 'fantasy' },
+            butterfly: { emoji: '🦋', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Light Butterfly', desc: 'Delicate beauty', theme: 'fantasy' },
+            pegasus: { emoji: '🦄', type: 'creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'haste'], name: 'Winged Pegasus', desc: 'Legendary mount', theme: 'fantasy' },
+            fairy: { emoji: '🧚', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying'], name: 'Forest Fairy', desc: 'Magical sprite', theme: 'fantasy' },
+            cat: { emoji: '🐱', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Temple Cat', desc: 'Sacred guardian', theme: 'fantasy' },
+            dog: { emoji: '🐕', type: 'creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Loyal Hound', desc: 'Faithful companion', theme: 'fantasy' },
+            owl: { emoji: '🦉', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying'], name: 'Wise Owl', desc: 'All-seeing', theme: 'fantasy' },
+            bee: { emoji: '🐝', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Golden Bee', desc: 'Busy worker', theme: 'fantasy' },
+            chicken: { emoji: '🐔', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: [], name: 'Holy Chicken', desc: 'Blessed fowl', theme: 'fantasy' },
+            parrot: { emoji: '🦜', type: 'creature', cost: { light: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Sun Parrot', desc: 'Colorful flyer', theme: 'fantasy' },
+            flamingo: { emoji: '🦩', type: 'creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: [], name: 'Pink Flamingo', desc: 'Elegant wader', theme: 'fantasy' },
+            peacock: { emoji: '🦚', type: 'creature', cost: { light: 3 }, power: 2, toughness: 3, abilities: ['flying'], name: 'Royal Peacock', desc: 'Majestic display', theme: 'fantasy' },
+            chick: { emoji: '🐣', type: 'creature', cost: { light: 1 }, power: 0, toughness: 1, abilities: [], name: 'Baby Chick', desc: 'Innocent life', theme: 'fantasy' },
+            hamster: { emoji: '🐹', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Holy Hamster', desc: 'Quick and cute', theme: 'fantasy' },
+
+            // SCI-FI CREATURES (30+ total!)
+            robot: { emoji: '🤖', type: 'creature', cost: { fire: 4, earth: 1 }, power: 4, toughness: 4, abilities: [], name: 'Combat Robot', desc: 'Mechanical warrior unit', theme: 'scifi' },
+            alien: { emoji: '👽', type: 'creature', cost: { swamp: 3, water: 1 }, power: 3, toughness: 2, abilities: ['flying'], name: 'Alien Invader', desc: 'From another world', theme: 'scifi' },
+            alien_monster: { emoji: '👾', type: 'creature', cost: { fire: 2, swamp: 1 }, power: 3, toughness: 1, abilities: ['haste'], name: 'Pixel Monster', desc: '8-bit terror', theme: 'scifi' },
+            ufo: { emoji: '🛸', type: 'creature', cost: { light: 4, water: 1 }, power: 2, toughness: 5, abilities: ['flying', 'defender'], name: 'UFO Saucer', desc: 'Hovering spacecraft', theme: 'scifi' },
+            satellite: { emoji: '🛰️', type: 'creature', cost: { light: 3 }, power: 1, toughness: 3, abilities: ['flying', 'vigilance'], name: 'Satellite Drone', desc: 'Orbital observer', theme: 'scifi' },
+            rocket: { emoji: '🚀', type: 'creature', cost: { fire: 5 }, power: 5, toughness: 3, abilities: ['flying', 'haste'], name: 'Battle Rocket', desc: 'Supersonic striker', theme: 'scifi' },
+            astronaut: { emoji: '👨‍🚀', type: 'creature', cost: { light: 3, earth: 1 }, power: 2, toughness: 3, abilities: ['vigilance'], name: 'Space Marine', desc: 'Elite soldier', theme: 'scifi' },
+            cyborg: { emoji: '🦾', type: 'creature', cost: { fire: 3, earth: 1 }, power: 4, toughness: 2, abilities: ['trample'], name: 'Cyborg Soldier', desc: 'Enhanced warrior', theme: 'scifi' },
+            android: { emoji: '🤖', type: 'creature', cost: { water: 3, light: 2 }, power: 3, toughness: 4, abilities: ['vigilance'], name: 'Android Guardian', desc: 'Synthetic protector', theme: 'scifi' },
+            mech: { emoji: '🦿', type: 'creature', cost: { earth: 5, fire: 2 }, power: 6, toughness: 5, abilities: ['trample'], name: 'Battle Mech', desc: 'Walking fortress', theme: 'scifi' },
+            drone: { emoji: '🚁', type: 'creature', cost: { light: 2, fire: 1 }, power: 2, toughness: 1, abilities: ['flying', 'haste'], name: 'Attack Drone', desc: 'Autonomous flyer', theme: 'scifi' },
+            computer: { emoji: '💻', type: 'creature', cost: { light: 2, water: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'AI Core', desc: 'Digital intelligence', theme: 'scifi' },
+            brain: { emoji: '🧠', type: 'creature', cost: { swamp: 3, water: 1 }, power: 2, toughness: 3, abilities: [], name: 'Cyber Brain', desc: 'Artificial mind', theme: 'scifi' },
+            dna: { emoji: '🧬', type: 'creature', cost: { earth: 2, light: 1 }, power: 1, toughness: 2, abilities: [], name: 'Gene Splice', desc: 'Genetic experiment', theme: 'scifi' },
+            microbe: { emoji: '🦠', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: [], name: 'Nano Virus', desc: 'Microscopic threat', theme: 'scifi' },
+            pill: { emoji: '💊', type: 'creature', cost: { light: 1, water: 1 }, power: 0, toughness: 2, abilities: ['lifelink'], name: 'Med Capsule', desc: 'Healing nanobot', theme: 'scifi' },
+            syringe: { emoji: '💉', type: 'creature', cost: { swamp: 2, fire: 1 }, power: 2, toughness: 1, abilities: [], name: 'Bio Injector', desc: 'Chemical weapon', theme: 'scifi' },
+            microscope: { emoji: '🔬', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Lab Scanner', desc: 'Research unit', theme: 'scifi' },
+            telescope: { emoji: '🔭', type: 'creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'reach'], name: 'Orbital Scanner', desc: 'Long-range sensor', theme: 'scifi' },
+            battery: { emoji: '🔋', type: 'creature', cost: { fire: 1, water: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Power Cell', desc: 'Energy storage', theme: 'scifi' },
+            magnet: { emoji: '🧲', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Magnetic Trap', desc: 'Pulls enemies in', theme: 'scifi' },
+            satellite_dish: { emoji: '📡', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Signal Tower', desc: 'Communication hub', theme: 'scifi' },
+            radar: { emoji: '📡', type: 'creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['reach'], name: 'Radar Array', desc: 'Detection system', theme: 'scifi' },
+            bomb_scifi: { emoji: '💣', type: 'creature', cost: { fire: 3 }, power: 4, toughness: 1, abilities: [], name: 'Plasma Bomb', desc: 'Explosive payload', theme: 'scifi' },
+            gear: { emoji: '⚙️', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: [], name: 'Mech Part', desc: 'Machine component', theme: 'scifi' },
+            wrench: { emoji: '🔧', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 1, abilities: [], name: 'Repair Bot', desc: 'Maintenance unit', theme: 'scifi' },
+            hammer: { emoji: '🔨', type: 'creature', cost: { fire: 2, earth: 1 }, power: 3, toughness: 1, abilities: [], name: 'Forge Hammer', desc: 'Construction tool', theme: 'scifi' },
+            hourglass: { emoji: '⏳', type: 'creature', cost: { light: 3, swamp: 1 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Time Device', desc: 'Temporal manipulator', theme: 'scifi' },
+            alarm: { emoji: '⏰', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Alert System', desc: 'Quick responder', theme: 'scifi' },
+            watch: { emoji: '⌚', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: [], name: 'Chrono Watch', desc: 'Time keeper', theme: 'scifi' },
+            cd: { emoji: '💿', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Data Disc', desc: 'Information storage', theme: 'scifi' },
+            phone: { emoji: '📱', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: [], name: 'Comm Device', desc: 'Mobile terminal', theme: 'scifi' },
+            camera: { emoji: '📷', type: 'creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Spy Camera', desc: 'Surveillance unit', theme: 'scifi' },
+            video: { emoji: '📹', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Recorder Drone', desc: 'Video capture', theme: 'scifi' },
+        },
+        
+        // SPELLS - GREATLY EXPANDED
+        spells: {
+            // Fire Spells
+            fireball: { emoji: '💥', type: 'instant', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to target' },
+            explosion: { emoji: '🎆', type: 'instant', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to target' },
+            inferno: { emoji: '🔥', type: 'instant', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target' },
+            meteor: { emoji: '☄️', type: 'instant', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact' },
+            flame: { emoji: '🕯️', type: 'instant', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn' },
+            
+            // Water Spells
+            freeze: { emoji: '❄️', type: 'instant', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature' },
+            tsunami: { emoji: '🌊', type: 'instant', cost: { water: 5 }, effect: 'bounce', name: 'Tsunami', desc: 'Return creatures to hand' },
+            bubble: { emoji: '🫧', type: 'instant', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature' },
+            rain: { emoji: '🌧️', type: 'instant', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life' },
+            whirlpool: { emoji: '🌀', type: 'instant', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature' },
+            
+            // Earth Spells
+            earthquake: { emoji: '🌋', type: 'instant', cost: { earth: 4 }, effect: 'damage', value: 2, target: 'all', name: 'Earthquake', desc: 'Deal 2 to all creatures' },
+            growth: { emoji: '🌱', type: 'instant', cost: { earth: 2 }, effect: 'buff', value: 2, name: 'Growth', desc: '+2/+2 to creature' },
+            roots: { emoji: '🌿', type: 'instant', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature' },
+            avalanche: { emoji: '🏔️', type: 'instant', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures' },
+            harvest: { emoji: '🌾', type: 'instant', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards' },
+            
+            // Swamp Spells
+            curse: { emoji: '🔮', type: 'instant', cost: { swamp: 3 }, effect: 'destroy', name: 'Curse', desc: 'Destroy target creature' },
+            drain: { emoji: '💉', type: 'instant', cost: { swamp: 2 }, effect: 'drain', value: 2, name: 'Drain Life', desc: 'Deal 2, gain 2 life' },
+            poison: { emoji: '☠️', type: 'instant', cost: { swamp: 3 }, effect: 'damage', value: 3, name: 'Poison', desc: 'Deal 3 damage' },
+            necromancy: { emoji: '⚰️', type: 'instant', cost: { swamp: 4 }, effect: 'revive', name: 'Necromancy', desc: 'Return creature from graveyard' },
+            terror: { emoji: '😱', type: 'instant', cost: { swamp: 2 }, effect: 'tap', name: 'Terror', desc: 'Tap target creature' },
+            
+            // Light Spells
+            heal: { emoji: '✨', type: 'instant', cost: { light: 2 }, effect: 'heal', value: 3, name: 'Heal', desc: 'Restore 3 life' },
+            smite: { emoji: '⚡', type: 'instant', cost: { light: 3 }, effect: 'damage', value: 3, name: 'Divine Smite', desc: 'Deal 3 damage' },
+            blessing: { emoji: '🙏', type: 'instant', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature' },
+            light_beam: { emoji: '💫', type: 'instant', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage' },
+            resurrection: { emoji: '⛪', type: 'instant', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard' }
+        },
+        
+        // ARTIFACTS - EXPANDED
+        artifacts: {
+            sword: { emoji: '⚔️', type: 'artifact', cost: { fire: 2 }, effect: 'buff', value: 2, name: 'Flaming Sword', desc: 'Equipped creature gets +2/+0' },
+            shield: { emoji: '🛡️', type: 'artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2' },
+            crown: { emoji: '👑', type: 'artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn' },
+            gem: { emoji: '💎', type: 'artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana' },
+            bomb: { emoji: '💣', type: 'artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to all enemies' },
+            chalice: { emoji: '🏆', type: 'artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn' },
+            scroll: { emoji: '📜', type: 'artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card' },
+            orb: { emoji: '🔮', type: 'artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn' },
+            horn: { emoji: '📯', type: 'artifact', cost: { earth: 2 }, effect: 'buff', value: 1, name: 'War Horn', desc: 'All creatures get +1/+0' },
+            amulet: { emoji: '🪬', type: 'artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, name: 'Protective Amulet', desc: 'All creatures get +0/+1' },
+            ring: { emoji: '💍', type: 'artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production' },
+            armor: { emoji: '🦺', type: 'artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped' },
+            axe: { emoji: '🪓', type: 'artifact', cost: { fire: 3 }, effect: 'buff', value: 3, name: 'Battle Axe', desc: '+3/+0 to equipped' },
+            bow: { emoji: '🏹', type: 'artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, name: 'Elven Bow', desc: '+2/+0 and flying' },
+            wand: { emoji: '🪄', type: 'artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated' }
+        }
+    };
+
+    // Particle System
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let particles = [];
+
+    class Particle {
+        constructor(x, y, color, type = 'default') {
+            this.x = x;
+            this.y = y;
+            this.vx = (Math.random() - 0.5) * 4;
+            this.vy = (Math.random() - 0.5) * 4;
+            this.life = 1;
+            this.decay = 0.02;
+            this.color = color;
+            this.size = Math.random() * 4 + 2;
+            this.type = type;
+        }
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += 0.1; // gravity
+            this.life -= this.decay;
+            this.size *= 0.98;
+        }
+
+        draw() {
+            ctx.globalAlpha = this.life;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    function createParticles(x, y, color, count = 20) {
+        for (let i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color));
+        }
+    }
+
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        particles = particles.filter(p => p.life > 0);
+        
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+
+        requestAnimationFrame(animateParticles);
+    }
+
+    animateParticles();
+
+    // Game Log System
+    function showGameLog(message, isEnemy = false, isScifi = false) {
+        const log = document.getElementById('gameLog');
+        log.textContent = message;
+        log.className = 'game-log show';
+        
+        if (isEnemy) {
+            log.classList.add('enemy');
+        }
+        if (isScifi) {
+            log.classList.add('scifi');
+        }
+
+        setTimeout(() => {
+            log.classList.remove('show');
+        }, 2000);
+    }
+
+    // Visual Effects Functions
+    function createSparkles(x, y, count = 15) {
+        const sparkleEmojis = ['✨', '💫', '⭐', '🌟', '💖'];
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.textContent = sparkleEmojis[Math.floor(Math.random() * sparkleEmojis.length)];
+                sparkle.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
+                sparkle.style.top = (y + (Math.random() - 0.5) * 100) + 'px';
+                document.body.appendChild(sparkle);
+                setTimeout(() => sparkle.remove(), 1000);
+            }, i * 50);
+        }
+    }
+
+    function createTrampleEffect(x, y) {
+        const trampleEmojis = ['💥', '⚡', '💢', '💨'];
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const effect = document.createElement('div');
+                effect.className = 'trample-effect';
+                effect.textContent = trampleEmojis[Math.floor(Math.random() * trampleEmojis.length)];
+                effect.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
+                effect.style.top = (y + (Math.random() - 0.5) * 80) + 'px';
+                document.body.appendChild(effect);
+                setTimeout(() => effect.remove(), 800);
+            }, i * 100);
+        }
+    }
+
+    function shakeScreen() {
+        const gameContainer = document.getElementById('gameContainer');
+        gameContainer.classList.add('shake-board');
+        setTimeout(() => {
+            gameContainer.classList.remove('shake-board');
+        }, 500);
+    }
+
+    function shakeElement(element) {
+        element.classList.add('shake');
+        setTimeout(() => {
+            element.classList.remove('shake');
+        }, 500);
+    }
+
+    // Menu Navigation
+    function showElementSelection() {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('elementSelectionScreen').style.display = 'block';
+    }
+
+    function showHowToPlay() {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('howToPlayScreen').style.display = 'block';
+    }
+
+    function showStats() {
+        document.getElementById('mainMenu').style.display = 'none';
+        document.getElementById('statsScreen').style.display = 'block';
+        updateStatsDisplay();
+    }
+
+    function backToMenu() {
+        document.getElementById('mainMenu').style.display = 'block';
+        document.getElementById('elementSelectionScreen').style.display = 'none';
+        document.getElementById('howToPlayScreen').style.display = 'none';
+        document.getElementById('statsScreen').style.display = 'none';
+    }
+
+    // Pause/Resume Functions
+    function pauseGame() {
+        document.getElementById('pauseModal').classList.add('show');
+    }
+
+    function resumeGame() {
+        document.getElementById('pauseModal').classList.remove('show');
+    }
+
+    function confirmQuit() {
+        if (confirm('Are you sure you want to quit to main menu? Current game will be lost.')) {
+            location.reload();
+        }
+    }
+
+    function updateStatsDisplay() {
+        document.getElementById('gamesWon').textContent = gameStats.wins;
+        document.getElementById('gamesLost').textContent = gameStats.losses;
+        document.getElementById('totalGames').textContent = gameStats.total;
+        const winRate = gameStats.total > 0 ? Math.round((gameStats.wins / gameStats.total) * 100) : 0;
+        document.getElementById('winRate').textContent = winRate + '%';
+    }
+
+    function resetStats() {
+        if (confirm('Are you sure you want to reset all statistics?')) {
+            gameStats = { wins: 0, losses: 0, total: 0 };
+            saveStats();
+            updateStatsDisplay();
+        }
+    }
+
+    function selectDifficulty(difficulty) {
+        gameState.difficulty = difficulty;
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        document.querySelector(`[data-difficulty="${difficulty}"]`).classList.add('selected');
+    }
+
+    // Card Detail Popup
+    function showCardDetail(card) {
+        const popup = document.getElementById('cardDetailPopup');
+        const emoji = document.getElementById('detailEmoji');
+        const name = document.getElementById('detailName');
+        const content = document.getElementById('detailContent');
+
+        emoji.textContent = card.emoji;
+        name.textContent = card.name;
+
+        let html = '';
+
+        if (card.type === 'land') {
+            html = `
+                <div class="card-detail-section">
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Type:</span> Land
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Effect:</span> Tap to add ${ELEMENTS[card.element].emoji} to your mana pool
+                    </div>
+                </div>
+            `;
+        } else if (card.type === 'creature') {
+            const costStr = Object.entries(card.cost)
+                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
+                .join(', ');
+            
+            const abilitiesStr = card.abilities && card.abilities.length > 0 
+                ? card.abilities.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')
+                : 'None';
+
+            html = `
+                <div class="card-detail-section">
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Type:</span> Creature
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Cost:</span> ${costStr}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Power/Toughness:</span> ${card.power}/${card.toughness}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Abilities:</span> ${abilitiesStr}
+                    </div>
+                </div>
+                <div class="card-detail-section">
+                    <div class="card-detail-info" style="font-style: italic;">
+                        ${card.desc || 'A mighty creature'}
+                    </div>
+                </div>
+            `;
+        } else if (card.type === 'instant') {
+            const costStr = Object.entries(card.cost)
+                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
+                .join(', ');
+
+            html = `
+                <div class="card-detail-section">
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Type:</span> Instant Spell
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Cost:</span> ${costStr}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Magical effect'}
+                    </div>
+                </div>
+            `;
+        } else if (card.type === 'artifact') {
+            const costStr = Object.entries(card.cost)
+                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
+                .join(', ');
+
+            html = `
+                <div class="card-detail-section">
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Type:</span> Artifact
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Cost:</span> ${costStr}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Powerful artifact'}
+                    </div>
+                </div>
+            `;
+        }
+
+        content.innerHTML = html;
+        popup.classList.add('show');
+    }
+
+    function hideCardDetail() {
+        document.getElementById('cardDetailPopup').classList.remove('show');
+    }
+
+    // Close popup when clicking outside
+    document.getElementById('cardDetailPopup').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideCardDetail();
+        }
+    });
+
+    // Element Selection
+    function selectElement(element) {
+        const btn = document.querySelector(`[data-element="${element}"]`);
+        
+        if (gameState.selectedElements.includes(element)) {
+            gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
+            btn.classList.remove('selected');
+        } else if (gameState.selectedElements.length < 2) {
+            gameState.selectedElements.push(element);
+            btn.classList.add('selected');
+        }
+
+        document.getElementById('startBtn').disabled = gameState.selectedElements.length !== 2;
+    }
+
+    // Deck Generation with improved shuffling
+    function generateDeck(elements) {
+        const deck = [];
+        
+        // Add 25 lands (12-13 of each type)
+        elements.forEach((element, index) => {
+            const count = index === 0 ? 13 : 12;
+            for (let i = 0; i < count; i++) {
+                deck.push({...CARD_DATABASE.lands[element], id: Math.random()});
+            }
+        });
+
+        // Add 35 spells/creatures/artifacts
+        const availableCards = [];
+        
+        // Get creatures - ONLY if ALL cost elements are in player's selected elements
+        Object.values(CARD_DATABASE.creatures).forEach(creature => {
+            const costElements = Object.keys(creature.cost);
+            // Check if ALL cost elements are available in player's elements
+            if (costElements.every(e => elements.includes(e))) {
+                availableCards.push(creature);
+            }
+        });
+
+        // Get spells - ONLY if ALL cost elements are in player's selected elements
+        Object.values(CARD_DATABASE.spells).forEach(spell => {
+            const costElements = Object.keys(spell.cost);
+            if (costElements.every(e => elements.includes(e))) {
+                availableCards.push(spell);
+            }
+        });
+
+        // Get artifacts - ONLY if ALL cost elements are in player's selected elements
+        Object.values(CARD_DATABASE.artifacts).forEach(artifact => {
+            const costElements = Object.keys(artifact.cost);
+            if (costElements.every(e => elements.includes(e))) {
+                availableCards.push(artifact);
+            }
+        });
+
+        // Add 35 random cards from available pool
+        for (let i = 0; i < 35; i++) {
+            if (availableCards.length > 0) {
+                const card = availableCards[Math.floor(Math.random() * availableCards.length)];
+                deck.push({...card, id: Math.random()});
+            }
+        }
+
+        // Improved shuffle algorithm (Fisher-Yates)
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+
+        return deck;
+    }
+
+    // Start Game
+    // Mulligan function
+    function mulligan() {
+        if (mulliganUsed) {
+            alert('You can only mulligan once per game!');
+            return;
+        }
+        
+        if (!confirm('Mulligan? Put all cards back and draw 6 new cards?')) {
+            return;
+        }
+        
+        // Return hand to deck
+        gameState.playerDeck = gameState.playerDeck.concat(gameState.playerHand);
+        gameState.playerHand = [];
+        
+        // Shuffle
+        shuffleDeck(gameState.playerDeck);
+        
+        // Draw 6 cards
+        for (let i = 0; i < 6; i++) {
+            drawCard('player');
+        }
+        
+        mulliganUsed = true;
+        document.getElementById('mulliganBtn').disabled = true;
+        document.getElementById('mulliganBtn').style.opacity = '0.5';
+        
+        showGameLog('🔄 Mulligan - Drew 6 new cards', false);
+        updateUI();
+    }
+
+    // Update deck counters
+    function updateDeckCounters() {
+        document.getElementById('playerDeckCount').textContent = gameState.playerDeck.length;
+        document.getElementById('enemyDeckCount').textContent = gameState.enemyDeck.length;
+    }
+
+    function startGame() {
+        gameState.playerDeck = generateDeck(gameState.selectedElements);
+        
+        // AI picks random elements
+        const aiElements = [];
+        const elementKeys = Object.keys(ELEMENTS);
+        while (aiElements.length < 2) {
+            const element = elementKeys[Math.floor(Math.random() * elementKeys.length)];
+            if (!aiElements.includes(element)) {
+                aiElements.push(element);
+            }
+        }
+        gameState.enemyDeck = generateDeck(aiElements);
+
+        // Draw starting hands
+        for (let i = 0; i < 7; i++) {
+            drawCard('player');
+            drawCard('enemy');
+        }
+
+        document.getElementById('startModal').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'flex';
+
+        // Reset mulligan button
+        mulliganUsed = false;
+        document.getElementById('mulliganBtn').disabled = false;
+        document.getElementById('mulliganBtn').style.opacity = '1';
+
+        updateUI();
+        updateDeckCounters();
+    }
+
+    // Draw Card
+    function drawCard(player) {
+        if (player === 'player' && gameState.playerDeck.length > 0) {
+            gameState.playerHand.push(gameState.playerDeck.pop());
+        } else if (player === 'enemy' && gameState.enemyDeck.length > 0) {
+            gameState.enemyHand.push(gameState.enemyDeck.pop());
+        }
+    }
+
+    // Play Card
+    function playCard(cardId) {
+        const card = gameState.playerHand.find(c => c.id === cardId);
+        if (!card) return;
+
+        // Check if can pay cost
+        if (!canPayCost(card.cost, gameState.playerMana)) {
+            showCardDetail(card);
+            setTimeout(() => alert('Not enough mana!'), 100);
+            return;
+        }
+
+        // Pay cost
+        payCost(card.cost, gameState.playerMana);
+
+        // Remove from hand
+        gameState.playerHand = gameState.playerHand.filter(c => c.id !== cardId);
+
+        // Play the card
+        if (card.type === 'land') {
+            // Lands go to board and generate mana
+            gameState.playerBoard.push({...card, tapped: false});
+            showGameLog(`🌍 You play ${card.name}`, false);
+        } else if (card.type === 'creature') {
+            gameState.playerBoard.push({...card, tapped: true, damage: 0}); // summoning sickness
+            showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'scifi');
+        } else if (card.type === 'artifact') {
+            gameState.playerBoard.push({...card, tapped: false});
+            showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'scifi');
+        } else if (card.type === 'instant') {
+            showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'scifi');
+            resolveSpell(card, 'player');
+        }
+
+        // Particles
+        const handEl = document.getElementById('playerHand');
+        const rect = handEl.getBoundingClientRect();
+        createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ffd700', 30);
+
+        updateUI();
+    }
+
+    // Check if can pay cost
+    function canPayCost(cost, mana) {
+        for (let element in cost) {
+            if (!mana[element] || mana[element] < cost[element]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Pay cost
+    function payCost(cost, mana) {
+        for (let element in cost) {
+            mana[element] -= cost[element];
+        }
+    }
+
+    // Tap lands for mana
+    function tapLand(cardId) {
+        const card = gameState.playerBoard.find(c => c.id === cardId);
+        if (!card || card.type !== 'land') return;
+        
+        // If tapped, UNTAP it and refund mana
+        if (card.tapped) {
+            card.tapped = false;
+            if (gameState.playerMana[card.element] > 0) {
+                gameState.playerMana[card.element]--;
+                showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
+                updateUI();
+            }
+            return;
+        }
+
+        // Otherwise tap it for mana
+        card.tapped = true;
+        gameState.playerMana[card.element] = (gameState.playerMana[card.element] || 0) + 1;
+        
+        showGameLog(`⚡ You tap ${card.name} for mana`, false);
+
+        updateUI();
+    }
+
+    // Resolve Spell
+    function resolveSpell(card, caster) {
+        const isCasterPlayer = caster === 'player';
+        
+        switch(card.effect) {
+            case 'damage':
+                if (card.target === 'all') {
+                    // Damage all creatures
+                    const board = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                    board.forEach(c => {
+                        if (c.type === 'creature') {
+                            c.damage = (c.damage || 0) + card.value;
+                        }
+                    });
+                    shakeScreen();
+                } else {
+                    // Damage opponent
+                    if (isCasterPlayer) {
+                        gameState.enemyLife -= card.value;
+                        const enemyArea = document.querySelector('.enemy-area');
+                        const rect = enemyArea.getBoundingClientRect();
+                        createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff4500', 30);
+                    } else {
+                        gameState.playerLife -= card.value;
+                        const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+                        const rect = playerArea.getBoundingClientRect();
+                        createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff4500', 30);
+                    }
+                }
+                break;
+                
+            case 'heal':
+                if (isCasterPlayer) {
+                    gameState.playerLife = Math.min(20, gameState.playerLife + card.value);
+                    const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
+                    const rect = playerInfo.getBoundingClientRect();
+                    createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20);
+                } else {
+                    gameState.enemyLife = Math.min(20, gameState.enemyLife + card.value);
+                    const enemyInfo = document.querySelector('.enemy-area .player-info');
+                    const rect = enemyInfo.getBoundingClientRect();
+                    createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20);
+                }
+                break;
+                
+            case 'draw':
+                for (let i = 0; i < card.value; i++) {
+                    drawCard(caster);
+                }
+                break;
+
+            case 'drain':
+                if (isCasterPlayer) {
+                    gameState.enemyLife -= card.value;
+                    gameState.playerLife = Math.min(20, gameState.playerLife + card.value);
+                    const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
+                    const rect = playerInfo.getBoundingClientRect();
+                    createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 15);
+                } else {
+                    gameState.playerLife -= card.value;
+                    gameState.enemyLife = Math.min(20, gameState.enemyLife + card.value);
+                }
+                break;
+        }
+    }
+
+    // Attack Phase
+    let attackPhase = false;
+
+    function enterAttackPhase() {
+        attackPhase = true;
+        gameState.attackers = [];
+        gameState.phase = 'attack';
+        document.getElementById('phaseIndicator').textContent = 'DECLARE ATTACKERS';
+        document.getElementById('attackBtn').textContent = '✓ CONFIRM';
+        document.getElementById('attackBtn').onclick = confirmAttackers;
+        updateUI();
+    }
+
+    function selectAttacker(cardId) {
+        if (!attackPhase) return;
+        
+        const card = gameState.playerBoard.find(c => c.id === cardId);
+        if (!card || card.type !== 'creature' || card.tapped) return;
+
+        if (gameState.attackers.includes(cardId)) {
+            gameState.attackers = gameState.attackers.filter(id => id !== cardId);
+        } else {
+            gameState.attackers.push(cardId);
+        }
+
+        updateUI();
+    }
+
+    function confirmAttackers() {
+        if (gameState.attackers.length === 0) {
+            attackPhase = false;
+            gameState.phase = 'main';
+            document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+            document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+            document.getElementById('attackBtn').onclick = enterAttackPhase;
+            showGameLog('🛡️ You choose not to attack', false);
+            return;
+        }
+
+        showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
+
+        // AI declares blockers
+        aiDeclareBlockers();
+
+        // Resolve combat
+        resolveCombat();
+
+        attackPhase = false;
+        gameState.phase = 'main';
+        document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').onclick = enterAttackPhase;
+
+        checkGameOver();
+        updateUI();
+    }
+
+    function aiDeclareBlockers() {
+        gameState.blockers = {};
+        
+        const availableBlockers = gameState.enemyBoard.filter(c => 
+            c.type === 'creature' && !c.tapped
+        );
+
+        gameState.attackers.forEach(attackerId => {
+            const attacker = gameState.playerBoard.find(c => c.id === attackerId);
+            
+            // AI logic: block with similarly powered creature if available
+            const blocker = availableBlockers.find(b => 
+                b.power >= attacker.power - 1 && !Object.values(gameState.blockers).includes(b.id)
+            );
+
+            if (blocker) {
+                gameState.blockers[attackerId] = blocker.id;
+            }
+        });
+    }
+
+    function resolveCombat() {
+        gameState.attackers.forEach(attackerId => {
+            const attacker = gameState.playerBoard.find(c => c.id === attackerId);
+            if (!attacker) return;
+
+            attacker.tapped = true;
+
+            const blockerId = gameState.blockers[attackerId];
+            
+            if (blockerId) {
+                // Combat between creatures
+                const blocker = gameState.enemyBoard.find(c => c.id === blockerId);
+                if (blocker) {
+                    // Apply damage
+                    attacker.damage = (attacker.damage || 0) + blocker.power;
+                    blocker.damage = (blocker.damage || 0) + attacker.power;
+
+                    // Trample effect
+                    if (attacker.abilities?.includes('trample')) {
+                        const excessDamage = attacker.power - blocker.toughness;
+                        if (excessDamage > 0) {
+                            gameState.enemyLife -= excessDamage;
+                            shakeScreen();
+                            const enemyArea = document.querySelector('.enemy-area');
+                            const rect = enemyArea.getBoundingClientRect();
+                            createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff8c00', 30);
+                        }
+                    }
+
+                    // Lifelink effect
+                    if (attacker.abilities?.includes('lifelink')) {
+                        gameState.playerLife = Math.min(20, gameState.playerLife + attacker.power);
+                        const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
+                        const rect = playerInfo.getBoundingClientRect();
+                        createSparkles(rect.left + 50, rect.top + rect.height / 2);
+                    }
+
+                    // Check deaths
+                    if (attacker.damage >= attacker.toughness) {
+                        gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== attackerId);
+                    }
+                    if (blocker.damage >= blocker.toughness) {
+                        gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== blockerId);
+                    }
+                }
+            } else {
+                // Direct damage to enemy
+                gameState.enemyLife -= attacker.power;
+                
+                // Lifelink effect
+                if (attacker.abilities?.includes('lifelink')) {
+                    gameState.playerLife = Math.min(20, gameState.playerLife + attacker.power);
+                    const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
+                    const rect = playerInfo.getBoundingClientRect();
+                    createSparkles(rect.left + 50, rect.top + rect.height / 2);
+                }
+                
+                // Particles
+                const enemyArea = document.querySelector('.enemy-area');
+                const rect = enemyArea.getBoundingClientRect();
+                createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 40);
+            }
+        });
+
+        gameState.attackers = [];
+        gameState.blockers = {};
+    }
+
+    // End Turn
+    function endTurn() {
+        // Show end turn message
+        showGameLog('✅ You end your turn', false);
+        
+        // Untap all player permanents
+        gameState.playerBoard.forEach(card => card.tapped = false);
+
+        // Reset mana
+        gameState.playerMana = {};
+
+        gameState.turn = 'enemy';
+        gameState.phase = 'enemy';
+        document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
+        
+        updateUI();
+
+        // AI turn
+        setTimeout(() => {
+            aiTurn();
+        }, 1500);
+    }
+
+    // Start player turn
+    function startPlayerTurn() {
+        gameState.turn = 'player';
+        gameState.phase = 'main';
+        document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+        
+        // Draw card at start of turn
+        drawCard('player');
+        showGameLog('📜 You draw a card', false);
+        
+        // Untap and reset mana
+        gameState.playerBoard.forEach(card => card.tapped = false);
+        gameState.playerMana = {};
+        
+        updateUI();
+    }
+
+    // AI Turn
+    function aiTurn() {
+        // Untap enemy permanents
+        gameState.enemyBoard.forEach(card => card.tapped = false);
+        gameState.enemyMana = {};
+
+        // Draw card
+        drawCard('enemy');
+        showGameLog('🎴 Enemy draws a card', true);
+        
+        setTimeout(() => {
+            // Play lands
+            const landInHand = gameState.enemyHand.find(c => c.type === 'land');
+            if (landInHand) {
+                gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== landInHand.id);
+                gameState.enemyBoard.push({...landInHand, tapped: false});
+                showGameLog(`🌍 Enemy plays ${landInHand.name}`, true);
+                updateUI();
+            }
+
+            setTimeout(() => {
+                // Tap lands for mana
+                let manaTapped = false;
+                gameState.enemyBoard.forEach(card => {
+                    if (card.type === 'land' && !card.tapped) {
+                        card.tapped = true;
+                        gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
+                        manaTapped = true;
+                    }
+                });
+                
+                if (manaTapped) {
+                    showGameLog('⚡ Enemy taps lands for mana', true);
+                    updateUI();
+                }
+
+                setTimeout(() => {
+                    // Play creatures based on difficulty
+                    const playableCreatures = gameState.enemyHand
+                        .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
+                        .sort((a, b) => {
+                            if (gameState.difficulty === 'easy') {
+                                return 0;
+                            } else if (gameState.difficulty === 'medium') {
+                                return (b.power + b.toughness) - (a.power + a.toughness);
+                            } else {
+                                const effA = (a.power + a.toughness) / Object.values(a.cost).reduce((sum, v) => sum + v, 0);
+                                const effB = (b.power + b.toughness) / Object.values(b.cost).reduce((sum, v) => sum + v, 0);
+                                return effB - effA;
+                            }
+                        });
+
+                    let creaturePlayed = false;
+                    playableCreatures.forEach(creature => {
+                        if (canPayCost(creature.cost, gameState.enemyMana)) {
+                            payCost(creature.cost, gameState.enemyMana);
+                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
+                            gameState.enemyBoard.push({...creature, tapped: true, damage: 0});
+                            showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
+                            creaturePlayed = true;
+                        }
+                    });
+
+                    if (creaturePlayed) {
+                        updateUI();
+                    }
+
+                    setTimeout(() => {
+                        // Play spells on hard difficulty
+                        if (gameState.difficulty === 'hard') {
+                            const playableSpells = gameState.enemyHand
+                                .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana));
+                            
+                            let spellPlayed = false;
+                            playableSpells.forEach(spell => {
+                                if (canPayCost(spell.cost, gameState.enemyMana)) {
+                                    payCost(spell.cost, gameState.enemyMana);
+                                    gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
+                                    showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
+                                    resolveSpell(spell, 'enemy');
+                                    spellPlayed = true;
+                                }
+                            });
+
+                            if (spellPlayed) {
+                                updateUI();
+                            }
+                        }
+
+                        setTimeout(() => {
+                            // Attack with creatures
+                            const attackers = gameState.enemyBoard.filter(c => 
+                                c.type === 'creature' && !c.tapped
+                            );
+
+                            let attackingCreatures = [];
+                            if (gameState.difficulty === 'easy') {
+                                attackingCreatures = attackers.filter(() => Math.random() > 0.5);
+                            } else if (gameState.difficulty === 'medium') {
+                                attackingCreatures = attackers.filter(c => !c.abilities?.includes('defender'));
+                            } else {
+                                const sorted = attackers
+                                    .filter(c => !c.abilities?.includes('defender'))
+                                    .sort((a, b) => (b.power + b.toughness) - (a.power + a.toughness));
+                                
+                                if (sorted.length > 1) {
+                                    attackingCreatures = sorted.slice(1);
+                                } else {
+                                    attackingCreatures = sorted;
+                                }
+                            }
+
+                            if (attackingCreatures.length > 0) {
+                                showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
+                            } else {
+                                showGameLog('🛡️ Enemy does not attack', true);
+                            }
+
+                            attackingCreatures.forEach(attacker => {
+                                attacker.tapped = true;
+                                gameState.playerLife -= attacker.power;
+                                
+                                if (attacker.abilities?.includes('trample')) {
+                                    shakeScreen();
+                                    const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+                                    const rect = playerArea.getBoundingClientRect();
+                                    createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                                }
+
+                                if (attacker.abilities?.includes('lifelink')) {
+                                    gameState.enemyLife = Math.min(20, gameState.enemyLife + attacker.power);
+                                    const enemyInfo = document.querySelector('.enemy-area .player-info');
+                                    const rect = enemyInfo.getBoundingClientRect();
+                                    createSparkles(rect.left + 50, rect.top + rect.height / 2, 10);
+                                }
+                                
+                                const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+                                const rect = playerArea.getBoundingClientRect();
+                                createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
+                            });
+
+                            updateUI();
+                            checkGameOver();
+
+                            setTimeout(() => {
+                                startPlayerTurn();
+                            }, 1500);
+                        }, 1500);
+                    }, 1500);
+                }, 1500);
+            }, 1500);
+        }, 1000);
+    }
+
+    // Check Game Over
+    function checkGameOver() {
+        if (gameState.playerLife <= 0) {
+            gameStats.losses++;
+            gameStats.total++;
+            saveStats();
+            setTimeout(() => {
+                alert('💀 DEFEAT! The enemy has conquered! 💀');
+                location.reload();
+            }, 100);
+        } else if (gameState.enemyLife <= 0) {
+            gameStats.wins++;
+            gameStats.total++;
+            saveStats();
+            setTimeout(() => {
+                alert('🏆 VICTORY! You are triumphant! 🏆');
+                location.reload();
+            }, 100);
+        }
+    }
+
+    // Update UI
+    function updateUI() {
+        // Update life totals
+        document.getElementById('playerLife').textContent = gameState.playerLife;
+        document.getElementById('enemyLife').textContent = gameState.enemyLife;
+
+        // Update deck counters
+        updateDeckCounters();
+
+        // Update mana pools
+        updateManaDisplay('playerMana', gameState.playerMana);
+        updateManaDisplay('enemyMana', gameState.enemyMana);
+
+        // Update player hand
+        const handEl = document.getElementById('playerHand');
+        handEl.innerHTML = '';
+        gameState.playerHand.forEach(card => {
+            const cardEl = createCardElement(card, false);
+            
+            // Click to play
+            cardEl.onclick = () => playCard(card.id);
+            
+            // Right-click or long-press to view details
+            cardEl.oncontextmenu = (e) => {
+                e.preventDefault();
+                showCardDetail(card);
+            };
+            
+            let longPressTimer;
+            cardEl.ontouchstart = (e) => {
+                longPressTimer = setTimeout(() => {
+                    showCardDetail(card);
+                }, 500);
+            };
+            cardEl.ontouchend = () => {
+                clearTimeout(longPressTimer);
+            };
+            
+            handEl.appendChild(cardEl);
+        });
+
+        // Update player board with STACKING for lands
+        const boardEl = document.getElementById('playerBoard');
+        boardEl.innerHTML = '';
+        
+        // Group lands by element
+        const landStacks = {};
+        const nonLands = [];
+        
+        gameState.playerBoard.forEach(card => {
+            if (card.type === 'land') {
+                if (!landStacks[card.element]) {
+                    landStacks[card.element] = [];
+                }
+                landStacks[card.element].push(card);
+            } else {
+                nonLands.push(card);
+            }
+        });
+
+        // Display land stacks
+        Object.keys(landStacks).forEach(element => {
+            const stack = landStacks[element];
+            const stackContainer = document.createElement('div');
+            stackContainer.className = 'card-stack';
+            stackContainer.style.position = 'relative';
+            stackContainer.style.minWidth = '60px';
+            stackContainer.style.height = '80px';
+            stackContainer.style.marginRight = '10px';
+            
+            // Display cards in stack with slight offset
+            stack.forEach((card, index) => {
+                const cardEl = createCardElement(card, true);
+                cardEl.style.position = 'absolute';
+                cardEl.style.left = (index * 3) + 'px';
+                cardEl.style.top = (index * 3) + 'px';
+                cardEl.style.zIndex = index;
+                
+                cardEl.onclick = () => tapLand(card.id);
+                
+                // Right-click to view details
+                cardEl.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showCardDetail(card);
+                };
+                
+                stackContainer.appendChild(cardEl);
+            });
+            
+            // Add count badge
+            if (stack.length > 1) {
+                const badge = document.createElement('div');
+                badge.className = 'stack-count';
+                badge.textContent = stack.length;
+                badge.style.position = 'absolute';
+                badge.style.bottom = '-5px';
+                badge.style.right = '-5px';
+                badge.style.background = 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)';
+                badge.style.color = '#2a1a0a';
+                badge.style.borderRadius = '50%';
+                badge.style.width = '24px';
+                badge.style.height = '24px';
+                badge.style.display = 'flex';
+                badge.style.alignItems = 'center';
+                badge.style.justifyContent = 'center';
+                badge.style.fontSize = '12px';
+                badge.style.fontWeight = 'bold';
+                badge.style.border = '2px solid #8b7355';
+                badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
+                badge.style.zIndex = stack.length + 1;
+                stackContainer.appendChild(badge);
+            }
+            
+            boardEl.appendChild(stackContainer);
+        });
+
+        // Display non-land cards normally
+        nonLands.forEach(card => {
+            const cardEl = createCardElement(card, true);
+            
+            if (card.type === 'creature' && attackPhase) {
+                cardEl.onclick = () => selectAttacker(card.id);
+                if (gameState.attackers.includes(card.id)) {
+                    cardEl.classList.add('attacking');
+                }
+            }
+            
+            // Right-click to view details
+            cardEl.oncontextmenu = (e) => {
+                e.preventDefault();
+                showCardDetail(card);
+            };
+            
+            boardEl.appendChild(cardEl);
+        });
+
+        // Update enemy board with STACKING for lands
+        const enemyBoardEl = document.getElementById('enemyBoard');
+        enemyBoardEl.innerHTML = '';
+        
+        // Group enemy lands by element
+        const enemyLandStacks = {};
+        const enemyNonLands = [];
+        
+        gameState.enemyBoard.forEach(card => {
+            if (card.type === 'land') {
+                if (!enemyLandStacks[card.element]) {
+                    enemyLandStacks[card.element] = [];
+                }
+                enemyLandStacks[card.element].push(card);
+            } else {
+                enemyNonLands.push(card);
+            }
+        });
+
+        // Display enemy land stacks
+        Object.keys(enemyLandStacks).forEach(element => {
+            const stack = enemyLandStacks[element];
+            const stackContainer = document.createElement('div');
+            stackContainer.className = 'card-stack';
+            stackContainer.style.position = 'relative';
+            stackContainer.style.minWidth = '60px';
+            stackContainer.style.height = '80px';
+            stackContainer.style.marginRight = '10px';
+            
+            // Display cards in stack with slight offset
+            stack.forEach((card, index) => {
+                const cardEl = createCardElement(card, true, true);
+                cardEl.style.position = 'absolute';
+                cardEl.style.left = (index * 3) + 'px';
+                cardEl.style.top = (index * 3) + 'px';
+                cardEl.style.zIndex = index;
+                
+                // Right-click to view details
+                cardEl.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    showCardDetail(card);
+                };
+                
+                stackContainer.appendChild(cardEl);
+            });
+            
+            // Add count badge
+            if (stack.length > 1) {
+                const badge = document.createElement('div');
+                badge.className = 'stack-count';
+                badge.textContent = stack.length;
+                badge.style.position = 'absolute';
+                badge.style.bottom = '-5px';
+                badge.style.right = '-5px';
+                badge.style.background = 'linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%)';
+                badge.style.color = '#fff';
+                badge.style.borderRadius = '50%';
+                badge.style.width = '24px';
+                badge.style.height = '24px';
+                badge.style.display = 'flex';
+                badge.style.alignItems = 'center';
+                badge.style.justifyContent = 'center';
+                badge.style.fontSize = '12px';
+                badge.style.fontWeight = 'bold';
+                badge.style.border = '2px solid #8b0000';
+                badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
+                badge.style.zIndex = stack.length + 1;
+                stackContainer.appendChild(badge);
+            }
+            
+            enemyBoardEl.appendChild(stackContainer);
+        });
+
+        // Display enemy non-land cards normally
+        enemyNonLands.forEach(card => {
+            const cardEl = createCardElement(card, true, true);
+            
+            // Right-click to view details
+            cardEl.oncontextmenu = (e) => {
+                e.preventDefault();
+                showCardDetail(card);
+            };
+            
+            enemyBoardEl.appendChild(cardEl);
+        });
+    }
+
+    function updateManaDisplay(elementId, manaPool) {
+        const el = document.getElementById(elementId);
+        el.innerHTML = '';
+        
+        for (let element in manaPool) {
+            if (manaPool[element] > 0) {
+                const manaEl = document.createElement('div');
+                manaEl.className = 'mana-icon';
+                manaEl.textContent = `${ELEMENTS[element].emoji} ${manaPool[element]}`;
+                el.appendChild(manaEl);
+            }
+        }
+    }
+
+    function createCardElement(card, onBoard, isEnemy = false) {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card';
+        
+        if (card.type === 'land') {
+            cardEl.classList.add('land');
+        }
+        if (card.theme === 'scifi') {
+            cardEl.classList.add('scifi');
+        }
+        if (card.tapped) {
+            cardEl.classList.add('tapped');
+        }
+        if (isEnemy) {
+            cardEl.classList.add('enemy-card');
+        }
+
+        // Emoji
+        const emojiEl = document.createElement('div');
+        emojiEl.textContent = card.emoji;
+        emojiEl.style.fontSize = '32px';
+        cardEl.appendChild(emojiEl);
+
+        // Cost
+        if (card.cost && !onBoard) {
+            const costEl = document.createElement('div');
+            costEl.className = 'card-cost';
+            const costStr = Object.entries(card.cost)
+                .map(([el, val]) => `${ELEMENTS[el].emoji}${val}`)
+                .join(' ');
+            costEl.textContent = costStr;
+            cardEl.appendChild(costEl);
+        }
+
+        // Power/Toughness
+        if (card.type === 'creature') {
+            const powerEl = document.createElement('div');
+            powerEl.className = 'card-power';
+            powerEl.textContent = `${card.power}/${card.toughness}`;
+            cardEl.appendChild(powerEl);
+
+            // Abilities
+            if (card.abilities && card.abilities.length > 0) {
+                const abilitiesEl = document.createElement('div');
+                abilitiesEl.className = 'card-abilities';
+                card.abilities.forEach(ability => {
+                    const abilityEl = document.createElement('div');
+                    abilityEl.className = 'ability-icon';
+                    abilityEl.textContent = ability[0].toUpperCase();
+                    abilitiesEl.appendChild(abilityEl);
+                });
+                cardEl.appendChild(abilitiesEl);
+            }
+        }
+
+        return cardEl;
+    }
+
+    // Resize canvas
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
