@@ -5,6 +5,10 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html {
+    background: #000;
+}
+
 /* Click to Start Overlay */
 .click-to-start-overlay {
     position: fixed;
@@ -38,6 +42,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    white-space: nowrap;
 }
 
 .click-to-start-text {
@@ -211,6 +216,7 @@ body::before {
     background-clip: text;
     flex: 1;
     text-align: center;
+    white-space: nowrap;
 }
 
 @media (min-width: 768px) {
@@ -580,6 +586,7 @@ body::before {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    white-space: nowrap;
 }
 
 @media (min-width: 768px) {
