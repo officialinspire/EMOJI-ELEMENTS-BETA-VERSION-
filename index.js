@@ -241,6 +241,8 @@
             clearTimeout(processingActionTimer);
             processingActionTimer = null;
         }
+        // CRITICAL FIX: Update UI to refresh button states immediately after releasing lock
+        updateUI();
     }
 
     // Mana System
