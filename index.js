@@ -84,7 +84,8 @@
         blockers: {},
         difficulty: 'easy',
         previousPlayerLife: 20,
-        previousEnemyLife: 20
+        previousEnemyLife: 20,
+        landsPlayedThisTurn: 0  // Track lands played to enforce one land per turn rule
     };
 
     // Stats tracking
@@ -953,6 +954,13 @@
         const card = gameState.playerHand.find(c => c.id === cardId);
         if (!card) return;
 
+        // LAND PLAY LIMIT: Enforce one land per turn rule
+        if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
+            showGameLog('⚠️ You can only play one land per turn!', false);
+            setTimeout(() => alert('You can only play one land per turn!'), 100);
+            return;
+        }
+
         // Check if can pay cost
         if (!canPayCost(card.cost, gameState.playerMana)) {
             showCardDetail(card);
@@ -973,6 +981,7 @@
         if (card.type === 'land') {
             // Lands go to board and generate mana
             gameState.playerBoard.push({...card, tapped: false});
+            gameState.landsPlayedThisTurn++;  // Increment land counter
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
             gameState.playerBoard.push({...card, tapped: true, damage: 0}); // summoning sickness
@@ -1139,9 +1148,23 @@
     }
 
     function enterAttackPhase() {
-        // Turn enforcement: Only allow during player's turn
-        if (gameState.turn !== 'player' || isProcessingAction) {
+        // Turn enforcement: Only allow during player's turn and main phase
+        if (gameState.turn !== 'player' || gameState.phase !== 'main') {
             showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        if (isProcessingAction) {
+            return; // Silently block during processing
+        }
+
+        // Check if there are any untapped creatures that can attack
+        const availableAttackers = gameState.playerBoard.filter(c =>
+            c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
+        );
+
+        if (availableAttackers.length === 0) {
+            showGameLog('⚠️ You have no creatures available to attack!', false);
             return;
         }
 
@@ -1313,9 +1336,15 @@
 
     // End Turn
     function endTurn() {
-        // Turn enforcement: Only allow ending turn during player's turn
+        // Turn enforcement: Only allow ending turn during player's turn and main phase
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        // Cannot end turn during attack phase
+        if (gameState.phase === 'attack' || attackPhase) {
+            showGameLog('⚠️ Complete or cancel your attack first!', false);
             return;
         }
 
@@ -1369,6 +1398,9 @@
         gameState.playerBoard.forEach(card => card.tapped = false);
         gameState.playerMana = {};
 
+        // Reset land counter for new turn
+        gameState.landsPlayedThisTurn = 0;
+
         updateUI();
 
         // Release processing lock - player can now take actions
@@ -1377,15 +1409,24 @@
 
     // AI Turn
     function aiTurn() {
-        // Untap enemy permanents
-        gameState.enemyBoard.forEach(card => card.tapped = false);
-        gameState.enemyMana = {};
+        // Emergency failsafe: ensure player turn starts even if something goes wrong
+        const emergencyTurnStart = setTimeout(() => {
+            console.warn('Emergency turn transition triggered');
+            if (gameState.turn === 'enemy') {
+                startPlayerTurn();
+            }
+        }, 12000); // 12 seconds maximum for AI turn
 
-        // Draw card
-        drawCard('enemy');
-        showGameLog('🎴 Enemy draws a card', true);
-        
-        setTimeout(() => {
+        try {
+            // Untap enemy permanents
+            gameState.enemyBoard.forEach(card => card.tapped = false);
+            gameState.enemyMana = {};
+
+            // Draw card
+            drawCard('enemy');
+            showGameLog('🎴 Enemy draws a card', true);
+
+            setTimeout(() => {
             // Play lands
             const landInHand = gameState.enemyHand.find(c => c.type === 'land');
             if (landInHand) {
@@ -1520,6 +1561,7 @@
                             checkGameOver();
 
                             setTimeout(() => {
+                                clearTimeout(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
                             }, 1500);
                         }, 1500);
@@ -1527,6 +1569,14 @@
                 }, 1500);
             }, 1500);
         }, 1000);
+        } catch (error) {
+            console.error('Error during AI turn:', error);
+            clearTimeout(emergencyTurnStart);
+            // Ensure turn transitions back to player even on error
+            setTimeout(() => {
+                startPlayerTurn();
+            }, 1000);
+        }
     }
 
     // Helper functions for lifepoint changes with sound and animation
