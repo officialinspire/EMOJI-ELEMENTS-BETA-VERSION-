@@ -21,24 +21,46 @@
         gameLose: new Audio('gamelosesfx.mp3')
     };
 
-    // Configure audio loops
+    // Configure audio loops and volume for mobile compatibility
     audioSystem.startMenuMusic.loop = true;
     audioSystem.gameplayMusic.loop = true;
+    audioSystem.startMenuMusic.volume = 0.5;
+    audioSystem.gameplayMusic.volume = 0.5;
+    audioSystem.gameVictory.volume = 0.7;
+    audioSystem.gameLose.volume = 0.7;
+
+    // Set all sound effects to reasonable volume
+    Object.keys(audioSystem).forEach(key => {
+        if (!['startMenuMusic', 'gameplayMusic', 'gameVictory', 'gameLose'].includes(key)) {
+            audioSystem[key].volume = 0.6;
+        }
+    });
 
     // Helper function to play sound effect
     function playSFX(soundName, loop = false) {
         if (audioSystem[soundName]) {
-            audioSystem[soundName].currentTime = 0;
-            audioSystem[soundName].loop = loop;
-            audioSystem[soundName].play().catch(e => console.log('Audio play failed:', e));
+            try {
+                audioSystem[soundName].currentTime = 0;
+                audioSystem[soundName].loop = loop;
+                const playPromise = audioSystem[soundName].play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => console.log('Audio play failed:', e));
+                }
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
         }
     }
 
     // Helper function to stop sound
     function stopSFX(soundName) {
         if (audioSystem[soundName]) {
-            audioSystem[soundName].pause();
-            audioSystem[soundName].currentTime = 0;
+            try {
+                audioSystem[soundName].pause();
+                audioSystem[soundName].currentTime = 0;
+            } catch (e) {
+                console.log('Audio stop error:', e);
+            }
         }
     }
 
@@ -457,22 +479,26 @@
 
     // Menu Navigation
     function showElementSelection() {
+        playSFX('menuOpen');
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('elementSelectionScreen').style.display = 'block';
     }
 
     function showHowToPlay() {
+        playSFX('menuOpen');
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('howToPlayScreen').style.display = 'block';
     }
 
     function showStats() {
+        playSFX('menuOpen');
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('statsScreen').style.display = 'block';
         updateStatsDisplay();
     }
 
     function backToMenu() {
+        playSFX('menuClose');
         document.getElementById('mainMenu').style.display = 'block';
         document.getElementById('elementSelectionScreen').style.display = 'none';
         document.getElementById('howToPlayScreen').style.display = 'none';
@@ -481,10 +507,12 @@
 
     // Pause/Resume Functions
     function pauseGame() {
+        playSFX('menuOpen');
         document.getElementById('pauseModal').classList.add('show');
     }
 
     function resumeGame() {
+        playSFX('menuClose');
         document.getElementById('pauseModal').classList.remove('show');
     }
 
@@ -504,6 +532,7 @@
 
     function resetStats() {
         if (confirm('Are you sure you want to reset all statistics?')) {
+            playSFX('select');
             gameStats = { wins: 0, losses: 0, total: 0 };
             saveStats();
             updateStatsDisplay();
@@ -511,6 +540,7 @@
     }
 
     function selectDifficulty(difficulty) {
+        playSFX('select');
         gameState.difficulty = difficulty;
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.classList.remove('selected');
@@ -626,8 +656,9 @@
 
     // Element Selection
     function selectElement(element) {
+        playSFX('select');
         const btn = document.querySelector(`[data-element="${element}"]`);
-        
+
         if (gameState.selectedElements.includes(element)) {
             gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
             btn.classList.remove('selected');
@@ -735,8 +766,9 @@
     }
 
     function startGame() {
+        playSFX('select');
         gameState.playerDeck = generateDeck(gameState.selectedElements);
-        
+
         // AI picks random elements
         const aiElements = [];
         const elementKeys = Object.keys(ELEMENTS);
@@ -756,6 +788,10 @@
 
         document.getElementById('startModal').style.display = 'none';
         document.getElementById('gameContainer').style.display = 'flex';
+
+        // Stop menu music and start gameplay music
+        stopSFX('startMenuMusic');
+        playSFX('gameplayMusic', true);
 
         // Reset mulligan button
         mulliganUsed = false;
@@ -800,12 +836,20 @@
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
             gameState.playerBoard.push({...card, tapped: true, damage: 0}); // summoning sickness
-            showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'scifi');
+            // Play appropriate creature summon sound based on theme
+            if (card.theme === 'Science Fiction') {
+                playSFX('summonCreatureScifi');
+            } else {
+                playSFX('summonCreatureFantasy');
+            }
+            showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'Science Fiction');
         } else if (card.type === 'artifact') {
             gameState.playerBoard.push({...card, tapped: false});
-            showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'scifi');
+            playSFX('summonInstant');
+            showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
         } else if (card.type === 'instant') {
-            showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'scifi');
+            playSFX('summonInstant');
+            showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             resolveSpell(card, 'player');
         }
 
@@ -838,12 +882,13 @@
     function tapLand(cardId) {
         const card = gameState.playerBoard.find(c => c.id === cardId);
         if (!card || card.type !== 'land') return;
-        
+
         // If tapped, UNTAP it and refund mana
         if (card.tapped) {
             card.tapped = false;
             if (gameState.playerMana[card.element] > 0) {
                 gameState.playerMana[card.element]--;
+                playSFX('untap');
                 showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
                 updateUI();
             }
@@ -853,7 +898,8 @@
         // Otherwise tap it for mana
         card.tapped = true;
         gameState.playerMana[card.element] = (gameState.playerMana[card.element] || 0) + 1;
-        
+
+        playSFX('tapLand');
         showGameLog(`⚡ You tap ${card.name} for mana`, false);
 
         updateUI();
@@ -877,12 +923,12 @@
                 } else {
                     // Damage opponent
                     if (isCasterPlayer) {
-                        gameState.enemyLife -= card.value;
+                        changeEnemyLife(-card.value);
                         const enemyArea = document.querySelector('.enemy-area');
                         const rect = enemyArea.getBoundingClientRect();
                         createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff4500', 30);
                     } else {
-                        gameState.playerLife -= card.value;
+                        changePlayerLife(-card.value);
                         const playerArea = document.querySelector('.player-area:not(.enemy-area)');
                         const rect = playerArea.getBoundingClientRect();
                         createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff4500', 30);
@@ -892,12 +938,12 @@
                 
             case 'heal':
                 if (isCasterPlayer) {
-                    gameState.playerLife = Math.min(20, gameState.playerLife + card.value);
+                    changePlayerLife(card.value);
                     const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rect = playerInfo.getBoundingClientRect();
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20);
                 } else {
-                    gameState.enemyLife = Math.min(20, gameState.enemyLife + card.value);
+                    changeEnemyLife(card.value);
                     const enemyInfo = document.querySelector('.enemy-area .player-info');
                     const rect = enemyInfo.getBoundingClientRect();
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20);
@@ -912,14 +958,30 @@
 
             case 'drain':
                 if (isCasterPlayer) {
-                    gameState.enemyLife -= card.value;
-                    gameState.playerLife = Math.min(20, gameState.playerLife + card.value);
+                    changeEnemyLife(-card.value);
+                    changePlayerLife(card.value);
                     const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rect = playerInfo.getBoundingClientRect();
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 15);
                 } else {
-                    gameState.playerLife -= card.value;
-                    gameState.enemyLife = Math.min(20, gameState.enemyLife + card.value);
+                    changePlayerLife(-card.value);
+                    changeEnemyLife(card.value);
+                }
+                break;
+
+            case 'destroy':
+                // Destroy target creature (simplified - destroys a random creature)
+                const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                const creatures = targetBoard.filter(c => c.type === 'creature');
+                if (creatures.length > 0) {
+                    const target = creatures[Math.floor(Math.random() * creatures.length)];
+                    if (isCasterPlayer) {
+                        gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
+                    } else {
+                        gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== target.id);
+                    }
+                    playSFX('cardDestroyed');
+                    showGameLog(`${target.emoji} ${target.name} is destroyed!`, !isCasterPlayer);
                 }
                 break;
         }
@@ -964,6 +1026,7 @@
             return;
         }
 
+        playSFX('attack');
         showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
 
         // AI declares blockers
@@ -984,23 +1047,30 @@
 
     function aiDeclareBlockers() {
         gameState.blockers = {};
-        
-        const availableBlockers = gameState.enemyBoard.filter(c => 
+
+        const availableBlockers = gameState.enemyBoard.filter(c =>
             c.type === 'creature' && !c.tapped
         );
 
+        let blockersAssigned = false;
         gameState.attackers.forEach(attackerId => {
             const attacker = gameState.playerBoard.find(c => c.id === attackerId);
-            
+
             // AI logic: block with similarly powered creature if available
-            const blocker = availableBlockers.find(b => 
+            const blocker = availableBlockers.find(b =>
                 b.power >= attacker.power - 1 && !Object.values(gameState.blockers).includes(b.id)
             );
 
             if (blocker) {
                 gameState.blockers[attackerId] = blocker.id;
+                blockersAssigned = true;
             }
         });
+
+        // Play block sound if any blockers were assigned
+        if (blockersAssigned) {
+            playSFX('block');
+        }
     }
 
     function resolveCombat() {
@@ -1024,7 +1094,7 @@
                     if (attacker.abilities?.includes('trample')) {
                         const excessDamage = attacker.power - blocker.toughness;
                         if (excessDamage > 0) {
-                            gameState.enemyLife -= excessDamage;
+                            changeEnemyLife(-excessDamage);
                             shakeScreen();
                             const enemyArea = document.querySelector('.enemy-area');
                             const rect = enemyArea.getBoundingClientRect();
@@ -1035,7 +1105,7 @@
 
                     // Lifelink effect
                     if (attacker.abilities?.includes('lifelink')) {
-                        gameState.playerLife = Math.min(20, gameState.playerLife + attacker.power);
+                        changePlayerLife(attacker.power);
                         const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                         const rect = playerInfo.getBoundingClientRect();
                         createSparkles(rect.left + 50, rect.top + rect.height / 2);
@@ -1044,23 +1114,25 @@
                     // Check deaths
                     if (attacker.damage >= attacker.toughness) {
                         gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== attackerId);
+                        playSFX('cardDestroyed');
                     }
                     if (blocker.damage >= blocker.toughness) {
                         gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== blockerId);
+                        playSFX('cardDestroyed');
                     }
                 }
             } else {
                 // Direct damage to enemy
-                gameState.enemyLife -= attacker.power;
-                
+                changeEnemyLife(-attacker.power);
+
                 // Lifelink effect
                 if (attacker.abilities?.includes('lifelink')) {
-                    gameState.playerLife = Math.min(20, gameState.playerLife + attacker.power);
+                    changePlayerLife(attacker.power);
                     const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rect = playerInfo.getBoundingClientRect();
                     createSparkles(rect.left + 50, rect.top + rect.height / 2);
                 }
-                
+
                 // Particles
                 const enemyArea = document.querySelector('.enemy-area');
                 const rect = enemyArea.getBoundingClientRect();
@@ -1232,8 +1304,8 @@
 
                             attackingCreatures.forEach(attacker => {
                                 attacker.tapped = true;
-                                gameState.playerLife -= attacker.power;
-                                
+                                changePlayerLife(-attacker.power);
+
                                 if (attacker.abilities?.includes('trample')) {
                                     shakeScreen();
                                     const playerArea = document.querySelector('.player-area:not(.enemy-area)');
@@ -1242,12 +1314,12 @@
                                 }
 
                                 if (attacker.abilities?.includes('lifelink')) {
-                                    gameState.enemyLife = Math.min(20, gameState.enemyLife + attacker.power);
+                                    changeEnemyLife(attacker.power);
                                     const enemyInfo = document.querySelector('.enemy-area .player-info');
                                     const rect = enemyInfo.getBoundingClientRect();
                                     createSparkles(rect.left + 50, rect.top + rect.height / 2, 10);
                                 }
-                                
+
                                 const playerArea = document.querySelector('.player-area:not(.enemy-area)');
                                 const rect = playerArea.getBoundingClientRect();
                                 createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
@@ -1266,24 +1338,91 @@
         }, 1000);
     }
 
+    // Helper functions for lifepoint changes with sound and animation
+    function changePlayerLife(amount) {
+        const oldLife = gameState.playerLife;
+        gameState.playerLife = Math.max(0, Math.min(20, gameState.playerLife + amount));
+        const actualChange = gameState.playerLife - oldLife;
+
+        if (actualChange !== 0) {
+            const lifeElement = document.getElementById('playerLife');
+            if (actualChange > 0) {
+                // Life increase - play heal sound for each point
+                for (let i = 0; i < actualChange; i++) {
+                    setTimeout(() => playSFX('playerHeal'), i * 100);
+                }
+                lifeElement.classList.add('life-increase');
+                setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+            } else {
+                // Life decrease - play damage sound for each point
+                for (let i = 0; i < Math.abs(actualChange); i++) {
+                    setTimeout(() => playSFX('playerTakeDamage'), i * 100);
+                }
+                lifeElement.classList.add('life-decrease');
+                setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+            }
+        }
+    }
+
+    function changeEnemyLife(amount) {
+        const oldLife = gameState.enemyLife;
+        gameState.enemyLife = Math.max(0, Math.min(20, gameState.enemyLife + amount));
+        const actualChange = gameState.enemyLife - oldLife;
+
+        if (actualChange !== 0) {
+            const lifeElement = document.getElementById('enemyLife');
+            if (actualChange > 0) {
+                // Life increase - play heal sound for each point
+                for (let i = 0; i < actualChange; i++) {
+                    setTimeout(() => playSFX('opponentHeals'), i * 100);
+                }
+                lifeElement.classList.add('life-increase');
+                setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+            } else {
+                // Life decrease - play damage sound for each point
+                for (let i = 0; i < Math.abs(actualChange); i++) {
+                    setTimeout(() => playSFX('opponentTakeDamage'), i * 100);
+                }
+                lifeElement.classList.add('life-decrease');
+                setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+            }
+        }
+    }
+
     // Check Game Over
     function checkGameOver() {
         if (gameState.playerLife <= 0) {
             gameStats.losses++;
             gameStats.total++;
             saveStats();
+
+            // Stop gameplay music and play lose sound
+            stopSFX('gameplayMusic');
+            playSFX('gameLose');
+
+            // Show lose overlay
+            const loseOverlay = document.getElementById('loseOverlay');
+            loseOverlay.classList.add('show');
+
             setTimeout(() => {
-                alert('💀 DEFEAT! The enemy has conquered! 💀');
                 location.reload();
-            }, 100);
+            }, 4000);
         } else if (gameState.enemyLife <= 0) {
             gameStats.wins++;
             gameStats.total++;
             saveStats();
+
+            // Stop gameplay music and play victory sound
+            stopSFX('gameplayMusic');
+            playSFX('gameVictory');
+
+            // Show victory overlay
+            const victoryOverlay = document.getElementById('victoryOverlay');
+            victoryOverlay.classList.add('show');
+
             setTimeout(() => {
-                alert('🏆 VICTORY! You are triumphant! 🏆');
                 location.reload();
-            }, 100);
+            }, 4000);
         }
     }
 
