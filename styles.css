@@ -1,4 +1,3 @@
-    <style>
 * {
     margin: 0;
     padding: 0;
@@ -1127,27 +1126,26 @@ body::before {
 .life-decrease {
     animation: lifepointDecrease 0.3s ease;
 }
-    </style>
 
-        /* Deck Counter */
-        .deck-counter {
-            font-family: 'MedievalSharp', cursive;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-shadow: 0 0 10px #ffd700;
-            color: #ffd700;
-        }
+/* Deck Counter */
+.deck-counter {
+    font-family: 'MedievalSharp', cursive;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-shadow: 0 0 10px #ffd700;
+    color: #ffd700;
+}
 
-        /* Mulligan Button visible state */
-        #mulliganBtn {
-            background: linear-gradient(135deg, #4169e1 0%, #1e90ff 100%);
-            transition: opacity 0.3s ease;
-        }
+/* Mulligan Button visible state */
+#mulliganBtn {
+    background: linear-gradient(135deg, #4169e1 0%, #1e90ff 100%);
+    transition: opacity 0.3s ease;
+}
 
-        #mulliganBtn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+#mulliganBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

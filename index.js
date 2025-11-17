@@ -836,6 +836,25 @@
 
     function startGame() {
         playSFX('select');
+
+        // CRITICAL: Reset ALL game state to prevent crashes when starting new game
+        gameState.playerLife = 20;
+        gameState.enemyLife = 20;
+        gameState.playerMana = {};
+        gameState.enemyMana = {};
+        gameState.playerHand = [];
+        gameState.playerBoard = [];
+        gameState.enemyHand = [];
+        gameState.enemyBoard = [];
+        gameState.selectedCard = null;
+        gameState.phase = 'main';
+        gameState.turn = 'player';
+        gameState.attackers = [];
+        gameState.blockers = {};
+        gameState.previousPlayerLife = 20;
+        gameState.previousEnemyLife = 20;
+
+        // Generate decks
         gameState.playerDeck = generateDeck(gameState.selectedElements);
 
         // AI picks random elements
@@ -867,6 +886,12 @@
         document.getElementById('mulliganBtn').disabled = false;
         document.getElementById('mulliganBtn').style.opacity = '1';
 
+        // Reset attack phase variable and processing lock
+        attackPhase = false;
+        isProcessingAction = false;
+        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').onclick = enterAttackPhase;
+
         updateUI();
         updateDeckCounters();
     }
@@ -882,6 +907,16 @@
 
     // Play Card
     function playCard(cardId) {
+        // Turn enforcement and rapid-click protection
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        if (isProcessingAction) {
+            return; // Silently block rapid clicking
+        }
+
         const card = gameState.playerHand.find(c => c.id === cardId);
         if (!card) return;
 
@@ -891,6 +926,9 @@
             setTimeout(() => alert('Not enough mana!'), 100);
             return;
         }
+
+        // Set processing lock to prevent rapid clicking
+        isProcessingAction = true;
 
         // Pay cost
         payCost(card.cost, gameState.playerMana);
@@ -928,6 +966,11 @@
         createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ffd700', 30);
 
         updateUI();
+
+        // Release processing lock after a short delay
+        setTimeout(() => {
+            isProcessingAction = false;
+        }, 200);
     }
 
     // Check if can pay cost
@@ -949,6 +992,12 @@
 
     // Tap lands for mana
     function tapLand(cardId) {
+        // Turn enforcement: Only allow during player's turn
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
         const card = gameState.playerBoard.find(c => c.id === cardId);
         if (!card || card.type !== 'land') return;
 
@@ -1056,10 +1105,17 @@
         }
     }
 
-    // Attack Phase
+    // Attack Phase and action processing lock
     let attackPhase = false;
+    let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
 
     function enterAttackPhase() {
+        // Turn enforcement: Only allow during player's turn
+        if (gameState.turn !== 'player' || isProcessingAction) {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
         attackPhase = true;
         gameState.attackers = [];
         gameState.phase = 'attack';
@@ -1085,6 +1141,11 @@
     }
 
     function confirmAttackers() {
+        // Turn enforcement
+        if (gameState.turn !== 'player' || isProcessingAction) {
+            return;
+        }
+
         if (gameState.attackers.length === 0) {
             attackPhase = false;
             gameState.phase = 'main';
@@ -1094,6 +1155,9 @@
             showGameLog('🛡️ You choose not to attack', false);
             return;
         }
+
+        // Set processing lock
+        isProcessingAction = true;
 
         playSFX('attack');
         showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
@@ -1112,6 +1176,11 @@
 
         checkGameOver();
         updateUI();
+
+        // Release processing lock after combat resolves
+        setTimeout(() => {
+            isProcessingAction = false;
+        }, 300);
     }
 
     function aiDeclareBlockers() {
@@ -1215,9 +1284,22 @@
 
     // End Turn
     function endTurn() {
+        // Turn enforcement: Only allow ending turn during player's turn
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        // Prevent double-clicking end turn
+        if (isProcessingAction) {
+            return;
+        }
+
+        isProcessingAction = true;
+
         // Show end turn message
         showGameLog('✅ You end your turn', false);
-        
+
         // Untap all player permanents
         gameState.playerBoard.forEach(card => card.tapped = false);
 
@@ -1227,7 +1309,7 @@
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
-        
+
         updateUI();
 
         // AI turn
@@ -1241,16 +1323,19 @@
         gameState.turn = 'player';
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-        
+
         // Draw card at start of turn
         drawCard('player');
         showGameLog('📜 You draw a card', false);
-        
+
         // Untap and reset mana
         gameState.playerBoard.forEach(card => card.tapped = false);
         gameState.playerMana = {};
-        
+
         updateUI();
+
+        // Release processing lock - player can now take actions
+        isProcessingAction = false;
     }
 
     // AI Turn
