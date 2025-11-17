@@ -1,3 +1,47 @@
+    // Audio System
+    const audioSystem = {
+        startMenuMusic: new Audio('startmenu.mp3'),
+        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3'),
+        tapLand: new Audio('tapland.mp3'),
+        untap: new Audio('untap.mp3'),
+        summonCreatureFantasy: new Audio('summoncreaturefantasy.mp3'),
+        summonCreatureScifi: new Audio('scifisummon.mp3'),
+        summonInstant: new Audio('summoninstant.mp3'),
+        cardDestroyed: new Audio('carddestroyed.mp3'),
+        attack: new Audio('attack.mp3'),
+        block: new Audio('block.mp3'),
+        playerHeal: new Audio('playerheal.mp3'),
+        playerTakeDamage: new Audio('playertakedamage.mp3'),
+        opponentHeals: new Audio('opponentheals.mp3'),
+        opponentTakeDamage: new Audio('opponenttakedamage.mp3'),
+        menuOpen: new Audio('menuopen.mp3'),
+        menuClose: new Audio('menuclose.mp3'),
+        select: new Audio('select.mp3'),
+        gameVictory: new Audio('gamevictorysfx.mp3'),
+        gameLose: new Audio('gamelosesfx.mp3')
+    };
+
+    // Configure audio loops
+    audioSystem.startMenuMusic.loop = true;
+    audioSystem.gameplayMusic.loop = true;
+
+    // Helper function to play sound effect
+    function playSFX(soundName, loop = false) {
+        if (audioSystem[soundName]) {
+            audioSystem[soundName].currentTime = 0;
+            audioSystem[soundName].loop = loop;
+            audioSystem[soundName].play().catch(e => console.log('Audio play failed:', e));
+        }
+    }
+
+    // Helper function to stop sound
+    function stopSFX(soundName) {
+        if (audioSystem[soundName]) {
+            audioSystem[soundName].pause();
+            audioSystem[soundName].currentTime = 0;
+        }
+    }
+
     // Game State
     const gameState = {
         playerLife: 20,
@@ -16,7 +60,9 @@
         turn: 'player',
         attackers: [],
         blockers: {},
-        difficulty: 'easy'
+        difficulty: 'easy',
+        previousPlayerLife: 20,
+        previousEnemyLife: 20
     };
 
     // Stats tracking
@@ -40,6 +86,36 @@
 
     loadStats();
 
+    // Intro Video Logic
+    window.addEventListener('DOMContentLoaded', () => {
+        const introContainer = document.getElementById('introContainer');
+        const introVideo = document.getElementById('introVideo');
+        const startModal = document.getElementById('startModal');
+
+        // Play intro video
+        introVideo.play().catch(e => {
+            console.log('Video autoplay failed:', e);
+            // Skip to menu if autoplay fails
+            skipIntro();
+        });
+
+        // When video ends, show start menu
+        introVideo.addEventListener('ended', skipIntro);
+
+        // Allow clicking/tapping to skip
+        introContainer.addEventListener('click', skipIntro);
+
+        function skipIntro() {
+            introContainer.classList.add('hidden');
+            setTimeout(() => {
+                introContainer.style.display = 'none';
+                startModal.style.display = 'flex';
+                // Start menu music
+                playSFX('startMenuMusic', true);
+            }, 500);
+        }
+    });
+
     // Mulligan state
     let mulliganUsed = false;
 
@@ -52,206 +128,206 @@
         light: { emoji: '☀️', color: '#ffff44' }
     };
 
-    // Card Database - MASSIVELY EXPANDED!
+    // Card Database - MASSIVELY EXPANDED with Themes and Card Types!
     const CARD_DATABASE = {
         // LANDS (Mana generators)
         lands: {
-            fire: { emoji: '🔥', type: 'land', element: 'fire', name: 'Volcanic Peak' },
-            water: { emoji: '💧', type: 'land', element: 'water', name: 'Mystic Springs' },
-            earth: { emoji: '🌍', type: 'land', element: 'earth', name: 'Ancient Grove' },
-            swamp: { emoji: '💀', type: 'land', element: 'swamp', name: 'Cursed Bog' },
-            light: { emoji: '☀️', type: 'land', element: 'light', name: 'Sacred Temple' }
+            fire: { emoji: '🔥', type: 'land', cardType: 'Land', element: 'fire', name: 'Volcanic Peak', theme: 'Nature' },
+            water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', theme: 'Nature' },
+            earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', theme: 'Nature' },
+            swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', theme: 'Fantasy' },
+            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' }
         },
         
         // CREATURES - MASSIVELY EXPANDED
         creatures: {
             // Fire Creatures (17 total!)
-            dragon: { emoji: '🐉', type: 'creature', cost: { fire: 6 }, power: 6, toughness: 6, abilities: ['flying'], name: 'Ancient Dragon', desc: 'Legendary flying beast', theme: 'fantasy' },
-            phoenix: { emoji: '🦅', type: 'creature', cost: { fire: 4 }, power: 3, toughness: 2, abilities: ['flying', 'haste'], name: 'Phoenix', desc: 'Reborn from flames', theme: 'fantasy' },
-            demon: { emoji: '👹', type: 'creature', cost: { fire: 5 }, power: 5, toughness: 4, abilities: ['trample'], name: 'Infernal Demon', desc: 'Tramples all in its path', theme: 'fantasy' },
-            tiger: { emoji: '🐅', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Blazing Tiger', desc: 'Swift and fierce', theme: 'fantasy' },
-            fox: { emoji: '🦊', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Fox', desc: 'Cunning flame spirit', theme: 'fantasy' },
-            lion: { emoji: '🦁', type: 'creature', cost: { fire: 4 }, power: 4, toughness: 3, abilities: ['trample'], name: 'Fire Lion', desc: 'King of the burning plains', theme: 'fantasy' },
-            salamander: { emoji: '🦎', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Fire Salamander', desc: 'Quick striker', theme: 'fantasy' },
-            monkey: { emoji: '🐒', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Magma Monkey', desc: 'Mischievous and hot-tempered', theme: 'fantasy' },
-            bull: { emoji: '🐂', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Raging Bull', desc: 'Unstoppable force', theme: 'fantasy' },
-            horse: { emoji: '🐴', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Flame Steed', desc: 'Swift as wildfire', theme: 'fantasy' },
-            boar: { emoji: '🐗', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 3, abilities: ['trample'], name: 'Wild Boar', desc: 'Fierce and territorial', theme: 'fantasy' },
-            ram: { emoji: '🐏', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Ram', desc: 'Charges with fury', theme: 'fantasy' },
-            scorpion: { emoji: '🦂', type: 'creature', cost: { fire: 3 }, power: 3, toughness: 1, abilities: ['haste'], name: 'Lava Scorpion', desc: 'Deadly stinger', theme: 'fantasy' },
-            crab: { emoji: '🦀', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Magma Crab', desc: 'Hard shell protector', theme: 'fantasy' },
-            lobster: { emoji: '🦞', type: 'creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Lobster', desc: 'Armored attacker', theme: 'fantasy' },
-            beetle: { emoji: '🪲', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ember Beetle', desc: 'Small but resilient', theme: 'fantasy' },
-            ladybug: { emoji: '🐞', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Fire Ladybug', desc: 'Tiny flyer', theme: 'fantasy' },
+            dragon: { emoji: '🐉', type: 'creature', cardType: 'Creature', cost: { fire: 6 }, power: 6, toughness: 6, abilities: ['flying', 'trample'], name: 'Ancient Dragon', desc: 'Legendary flying beast', theme: 'Fantasy' },
+            phoenix: { emoji: '🦅', type: 'creature', cardType: 'Creature', cost: { fire: 4 }, power: 3, toughness: 2, abilities: ['flying', 'haste'], name: 'Phoenix', desc: 'Reborn from flames', theme: 'Fantasy' },
+            demon: { emoji: '👹', type: 'creature', cardType: 'Creature', cost: { fire: 5 }, power: 5, toughness: 4, abilities: ['trample', 'menace'], name: 'Infernal Demon', desc: 'Tramples all in its path', theme: 'Fantasy' },
+            tiger: { emoji: '🐅', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Blazing Tiger', desc: 'Swift and fierce', theme: 'Nature' },
+            fox: { emoji: '🦊', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Fire Fox', desc: 'Cunning flame spirit', theme: 'Nature' },
+            lion: { emoji: '🦁', type: 'creature', cardType: 'Creature', cost: { fire: 4 }, power: 4, toughness: 3, abilities: ['trample'], name: 'Fire Lion', desc: 'King of the burning plains', theme: 'Nature' },
+            salamander: { emoji: '🦎', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Fire Salamander', desc: 'Quick striker', theme: 'Nature' },
+            monkey: { emoji: '🐒', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Magma Monkey', desc: 'Mischievous and hot-tempered', theme: 'Nature' },
+            bull: { emoji: '🐂', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Raging Bull', desc: 'Unstoppable force', theme: 'Nature' },
+            horse: { emoji: '🐴', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Flame Steed', desc: 'Swift as wildfire', theme: 'Nature' },
+            boar: { emoji: '🐗', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 3, abilities: ['trample'], name: 'Wild Boar', desc: 'Fierce and territorial', theme: 'Nature' },
+            ram: { emoji: '🐏', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: ['first_strike'], name: 'Fire Ram', desc: 'Charges with fury', theme: 'Nature' },
+            scorpion: { emoji: '🦂', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 2, toughness: 1, abilities: ['deathtouch', 'haste'], name: 'Lava Scorpion', desc: 'Deadly stinger', theme: 'Nature' },
+            crab: { emoji: '🦀', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Magma Crab', desc: 'Hard shell protector', theme: 'Nature' },
+            lobster: { emoji: '🦞', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Lobster', desc: 'Armored attacker', theme: 'Nature' },
+            beetle: { emoji: '🪲', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ember Beetle', desc: 'Small but resilient', theme: 'Nature' },
+            ladybug: { emoji: '🐞', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Fire Ladybug', desc: 'Tiny flyer', theme: 'Nature' },
             
             // Water Creatures (17 total!)
-            whale: { emoji: '🐋', type: 'creature', cost: { water: 5 }, power: 5, toughness: 6, abilities: ['defender'], name: 'Leviathan Whale', desc: 'Guardian of the deep', theme: 'fantasy' },
-            shark: { emoji: '🦈', type: 'creature', cost: { water: 4 }, power: 4, toughness: 3, abilities: [], name: 'Great Shark', desc: 'Ocean predator', theme: 'fantasy' },
-            octopus: { emoji: '🐙', type: 'creature', cost: { water: 3 }, power: 2, toughness: 4, abilities: ['defender'], name: 'Giant Octopus', desc: 'Master of defense', theme: 'fantasy' },
-            dolphin: { emoji: '🐬', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: [], name: 'Mystic Dolphin', desc: 'Intelligent swimmer', theme: 'fantasy' },
-            fish: { emoji: '🐟', type: 'creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: [], name: 'School Fish', desc: 'Basic sea creature', theme: 'fantasy' },
-            seal: { emoji: '🦭', type: 'creature', cost: { water: 2 }, power: 2, toughness: 3, abilities: [], name: 'Arctic Seal', desc: 'Cold water dweller', theme: 'fantasy' },
-            otter: { emoji: '🦦', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: [], name: 'River Otter', desc: 'Playful but fierce', theme: 'fantasy' },
-            penguin: { emoji: '🐧', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ice Penguin', desc: 'Cold-adapted', theme: 'fantasy' },
-            frog: { emoji: '🐸', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Swamp Frog', desc: 'Amphibious jumper', theme: 'fantasy' },
-            squid: { emoji: '🦑', type: 'creature', cost: { water: 3 }, power: 3, toughness: 3, abilities: [], name: 'Giant Squid', desc: 'Tentacled terror', theme: 'fantasy' },
-            shrimp: { emoji: '🦐', type: 'creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: [], name: 'Mantis Shrimp', desc: 'Tiny but tough', theme: 'fantasy' },
-            crocodile: { emoji: '🐊', type: 'creature', cost: { water: 4 }, power: 4, toughness: 4, abilities: [], name: 'Swamp Croc', desc: 'Apex predator', theme: 'fantasy' },
-            turtle: { emoji: '🐢', type: 'creature', cost: { water: 2 }, power: 1, toughness: 4, abilities: ['defender'], name: 'Ancient Turtle', desc: 'Impenetrable shell', theme: 'fantasy' },
-            seahorse: { emoji: '🐴', type: 'creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Sea Horse', desc: 'Graceful swimmer', theme: 'fantasy' },
-            jellyfish: { emoji: '🪼', type: 'creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Stinging Jellyfish', desc: 'Floating defender', theme: 'fantasy' },
-            snail: { emoji: '🐌', type: 'creature', cost: { water: 1 }, power: 0, toughness: 3, abilities: ['defender'], name: 'Armored Snail', desc: 'Slow but safe', theme: 'fantasy' },
-            swan: { emoji: '🦢', type: 'creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flying'], name: 'Crystal Swan', desc: 'Elegant flyer', theme: 'fantasy' },
+            whale: { emoji: '🐋', type: 'creature', cardType: 'Creature', cost: { water: 6 }, power: 6, toughness: 7, abilities: ['defender', 'vigilance'], name: 'Leviathan Whale', desc: 'Guardian of the deep', theme: 'Nature' },
+            shark: { emoji: '🦈', type: 'creature', cardType: 'Creature', cost: { water: 4 }, power: 4, toughness: 3, abilities: ['menace'], name: 'Great Shark', desc: 'Ocean predator', theme: 'Nature' },
+            octopus: { emoji: '🐙', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 2, toughness: 4, abilities: ['defender', 'reach'], name: 'Giant Octopus', desc: 'Master of defense', theme: 'Nature' },
+            dolphin: { emoji: '🐬', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flash'], name: 'Mystic Dolphin', desc: 'Intelligent swimmer', theme: 'Nature' },
+            fish: { emoji: '🐟', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: [], name: 'School Fish', desc: 'Basic sea creature', theme: 'Nature' },
+            seal: { emoji: '🦭', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 3, abilities: [], name: 'Arctic Seal', desc: 'Cold water dweller', theme: 'Nature' },
+            otter: { emoji: '🦦', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flash'], name: 'River Otter', desc: 'Playful but fierce', theme: 'Nature' },
+            penguin: { emoji: '🐧', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ice Penguin', desc: 'Cold-adapted', theme: 'Nature' },
+            frog: { emoji: '🐸', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: ['flash'], name: 'Swamp Frog', desc: 'Amphibious jumper', theme: 'Nature' },
+            squid: { emoji: '🦑', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 3, toughness: 3, abilities: ['reach'], name: 'Giant Squid', desc: 'Tentacled terror', theme: 'Nature' },
+            shrimp: { emoji: '🦐', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 1, abilities: ['first_strike'], name: 'Mantis Shrimp', desc: 'Tiny but tough', theme: 'Nature' },
+            crocodile: { emoji: '🐊', type: 'creature', cardType: 'Creature', cost: { water: 4 }, power: 4, toughness: 4, abilities: ['deathtouch'], name: 'Swamp Croc', desc: 'Apex predator', theme: 'Nature' },
+            turtle: { emoji: '🐢', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 0, toughness: 6, abilities: ['defender', 'hexproof'], name: 'Ancient Turtle', desc: 'Impenetrable shell', theme: 'Nature' },
+            seahorse: { emoji: '🐴', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Sea Horse', desc: 'Graceful swimmer', theme: 'Nature' },
+            jellyfish: { emoji: '🪼', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 0, toughness: 4, abilities: ['defender', 'deathtouch'], name: 'Stinging Jellyfish', desc: 'Floating defender', theme: 'Nature' },
+            snail: { emoji: '🐌', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 0, toughness: 3, abilities: ['defender'], name: 'Armored Snail', desc: 'Slow but safe', theme: 'Nature' },
+            swan: { emoji: '🦢', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flying'], name: 'Crystal Swan', desc: 'Elegant flyer', theme: 'Nature' },
             
             // Earth Creatures (17 total!)
-            elephant: { emoji: '🐘', type: 'creature', cost: { earth: 5 }, power: 5, toughness: 6, abilities: ['trample'], name: 'Elder Elephant', desc: 'Unstoppable might', theme: 'fantasy' },
-            gorilla: { emoji: '🦍', type: 'creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Silverback Gorilla', desc: 'Jungle king', theme: 'fantasy' },
-            bear: { emoji: '🐻', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: [], name: 'Forest Bear', desc: 'Powerful hunter', theme: 'fantasy' },
-            rabbit: { emoji: '🐰', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Swift Rabbit', desc: 'Quick hopper', theme: 'fantasy' },
-            deer: { emoji: '🦌', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Noble Deer', desc: 'Forest wanderer', theme: 'fantasy' },
-            wolf: { emoji: '🐺', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 2, abilities: [], name: 'Pack Wolf', desc: 'Cunning predator', theme: 'fantasy' },
-            rhino: { emoji: '🦏', type: 'creature', cost: { earth: 5 }, power: 5, toughness: 5, abilities: ['trample'], name: 'Armored Rhino', desc: 'Charging tank', theme: 'fantasy' },
-            hippo: { emoji: '🦛', type: 'creature', cost: { earth: 4 }, power: 4, toughness: 5, abilities: [], name: 'River Hippo', desc: 'Territorial giant', theme: 'fantasy' },
-            squirrel: { emoji: '🐿️', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Forest Squirrel', desc: 'Nimble gatherer', theme: 'fantasy' },
-            hedgehog: { emoji: '🦔', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['defender'], name: 'Spiky Hedgehog', desc: 'Defensive ball', theme: 'fantasy' },
-            badger: { emoji: '🦡', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fierce Badger', desc: 'Aggressive burrower', theme: 'fantasy' },
-            giraffe: { emoji: '🦒', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['reach'], name: 'Tall Giraffe', desc: 'Can reach high', theme: 'fantasy' },
-            zebra: { emoji: '🦓', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Striped Zebra', desc: 'Fast runner', theme: 'fantasy' },
-            camel: { emoji: '🐪', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: [], name: 'Desert Camel', desc: 'Enduring traveler', theme: 'fantasy' },
-            ox: { emoji: '🐂', type: 'creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Strong Ox', desc: 'Powerful worker', theme: 'fantasy' },
-            panda: { emoji: '🐼', type: 'creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: [], name: 'Bamboo Panda', desc: 'Peaceful guardian', theme: 'fantasy' },
-            koala: { emoji: '🐨', type: 'creature', cost: { earth: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Sleepy Koala', desc: 'Tree hugger', theme: 'fantasy' },
+            elephant: { emoji: '🐘', type: 'creature', cardType: 'Creature', cost: { earth: 6 }, power: 6, toughness: 7, abilities: ['trample', 'vigilance'], name: 'Elder Elephant', desc: 'Unstoppable might', theme: 'Nature' },
+            gorilla: { emoji: '🦍', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Silverback Gorilla', desc: 'Jungle king', theme: 'Nature' },
+            bear: { emoji: '🐻', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['first_strike'], name: 'Forest Bear', desc: 'Powerful hunter', theme: 'Nature' },
+            rabbit: { emoji: '🐰', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Swift Rabbit', desc: 'Quick hopper', theme: 'Nature' },
+            deer: { emoji: '🦌', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Noble Deer', desc: 'Forest wanderer', theme: 'Nature' },
+            wolf: { emoji: '🐺', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Pack Wolf', desc: 'Cunning predator', theme: 'Nature' },
+            rhino: { emoji: '🦏', type: 'creature', cardType: 'Creature', cost: { earth: 5 }, power: 5, toughness: 5, abilities: ['trample'], name: 'Armored Rhino', desc: 'Charging tank', theme: 'Nature' },
+            hippo: { emoji: '🦛', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 5, abilities: ['vigilance'], name: 'River Hippo', desc: 'Territorial giant', theme: 'Nature' },
+            squirrel: { emoji: '🐿️', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Forest Squirrel', desc: 'Nimble gatherer', theme: 'Nature' },
+            hedgehog: { emoji: '🦔', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['defender'], name: 'Spiky Hedgehog', desc: 'Defensive ball', theme: 'Nature' },
+            badger: { emoji: '🦡', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['first_strike'], name: 'Fierce Badger', desc: 'Aggressive burrower', theme: 'Nature' },
+            giraffe: { emoji: '🦒', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['reach', 'vigilance'], name: 'Tall Giraffe', desc: 'Can reach high', theme: 'Nature' },
+            zebra: { emoji: '🦓', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Striped Zebra', desc: 'Fast runner', theme: 'Nature' },
+            camel: { emoji: '🐪', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['vigilance'], name: 'Desert Camel', desc: 'Enduring traveler', theme: 'Nature' },
+            ox: { emoji: '🐂', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Strong Ox', desc: 'Powerful worker', theme: 'Nature' },
+            panda: { emoji: '🐼', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['lifelink'], name: 'Bamboo Panda', desc: 'Peaceful guardian', theme: 'Nature' },
+            koala: { emoji: '🐨', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Sleepy Koala', desc: 'Tree hugger', theme: 'Nature' },
             
             // Swamp/Death Creatures (17 total!)
-            vampire: { emoji: '🧛', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['lifelink'], name: 'Ancient Vampire', desc: 'Drains life force', theme: 'fantasy' },
-            zombie: { emoji: '🧟', type: 'creature', cost: { swamp: 3 }, power: 3, toughness: 3, abilities: [], name: 'Risen Zombie', desc: 'Undead walker', theme: 'fantasy' },
-            ghost: { emoji: '👻', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Restless Ghost', desc: 'Ethereal spirit', theme: 'fantasy' },
-            bat: { emoji: '🦇', type: 'creature', cost: { swamp: 2 }, power: 1, toughness: 1, abilities: ['flying', 'lifelink'], name: 'Vampire Bat', desc: 'Blood drinker', theme: 'fantasy' },
-            spider: { emoji: '🕷️', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 2, abilities: ['reach'], name: 'Giant Spider', desc: 'Web spinner', theme: 'fantasy' },
-            skeleton: { emoji: '💀', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 2, abilities: [], name: 'Skeleton Warrior', desc: 'Bones reanimate', theme: 'fantasy' },
-            wizard: { emoji: '🧙', type: 'creature', cost: { swamp: 4 }, power: 3, toughness: 3, abilities: [], name: 'Dark Wizard', desc: 'Necromancer', theme: 'fantasy' },
-            witch: { emoji: '🧙‍♀️', type: 'creature', cost: { swamp: 3 }, power: 2, toughness: 3, abilities: [], name: 'Swamp Witch', desc: 'Curse caster', theme: 'fantasy' },
-            rat: { emoji: '🐀', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: [], name: 'Plague Rat', desc: 'Disease carrier', theme: 'fantasy' },
-            snake: { emoji: '🐍', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: [], name: 'Venom Snake', desc: 'Poisonous striker', theme: 'fantasy' },
-            scorpion_dark: { emoji: '🦂', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: [], name: 'Death Scorpion', desc: 'Toxic sting', theme: 'fantasy' },
-            crow: { emoji: '🐦‍⬛', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Death Crow', desc: 'Omen of doom', theme: 'fantasy' },
-            werewolf: { emoji: '🐺', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['haste'], name: 'Werewolf', desc: 'Cursed beast', theme: 'fantasy' },
-            gargoyle: { emoji: '🗿', type: 'creature', cost: { swamp: 3 }, power: 2, toughness: 4, abilities: ['flying', 'defender'], name: 'Stone Gargoyle', desc: 'Eternal sentinel', theme: 'fantasy' },
-            mummy: { emoji: '🧟‍♂️', type: 'creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: [], name: 'Ancient Mummy', desc: 'Wrapped horror', theme: 'fantasy' },
-            goblin: { emoji: '👺', type: 'creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Goblin Raider', desc: 'Quick attacker', theme: 'fantasy' },
-            troll: { emoji: '🧌', type: 'creature', cost: { swamp: 4 }, power: 4, toughness: 4, abilities: [], name: 'Swamp Troll', desc: 'Regenerating brute', theme: 'fantasy' },
+            vampire: { emoji: '🧛', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['lifelink', 'flying'], name: 'Ancient Vampire', desc: 'Drains life force', theme: 'Fantasy' },
+            zombie: { emoji: '🧟', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 3, abilities: ['menace'], name: 'Risen Zombie', desc: 'Undead walker', theme: 'Fantasy' },
+            ghost: { emoji: '👻', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['flying', 'hexproof'], name: 'Restless Ghost', desc: 'Ethereal spirit', theme: 'Fantasy' },
+            bat: { emoji: '🦇', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 1, toughness: 1, abilities: ['flying', 'lifelink'], name: 'Vampire Bat', desc: 'Blood drinker', theme: 'Fantasy' },
+            spider: { emoji: '🕷️', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 3, abilities: ['reach', 'deathtouch'], name: 'Giant Spider', desc: 'Web spinner', theme: 'Fantasy' },
+            skeleton: { emoji: '💀', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 2, abilities: ['first_strike'], name: 'Skeleton Warrior', desc: 'Bones reanimate', theme: 'Fantasy' },
+            wizard: { emoji: '🧙', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 2, toughness: 4, abilities: ['deathtouch'], name: 'Dark Wizard', desc: 'Necromancer', theme: 'Fantasy' },
+            witch: { emoji: '🧙‍♀️', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 2, toughness: 3, abilities: ['deathtouch'], name: 'Swamp Witch', desc: 'Curse caster', theme: 'Fantasy' },
+            rat: { emoji: '🐀', type: 'creature', cardType: 'Creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['menace'], name: 'Plague Rat', desc: 'Disease carrier', theme: 'Fantasy' },
+            snake: { emoji: '🐍', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['deathtouch'], name: 'Venom Snake', desc: 'Poisonous striker', theme: 'Fantasy' },
+            scorpion_dark: { emoji: '🦂', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 1, toughness: 1, abilities: ['deathtouch', 'first_strike'], name: 'Death Scorpion', desc: 'Toxic sting', theme: 'Fantasy' },
+            crow: { emoji: '🐦‍⬛', type: 'creature', cardType: 'Creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Death Crow', desc: 'Omen of doom', theme: 'Fantasy' },
+            werewolf: { emoji: '🐺', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['double_strike'], name: 'Werewolf', desc: 'Cursed beast', theme: 'Fantasy' },
+            gargoyle: { emoji: '🗿', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 2, toughness: 4, abilities: ['flying', 'defender'], name: 'Stone Gargoyle', desc: 'Eternal sentinel', theme: 'Fantasy' },
+            mummy: { emoji: '🧟‍♂️', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Ancient Mummy', desc: 'Wrapped horror', theme: 'Fantasy' },
+            goblin: { emoji: '👺', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Goblin Raider', desc: 'Quick attacker', theme: 'Fantasy' },
+            troll: { emoji: '🧌', type: 'creature', cardType: 'Creature', cost: { swamp: 5 }, power: 5, toughness: 5, abilities: ['trample'], name: 'Swamp Troll', desc: 'Regenerating brute', theme: 'Fantasy' },
             
             // Light Creatures (17 total!)
-            unicorn: { emoji: '🦄', type: 'creature', cost: { light: 4 }, power: 3, toughness: 3, abilities: ['lifelink'], name: 'Sacred Unicorn', desc: 'Pure of heart', theme: 'fantasy' },
-            angel: { emoji: '👼', type: 'creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'vigilance'], name: 'Guardian Angel', desc: 'Divine protector', theme: 'fantasy' },
-            eagle: { emoji: '🦅', type: 'creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'vigilance'], name: 'Sky Eagle', desc: 'Ever watchful', theme: 'fantasy' },
-            dove: { emoji: '🕊️', type: 'creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Peace Dove', desc: 'Symbol of hope', theme: 'fantasy' },
-            butterfly: { emoji: '🦋', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Light Butterfly', desc: 'Delicate beauty', theme: 'fantasy' },
-            pegasus: { emoji: '🦄', type: 'creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'haste'], name: 'Winged Pegasus', desc: 'Legendary mount', theme: 'fantasy' },
-            fairy: { emoji: '🧚', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying'], name: 'Forest Fairy', desc: 'Magical sprite', theme: 'fantasy' },
-            cat: { emoji: '🐱', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Temple Cat', desc: 'Sacred guardian', theme: 'fantasy' },
-            dog: { emoji: '🐕', type: 'creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Loyal Hound', desc: 'Faithful companion', theme: 'fantasy' },
-            owl: { emoji: '🦉', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying'], name: 'Wise Owl', desc: 'All-seeing', theme: 'fantasy' },
-            bee: { emoji: '🐝', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Golden Bee', desc: 'Busy worker', theme: 'fantasy' },
-            chicken: { emoji: '🐔', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: [], name: 'Holy Chicken', desc: 'Blessed fowl', theme: 'fantasy' },
-            parrot: { emoji: '🦜', type: 'creature', cost: { light: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Sun Parrot', desc: 'Colorful flyer', theme: 'fantasy' },
-            flamingo: { emoji: '🦩', type: 'creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: [], name: 'Pink Flamingo', desc: 'Elegant wader', theme: 'fantasy' },
-            peacock: { emoji: '🦚', type: 'creature', cost: { light: 3 }, power: 2, toughness: 3, abilities: ['flying'], name: 'Royal Peacock', desc: 'Majestic display', theme: 'fantasy' },
-            chick: { emoji: '🐣', type: 'creature', cost: { light: 1 }, power: 0, toughness: 1, abilities: [], name: 'Baby Chick', desc: 'Innocent life', theme: 'fantasy' },
-            hamster: { emoji: '🐹', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Holy Hamster', desc: 'Quick and cute', theme: 'fantasy' },
+            unicorn: { emoji: '🦄', type: 'creature', cardType: 'Creature', cost: { light: 4 }, power: 3, toughness: 3, abilities: ['lifelink', 'vigilance'], name: 'Sacred Unicorn', desc: 'Pure of heart', theme: 'Fantasy' },
+            angel: { emoji: '👼', type: 'creature', cardType: 'Creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'vigilance'], name: 'Guardian Angel', desc: 'Divine protector', theme: 'Fantasy' },
+            eagle: { emoji: '🦅', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'vigilance'], name: 'Sky Eagle', desc: 'Ever watchful', theme: 'Nature' },
+            dove: { emoji: '🕊️', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['flying', 'lifelink'], name: 'Peace Dove', desc: 'Symbol of hope', theme: 'Fantasy' },
+            butterfly: { emoji: '🦋', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Light Butterfly', desc: 'Delicate beauty', theme: 'Nature' },
+            pegasus: { emoji: '🦄', type: 'creature', cardType: 'Creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'vigilance'], name: 'Winged Pegasus', desc: 'Legendary mount', theme: 'Fantasy' },
+            fairy: { emoji: '🧚', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying', 'flash'], name: 'Forest Fairy', desc: 'Magical sprite', theme: 'Fantasy' },
+            cat: { emoji: '🐱', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Temple Cat', desc: 'Sacred guardian', theme: 'City' },
+            dog: { emoji: '🐕', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Loyal Hound', desc: 'Faithful companion', theme: 'City' },
+            owl: { emoji: '🦉', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flying', 'vigilance'], name: 'Wise Owl', desc: 'All-seeing', theme: 'Nature' },
+            bee: { emoji: '🐝', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying', 'first_strike'], name: 'Golden Bee', desc: 'Busy worker', theme: 'Nature' },
+            chicken: { emoji: '🐔', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: [], name: 'Holy Chicken', desc: 'Blessed fowl', theme: 'Nature' },
+            parrot: { emoji: '🦜', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Sun Parrot', desc: 'Colorful flyer', theme: 'Nature' },
+            flamingo: { emoji: '🦩', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Pink Flamingo', desc: 'Elegant wader', theme: 'Nature' },
+            peacock: { emoji: '🦚', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 3, abilities: ['flying'], name: 'Royal Peacock', desc: 'Majestic display', theme: 'Nature' },
+            chick: { emoji: '🐣', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 0, toughness: 1, abilities: ['lifelink'], name: 'Baby Chick', desc: 'Innocent life', theme: 'Nature' },
+            hamster: { emoji: '🐹', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Holy Hamster', desc: 'Quick and cute', theme: 'City' },
 
             // SCI-FI CREATURES (30+ total!)
-            robot: { emoji: '🤖', type: 'creature', cost: { fire: 4, earth: 1 }, power: 4, toughness: 4, abilities: [], name: 'Combat Robot', desc: 'Mechanical warrior unit', theme: 'scifi' },
-            alien: { emoji: '👽', type: 'creature', cost: { swamp: 3, water: 1 }, power: 3, toughness: 2, abilities: ['flying'], name: 'Alien Invader', desc: 'From another world', theme: 'scifi' },
-            alien_monster: { emoji: '👾', type: 'creature', cost: { fire: 2, swamp: 1 }, power: 3, toughness: 1, abilities: ['haste'], name: 'Pixel Monster', desc: '8-bit terror', theme: 'scifi' },
-            ufo: { emoji: '🛸', type: 'creature', cost: { light: 4, water: 1 }, power: 2, toughness: 5, abilities: ['flying', 'defender'], name: 'UFO Saucer', desc: 'Hovering spacecraft', theme: 'scifi' },
-            satellite: { emoji: '🛰️', type: 'creature', cost: { light: 3 }, power: 1, toughness: 3, abilities: ['flying', 'vigilance'], name: 'Satellite Drone', desc: 'Orbital observer', theme: 'scifi' },
-            rocket: { emoji: '🚀', type: 'creature', cost: { fire: 5 }, power: 5, toughness: 3, abilities: ['flying', 'haste'], name: 'Battle Rocket', desc: 'Supersonic striker', theme: 'scifi' },
-            astronaut: { emoji: '👨‍🚀', type: 'creature', cost: { light: 3, earth: 1 }, power: 2, toughness: 3, abilities: ['vigilance'], name: 'Space Marine', desc: 'Elite soldier', theme: 'scifi' },
-            cyborg: { emoji: '🦾', type: 'creature', cost: { fire: 3, earth: 1 }, power: 4, toughness: 2, abilities: ['trample'], name: 'Cyborg Soldier', desc: 'Enhanced warrior', theme: 'scifi' },
-            android: { emoji: '🤖', type: 'creature', cost: { water: 3, light: 2 }, power: 3, toughness: 4, abilities: ['vigilance'], name: 'Android Guardian', desc: 'Synthetic protector', theme: 'scifi' },
-            mech: { emoji: '🦿', type: 'creature', cost: { earth: 5, fire: 2 }, power: 6, toughness: 5, abilities: ['trample'], name: 'Battle Mech', desc: 'Walking fortress', theme: 'scifi' },
-            drone: { emoji: '🚁', type: 'creature', cost: { light: 2, fire: 1 }, power: 2, toughness: 1, abilities: ['flying', 'haste'], name: 'Attack Drone', desc: 'Autonomous flyer', theme: 'scifi' },
-            computer: { emoji: '💻', type: 'creature', cost: { light: 2, water: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'AI Core', desc: 'Digital intelligence', theme: 'scifi' },
-            brain: { emoji: '🧠', type: 'creature', cost: { swamp: 3, water: 1 }, power: 2, toughness: 3, abilities: [], name: 'Cyber Brain', desc: 'Artificial mind', theme: 'scifi' },
-            dna: { emoji: '🧬', type: 'creature', cost: { earth: 2, light: 1 }, power: 1, toughness: 2, abilities: [], name: 'Gene Splice', desc: 'Genetic experiment', theme: 'scifi' },
-            microbe: { emoji: '🦠', type: 'creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: [], name: 'Nano Virus', desc: 'Microscopic threat', theme: 'scifi' },
-            pill: { emoji: '💊', type: 'creature', cost: { light: 1, water: 1 }, power: 0, toughness: 2, abilities: ['lifelink'], name: 'Med Capsule', desc: 'Healing nanobot', theme: 'scifi' },
-            syringe: { emoji: '💉', type: 'creature', cost: { swamp: 2, fire: 1 }, power: 2, toughness: 1, abilities: [], name: 'Bio Injector', desc: 'Chemical weapon', theme: 'scifi' },
-            microscope: { emoji: '🔬', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Lab Scanner', desc: 'Research unit', theme: 'scifi' },
-            telescope: { emoji: '🔭', type: 'creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'reach'], name: 'Orbital Scanner', desc: 'Long-range sensor', theme: 'scifi' },
-            battery: { emoji: '🔋', type: 'creature', cost: { fire: 1, water: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Power Cell', desc: 'Energy storage', theme: 'scifi' },
-            magnet: { emoji: '🧲', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Magnetic Trap', desc: 'Pulls enemies in', theme: 'scifi' },
-            satellite_dish: { emoji: '📡', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Signal Tower', desc: 'Communication hub', theme: 'scifi' },
-            radar: { emoji: '📡', type: 'creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['reach'], name: 'Radar Array', desc: 'Detection system', theme: 'scifi' },
-            bomb_scifi: { emoji: '💣', type: 'creature', cost: { fire: 3 }, power: 4, toughness: 1, abilities: [], name: 'Plasma Bomb', desc: 'Explosive payload', theme: 'scifi' },
-            gear: { emoji: '⚙️', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: [], name: 'Mech Part', desc: 'Machine component', theme: 'scifi' },
-            wrench: { emoji: '🔧', type: 'creature', cost: { earth: 2 }, power: 2, toughness: 1, abilities: [], name: 'Repair Bot', desc: 'Maintenance unit', theme: 'scifi' },
-            hammer: { emoji: '🔨', type: 'creature', cost: { fire: 2, earth: 1 }, power: 3, toughness: 1, abilities: [], name: 'Forge Hammer', desc: 'Construction tool', theme: 'scifi' },
-            hourglass: { emoji: '⏳', type: 'creature', cost: { light: 3, swamp: 1 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Time Device', desc: 'Temporal manipulator', theme: 'scifi' },
-            alarm: { emoji: '⏰', type: 'creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Alert System', desc: 'Quick responder', theme: 'scifi' },
-            watch: { emoji: '⌚', type: 'creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: [], name: 'Chrono Watch', desc: 'Time keeper', theme: 'scifi' },
-            cd: { emoji: '💿', type: 'creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Data Disc', desc: 'Information storage', theme: 'scifi' },
-            phone: { emoji: '📱', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: [], name: 'Comm Device', desc: 'Mobile terminal', theme: 'scifi' },
-            camera: { emoji: '📷', type: 'creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Spy Camera', desc: 'Surveillance unit', theme: 'scifi' },
-            video: { emoji: '📹', type: 'creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Recorder Drone', desc: 'Video capture', theme: 'scifi' },
+            robot: { emoji: '🤖', type: 'creature', cardType: 'Creature', cost: { fire: 4, earth: 1 }, power: 4, toughness: 4, abilities: ['vigilance'], name: 'Combat Robot', desc: 'Mechanical warrior unit', theme: 'Science Fiction' },
+            alien: { emoji: '👽', type: 'creature', cardType: 'Creature', cost: { swamp: 3, water: 1 }, power: 3, toughness: 2, abilities: ['flying', 'menace'], name: 'Alien Invader', desc: 'From another world', theme: 'Science Fiction' },
+            alien_monster: { emoji: '👾', type: 'creature', cardType: 'Creature', cost: { fire: 2, swamp: 1 }, power: 3, toughness: 1, abilities: ['haste'], name: 'Pixel Monster', desc: '8-bit terror', theme: 'Science Fiction' },
+            ufo: { emoji: '🛸', type: 'creature', cardType: 'Creature', cost: { light: 4, water: 1 }, power: 2, toughness: 5, abilities: ['flying', 'defender'], name: 'UFO Saucer', desc: 'Hovering spacecraft', theme: 'Science Fiction' },
+            satellite: { emoji: '🛰️', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 1, toughness: 3, abilities: ['flying', 'vigilance'], name: 'Satellite Drone', desc: 'Orbital observer', theme: 'Science Fiction' },
+            rocket: { emoji: '🚀', type: 'creature', cardType: 'Creature', cost: { fire: 5 }, power: 5, toughness: 3, abilities: ['flying', 'haste'], name: 'Battle Rocket', desc: 'Supersonic striker', theme: 'Science Fiction' },
+            astronaut: { emoji: '👨‍🚀', type: 'creature', cardType: 'Creature', cost: { light: 3, earth: 1 }, power: 2, toughness: 3, abilities: ['vigilance'], name: 'Space Marine', desc: 'Elite soldier', theme: 'Science Fiction' },
+            cyborg: { emoji: '🦾', type: 'creature', cardType: 'Creature', cost: { fire: 3, earth: 1 }, power: 4, toughness: 2, abilities: ['first_strike'], name: 'Cyborg Soldier', desc: 'Enhanced warrior', theme: 'Science Fiction' },
+            android: { emoji: '🤖', type: 'creature', cardType: 'Creature', cost: { water: 3, light: 2 }, power: 3, toughness: 4, abilities: ['vigilance'], name: 'Android Guardian', desc: 'Synthetic protector', theme: 'Science Fiction' },
+            mech: { emoji: '🦿', type: 'creature', cardType: 'Creature', cost: { earth: 5, fire: 2 }, power: 7, toughness: 6, abilities: ['trample'], name: 'Battle Mech', desc: 'Walking fortress', theme: 'Science Fiction' },
+            drone: { emoji: '🚁', type: 'creature', cardType: 'Creature', cost: { light: 2, fire: 1 }, power: 2, toughness: 1, abilities: ['flying', 'haste'], name: 'Attack Drone', desc: 'Autonomous flyer', theme: 'Science Fiction' },
+            computer: { emoji: '💻', type: 'creature', cardType: 'Creature', cost: { light: 2, water: 1 }, power: 1, toughness: 3, abilities: ['defender', 'hexproof'], name: 'AI Core', desc: 'Digital intelligence', theme: 'Science Fiction' },
+            brain: { emoji: '🧠', type: 'creature', cardType: 'Creature', cost: { swamp: 3, water: 1 }, power: 2, toughness: 3, abilities: ['hexproof'], name: 'Cyber Brain', desc: 'Artificial mind', theme: 'Science Fiction' },
+            dna: { emoji: '🧬', type: 'creature', cardType: 'Creature', cost: { earth: 2, light: 1 }, power: 1, toughness: 2, abilities: [], name: 'Gene Splice', desc: 'Genetic experiment', theme: 'Science Fiction' },
+            microbe: { emoji: '🦠', type: 'creature', cardType: 'Creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['deathtouch'], name: 'Nano Virus', desc: 'Microscopic threat', theme: 'Science Fiction' },
+            pill: { emoji: '💊', type: 'creature', cardType: 'Creature', cost: { light: 1, water: 1 }, power: 0, toughness: 2, abilities: ['lifelink'], name: 'Med Capsule', desc: 'Healing nanobot', theme: 'Science Fiction' },
+            syringe: { emoji: '💉', type: 'creature', cardType: 'Creature', cost: { swamp: 2, fire: 1 }, power: 2, toughness: 1, abilities: ['deathtouch'], name: 'Bio Injector', desc: 'Chemical weapon', theme: 'Science Fiction' },
+            microscope: { emoji: '🔬', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Lab Scanner', desc: 'Research unit', theme: 'Science Fiction' },
+            telescope: { emoji: '🔭', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'reach'], name: 'Orbital Scanner', desc: 'Long-range sensor', theme: 'Science Fiction' },
+            battery: { emoji: '🔋', type: 'creature', cardType: 'Creature', cost: { fire: 1, water: 1 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Power Cell', desc: 'Energy storage', theme: 'Science Fiction' },
+            magnet: { emoji: '🧲', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: [], name: 'Magnetic Trap', desc: 'Pulls enemies in', theme: 'Science Fiction' },
+            satellite_dish: { emoji: '📡', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Signal Tower', desc: 'Communication hub', theme: 'Science Fiction' },
+            radar: { emoji: '📡', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['reach'], name: 'Radar Array', desc: 'Detection system', theme: 'Science Fiction' },
+            bomb_scifi: { emoji: '💣', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 4, toughness: 1, abilities: ['haste'], name: 'Plasma Bomb', desc: 'Explosive payload', theme: 'Science Fiction' },
+            gear: { emoji: '⚙️', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['defender'], name: 'Mech Part', desc: 'Machine component', theme: 'Science Fiction' },
+            wrench: { emoji: '🔧', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 1, abilities: ['first_strike'], name: 'Repair Bot', desc: 'Maintenance unit', theme: 'Science Fiction' },
+            hammer: { emoji: '🔨', type: 'creature', cardType: 'Creature', cost: { fire: 2, earth: 1 }, power: 3, toughness: 1, abilities: ['first_strike'], name: 'Forge Hammer', desc: 'Construction tool', theme: 'Science Fiction' },
+            hourglass: { emoji: '⏳', type: 'creature', cardType: 'Creature', cost: { light: 3, swamp: 1 }, power: 2, toughness: 2, abilities: ['vigilance', 'flash'], name: 'Time Device', desc: 'Temporal manipulator', theme: 'Science Fiction' },
+            alarm: { emoji: '⏰', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Alert System', desc: 'Quick responder', theme: 'Science Fiction' },
+            watch: { emoji: '⌚', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Chrono Watch', desc: 'Time keeper', theme: 'Science Fiction' },
+            cd: { emoji: '💿', type: 'creature', cardType: 'Creature', cost: { light: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Data Disc', desc: 'Information storage', theme: 'Science Fiction' },
+            phone: { emoji: '📱', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flash'], name: 'Comm Device', desc: 'Mobile terminal', theme: 'Science Fiction' },
+            camera: { emoji: '📷', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Spy Camera', desc: 'Surveillance unit', theme: 'Science Fiction' },
+            video: { emoji: '📹', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Recorder Drone', desc: 'Video capture', theme: 'Science Fiction' },
         },
         
         // SPELLS - GREATLY EXPANDED
         spells: {
             // Fire Spells
-            fireball: { emoji: '💥', type: 'instant', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to target' },
-            explosion: { emoji: '🎆', type: 'instant', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to target' },
-            inferno: { emoji: '🔥', type: 'instant', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target' },
-            meteor: { emoji: '☄️', type: 'instant', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact' },
-            flame: { emoji: '🕯️', type: 'instant', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn' },
-            
+            fireball: { emoji: '💥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to target', theme: 'Fantasy' },
+            explosion: { emoji: '🎆', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to target', theme: 'Fantasy' },
+            inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target', theme: 'Fantasy' },
+            meteor: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact', theme: 'Nature' },
+            flame: { emoji: '🕯️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn', theme: 'Fantasy' },
+
             // Water Spells
-            freeze: { emoji: '❄️', type: 'instant', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature' },
-            tsunami: { emoji: '🌊', type: 'instant', cost: { water: 5 }, effect: 'bounce', name: 'Tsunami', desc: 'Return creatures to hand' },
-            bubble: { emoji: '🫧', type: 'instant', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature' },
-            rain: { emoji: '🌧️', type: 'instant', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life' },
-            whirlpool: { emoji: '🌀', type: 'instant', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature' },
-            
+            freeze: { emoji: '❄️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature', theme: 'Nature' },
+            tsunami: { emoji: '🌊', type: 'instant', cardType: 'Instant/Spell', cost: { water: 5 }, effect: 'bounce', name: 'Tsunami', desc: 'Return creatures to hand', theme: 'Nature' },
+            bubble: { emoji: '🫧', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature', theme: 'Fantasy' },
+            rain: { emoji: '🌧️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life', theme: 'Nature' },
+            whirlpool: { emoji: '🌀', type: 'instant', cardType: 'Instant/Spell', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature', theme: 'Nature' },
+
             // Earth Spells
-            earthquake: { emoji: '🌋', type: 'instant', cost: { earth: 4 }, effect: 'damage', value: 2, target: 'all', name: 'Earthquake', desc: 'Deal 2 to all creatures' },
-            growth: { emoji: '🌱', type: 'instant', cost: { earth: 2 }, effect: 'buff', value: 2, name: 'Growth', desc: '+2/+2 to creature' },
-            roots: { emoji: '🌿', type: 'instant', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature' },
-            avalanche: { emoji: '🏔️', type: 'instant', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures' },
-            harvest: { emoji: '🌾', type: 'instant', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards' },
-            
+            earthquake: { emoji: '🌋', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 4 }, effect: 'damage', value: 2, target: 'all', name: 'Earthquake', desc: 'Deal 2 to all creatures', theme: 'Nature' },
+            growth: { emoji: '🌱', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 2 }, effect: 'buff', value: 2, name: 'Growth', desc: '+2/+2 to creature', theme: 'Nature' },
+            roots: { emoji: '🌿', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature', theme: 'Nature' },
+            avalanche: { emoji: '🏔️', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures', theme: 'Nature' },
+            harvest: { emoji: '🌾', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards', theme: 'Nature' },
+
             // Swamp Spells
-            curse: { emoji: '🔮', type: 'instant', cost: { swamp: 3 }, effect: 'destroy', name: 'Curse', desc: 'Destroy target creature' },
-            drain: { emoji: '💉', type: 'instant', cost: { swamp: 2 }, effect: 'drain', value: 2, name: 'Drain Life', desc: 'Deal 2, gain 2 life' },
-            poison: { emoji: '☠️', type: 'instant', cost: { swamp: 3 }, effect: 'damage', value: 3, name: 'Poison', desc: 'Deal 3 damage' },
-            necromancy: { emoji: '⚰️', type: 'instant', cost: { swamp: 4 }, effect: 'revive', name: 'Necromancy', desc: 'Return creature from graveyard' },
-            terror: { emoji: '😱', type: 'instant', cost: { swamp: 2 }, effect: 'tap', name: 'Terror', desc: 'Tap target creature' },
-            
+            curse: { emoji: '🔮', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'destroy', name: 'Curse', desc: 'Destroy target creature', theme: 'Fantasy' },
+            drain: { emoji: '💉', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'drain', value: 2, name: 'Drain Life', desc: 'Deal 2, gain 2 life', theme: 'Fantasy' },
+            poison: { emoji: '☠️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'damage', value: 3, name: 'Poison', desc: 'Deal 3 damage', theme: 'Fantasy' },
+            necromancy: { emoji: '⚰️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 4 }, effect: 'revive', name: 'Necromancy', desc: 'Return creature from graveyard', theme: 'Fantasy' },
+            terror: { emoji: '😱', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'tap', name: 'Terror', desc: 'Tap target creature', theme: 'Fantasy' },
+
             // Light Spells
-            heal: { emoji: '✨', type: 'instant', cost: { light: 2 }, effect: 'heal', value: 3, name: 'Heal', desc: 'Restore 3 life' },
-            smite: { emoji: '⚡', type: 'instant', cost: { light: 3 }, effect: 'damage', value: 3, name: 'Divine Smite', desc: 'Deal 3 damage' },
-            blessing: { emoji: '🙏', type: 'instant', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature' },
-            light_beam: { emoji: '💫', type: 'instant', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage' },
-            resurrection: { emoji: '⛪', type: 'instant', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard' }
+            heal: { emoji: '✨', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'heal', value: 3, name: 'Heal', desc: 'Restore 3 life', theme: 'Fantasy' },
+            smite: { emoji: '⚡', type: 'instant', cardType: 'Instant/Spell', cost: { light: 3 }, effect: 'damage', value: 3, name: 'Divine Smite', desc: 'Deal 3 damage', theme: 'Fantasy' },
+            blessing: { emoji: '🙏', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature', theme: 'Fantasy' },
+            light_beam: { emoji: '💫', type: 'instant', cardType: 'Instant/Spell', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage', theme: 'Fantasy' },
+            resurrection: { emoji: '⛪', type: 'instant', cardType: 'Instant/Spell', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard', theme: 'Fantasy' }
         },
-        
+
         // ARTIFACTS - EXPANDED
         artifacts: {
-            sword: { emoji: '⚔️', type: 'artifact', cost: { fire: 2 }, effect: 'buff', value: 2, name: 'Flaming Sword', desc: 'Equipped creature gets +2/+0' },
-            shield: { emoji: '🛡️', type: 'artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2' },
-            crown: { emoji: '👑', type: 'artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn' },
-            gem: { emoji: '💎', type: 'artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana' },
-            bomb: { emoji: '💣', type: 'artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to all enemies' },
-            chalice: { emoji: '🏆', type: 'artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn' },
-            scroll: { emoji: '📜', type: 'artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card' },
-            orb: { emoji: '🔮', type: 'artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn' },
-            horn: { emoji: '📯', type: 'artifact', cost: { earth: 2 }, effect: 'buff', value: 1, name: 'War Horn', desc: 'All creatures get +1/+0' },
-            amulet: { emoji: '🪬', type: 'artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, name: 'Protective Amulet', desc: 'All creatures get +0/+1' },
-            ring: { emoji: '💍', type: 'artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production' },
-            armor: { emoji: '🦺', type: 'artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped' },
-            axe: { emoji: '🪓', type: 'artifact', cost: { fire: 3 }, effect: 'buff', value: 3, name: 'Battle Axe', desc: '+3/+0 to equipped' },
-            bow: { emoji: '🏹', type: 'artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, name: 'Elven Bow', desc: '+2/+0 and flying' },
-            wand: { emoji: '🪄', type: 'artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated' }
+            sword: { emoji: '⚔️', type: 'artifact', cardType: 'Artifact', cost: { fire: 2 }, effect: 'buff', value: 2, name: 'Flaming Sword', desc: 'Equipped creature gets +2/+0', theme: 'Fantasy' },
+            shield: { emoji: '🛡️', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2', theme: 'Fantasy' },
+            crown: { emoji: '👑', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn', theme: 'Fantasy' },
+            gem: { emoji: '💎', type: 'artifact', cardType: 'Artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana', theme: 'Fantasy' },
+            bomb: { emoji: '💣', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to all enemies', theme: 'City' },
+            chalice: { emoji: '🏆', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn', theme: 'Fantasy' },
+            scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card', theme: 'Fantasy' },
+            orb: { emoji: '🔮', type: 'artifact', cardType: 'Artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn', theme: 'Fantasy' },
+            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, name: 'War Horn', desc: 'All creatures get +1/+0', theme: 'City' },
+            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, name: 'Protective Amulet', desc: 'All creatures get +0/+1', theme: 'Fantasy' },
+            ring: { emoji: '💍', type: 'artifact', cardType: 'Artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production', theme: 'Fantasy' },
+            armor: { emoji: '🦺', type: 'artifact', cardType: 'Artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped', theme: 'City' },
+            axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
+            bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
+            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' }
         }
     };
 
