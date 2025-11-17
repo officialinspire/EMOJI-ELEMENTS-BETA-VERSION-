@@ -10,9 +10,18 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Click to Start Overlay -->
+    <div id="clickToStart" class="click-to-start-overlay">
+        <div class="click-to-start-content">
+            <div class="click-to-start-title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            <div class="click-to-start-text">🎮 CLICK TO START 🎮</div>
+            <div class="click-to-start-hint">(with sound)</div>
+        </div>
+    </div>
+
     <!-- Intro Video Container -->
-    <div id="introContainer" class="intro-container">
-        <video id="introVideo" class="intro-video" autoplay muted playsinline webkit-playsinline>
+    <div id="introContainer" class="intro-container" style="display: none;">
+        <video id="introVideo" class="intro-video" playsinline webkit-playsinline preload="auto">
             <source src="inspiresoftwareintro.mp4" type="video/mp4">
         </video>
     </div>

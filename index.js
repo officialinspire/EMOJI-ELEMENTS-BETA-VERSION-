@@ -108,51 +108,61 @@
 
     loadStats();
 
-    // Intro Video Logic
+    // Intro Video Logic with Click to Start
     window.addEventListener('DOMContentLoaded', () => {
+        const clickToStart = document.getElementById('clickToStart');
         const introContainer = document.getElementById('introContainer');
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
 
-        // Ensure video is ready before playing
+        // Preload video
         introVideo.load();
 
-        // Try to play video with better mobile support
-        const playVideo = () => {
+        // Click to start handler
+        clickToStart.addEventListener('click', () => {
+            // Hide click to start overlay
+            clickToStart.style.opacity = '0';
+            setTimeout(() => {
+                clickToStart.style.display = 'none';
+                // Show and play intro video with audio
+                introContainer.style.display = 'flex';
+                playVideoWithAudio();
+            }, 300);
+        });
+
+        // Play video with audio
+        const playVideoWithAudio = () => {
+            // Set volume to ensure audio plays
+            introVideo.volume = 1.0;
+            introVideo.muted = false;
+
             const playPromise = introVideo.play();
             if (playPromise !== undefined) {
                 playPromise.then(() => {
-                    console.log('Video playing successfully');
+                    console.log('Video playing successfully with audio');
                 }).catch(e => {
-                    console.log('Video autoplay failed:', e);
-                    // On mobile, user interaction may be required
-                    // Show a prompt to tap to start
-                    introContainer.style.cursor = 'pointer';
+                    console.log('Video play failed:', e);
+                    // Fallback: try playing muted if audio fails
+                    introVideo.muted = true;
+                    introVideo.play().catch(err => {
+                        console.log('Video play completely failed:', err);
+                    });
                 });
             }
         };
 
-        // Start playing video
-        playVideo();
-
         // When video ends, show start menu
         introVideo.addEventListener('ended', skipIntro);
 
-        // Allow clicking/tapping to skip or start video
-        introContainer.addEventListener('click', () => {
-            if (introVideo.paused) {
-                playVideo();
-            } else {
-                skipIntro();
-            }
-        });
+        // Allow clicking/tapping to skip video
+        introContainer.addEventListener('click', skipIntro);
 
         function skipIntro() {
             introContainer.classList.add('hidden');
             setTimeout(() => {
                 introContainer.style.display = 'none';
                 startModal.style.display = 'flex';
-                // Start menu music
+                // Start menu music - will work because we have user interaction
                 playSFX('startMenuMusic', true);
             }, 500);
         }

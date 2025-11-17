@@ -6,6 +6,71 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* Click to Start Overlay */
+.click-to-start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1b1b 50%, #1a0a0a 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.click-to-start-content {
+    text-align: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.click-to-start-title {
+    font-family: 'Uncial Antiqua', cursive;
+    font-size: 32px;
+    color: #ffd700;
+    text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00;
+    margin-bottom: 30px;
+    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.click-to-start-text {
+    font-family: 'MedievalSharp', cursive;
+    font-size: 24px;
+    color: #ffed4e;
+    text-shadow: 0 0 15px #ffd700;
+    margin-bottom: 10px;
+}
+
+.click-to-start-hint {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    color: #ffd700;
+    opacity: 0.8;
+}
+
+@media (min-width: 768px) {
+    .click-to-start-title {
+        font-size: 48px;
+        margin-bottom: 40px;
+    }
+
+    .click-to-start-text {
+        font-size: 32px;
+    }
+
+    .click-to-start-hint {
+        font-size: 18px;
+    }
+}
+
 /* Intro Video Styles */
 .intro-container {
     position: fixed;
@@ -40,8 +105,10 @@ body {
     color: #ffd700;
     overflow: hidden;
     touch-action: pan-y pinch-zoom;
-    position: relative;
-    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100vh;
     height: 100dvh; /* Dynamic viewport height for mobile */
     /* Safe area insets for devices with notches */
