@@ -39,8 +39,13 @@ body {
     background: linear-gradient(135deg, #1a0a0a 0%, #2d1b1b 50%, #1a0a0a 100%);
     color: #ffd700;
     overflow: hidden;
-    touch-action: none;
+    touch-action: manipulation;
     position: relative;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
 }
 
 body::before {
@@ -68,11 +73,15 @@ body::before {
 
 .game-container {
     width: 100vw;
+    width: 100dvw;
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
     padding: 5px;
     gap: 5px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .header {
@@ -442,15 +451,15 @@ body::before {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.95);
-    display: flex;
+    display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 1000;
     padding: 20px;
     backdrop-filter: blur(5px);
-    opacity: 0;
-    animation: fadeIn 1.5s ease-in forwards;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 @keyframes fadeIn {
@@ -994,27 +1003,109 @@ body::before {
 .life-decrease {
     animation: lifepointDecrease 0.3s ease;
 }
-    </style>
+.deck-counter {
+    font-family: 'MedievalSharp', cursive;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-shadow: 0 0 10px #ffd700;
+    color: #ffd700;
+}
 
-        /* Deck Counter */
-        .deck-counter {
-            font-family: 'MedievalSharp', cursive;
-            font-size: 18px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            text-shadow: 0 0 10px #ffd700;
-            color: #ffd700;
-        }
+/* Mulligan Button visible state */
+#mulliganBtn {
+    background: linear-gradient(135deg, #4169e1 0%, #1e90ff 100%);
+    transition: opacity 0.3s ease;
+}
 
-        /* Mulligan Button visible state */
-        #mulliganBtn {
-            background: linear-gradient(135deg, #4169e1 0%, #1e90ff 100%);
-            transition: opacity 0.3s ease;
-        }
+#mulliganBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-        #mulliganBtn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+/* Mobile-Specific Improvements */
+@media (max-width: 767px) {
+    body {
+        font-size: 14px;
+    }
+
+    .game-container {
+        padding: 3px;
+        gap: 3px;
+    }
+
+    .header {
+        padding: 6px;
+    }
+
+    .title {
+        font-size: 14px;
+    }
+
+    .phase-indicator {
+        font-size: 8px;
+        padding: 3px 5px;
+    }
+
+    .card {
+        min-width: 55px;
+        width: 55px;
+        height: 75px;
+    }
+
+    .hand-area {
+        min-height: 85px;
+        max-height: 85px;
+        padding: 4px;
+    }
+
+    .controls {
+        padding: 3px;
+        gap: 4px;
+    }
+
+    .btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .modal-content {
+        padding: 20px;
+        max-width: 95%;
+    }
+
+    .modal-title {
+        font-size: 24px;
+    }
+
+    .modal-subtitle {
+        font-size: 14px;
+    }
+}
+
+/* Prevent text selection on mobile */
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+/* Safe area for notched devices */
+@supports (padding: max(0px)) {
+    body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+    }
+}

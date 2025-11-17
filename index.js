@@ -114,11 +114,23 @@
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
 
-        // Play intro video
+        // Ensure start modal is hidden initially
+        startModal.style.display = 'none';
+
+        // Unmute video after a brief delay (helps with autoplay on mobile)
+        setTimeout(() => {
+            introVideo.muted = false;
+        }, 100);
+
+        // Play intro video (redundant but ensures playback)
         introVideo.play().catch(e => {
             console.log('Video autoplay failed:', e);
-            // Skip to menu if autoplay fails
-            skipIntro();
+            // Try again with muted
+            introVideo.muted = true;
+            introVideo.play().catch(err => {
+                console.log('Video play still failed:', err);
+                skipIntro();
+            });
         });
 
         // When video ends, show start menu
@@ -132,6 +144,12 @@
             setTimeout(() => {
                 introContainer.style.display = 'none';
                 startModal.style.display = 'flex';
+                startModal.style.opacity = '0';
+                // Fade in start modal
+                setTimeout(() => {
+                    startModal.style.transition = 'opacity 1s ease-in';
+                    startModal.style.opacity = '1';
+                }, 10);
                 // Start menu music
                 playSFX('startMenuMusic', true);
             }, 500);
