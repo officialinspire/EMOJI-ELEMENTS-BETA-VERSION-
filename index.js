@@ -73,9 +73,11 @@
         playerHand: [],
         playerBoard: [],
         playerDeck: [],
+        playerGraveyard: [],  // Graveyard for destroyed creatures
         enemyHand: [],
         enemyBoard: [],
         enemyDeck: [],
+        enemyGraveyard: [],  // Enemy graveyard
         selectedCard: null,
         selectedElements: [],
         phase: 'main',
@@ -879,8 +881,10 @@
         gameState.enemyMana = {};
         gameState.playerHand = [];
         gameState.playerBoard = [];
+        gameState.playerGraveyard = [];
         gameState.enemyHand = [];
         gameState.enemyBoard = [];
+        gameState.enemyGraveyard = [];
         gameState.selectedCard = null;
         gameState.phase = 'main';
         gameState.turn = 'player';
@@ -1003,6 +1007,8 @@
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             resolveSpell(card, 'player');
+            // Check for dead creatures after spell resolves
+            checkStateBasedActions();
         }
 
         // Particles
@@ -1068,10 +1074,42 @@
         updateUI();
     }
 
+    // State-based actions - check for dead creatures
+    function checkStateBasedActions() {
+        // Check player board for dead creatures
+        const playerDeadCreatures = gameState.playerBoard.filter(c =>
+            c.type === 'creature' && (c.damage || 0) >= c.toughness
+        );
+        playerDeadCreatures.forEach(creature => {
+            gameState.playerGraveyard.push({...creature});
+            showGameLog(`💀 ${creature.emoji} ${creature.name} is destroyed!`, false);
+        });
+        gameState.playerBoard = gameState.playerBoard.filter(c =>
+            c.type !== 'creature' || (c.damage || 0) < c.toughness
+        );
+
+        // Check enemy board for dead creatures
+        const enemyDeadCreatures = gameState.enemyBoard.filter(c =>
+            c.type === 'creature' && (c.damage || 0) >= c.toughness
+        );
+        enemyDeadCreatures.forEach(creature => {
+            gameState.enemyGraveyard.push({...creature});
+            showGameLog(`💀 ${creature.emoji} ${creature.name} is destroyed!`, true);
+        });
+        gameState.enemyBoard = gameState.enemyBoard.filter(c =>
+            c.type !== 'creature' || (c.damage || 0) < c.toughness
+        );
+
+        // Play sound if any creatures died
+        if (playerDeadCreatures.length > 0 || enemyDeadCreatures.length > 0) {
+            playSFX('cardDestroyed');
+        }
+    }
+
     // Resolve Spell
     function resolveSpell(card, caster) {
         const isCasterPlayer = caster === 'player';
-        
+
         switch(card.effect) {
             case 'damage':
                 if (card.target === 'all') {
@@ -1098,7 +1136,7 @@
                     }
                 }
                 break;
-                
+
             case 'heal':
                 if (isCasterPlayer) {
                     changePlayerLife(card.value);
@@ -1112,11 +1150,12 @@
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 20);
                 }
                 break;
-                
+
             case 'draw':
                 for (let i = 0; i < card.value; i++) {
                     drawCard(caster);
                 }
+                showGameLog(`📜 ${isCasterPlayer ? 'You' : 'Enemy'} draw ${card.value} card${card.value > 1 ? 's' : ''}`, !isCasterPlayer);
                 break;
 
             case 'drain':
@@ -1130,14 +1169,18 @@
                     changePlayerLife(-card.value);
                     changeEnemyLife(card.value);
                 }
+                showGameLog(`💉 Drain ${card.value} life`, !isCasterPlayer);
                 break;
 
             case 'destroy':
                 // Destroy target creature (simplified - destroys a random creature)
                 const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                const targetGraveyard = isCasterPlayer ? gameState.enemyGraveyard : gameState.playerGraveyard;
                 const creatures = targetBoard.filter(c => c.type === 'creature');
                 if (creatures.length > 0) {
                     const target = creatures[Math.floor(Math.random() * creatures.length)];
+                    // Move to graveyard before removing from board
+                    targetGraveyard.push({...target});
                     if (isCasterPlayer) {
                         gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
                     } else {
@@ -1145,7 +1188,113 @@
                     }
                     playSFX('cardDestroyed');
                     showGameLog(`${target.emoji} ${target.name} is destroyed!`, !isCasterPlayer);
+                } else {
+                    showGameLog(`No creatures to destroy`, !isCasterPlayer);
                 }
+                break;
+
+            case 'buff':
+                // Buff a random friendly creature with +X/+X
+                const friendlyBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
+                const friendlyCreatures = friendlyBoard.filter(c => c.type === 'creature');
+                if (friendlyCreatures.length > 0) {
+                    const target = friendlyCreatures[Math.floor(Math.random() * friendlyCreatures.length)];
+                    target.power = (target.power || 0) + card.value;
+                    target.toughness = (target.toughness || 0) + card.value;
+                    showGameLog(`✨ ${target.emoji} ${target.name} gets +${card.value}/+${card.value}!`, !isCasterPlayer);
+                    createSparkles(window.innerWidth / 2, window.innerHeight / 2, 15);
+                } else {
+                    showGameLog(`No creatures to buff`, !isCasterPlayer);
+                }
+                break;
+
+            case 'buff_defense':
+                // Buff a random friendly creature with +0/+X
+                const friendlyBoard2 = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
+                const friendlyCreatures2 = friendlyBoard2.filter(c => c.type === 'creature');
+                if (friendlyCreatures2.length > 0) {
+                    const target = friendlyCreatures2[Math.floor(Math.random() * friendlyCreatures2.length)];
+                    target.toughness = (target.toughness || 0) + card.value;
+                    showGameLog(`🛡️ ${target.emoji} ${target.name} gets +0/+${card.value}!`, !isCasterPlayer);
+                    createSparkles(window.innerWidth / 2, window.innerHeight / 2, 15);
+                } else {
+                    showGameLog(`No creatures to buff`, !isCasterPlayer);
+                }
+                break;
+
+            case 'tap':
+                // Tap a random enemy creature
+                const enemyBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                const untappedCreatures = enemyBoard.filter(c => c.type === 'creature' && !c.tapped);
+                if (untappedCreatures.length > 0) {
+                    const target = untappedCreatures[Math.floor(Math.random() * untappedCreatures.length)];
+                    target.tapped = true;
+                    showGameLog(`❄️ ${target.emoji} ${target.name} is tapped!`, !isCasterPlayer);
+                } else {
+                    showGameLog(`No creatures to tap`, !isCasterPlayer);
+                }
+                break;
+
+            case 'bounce':
+                // Return random enemy creatures to hand (Tsunami effect)
+                const enemyBoard2 = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                const enemyHand = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
+                const bounceable = enemyBoard2.filter(c => c.type === 'creature');
+                const bounceCount = Math.min(2, bounceable.length);
+                for (let i = 0; i < bounceCount; i++) {
+                    if (bounceable.length > 0) {
+                        const idx = Math.floor(Math.random() * bounceable.length);
+                        const target = bounceable[idx];
+                        bounceable.splice(idx, 1);
+                        target.tapped = false;
+                        target.damage = 0;
+                        enemyHand.push(target);
+                        if (isCasterPlayer) {
+                            gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
+                        } else {
+                            gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== target.id);
+                        }
+                        showGameLog(`🌊 ${target.emoji} ${target.name} returns to hand!`, !isCasterPlayer);
+                    }
+                }
+                break;
+
+            case 'revive':
+                // Return a creature from graveyard to battlefield
+                const graveyard = isCasterPlayer ? gameState.playerGraveyard : gameState.enemyGraveyard;
+                const board = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
+                if (graveyard.length > 0) {
+                    const revived = graveyard.pop();
+                    revived.damage = 0;
+                    revived.tapped = true;
+                    revived.id = Math.random(); // New ID
+                    board.push(revived);
+                    showGameLog(`⛪ ${revived.emoji} ${revived.name} is revived!`, !isCasterPlayer);
+                    createSparkles(window.innerWidth / 2, window.innerHeight / 2, 20);
+                } else {
+                    showGameLog(`No creatures in graveyard to revive`, !isCasterPlayer);
+                }
+                break;
+
+            case 'aoe':
+                // Area damage to all enemy creatures
+                const aoeBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
+                aoeBoard.forEach(c => {
+                    if (c.type === 'creature') {
+                        c.damage = (c.damage || 0) + card.value;
+                    }
+                });
+                showGameLog(`💣 ${card.value} damage to all enemy creatures!`, !isCasterPlayer);
+                shakeScreen();
+                break;
+
+            case 'mana':
+                // Mana effects are passive and handled during upkeep
+                showGameLog(`💎 Mana artifact activated!`, !isCasterPlayer);
+                break;
+
+            default:
+                showGameLog(`${card.emoji} ${card.name} effect resolved`, !isCasterPlayer);
                 break;
         }
     }
@@ -1313,14 +1462,18 @@
                         createSparkles(rect.left + 50, rect.top + rect.height / 2);
                     }
 
-                    // Check deaths
+                    // Check deaths - move to graveyard before removing
                     if (attacker.damage >= attacker.toughness) {
+                        gameState.playerGraveyard.push({...attacker});
                         gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== attackerId);
                         playSFX('cardDestroyed');
+                        showGameLog(`💀 ${attacker.emoji} ${attacker.name} is destroyed!`, false);
                     }
                     if (blocker.damage >= blocker.toughness) {
+                        gameState.enemyGraveyard.push({...blocker});
                         gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== blockerId);
                         playSFX('cardDestroyed');
+                        showGameLog(`💀 ${blocker.emoji} ${blocker.name} is destroyed!`, true);
                     }
                 }
             } else {
@@ -1341,6 +1494,9 @@
                 createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 40);
             }
         });
+
+        // Check state-based actions after combat
+        checkStateBasedActions();
 
         gameState.attackers = [];
         gameState.blockers = {};
@@ -1399,6 +1555,44 @@
         }, 1500);
     }
 
+    // Process upkeep effects for artifacts
+    function processUpkeepEffects(isPlayer) {
+        const board = isPlayer ? gameState.playerBoard : gameState.enemyBoard;
+        const artifacts = board.filter(c => c.type === 'artifact');
+
+        artifacts.forEach(artifact => {
+            switch(artifact.effect) {
+                case 'draw':
+                    // Artifacts like Crown of Power or Dark Scroll
+                    for (let i = 0; i < (artifact.value || 1); i++) {
+                        drawCard(isPlayer ? 'player' : 'enemy');
+                    }
+                    showGameLog(`${artifact.emoji} ${artifact.name} draws a card!`, !isPlayer);
+                    break;
+
+                case 'heal':
+                    // Artifacts like Holy Chalice
+                    if (isPlayer) {
+                        changePlayerLife(artifact.value || 1);
+                    } else {
+                        changeEnemyLife(artifact.value || 1);
+                    }
+                    showGameLog(`${artifact.emoji} ${artifact.name} heals ${artifact.value || 1} life!`, !isPlayer);
+                    break;
+
+                case 'damage':
+                    // Artifacts like Cursed Orb
+                    if (isPlayer) {
+                        changeEnemyLife(-(artifact.value || 1));
+                    } else {
+                        changePlayerLife(-(artifact.value || 1));
+                    }
+                    showGameLog(`${artifact.emoji} ${artifact.name} deals ${artifact.value || 1} damage!`, !isPlayer);
+                    break;
+            }
+        });
+    }
+
     // Start player turn
     function startPlayerTurn() {
         gameState.turn = 'player';
@@ -1414,6 +1608,9 @@
         // Draw card at start of turn
         drawCard('player');
         showGameLog('📜 You draw a card', false);
+
+        // Process upkeep effects from artifacts
+        processUpkeepEffects(true);
 
         // Untap and reset mana
         gameState.playerBoard.forEach(card => card.tapped = false);
@@ -1446,6 +1643,9 @@
             // Draw card
             drawCard('enemy');
             showGameLog('🎴 Enemy draws a card', true);
+
+            // Process upkeep effects from enemy artifacts
+            processUpkeepEffects(false);
 
             setTimeout(() => {
             // Play lands
@@ -1517,6 +1717,8 @@
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
                                     resolveSpell(spell, 'enemy');
+                                    // Check for dead creatures after spell resolves
+                                    checkStateBasedActions();
                                     spellPlayed = true;
                                 }
                             });
