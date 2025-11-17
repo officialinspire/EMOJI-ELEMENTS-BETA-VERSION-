@@ -108,6 +108,11 @@
 
     loadStats();
 
+    // Detect iOS devices
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     // Intro Video Logic with Click to Start
     window.addEventListener('DOMContentLoaded', () => {
         const clickToStart = document.getElementById('clickToStart');
@@ -115,8 +120,12 @@
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
 
-        // Preload video
+        // Preload video and ensure audio is ready
         introVideo.load();
+
+        // Prepare video for playback with audio (especially important for iOS)
+        introVideo.removeAttribute('muted');
+        introVideo.volume = 1.0;
 
         // Click to start handler
         clickToStart.addEventListener('click', () => {
@@ -130,40 +139,70 @@
             }, 300);
         });
 
-        // Play video with audio
-        const playVideoWithAudio = () => {
-            // Set volume to ensure audio plays
-            introVideo.volume = 1.0;
+        // Play video with audio - CRITICAL FIX for audio playback
+        const playVideoWithAudio = async () => {
+            // IMPORTANT: Explicitly unmute and set volume BEFORE playing
+            // This is critical for mobile browsers (iOS, Android)
             introVideo.muted = false;
+            introVideo.volume = 1.0;
+            introVideo.removeAttribute('muted');
 
-            const playPromise = introVideo.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Video playing successfully with audio');
-                }).catch(e => {
-                    console.log('Video play failed:', e);
-                    // Fallback: try playing muted if audio fails
-                    introVideo.muted = true;
-                    introVideo.play().catch(err => {
-                        console.log('Video play completely failed:', err);
-                    });
-                });
+            // Log device type for debugging
+            console.log(`📱 Device: ${isIOS ? 'iOS' : isMobile ? 'Mobile' : 'Desktop'}`);
+
+            try {
+                // Start playback with audio
+                await introVideo.play();
+                console.log('✅ Video playing with audio');
+                console.log(`🔊 Volume: ${introVideo.volume}, Muted: ${introVideo.muted}`);
+
+                // Continuously enforce unmuted state for the first few seconds
+                // This is critical for iOS devices
+                const enforceAudio = setInterval(() => {
+                    if (introVideo.paused || introVideo.ended) {
+                        clearInterval(enforceAudio);
+                        return;
+                    }
+                    introVideo.muted = false;
+                    introVideo.volume = 1.0;
+                }, 100);
+
+                // Stop enforcing after 3 seconds
+                setTimeout(() => clearInterval(enforceAudio), 3000);
+
+                // Check if video has audio tracks
+                setTimeout(() => {
+                    if (introVideo.audioTracks) {
+                        console.log(`🎵 Audio tracks: ${introVideo.audioTracks.length}`);
+                    }
+                    // Log current playback state
+                    console.log(`▶️ Playing: ${!introVideo.paused}, Volume: ${introVideo.volume}, Muted: ${introVideo.muted}`);
+                }, 500);
+
+            } catch (e) {
+                console.error('❌ Video play failed:', e);
+                // If play fails completely, skip to menu
+                skipIntro();
             }
         };
 
-        // When video ends, show start menu
+        // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
 
         // Allow clicking/tapping to skip video
         introContainer.addEventListener('click', skipIntro);
 
         function skipIntro() {
+            // Smooth fade out of video
             introContainer.classList.add('hidden');
             setTimeout(() => {
                 introContainer.style.display = 'none';
                 startModal.style.display = 'flex';
-                // Start menu music - will work because we have user interaction
-                playSFX('startMenuMusic', true);
+                // Seamlessly start menu music after video ends
+                // Using setTimeout to ensure smooth transition
+                setTimeout(() => {
+                    playSFX('startMenuMusic', true);
+                }, 100);
             }, 500);
         }
     });
