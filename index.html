@@ -8,10 +8,25 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Intro Video Container -->
+    <div id="introContainer" class="intro-container">
+        <video id="introVideo" class="intro-video" playsinline>
+            <source src="inspiresoftwareintro.mp4" type="video/mp4">
+        </video>
+    </div>
+
     <canvas id="particles"></canvas>
 
     <!-- Game Log -->
     <div id="gameLog" class="game-log"></div>
+
+    <!-- Victory/Lose Overlays -->
+    <div id="victoryOverlay" class="victory-overlay">
+        <div class="victory-text">🏆 VICTORY! 🏆</div>
+    </div>
+    <div id="loseOverlay" class="lose-overlay">
+        <div class="lose-text">💀 DEFEAT! 💀</div>
+    </div>
 
     <!-- Card Detail Popup -->
     <div id="cardDetailPopup" class="card-detail-popup">
