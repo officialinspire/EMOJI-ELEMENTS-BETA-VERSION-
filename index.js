@@ -210,6 +210,10 @@
     // Mulligan state
     let mulliganUsed = false;
 
+    // Attack Phase and action processing lock (must be declared before startGame function)
+    let attackPhase = false;
+    let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
+
     // Mana System
     const ELEMENTS = {
         fire: { emoji: '🔥', color: '#ff4444' },
@@ -1105,10 +1109,6 @@
         }
     }
 
-    // Attack Phase and action processing lock
-    let attackPhase = false;
-    let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
-
     function enterAttackPhase() {
         // Turn enforcement: Only allow during player's turn
         if (gameState.turn !== 'player' || isProcessingAction) {
@@ -1801,6 +1801,18 @@
             
             enemyBoardEl.appendChild(cardEl);
         });
+
+        // Disable buttons during enemy turn to prevent cheating and provide better UX
+        const attackBtn = document.getElementById('attackBtn');
+        const endTurnBtn = document.getElementById('endTurnBtn');
+        const isPlayerTurn = gameState.turn === 'player' && gameState.phase !== 'enemy';
+
+        if (attackBtn) {
+            attackBtn.disabled = !isPlayerTurn || isProcessingAction;
+        }
+        if (endTurnBtn) {
+            endTurnBtn.disabled = !isPlayerTurn || isProcessingAction || attackPhase;
+        }
     }
 
     function updateManaDisplay(elementId, manaPool) {
