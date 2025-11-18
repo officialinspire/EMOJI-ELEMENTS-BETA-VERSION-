@@ -87,7 +87,8 @@
         difficulty: 'easy',
         previousPlayerLife: 20,
         previousEnemyLife: 20,
-        landsPlayedThisTurn: 0  // Track lands played to enforce one land per turn rule
+        landsPlayedThisTurn: 0,  // Track lands played to enforce one land per turn rule
+        hasAttackedThisTurn: false  // VIGILANCE FIX: Prevent multiple attacks per turn
     };
 
     // Stats tracking
@@ -264,7 +265,9 @@
             water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', theme: 'Nature' },
             earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', theme: 'Nature' },
             swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', theme: 'Fantasy' },
-            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' }
+            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' },
+            distant_planet: { emoji: '🪐', type: 'land', cardType: 'Land - Dual', elements: ['light', 'swamp'], name: 'Distant Planet', desc: 'Tap for Light or Swamp mana', theme: 'Science Fiction' },
+            rainbow: { emoji: '🌈', type: 'land', cardType: 'Land - Universal', elements: ['fire', 'water', 'earth', 'swamp', 'light'], name: 'Rainbow', desc: 'Tap for any color mana', theme: 'Nature' }
         },
         
         // CREATURES - MASSIVELY EXPANDED
@@ -287,7 +290,11 @@
             lobster: { emoji: '🦞', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Fire Lobster', desc: 'Armored attacker', theme: 'Nature' },
             beetle: { emoji: '🪲', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 2, abilities: [], name: 'Ember Beetle', desc: 'Small but resilient', theme: 'Nature' },
             ladybug: { emoji: '🐞', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Fire Ladybug', desc: 'Tiny flyer', theme: 'Nature' },
-            
+            oni: { emoji: '👹', type: 'creature', cardType: 'Creature', cost: { fire: 5 }, power: 5, toughness: 5, abilities: ['trample', 'haste'], name: 'Raging Oni', desc: 'Demonic warrior from legend', theme: 'Fantasy' },
+            djinn: { emoji: '🧞‍♂️', type: 'creature', cardType: 'Creature', cost: { fire: 6 }, power: 5, toughness: 5, abilities: ['flying', 'trample'], name: 'Fire Djinn', desc: 'Wishes granted in flame', theme: 'Fantasy' },
+            fireman: { emoji: '👨‍🚒', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 2, toughness: 3, abilities: ['vigilance'], name: 'Fireman', desc: 'Brave first responder', theme: 'City' },
+            phoenix_firebird: { emoji: '🐦‍🔥', type: 'creature', cardType: 'Creature', cost: { fire: 5 }, power: 4, toughness: 3, abilities: ['flying', 'haste'], name: 'Phoenix Firebird', desc: 'Eternal flame reborn', theme: 'Fantasy' },
+
             // Water Creatures (17 total!)
             whale: { emoji: '🐋', type: 'creature', cardType: 'Creature', cost: { water: 6 }, power: 6, toughness: 7, abilities: ['defender', 'vigilance'], name: 'Leviathan Whale', desc: 'Guardian of the deep', theme: 'Nature' },
             shark: { emoji: '🦈', type: 'creature', cardType: 'Creature', cost: { water: 4 }, power: 4, toughness: 3, abilities: ['menace'], name: 'Great Shark', desc: 'Ocean predator', theme: 'Nature' },
@@ -306,7 +313,9 @@
             jellyfish: { emoji: '🪼', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 0, toughness: 4, abilities: ['defender', 'deathtouch'], name: 'Stinging Jellyfish', desc: 'Floating defender', theme: 'Nature' },
             snail: { emoji: '🐌', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 0, toughness: 3, abilities: ['defender'], name: 'Armored Snail', desc: 'Slow but safe', theme: 'Nature' },
             swan: { emoji: '🦢', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flying'], name: 'Crystal Swan', desc: 'Elegant flyer', theme: 'Nature' },
-            
+            mermaid: { emoji: '🧜‍♀️', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 2, toughness: 3, abilities: ['flash'], name: 'Enchanting Mermaid', desc: 'Siren of the seas', theme: 'Fantasy' },
+            great_white: { emoji: '🦈', type: 'creature', cardType: 'Creature', cost: { water: 5 }, power: 5, toughness: 4, abilities: ['menace', 'trample'], name: 'Great White Shark', desc: 'Apex ocean predator', theme: 'Nature' },
+
             // Earth Creatures (17 total!)
             elephant: { emoji: '🐘', type: 'creature', cardType: 'Creature', cost: { earth: 6 }, power: 6, toughness: 7, abilities: ['trample', 'vigilance'], name: 'Elder Elephant', desc: 'Unstoppable might', theme: 'Nature' },
             gorilla: { emoji: '🦍', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Silverback Gorilla', desc: 'Jungle king', theme: 'Nature' },
@@ -325,7 +334,11 @@
             ox: { emoji: '🐂', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['trample'], name: 'Strong Ox', desc: 'Powerful worker', theme: 'Nature' },
             panda: { emoji: '🐼', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['lifelink'], name: 'Bamboo Panda', desc: 'Peaceful guardian', theme: 'Nature' },
             koala: { emoji: '🐨', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 1, toughness: 3, abilities: ['defender'], name: 'Sleepy Koala', desc: 'Tree hugger', theme: 'Nature' },
-            
+            cowboy: { emoji: '🤠', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 2, abilities: ['first_strike'], name: 'Wild West Cowboy', desc: 'Quick draw master', theme: 'City' },
+            weightlifter: { emoji: '🏋️‍♂️', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['vigilance'], name: 'Weightlifter', desc: 'Strength and endurance', theme: 'City' },
+            tiger_earth: { emoji: '🐅', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 3, abilities: ['trample'], name: 'Bengal Tiger', desc: 'Jungle apex predator', theme: 'Nature' },
+            ladybug_earth: { emoji: '🐞', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: [], name: 'Garden Ladybug', desc: 'Lucky protector', theme: 'Nature' },
+
             // Swamp/Death Creatures (17 total!)
             vampire: { emoji: '🧛', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['lifelink', 'flying'], name: 'Ancient Vampire', desc: 'Drains life force', theme: 'Fantasy' },
             zombie: { emoji: '🧟', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 3, abilities: ['menace'], name: 'Risen Zombie', desc: 'Undead walker', theme: 'Fantasy' },
@@ -344,7 +357,8 @@
             mummy: { emoji: '🧟‍♂️', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Ancient Mummy', desc: 'Wrapped horror', theme: 'Fantasy' },
             goblin: { emoji: '👺', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Goblin Raider', desc: 'Quick attacker', theme: 'Fantasy' },
             troll: { emoji: '🧌', type: 'creature', cardType: 'Creature', cost: { swamp: 5 }, power: 5, toughness: 5, abilities: ['trample'], name: 'Swamp Troll', desc: 'Regenerating brute', theme: 'Fantasy' },
-            
+            demonic_clown: { emoji: '🤡', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 3, toughness: 3, abilities: ['menace', 'deathtouch'], name: 'Demonic Clown', desc: 'Nightmare fuel incarnate', theme: 'Fantasy' },
+
             // Light Creatures (17 total!)
             unicorn: { emoji: '🦄', type: 'creature', cardType: 'Creature', cost: { light: 4 }, power: 3, toughness: 3, abilities: ['lifelink', 'vigilance'], name: 'Sacred Unicorn', desc: 'Pure of heart', theme: 'Fantasy' },
             angel: { emoji: '👼', type: 'creature', cardType: 'Creature', cost: { light: 5 }, power: 4, toughness: 4, abilities: ['flying', 'vigilance'], name: 'Guardian Angel', desc: 'Divine protector', theme: 'Fantasy' },
@@ -399,6 +413,18 @@
             phone: { emoji: '📱', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['flash'], name: 'Comm Device', desc: 'Mobile terminal', theme: 'Science Fiction' },
             camera: { emoji: '📷', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 1, abilities: ['vigilance'], name: 'Spy Camera', desc: 'Surveillance unit', theme: 'Science Fiction' },
             video: { emoji: '📹', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Recorder Drone', desc: 'Video capture', theme: 'Science Fiction' },
+            men_in_black: { emoji: '🕴️', type: 'creature', cardType: 'Creature', cost: { swamp: 3, light: 1 }, power: 3, toughness: 3, abilities: ['flash', 'hexproof'], name: 'Men In Black', desc: 'Government agents', theme: 'Science Fiction' },
+            alien_grey: { emoji: '👽', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 3, toughness: 3, abilities: ['flying', 'flash'], name: 'Grey Alien', desc: 'Extraterrestrial visitor', theme: 'Science Fiction' },
+            astronaut_mixed: { emoji: '👨‍🚀', type: 'creature', cardType: 'Creature', cost: { swamp: 2, light: 2 }, power: 2, toughness: 3, abilities: ['flying', 'vigilance'], name: 'Astronaut Explorer', desc: 'Brave space pioneer', theme: 'Science Fiction' },
+
+            // MIXED COLOR CREATURES
+            poop: { emoji: '💩', type: 'creature', cardType: 'Creature', cost: { earth: 2, swamp: 1 }, power: 2, toughness: 3, abilities: ['menace'], name: 'Poop', desc: 'Stinky but effective', theme: 'Nature' },
+            santa: { emoji: '🎅', type: 'creature', cardType: 'Creature', cost: { fire: 3, light: 2 }, power: 3, toughness: 4, abilities: ['vigilance', 'lifelink'], name: 'Santa Claus', desc: 'Jolly gift giver', theme: 'City' },
+            police: { emoji: '👮', type: 'creature', cardType: 'Creature', cost: { water: 2, light: 1 }, power: 2, toughness: 3, abilities: ['vigilance', 'first_strike'], name: 'Police Officer', desc: 'Law and order', theme: 'City' },
+            crooked_cop: { emoji: '👮🏽', type: 'creature', cardType: 'Creature', cost: { water: 2, swamp: 1 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Crooked Cop', desc: 'Corrupt enforcer', theme: 'City' },
+            farmer: { emoji: '🧑‍🌾', type: 'creature', cardType: 'Creature', cost: { earth: 2, light: 1 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Farmer', desc: 'Hardworking cultivator', theme: 'City' },
+            welder: { emoji: '👩‍🏭', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Welder', desc: 'Industrial craftsperson', theme: 'City' },
+            sunflower: { emoji: '🌻', type: 'creature', cardType: 'Creature', cost: { earth: 2, light: 1 }, power: 1, toughness: 3, abilities: ['defender', 'lifelink'], name: 'Sunflower', desc: 'Radiant bloom', theme: 'Nature' },
         },
         
         // SPELLS - GREATLY EXPANDED
@@ -409,6 +435,7 @@
             inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target', theme: 'Fantasy' },
             meteor: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact', theme: 'Nature' },
             flame: { emoji: '🕯️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn', theme: 'Fantasy' },
+            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
 
             // Water Spells
             freeze: { emoji: '❄️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature', theme: 'Nature' },
@@ -416,6 +443,9 @@
             bubble: { emoji: '🫧', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature', theme: 'Fantasy' },
             rain: { emoji: '🌧️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life', theme: 'Nature' },
             whirlpool: { emoji: '🌀', type: 'instant', cardType: 'Instant/Spell', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature', theme: 'Nature' },
+            deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
+            surf: { emoji: '🏄', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff', value: 2, name: 'Surf', desc: 'Creature gets +2/+2 and unblockable', theme: 'City' },
+            coral: { emoji: '🪸', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff_defense', value: 2, name: 'Coral Shield', desc: '+0/+2 to creature', theme: 'Nature' },
 
             // Earth Spells
             earthquake: { emoji: '🌋', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 4 }, effect: 'damage', value: 2, target: 'all', name: 'Earthquake', desc: 'Deal 2 to all creatures', theme: 'Nature' },
@@ -423,6 +453,8 @@
             roots: { emoji: '🌿', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature', theme: 'Nature' },
             avalanche: { emoji: '🏔️', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures', theme: 'Nature' },
             harvest: { emoji: '🌾', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards', theme: 'Nature' },
+            wrestle: { emoji: '🤼', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'destroy', name: 'Wrestle', desc: 'Destroy target creature in combat', theme: 'City' },
+            shroom: { emoji: '🍄', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff', value: 1, name: 'Mushroom Power', desc: '+1/+1 to creature', theme: 'Nature' },
 
             // Swamp Spells
             curse: { emoji: '🔮', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'destroy', name: 'Curse', desc: 'Destroy target creature', theme: 'Fantasy' },
@@ -437,11 +469,18 @@
             blessing: { emoji: '🙏', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature', theme: 'Fantasy' },
             light_beam: { emoji: '💫', type: 'instant', cardType: 'Instant/Spell', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage', theme: 'Fantasy' },
             resurrection: { emoji: '⛪', type: 'instant', cardType: 'Instant/Spell', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard', theme: 'Fantasy' },
+            in_clouds: { emoji: '😶‍🌫️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff_defense', value: 2, name: 'In the Clouds', desc: 'Creature gains +0/+2 and flying', theme: 'Fantasy' },
+            meditate: { emoji: '🧘🏽‍♀️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'heal', value: 2, name: 'Meditate', desc: 'Restore 2 life and draw a card', theme: 'City' },
+            feather: { emoji: '🪶', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'buff', value: 1, name: 'Feather', desc: '+1/+1 and flying to creature', theme: 'Nature' },
 
             // Token Generation Spells
             summon_spirits: { emoji: '👻', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'token', value: 2, tokenType: 'spirit', name: 'Summon Spirits', desc: 'Create 2 Spirit tokens (1/1 flying)', theme: 'Fantasy' },
             raise_army: { emoji: '⚔️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'token', value: 3, tokenType: 'soldier', name: 'Raise Army', desc: 'Create 3 Soldier tokens (1/1)', theme: 'Fantasy' },
             forest_call: { emoji: '🌲', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'token', value: 2, tokenType: 'beast', name: 'Call of the Forest', desc: 'Create 2 Beast tokens (2/2)', theme: 'Nature' },
+
+            // Mixed Color Spells
+            web: { emoji: '🕸️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 1, fire: 1 }, effect: 'tap', name: 'Web Trap', desc: 'Tap target creature', theme: 'Nature' },
+            comet: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3, fire: 2 }, effect: 'damage', value: 5, name: 'Comet Strike', desc: 'Deal 5 damage to target', theme: 'Science Fiction' },
 
             // Discard Spells
             mind_rot: { emoji: '🧠', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'discard', value: 2, name: 'Mind Rot', desc: 'Enemy discards 2 cards', theme: 'Fantasy' },
@@ -464,7 +503,11 @@
             armor: { emoji: '🦺', type: 'artifact', cardType: 'Artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped', theme: 'City' },
             axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
             bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
-            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' }
+            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' },
+            halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
+            dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
+            fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
+            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 1, name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' }
         }
     };
 
@@ -1072,11 +1115,16 @@
         const card = gameState.playerBoard.find(c => c.id === cardId);
         if (!card || card.type !== 'land') return;
 
+        // DUAL LAND SUPPORT: Check if this is a dual-color land
+        const isDualLand = card.elements && card.elements.length > 1;
+        const storedElement = card.selectedElement; // Track which element was chosen for dual lands
+
         // If tapped, UNTAP it and refund mana
         if (card.tapped) {
             card.tapped = false;
-            if (gameState.playerMana[card.element] > 0) {
-                gameState.playerMana[card.element]--;
+            const elementToRefund = isDualLand ? storedElement : card.element;
+            if (elementToRefund && gameState.playerMana[elementToRefund] > 0) {
+                gameState.playerMana[elementToRefund]--;
                 playSFX('untap');
                 showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
                 updateUI();
@@ -1085,11 +1133,30 @@
         }
 
         // Otherwise tap it for mana
+        let elementToAdd;
+
+        if (isDualLand) {
+            // DUAL LAND: Let player choose which color mana to produce
+            const choice = prompt(`${card.name} can produce: ${card.elements.join(', ')}.\nWhich mana do you want? (enter: ${card.elements.join('/')})`);
+            if (!choice || !card.elements.includes(choice.toLowerCase().trim())) {
+                showGameLog(`⚠️ Invalid choice! Please tap again and choose: ${card.elements.join(' or ')}`, false);
+                return;
+            }
+            elementToAdd = choice.toLowerCase().trim();
+            card.selectedElement = elementToAdd; // Store the choice for untapping
+        } else if (card.element) {
+            // Regular single-color land
+            elementToAdd = card.element;
+        } else {
+            showGameLog('⚠️ This land has no mana!', false);
+            return;
+        }
+
         card.tapped = true;
-        gameState.playerMana[card.element] = (gameState.playerMana[card.element] || 0) + 1;
+        gameState.playerMana[elementToAdd] = (gameState.playerMana[elementToAdd] || 0) + 1;
 
         playSFX('tapLand');
-        showGameLog(`⚡ You tap ${card.name} for mana`, false);
+        showGameLog(`⚡ You tap ${card.name} for ${elementToAdd} mana`, false);
 
         updateUI();
     }
@@ -1411,6 +1478,12 @@
             return;
         }
 
+        // VIGILANCE FIX: Prevent multiple attacks per turn
+        if (gameState.hasAttackedThisTurn) {
+            showGameLog('⚠️ You have already attacked this turn!', false);
+            return;
+        }
+
         // Check if there are any untapped creatures that can attack
         const availableAttackers = gameState.playerBoard.filter(c =>
             c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
@@ -1460,6 +1533,9 @@
             showGameLog('🛡️ You choose not to attack', false);
             return;
         }
+
+        // VIGILANCE FIX: Mark that player has attacked this turn
+        gameState.hasAttackedThisTurn = true;
 
         // Set processing lock (with 5 second failsafe for combat)
         setProcessingLock(5000);
@@ -1638,6 +1714,9 @@
         // CRITICAL FIX: Reset land counter at end of turn (safety check)
         gameState.landsPlayedThisTurn = 0;
 
+        // VIGILANCE FIX: Reset attack flag for next turn
+        gameState.hasAttackedThisTurn = false;
+
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
@@ -1758,11 +1837,19 @@
                 gameState.enemyBoard.forEach(card => {
                     if (card.type === 'land' && !card.tapped) {
                         card.tapped = true;
-                        gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
+                        // DUAL LAND SUPPORT: Handle lands with multiple elements
+                        if (card.elements && card.elements.length > 0) {
+                            // For dual lands, AI chooses the first element (can be made smarter later)
+                            const chosenElement = card.elements[0];
+                            gameState.enemyMana[chosenElement] = (gameState.enemyMana[chosenElement] || 0) + 1;
+                        } else if (card.element) {
+                            // Regular single-color land
+                            gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
+                        }
                         manaTapped = true;
                     }
                 });
-                
+
                 if (manaTapped) {
                     showGameLog('⚡ Enemy taps lands for mana', true);
                     updateUI();
