@@ -436,7 +436,16 @@
             smite: { emoji: '⚡', type: 'instant', cardType: 'Instant/Spell', cost: { light: 3 }, effect: 'damage', value: 3, name: 'Divine Smite', desc: 'Deal 3 damage', theme: 'Fantasy' },
             blessing: { emoji: '🙏', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature', theme: 'Fantasy' },
             light_beam: { emoji: '💫', type: 'instant', cardType: 'Instant/Spell', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage', theme: 'Fantasy' },
-            resurrection: { emoji: '⛪', type: 'instant', cardType: 'Instant/Spell', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard', theme: 'Fantasy' }
+            resurrection: { emoji: '⛪', type: 'instant', cardType: 'Instant/Spell', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard', theme: 'Fantasy' },
+
+            // Token Generation Spells
+            summon_spirits: { emoji: '👻', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'token', value: 2, tokenType: 'spirit', name: 'Summon Spirits', desc: 'Create 2 Spirit tokens (1/1 flying)', theme: 'Fantasy' },
+            raise_army: { emoji: '⚔️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'token', value: 3, tokenType: 'soldier', name: 'Raise Army', desc: 'Create 3 Soldier tokens (1/1)', theme: 'Fantasy' },
+            forest_call: { emoji: '🌲', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'token', value: 2, tokenType: 'beast', name: 'Call of the Forest', desc: 'Create 2 Beast tokens (2/2)', theme: 'Nature' },
+
+            // Discard Spells
+            mind_rot: { emoji: '🧠', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'discard', value: 2, name: 'Mind Rot', desc: 'Enemy discards 2 cards', theme: 'Fantasy' },
+            thought_steal: { emoji: '💭', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'discard_draw', value: 1, name: 'Thought Steal', desc: 'Enemy discards 1, you draw 1', theme: 'Fantasy' }
         },
 
         // ARTIFACTS - EXPANDED
@@ -833,6 +842,14 @@
         return deck;
     }
 
+    // Shuffle deck function (Fisher-Yates algorithm)
+    function shuffleDeck(deck) {
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+    }
+
     // Start Game
     // Mulligan function
     function mulligan() {
@@ -844,25 +861,28 @@
         if (!confirm('Mulligan? Put all cards back and draw 6 new cards?')) {
             return;
         }
-        
+
+        playSFX('select');
+
         // Return hand to deck
         gameState.playerDeck = gameState.playerDeck.concat(gameState.playerHand);
         gameState.playerHand = [];
-        
-        // Shuffle
+
+        // Shuffle deck properly
         shuffleDeck(gameState.playerDeck);
-        
+
         // Draw 6 cards
         for (let i = 0; i < 6; i++) {
             drawCard('player');
         }
-        
+
         mulliganUsed = true;
         document.getElementById('mulliganBtn').disabled = true;
         document.getElementById('mulliganBtn').style.opacity = '0.5';
-        
+
         showGameLog('🔄 Mulligan - Drew 6 new cards', false);
         updateUI();
+        updateDeckCounters();
     }
 
     // Update deck counters
@@ -1291,6 +1311,81 @@
             case 'mana':
                 // Mana effects are passive and handled during upkeep
                 showGameLog(`💎 Mana artifact activated!`, !isCasterPlayer);
+                break;
+
+            case 'token':
+                // Create token creatures
+                const tokenBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
+                const tokenCount = card.value || 1;
+
+                let tokenStats = { power: 1, toughness: 1, abilities: [] };
+                let tokenEmoji = '🪙';
+                let tokenName = 'Token';
+
+                if (card.tokenType === 'spirit') {
+                    tokenStats = { power: 1, toughness: 1, abilities: ['flying'] };
+                    tokenEmoji = '👻';
+                    tokenName = 'Spirit Token';
+                } else if (card.tokenType === 'soldier') {
+                    tokenStats = { power: 1, toughness: 1, abilities: [] };
+                    tokenEmoji = '🗡️';
+                    tokenName = 'Soldier Token';
+                } else if (card.tokenType === 'beast') {
+                    tokenStats = { power: 2, toughness: 2, abilities: [] };
+                    tokenEmoji = '🐻';
+                    tokenName = 'Beast Token';
+                }
+
+                for (let i = 0; i < tokenCount; i++) {
+                    const token = {
+                        id: Math.random(),
+                        emoji: tokenEmoji,
+                        type: 'creature',
+                        cardType: 'Creature Token',
+                        name: tokenName,
+                        power: tokenStats.power,
+                        toughness: tokenStats.toughness,
+                        abilities: tokenStats.abilities,
+                        cost: {},
+                        tapped: false,
+                        damage: 0,
+                        theme: 'Fantasy'
+                    };
+                    tokenBoard.push(token);
+                }
+
+                showGameLog(`✨ Created ${tokenCount} ${tokenName}${tokenCount > 1 ? 's' : ''}!`, !isCasterPlayer);
+                createSparkles(window.innerWidth / 2, window.innerHeight / 2, 20);
+                break;
+
+            case 'discard':
+                // Force opponent to discard cards
+                const discardHand = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
+                const discardCount = Math.min(card.value || 1, discardHand.length);
+
+                for (let i = 0; i < discardCount; i++) {
+                    if (discardHand.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * discardHand.length);
+                        const discarded = discardHand.splice(randomIndex, 1)[0];
+                        showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
+                    }
+                }
+                break;
+
+            case 'discard_draw':
+                // Opponent discards, caster draws
+                const discardHand2 = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
+                const discardDrawCount = Math.min(card.value || 1, discardHand2.length);
+
+                for (let i = 0; i < discardDrawCount; i++) {
+                    if (discardHand2.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * discardHand2.length);
+                        const discarded = discardHand2.splice(randomIndex, 1)[0];
+                        showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
+                    }
+                    drawCard(caster);
+                }
+                showGameLog(`📜 ${isCasterPlayer ? 'You' : 'Enemy'} draw ${discardDrawCount} card${discardDrawCount > 1 ? 's' : ''}`, !isCasterPlayer);
                 break;
 
             default:
@@ -1729,30 +1824,26 @@
                         }
 
                         setTimeout(() => {
-                            // Attack with creatures
-                            const attackers = gameState.enemyBoard.filter(c => 
-                                c.type === 'creature' && !c.tapped
+                            // Attack with creatures - MUCH MORE AGGRESSIVE AI
+                            const attackers = gameState.enemyBoard.filter(c =>
+                                c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
                             );
 
                             let attackingCreatures = [];
                             if (gameState.difficulty === 'easy') {
-                                attackingCreatures = attackers.filter(() => Math.random() > 0.5);
+                                // Easy: 70% chance to attack with each creature
+                                attackingCreatures = attackers.filter(() => Math.random() > 0.3);
                             } else if (gameState.difficulty === 'medium') {
-                                attackingCreatures = attackers.filter(c => !c.abilities?.includes('defender'));
+                                // Medium: Attack with all non-defender creatures
+                                attackingCreatures = attackers;
                             } else {
-                                const sorted = attackers
-                                    .filter(c => !c.abilities?.includes('defender'))
-                                    .sort((a, b) => (b.power + b.toughness) - (a.power + a.toughness));
-                                
-                                if (sorted.length > 1) {
-                                    attackingCreatures = sorted.slice(1);
-                                } else {
-                                    attackingCreatures = sorted;
-                                }
+                                // Hard: Attack with ALL non-defender creatures (most aggressive)
+                                attackingCreatures = attackers;
                             }
 
                             if (attackingCreatures.length > 0) {
                                 showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
+                                playSFX('attack');
                             } else {
                                 showGameLog('🛡️ Enemy does not attack', true);
                             }
@@ -1917,17 +2008,28 @@
                 e.preventDefault();
                 showCardDetail(card);
             };
-            
+
             let longPressTimer;
+            let touchMoved = false;
+
             cardEl.ontouchstart = (e) => {
+                touchMoved = false;
                 longPressTimer = setTimeout(() => {
-                    showCardDetail(card);
+                    if (!touchMoved) {
+                        showCardDetail(card);
+                    }
                 }, 500);
             };
+
+            cardEl.ontouchmove = () => {
+                touchMoved = true;
+                clearTimeout(longPressTimer);
+            };
+
             cardEl.ontouchend = () => {
                 clearTimeout(longPressTimer);
             };
-            
+
             handEl.appendChild(cardEl);
         });
 
@@ -1969,13 +2071,34 @@
                 cardEl.style.zIndex = index;
                 
                 cardEl.onclick = () => tapLand(card.id);
-                
-                // Right-click to view details
+
+                // Right-click or long-press to view details
                 cardEl.oncontextmenu = (e) => {
                     e.preventDefault();
                     showCardDetail(card);
                 };
-                
+
+                let landLongPressTimer;
+                let landTouchMoved = false;
+
+                cardEl.ontouchstart = (e) => {
+                    landTouchMoved = false;
+                    landLongPressTimer = setTimeout(() => {
+                        if (!landTouchMoved) {
+                            showCardDetail(card);
+                        }
+                    }, 500);
+                };
+
+                cardEl.ontouchmove = () => {
+                    landTouchMoved = true;
+                    clearTimeout(landLongPressTimer);
+                };
+
+                cardEl.ontouchend = () => {
+                    clearTimeout(landLongPressTimer);
+                };
+
                 stackContainer.appendChild(cardEl);
             });
             
@@ -2016,13 +2139,34 @@
                     cardEl.classList.add('attacking');
                 }
             }
-            
-            // Right-click to view details
+
+            // Right-click or long-press to view details
             cardEl.oncontextmenu = (e) => {
                 e.preventDefault();
                 showCardDetail(card);
             };
-            
+
+            let boardLongPressTimer;
+            let boardTouchMoved = false;
+
+            cardEl.ontouchstart = (e) => {
+                boardTouchMoved = false;
+                boardLongPressTimer = setTimeout(() => {
+                    if (!boardTouchMoved) {
+                        showCardDetail(card);
+                    }
+                }, 500);
+            };
+
+            cardEl.ontouchmove = () => {
+                boardTouchMoved = true;
+                clearTimeout(boardLongPressTimer);
+            };
+
+            cardEl.ontouchend = () => {
+                clearTimeout(boardLongPressTimer);
+            };
+
             boardEl.appendChild(cardEl);
         });
 
@@ -2062,13 +2206,34 @@
                 cardEl.style.left = (index * 3) + 'px';
                 cardEl.style.top = (index * 3) + 'px';
                 cardEl.style.zIndex = index;
-                
-                // Right-click to view details
+
+                // Right-click or long-press to view details
                 cardEl.oncontextmenu = (e) => {
                     e.preventDefault();
                     showCardDetail(card);
                 };
-                
+
+                let enemyLandLongPressTimer;
+                let enemyLandTouchMoved = false;
+
+                cardEl.ontouchstart = (e) => {
+                    enemyLandTouchMoved = false;
+                    enemyLandLongPressTimer = setTimeout(() => {
+                        if (!enemyLandTouchMoved) {
+                            showCardDetail(card);
+                        }
+                    }, 500);
+                };
+
+                cardEl.ontouchmove = () => {
+                    enemyLandTouchMoved = true;
+                    clearTimeout(enemyLandLongPressTimer);
+                };
+
+                cardEl.ontouchend = () => {
+                    clearTimeout(enemyLandLongPressTimer);
+                };
+
                 stackContainer.appendChild(cardEl);
             });
             
@@ -2102,13 +2267,34 @@
         // Display enemy non-land cards normally
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
-            
-            // Right-click to view details
+
+            // Right-click or long-press to view details
             cardEl.oncontextmenu = (e) => {
                 e.preventDefault();
                 showCardDetail(card);
             };
-            
+
+            let enemyBoardLongPressTimer;
+            let enemyBoardTouchMoved = false;
+
+            cardEl.ontouchstart = (e) => {
+                enemyBoardTouchMoved = false;
+                enemyBoardLongPressTimer = setTimeout(() => {
+                    if (!enemyBoardTouchMoved) {
+                        showCardDetail(card);
+                    }
+                }, 500);
+            };
+
+            cardEl.ontouchmove = () => {
+                enemyBoardTouchMoved = true;
+                clearTimeout(enemyBoardLongPressTimer);
+            };
+
+            cardEl.ontouchend = () => {
+                clearTimeout(enemyBoardLongPressTimer);
+            };
+
             enemyBoardEl.appendChild(cardEl);
         });
 
@@ -2177,10 +2363,15 @@
             cardEl.classList.add('enemy-card');
         }
 
-        // Emoji
+        // Emoji - centered
         const emojiEl = document.createElement('div');
         emojiEl.textContent = card.emoji;
         emojiEl.style.fontSize = '32px';
+        emojiEl.style.display = 'flex';
+        emojiEl.style.alignItems = 'center';
+        emojiEl.style.justifyContent = 'center';
+        emojiEl.style.flex = '1';
+        emojiEl.style.width = '100%';
         cardEl.appendChild(emojiEl);
 
         // Cost

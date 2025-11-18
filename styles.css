@@ -1159,3 +1159,88 @@ body::before {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+    /* Prevent text selection on mobile */
+    * {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    /* Improve touch targets */
+    .card {
+        min-width: 65px;
+        width: 65px;
+        height: 85px;
+    }
+
+    .btn {
+        min-height: 44px; /* iOS recommended touch target */
+        font-size: 13px;
+    }
+
+    /* Better scrolling on mobile */
+    .cards-row, .hand-area {
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+
+    /* Prevent zoom on double-tap */
+    button, .card, .element-btn, .menu-btn {
+        touch-action: manipulation;
+    }
+}
+
+/* Landscape mode on mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+    .battlefield {
+        gap: 4px;
+    }
+
+    .player-area {
+        padding: 4px;
+    }
+
+    .hand-area {
+        min-height: 70px;
+        max-height: 70px;
+    }
+
+    .card {
+        min-width: 55px;
+        width: 55px;
+        height: 70px;
+        font-size: 24px !important;
+    }
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific styles */
+    body {
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Prevent pull-to-refresh */
+    body {
+        overscroll-behavior-y: contain;
+    }
+}
+
+/* Android-specific fixes */
+@media (hover: none) and (pointer: coarse) {
+    /* Touch device specific styles */
+    .card:active {
+        transform: scale(0.95);
+        transition: transform 0.1s;
+    }
+
+    .btn:active {
+        transform: translateY(2px);
+        transition: transform 0.1s;
+    }
+}
