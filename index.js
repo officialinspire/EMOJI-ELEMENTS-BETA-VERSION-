@@ -719,13 +719,26 @@
         let html = '';
 
         if (card.type === 'land') {
+            // Handle both single-color lands and dual lands
+            let effectText;
+            if (card.elements && card.elements.length > 1) {
+                // Dual land
+                const manaOptions = card.elements.map(el => ELEMENTS[el].emoji).join(' or ');
+                effectText = `Tap to add ${manaOptions} to your mana pool`;
+            } else if (card.element) {
+                // Single color land
+                effectText = `Tap to add ${ELEMENTS[card.element].emoji} to your mana pool`;
+            } else {
+                effectText = card.desc || 'Tap for mana';
+            }
+
             html = `
                 <div class="card-detail-section">
                     <div class="card-detail-info">
                         <span class="card-detail-label">Type:</span> Land
                     </div>
                     <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> Tap to add ${ELEMENTS[card.element].emoji} to your mana pool
+                        <span class="card-detail-label">Effect:</span> ${effectText}
                     </div>
                 </div>
             `;
@@ -778,9 +791,9 @@
                 </div>
             `;
         } else if (card.type === 'artifact') {
-            const costStr = Object.entries(card.cost)
+            const costStr = Object.entries(card.cost || {})
                 .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ');
+                .join(', ') || 'Free';
 
             html = `
                 <div class="card-detail-section">
@@ -1838,15 +1851,18 @@
                     if (card.type === 'land' && !card.tapped) {
                         card.tapped = true;
                         // DUAL LAND SUPPORT: Handle lands with multiple elements
-                        if (card.elements && card.elements.length > 0) {
+                        if (card.elements && Array.isArray(card.elements) && card.elements.length > 0) {
                             // For dual lands, AI chooses the first element (can be made smarter later)
                             const chosenElement = card.elements[0];
-                            gameState.enemyMana[chosenElement] = (gameState.enemyMana[chosenElement] || 0) + 1;
+                            if (chosenElement) {
+                                gameState.enemyMana[chosenElement] = (gameState.enemyMana[chosenElement] || 0) + 1;
+                                manaTapped = true;
+                            }
                         } else if (card.element) {
                             // Regular single-color land
                             gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
+                            manaTapped = true;
                         }
-                        manaTapped = true;
                     }
                 });
 
@@ -1936,7 +1952,10 @@
                             }
 
                             attackingCreatures.forEach(attacker => {
-                                attacker.tapped = true;
+                                // Only tap if creature doesn't have vigilance
+                                if (!attacker.abilities?.includes('vigilance')) {
+                                    attacker.tapped = true;
+                                }
                                 changePlayerLife(-attacker.power);
 
                                 if (attacker.abilities?.includes('trample')) {
@@ -2130,10 +2149,12 @@
         
         gameState.playerBoard.forEach(card => {
             if (card.type === 'land') {
-                if (!landStacks[card.element]) {
-                    landStacks[card.element] = [];
+                // Handle both single-color lands (card.element) and dual lands (card.elements)
+                const landKey = card.element || (card.elements && card.elements.join('-')) || 'colorless';
+                if (!landStacks[landKey]) {
+                    landStacks[landKey] = [];
                 }
-                landStacks[card.element].push(card);
+                landStacks[landKey].push(card);
             } else {
                 nonLands.push(card);
             }
@@ -2267,10 +2288,12 @@
         
         gameState.enemyBoard.forEach(card => {
             if (card.type === 'land') {
-                if (!enemyLandStacks[card.element]) {
-                    enemyLandStacks[card.element] = [];
+                // Handle both single-color lands (card.element) and dual lands (card.elements)
+                const landKey = card.element || (card.elements && card.elements.join('-')) || 'colorless';
+                if (!enemyLandStacks[landKey]) {
+                    enemyLandStacks[landKey] = [];
                 }
-                enemyLandStacks[card.element].push(card);
+                enemyLandStacks[landKey].push(card);
             } else {
                 enemyNonLands.push(card);
             }
@@ -2440,7 +2463,7 @@
         if (card.type === 'land') {
             cardEl.classList.add('land');
         }
-        if (card.theme === 'scifi') {
+        if (card.theme === 'Science Fiction') {
             cardEl.classList.add('scifi');
         }
         if (card.tapped) {
@@ -2462,7 +2485,7 @@
         cardEl.appendChild(emojiEl);
 
         // Cost
-        if (card.cost && !onBoard) {
+        if (card.cost && !onBoard && Object.keys(card.cost).length > 0) {
             const costEl = document.createElement('div');
             costEl.className = 'card-cost';
             const costStr = Object.entries(card.cost)
