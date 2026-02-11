@@ -36,10 +36,26 @@
         }
     });
 
-    // Helper function to play sound effect
+    // IMPROVED: Audio queue management to prevent overlapping sounds
+    const audioQueue = {
+        lastPlayed: {},
+        minInterval: 100 // Minimum milliseconds between same sound effects
+    };
+
+    // Helper function to play sound effect with better management
     function playSFX(soundName, loop = false) {
         if (audioSystem[soundName]) {
             try {
+                // Prevent rapid-fire duplicate sounds for better audio quality
+                const now = Date.now();
+                const lastPlayTime = audioQueue.lastPlayed[soundName] || 0;
+
+                if (!loop && now - lastPlayTime < audioQueue.minInterval) {
+                    return; // Skip if played too recently
+                }
+
+                audioQueue.lastPlayed[soundName] = now;
+
                 audioSystem[soundName].currentTime = 0;
                 audioSystem[soundName].loop = loop;
                 const playPromise = audioSystem[soundName].play();
@@ -511,13 +527,17 @@
         }
     };
 
-    // Particle System
+    // Particle System - OPTIMIZED for better performance on mobile and desktop
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
     let particles = [];
+
+    // Performance optimization: Reduce particles on mobile devices
+    const particleMultiplier = isMobile ? 0.5 : 1;
+    const maxParticles = isMobile ? 100 : 200; // Limit total particles for performance
 
     class Particle {
         constructor(x, y, color, type = 'default') {
@@ -526,7 +546,7 @@
             this.vx = (Math.random() - 0.5) * 4;
             this.vy = (Math.random() - 0.5) * 4;
             this.life = 1;
-            this.decay = 0.02;
+            this.decay = isMobile ? 0.025 : 0.02; // Faster decay on mobile
             this.color = color;
             this.size = Math.random() * 4 + 2;
             this.type = type;
@@ -551,25 +571,42 @@
     }
 
     function createParticles(x, y, color, count = 20) {
-        for (let i = 0; i < count; i++) {
-            particles.push(new Particle(x, y, color));
+        // Apply mobile optimization
+        const adjustedCount = Math.floor(count * particleMultiplier);
+
+        for (let i = 0; i < adjustedCount; i++) {
+            // Limit total particle count for performance
+            if (particles.length < maxParticles) {
+                particles.push(new Particle(x, y, color));
+            }
         }
     }
 
-    function animateParticles() {
+    // Performance: Use requestAnimationFrame more efficiently
+    let lastParticleFrame = 0;
+    const particleFPS = 60;
+    const particleFrameInterval = 1000 / particleFPS;
+
+    function animateParticles(currentTime) {
+        requestAnimationFrame(animateParticles);
+
+        // Throttle particle updates for better performance
+        if (currentTime - lastParticleFrame < particleFrameInterval) {
+            return;
+        }
+        lastParticleFrame = currentTime;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         particles = particles.filter(p => p.life > 0);
-        
+
         particles.forEach(p => {
             p.update();
             p.draw();
         });
-
-        requestAnimationFrame(animateParticles);
     }
 
-    animateParticles();
+    animateParticles(0);
 
     // Game Log System
     function showGameLog(message, isEnemy = false, isScifi = false) {
@@ -2120,11 +2157,16 @@
 
             cardEl.ontouchstart = (e) => {
                 touchMoved = false;
+                // IMPROVED: Faster long-press response (350ms instead of 500ms)
                 longPressTimer = setTimeout(() => {
                     if (!touchMoved) {
+                        // Add haptic feedback on mobile devices
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50); // Short vibration for feedback
+                        }
                         showCardDetail(card);
                     }
-                }, 500);
+                }, 350);
             };
 
             cardEl.ontouchmove = () => {
@@ -2193,9 +2235,13 @@
                     landTouchMoved = false;
                     landLongPressTimer = setTimeout(() => {
                         if (!landTouchMoved) {
+                            // Haptic feedback for mobile
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
                             showCardDetail(card);
                         }
-                    }, 500);
+                    }, 350);
                 };
 
                 cardEl.ontouchmove = () => {
@@ -2261,9 +2307,13 @@
                 boardTouchMoved = false;
                 boardLongPressTimer = setTimeout(() => {
                     if (!boardTouchMoved) {
+                        // Haptic feedback for mobile
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
                         showCardDetail(card);
                     }
-                }, 500);
+                }, 350);
             };
 
             cardEl.ontouchmove = () => {
@@ -2330,9 +2380,13 @@
                     enemyLandTouchMoved = false;
                     enemyLandLongPressTimer = setTimeout(() => {
                         if (!enemyLandTouchMoved) {
+                            // Haptic feedback for mobile
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
                             showCardDetail(card);
                         }
-                    }, 500);
+                    }, 350);
                 };
 
                 cardEl.ontouchmove = () => {
@@ -2391,9 +2445,13 @@
                 enemyBoardTouchMoved = false;
                 enemyBoardLongPressTimer = setTimeout(() => {
                     if (!enemyBoardTouchMoved) {
+                        // Haptic feedback for mobile
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
                         showCardDetail(card);
                     }
-                }, 500);
+                }, 350);
             };
 
             cardEl.ontouchmove = () => {
@@ -2519,10 +2577,66 @@
         return cardEl;
     }
 
-    // Resize canvas
+    // Resize canvas with debouncing for better performance
+    let resizeTimeout;
     window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }, 100); // Debounce resize for better performance
+    });
+
+    // DESKTOP ENHANCEMENT: Keyboard shortcuts for better desktop experience
+    document.addEventListener('keydown', (e) => {
+        // Only enable keyboard shortcuts during active gameplay (not in menus)
+        if (document.getElementById('gameContainer').style.display !== 'flex') {
+            return;
+        }
+
+        // Prevent shortcuts if in pause modal or card detail popup
+        const pauseModal = document.getElementById('pauseModal');
+        const cardDetailPopup = document.getElementById('cardDetailPopup');
+        if (pauseModal.classList.contains('show') || cardDetailPopup.classList.contains('show')) {
+            return;
+        }
+
+        // Only allow shortcuts during player's turn
+        if (gameState.turn !== 'player' || isProcessingAction) {
+            return;
+        }
+
+        switch(e.key.toLowerCase()) {
+            case ' ': // Spacebar = End Turn
+            case 'e': // E = End Turn
+                e.preventDefault();
+                const endTurnBtn = document.getElementById('endTurnBtn');
+                if (endTurnBtn && !endTurnBtn.disabled) {
+                    endTurnBtn.click();
+                }
+                break;
+
+            case 'a': // A = Attack
+                e.preventDefault();
+                const attackBtn = document.getElementById('attackBtn');
+                if (attackBtn && !attackBtn.disabled) {
+                    attackBtn.click();
+                }
+                break;
+
+            case 'm': // M = Mulligan (if available)
+                e.preventDefault();
+                const mulliganBtn = document.getElementById('mulliganBtn');
+                if (mulliganBtn && !mulliganBtn.disabled) {
+                    mulliganBtn.click();
+                }
+                break;
+
+            case 'escape': // ESC = Pause game
+                e.preventDefault();
+                pauseGame();
+                break;
+        }
     });
 
     // Global error handler to prevent game from getting stuck
