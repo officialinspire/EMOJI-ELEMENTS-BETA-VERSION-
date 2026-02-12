@@ -201,9 +201,26 @@
     // Load stats from localStorage
     function loadStats() {
         const saved = localStorage.getItem('emojiElementsStats');
-        if (saved) {
-            gameStats = JSON.parse(saved);
+        if (!saved) {
+            return;
         }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(saved);
+        } catch (error) {
+            console.warn('Invalid saved stats, resetting.', error);
+            return;
+        }
+        if (!parsed || typeof parsed !== 'object') {
+            return;
+        }
+
+        gameStats = {
+            wins: Number.isFinite(parsed.wins) ? parsed.wins : 0,
+            losses: Number.isFinite(parsed.losses) ? parsed.losses : 0,
+            total: Number.isFinite(parsed.total) ? parsed.total : 0
+        };
     }
 
     function saveStats() {
@@ -1558,6 +1575,20 @@
         }
     }
 
+    function clearCombatDamage() {
+        gameState.playerBoard.forEach(card => {
+            if (card.type === 'creature' && card.damage) {
+                card.damage = 0;
+            }
+        });
+
+        gameState.enemyBoard.forEach(card => {
+            if (card.type === 'creature' && card.damage) {
+                card.damage = 0;
+            }
+        });
+    }
+
     // Resolve Spell
     function resolveSpell(card, caster) {
         const isCasterPlayer = caster === 'player';
@@ -2143,6 +2174,9 @@
         // VIGILANCE FIX: Reset attack flag for next turn
         gameState.hasAttackedThisTurn = false;
 
+        // Clear temporary combat damage at end of turn
+        clearCombatDamage();
+
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
@@ -2221,6 +2255,9 @@
 
         // Reset land counter for new turn
         gameState.landsPlayedThisTurn = 0;
+
+        // Clear temporary combat damage from enemy turn combat
+        clearCombatDamage();
 
         updateUI();
 
