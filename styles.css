@@ -1022,8 +1022,14 @@ body::after {
     font-family: 'Cinzel', serif;
     border: 2px solid #8b7355;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 100;
     pointer-events: none;
+}
+
+.stack-count-enemy {
+    background: linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%);
+    color: #fff;
+    border-color: #8b0000;
 }
 
 /* Land stack representative card */
