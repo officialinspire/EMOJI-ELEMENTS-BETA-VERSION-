@@ -139,6 +139,19 @@ body::before {
     pointer-events: none;
 }
 
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+}
+
 #particles {
     position: fixed;
     top: 0;
@@ -165,9 +178,9 @@ body::before {
     align-items: center;
     padding: 8px;
     background: linear-gradient(135deg, rgba(10, 5, 15, 0.95) 0%, rgba(20, 10, 25, 0.95) 100%);
-    border: 3px double #ffd700;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3), inset 0 0 20px rgba(255, 215, 0, 0.1);
+    border: 2px solid rgba(255, 215, 0, 0.6);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.2), inset 0 0 15px rgba(255, 215, 0, 0.05);
     flex-shrink: 0;
 }
 
@@ -237,6 +250,7 @@ body::before {
     text-shadow: 0 0 10px #ff8c00;
     box-shadow: 0 0 15px rgba(255, 140, 0, 0.4);
     white-space: nowrap;
+    transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 @media (min-width: 768px) {
@@ -250,9 +264,22 @@ body::before {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
     overflow: hidden;
     background: radial-gradient(ellipse at center, rgba(30, 15, 45, 0.4) 0%, rgba(15, 5, 25, 0.6) 100%);
+    position: relative;
+}
+
+.battlefield::after {
+    content: '⚔️';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    opacity: 0.3;
+    z-index: 1;
+    pointer-events: none;
 }
 
 .player-area {
@@ -441,6 +468,26 @@ body::before {
 .card.land {
     background: linear-gradient(135deg, #4a3a1e 0%, #5a4a2e 100%);
     border-color: #8b7355;
+}
+
+.card.land:hover {
+    border-color: #b8860b;
+    box-shadow: 0 8px 25px rgba(184, 134, 11, 0.5), 0 0 20px rgba(184, 134, 11, 0.3);
+}
+
+.card.playable {
+    animation: playableGlow 2s ease-in-out infinite;
+    border-color: #00ff88;
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3), 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+@keyframes playableGlow {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2), 0 0 8px rgba(0, 255, 136, 0.15);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4), 0 0 15px rgba(0, 255, 136, 0.3);
+    }
 }
 
 .card.scifi {
