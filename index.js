@@ -2279,7 +2279,7 @@
     // Helper functions for lifepoint changes with sound and animation
     function changePlayerLife(amount) {
         const oldLife = gameState.playerLife;
-        gameState.playerLife = Math.max(0, Math.min(20, gameState.playerLife + amount));
+        gameState.playerLife = Math.max(0, gameState.playerLife + amount);
         const actualChange = gameState.playerLife - oldLife;
 
         if (actualChange !== 0) {
@@ -2304,7 +2304,7 @@
 
     function changeEnemyLife(amount) {
         const oldLife = gameState.enemyLife;
-        gameState.enemyLife = Math.max(0, Math.min(20, gameState.enemyLife + amount));
+        gameState.enemyLife = Math.max(0, gameState.enemyLife + amount);
         const actualChange = gameState.enemyLife - oldLife;
 
         if (actualChange !== 0) {
