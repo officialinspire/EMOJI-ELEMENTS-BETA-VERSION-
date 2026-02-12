@@ -1235,6 +1235,122 @@ body::after {
     gap: 12px;
 }
 
+.graveyard-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 5200;
+    padding: 16px;
+}
+
+.graveyard-modal.show {
+    display: flex;
+}
+
+.graveyard-content {
+    width: min(560px, 100%);
+    max-height: 80dvh;
+    background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
+    border: 3px double #ffd700;
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.graveyard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.graveyard-title {
+    font-family: 'Uncial Antiqua', cursive;
+    color: #ffd700;
+    font-size: 24px;
+}
+
+.graveyard-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #ffd700;
+    background: rgba(255, 215, 0, 0.15);
+    color: #ffd700;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.graveyard-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.graveyard-tab {
+    border: 2px solid #8b7355;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #36214f 0%, #4a2f67 100%);
+    color: #f6dc84;
+    font-family: 'MedievalSharp', cursive;
+    font-weight: bold;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.graveyard-tab.active {
+    border-color: #ffd700;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+}
+
+.graveyard-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+}
+
+.graveyard-card {
+    width: 100%;
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    background: rgba(25, 15, 35, 0.9);
+    color: #f8f4e6;
+    border-radius: 8px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.graveyard-card-emoji {
+    font-size: 22px;
+}
+
+.graveyard-card-name {
+    font-weight: 700;
+}
+
+.graveyard-card-type {
+    color: #d8c48a;
+    font-size: 12px;
+}
+
+.graveyard-empty {
+    text-align: center;
+    color: #d8c48a;
+    padding: 28px 8px;
+    border: 2px dashed rgba(255, 215, 0, 0.35);
+    border-radius: 8px;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
