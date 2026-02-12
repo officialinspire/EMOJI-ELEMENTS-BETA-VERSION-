@@ -1355,6 +1355,12 @@ body::before {
     padding: 0 10px;
 }
 
+.overlay-btn {
+    margin-top: 15px;
+    min-width: 200px;
+    pointer-events: auto;
+}
+
 @media (min-width: 768px) {
     .victory-text, .lose-text {
         font-size: 48px;

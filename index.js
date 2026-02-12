@@ -2341,10 +2341,6 @@
             // Show lose overlay
             const loseOverlay = document.getElementById('loseOverlay');
             loseOverlay.classList.add('show');
-
-            setTimeout(() => {
-                location.reload();
-            }, 4000);
         } else if (gameState.enemyLife <= 0) {
             gameStats.wins++;
             gameStats.total++;
@@ -2357,10 +2353,6 @@
             // Show victory overlay
             const victoryOverlay = document.getElementById('victoryOverlay');
             victoryOverlay.classList.add('show');
-
-            setTimeout(() => {
-                location.reload();
-            }, 4000);
         }
     }
 
