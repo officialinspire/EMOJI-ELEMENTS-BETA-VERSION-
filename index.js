@@ -2805,6 +2805,9 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
+        if (!onBoard && !isEnemy && canPayCost(card.cost, gameState.playerMana)) {
+            cardEl.classList.add('playable');
+        }
 
         // Emoji - centered
         const emojiEl = document.createElement('div');
