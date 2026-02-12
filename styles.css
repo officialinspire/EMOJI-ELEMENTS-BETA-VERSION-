@@ -333,9 +333,9 @@ body::before {
 }
 
 .card {
-    min-width: 60px;
-    width: 60px;
-    height: 80px;
+    min-width: 58px;
+    width: 58px;
+    height: 78px;
     background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
     border: 2px solid #ffd700;
     border-radius: 10px;
@@ -425,9 +425,9 @@ body::before {
     position: absolute;
     top: 2px;
     left: 2px;
-    font-size: 11px;
+    font-size: 12px;
     background: rgba(0, 0, 0, 0.9);
-    padding: 2px 5px;
+    padding: 2px 6px;
     border-radius: 4px;
     font-family: 'Cinzel', serif;
     border: 1px solid rgba(255, 215, 0, 0.3);
@@ -437,9 +437,9 @@ body::before {
     position: absolute;
     bottom: 2px;
     right: 2px;
-    font-size: 11px;
+    font-size: 12px;
     background: linear-gradient(135deg, rgba(139, 0, 0, 0.9) 0%, rgba(220, 20, 60, 0.9) 100%);
-    padding: 2px 5px;
+    padding: 2px 6px;
     border-radius: 4px;
     font-family: 'Cinzel', serif;
     font-weight: bold;
@@ -458,11 +458,12 @@ body::before {
 
 .ability-icon {
     background: linear-gradient(135deg, rgba(75, 0, 130, 0.9) 0%, rgba(138, 43, 226, 0.9) 100%);
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 2px 5px;
+    border-radius: 4px;
     color: #ffd700;
     border: 1px solid rgba(255, 215, 0, 0.4);
     font-family: 'MedievalSharp', cursive;
+    font-size: 9px;
 }
 
 .hand-area {
@@ -474,8 +475,8 @@ body::before {
     border-radius: 12px;
     overflow-x: auto;
     overflow-y: hidden;
-    min-height: 90px;
-    max-height: 90px;
+    min-height: 95px;
+    max-height: 95px;
     box-shadow: inset 0 0 25px rgba(138, 43, 226, 0.3), 0 0 15px rgba(255, 215, 0, 0.2);
     flex-shrink: 0;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
@@ -1345,9 +1346,9 @@ body::before {
 
     /* Improve touch targets and readability */
     .card {
-        min-width: 65px;
-        width: 65px;
-        height: 85px;
+        min-width: 62px;
+        width: 62px;
+        height: 82px;
     }
 
     /* IMPROVED: Better tap feedback for mobile */
@@ -1416,6 +1417,16 @@ body::before {
 /* Android-specific fixes */
 @media (hover: none) and (pointer: coarse) {
     /* Touch device specific styles */
+    .card::before {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        /* Invisible expanded touch target */
+    }
+
     .card:active {
         transform: scale(0.95);
         transition: transform 0.1s;
@@ -1435,9 +1446,14 @@ body::before {
 @media (min-width: 768px) {
     /* Better card hover effects on desktop */
     .card {
-        min-width: 70px;
-        width: 70px;
-        height: 90px;
+        min-width: 80px;
+        width: 80px;
+        height: 105px;
+    }
+
+    .hand-area {
+        min-height: 120px;
+        max-height: 120px;
     }
 
     .card:hover {
