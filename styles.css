@@ -282,11 +282,13 @@ body::before {
     background: rgba(0, 0, 0, 0.6);
     border-radius: 8px;
     border: 2px solid rgba(255, 215, 0, 0.3);
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .life-counter {
     font-family: 'MedievalSharp', cursive;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: bold;
     display: flex;
     align-items: center;
@@ -296,17 +298,31 @@ body::before {
 
 .mana-pool {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     flex-wrap: wrap;
+    max-width: 60%;
+    justify-content: flex-end;
 }
 
 .mana-icon {
-    font-size: 20px;
-    padding: 5px 10px;
+    font-size: 16px;
+    padding: 3px 6px;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(30, 0, 50, 0.7) 100%);
-    border-radius: 6px;
+    border-radius: 5px;
     border: 2px solid rgba(255, 215, 0, 0.4);
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+    .life-counter {
+        font-size: 28px;
+    }
+
+    .mana-icon {
+        font-size: 20px;
+        padding: 5px 10px;
+    }
 }
 
 .cards-row {
@@ -1314,13 +1330,19 @@ body::before {
 /* Deck Counter */
 .deck-counter {
     font-family: 'MedievalSharp', cursive;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: bold;
     display: flex;
     align-items: center;
     gap: 6px;
     text-shadow: 0 0 10px #ffd700;
     color: #ffd700;
+}
+
+@media (min-width: 768px) {
+    .deck-counter {
+        font-size: 18px;
+    }
 }
 
 /* Mulligan Button visible state */
