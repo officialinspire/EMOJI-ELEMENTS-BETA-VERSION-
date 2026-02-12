@@ -716,6 +716,12 @@
             pointer-events: none;
         }
 
+        .stack-count-enemy {
+            background: linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%);
+            color: #fff;
+            border-color: #8b0000;
+        }
+
         @media (min-width: 768px) {
             .card-stack {
                 min-width: 60px;
@@ -2285,10 +2291,6 @@
                 const stack = landStacks[element];
                 const stackContainer = document.createElement('div');
                 stackContainer.className = 'card-stack';
-                stackContainer.style.position = 'relative';
-                stackContainer.style.minWidth = '60px';
-                stackContainer.style.height = '80px';
-                stackContainer.style.marginRight = '10px';
                 
                 // Display cards in stack with slight offset
                 stack.forEach((card, index) => {
@@ -2314,22 +2316,6 @@
                     const badge = document.createElement('div');
                     badge.className = 'stack-count';
                     badge.textContent = stack.length;
-                    badge.style.position = 'absolute';
-                    badge.style.bottom = '-5px';
-                    badge.style.right = '-5px';
-                    badge.style.background = 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)';
-                    badge.style.color = '#2a1a0a';
-                    badge.style.borderRadius = '50%';
-                    badge.style.width = '24px';
-                    badge.style.height = '24px';
-                    badge.style.display = 'flex';
-                    badge.style.alignItems = 'center';
-                    badge.style.justifyContent = 'center';
-                    badge.style.fontSize = '12px';
-                    badge.style.fontWeight = 'bold';
-                    badge.style.border = '2px solid #8b7355';
-                    badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
-                    badge.style.zIndex = stack.length + 1;
                     stackContainer.appendChild(badge);
                 }
                 
@@ -2380,10 +2366,6 @@
                 const stack = enemyLandStacks[element];
                 const stackContainer = document.createElement('div');
                 stackContainer.className = 'card-stack';
-                stackContainer.style.position = 'relative';
-                stackContainer.style.minWidth = '60px';
-                stackContainer.style.height = '80px';
-                stackContainer.style.marginRight = '10px';
                 
                 // Display cards in stack with slight offset
                 stack.forEach((card, index) => {
@@ -2405,24 +2387,8 @@
                 // Add count badge
                 if (stack.length > 1) {
                     const badge = document.createElement('div');
-                    badge.className = 'stack-count';
+                    badge.className = 'stack-count stack-count-enemy';
                     badge.textContent = stack.length;
-                    badge.style.position = 'absolute';
-                    badge.style.bottom = '-5px';
-                    badge.style.right = '-5px';
-                    badge.style.background = 'linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%)';
-                    badge.style.color = '#fff';
-                    badge.style.borderRadius = '50%';
-                    badge.style.width = '24px';
-                    badge.style.height = '24px';
-                    badge.style.display = 'flex';
-                    badge.style.alignItems = 'center';
-                    badge.style.justifyContent = 'center';
-                    badge.style.fontSize = '12px';
-                    badge.style.fontWeight = 'bold';
-                    badge.style.border = '2px solid #8b0000';
-                    badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
-                    badge.style.zIndex = stack.length + 1;
                     stackContainer.appendChild(badge);
                 }
                 
