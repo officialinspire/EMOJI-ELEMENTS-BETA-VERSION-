@@ -80,6 +80,25 @@
         }
     }
 
+    // Helper function to fade audio volume in or out over a duration
+    function fadeAudio(audioElement, targetVolume, duration, callback) {
+        const steps = 20;
+        const interval = duration / steps;
+        const startVolume = audioElement.volume;
+        const volumeStep = (targetVolume - startVolume) / steps;
+        let currentStep = 0;
+
+        const fade = setInterval(() => {
+            currentStep++;
+            audioElement.volume = Math.max(0, Math.min(1, startVolume + volumeStep * currentStep));
+            if (currentStep >= steps) {
+                clearInterval(fade);
+                audioElement.volume = targetVolume;
+                if (callback) callback();
+            }
+        }, interval);
+    }
+
     // Game State
     const gameState = {
         playerLife: 20,
@@ -216,7 +235,14 @@
         function skipIntro() {
             if (introSkipped) return;
             introSkipped = true;
-            // Smooth fade out of video
+
+            // Fade out video audio to prevent overlap with menu music
+            fadeAudio(introVideo, 0, 500, () => {
+                introVideo.pause();
+                introVideo.currentTime = 0;
+            });
+
+            // Smooth fade out of video visually
             introContainer.classList.add('hidden');
             setTimeout(() => {
                 introContainer.style.display = 'none';
@@ -225,12 +251,11 @@
                 requestAnimationFrame(() => {
                     startModal.classList.add('modal-visible');
                 });
-                // Seamlessly start menu music after video ends
-                // Using setTimeout to ensure smooth transition
-                setTimeout(() => {
-                    playSFX('startMenuMusic', true);
-                }, 100);
-            }, 500);
+                // Fade in menu music after video audio has fully faded out
+                audioSystem.startMenuMusic.volume = 0;
+                playSFX('startMenuMusic', true);
+                fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
+            }, 600);
         }
     });
 
@@ -458,7 +483,7 @@
             inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target', theme: 'Fantasy' },
             meteor: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact', theme: 'Nature' },
             flame: { emoji: '🕯️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn', theme: 'Fantasy' },
-            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
+            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, buffType: 'power', name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
 
             // Water Spells
             freeze: { emoji: '❄️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature', theme: 'Nature' },
@@ -467,7 +492,7 @@
             rain: { emoji: '🌧️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life', theme: 'Nature' },
             whirlpool: { emoji: '🌀', type: 'instant', cardType: 'Instant/Spell', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature', theme: 'Nature' },
             deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
-            surf: { emoji: '🏄', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff', value: 2, name: 'Surf', desc: 'Creature gets +2/+2 and unblockable', theme: 'City' },
+            surf: { emoji: '🏄', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff', value: 2, grantAbilities: ['unblockable'], name: 'Surf', desc: 'Creature gets +2/+2 and unblockable', theme: 'City' },
             coral: { emoji: '🪸', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff_defense', value: 2, name: 'Coral Shield', desc: '+0/+2 to creature', theme: 'Nature' },
 
             // Earth Spells
@@ -492,9 +517,9 @@
             blessing: { emoji: '🙏', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff', value: 2, name: 'Blessing', desc: '+2/+2 to creature', theme: 'Fantasy' },
             light_beam: { emoji: '💫', type: 'instant', cardType: 'Instant/Spell', cost: { light: 4 }, effect: 'damage', value: 4, name: 'Light Beam', desc: 'Deal 4 damage', theme: 'Fantasy' },
             resurrection: { emoji: '⛪', type: 'instant', cardType: 'Instant/Spell', cost: { light: 5 }, effect: 'revive', name: 'Resurrection', desc: 'Return creature from graveyard', theme: 'Fantasy' },
-            in_clouds: { emoji: '😶‍🌫️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff_defense', value: 2, name: 'In the Clouds', desc: 'Creature gains +0/+2 and flying', theme: 'Fantasy' },
-            meditate: { emoji: '🧘🏽‍♀️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'heal', value: 2, name: 'Meditate', desc: 'Restore 2 life and draw a card', theme: 'City' },
-            feather: { emoji: '🪶', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'buff', value: 1, name: 'Feather', desc: '+1/+1 and flying to creature', theme: 'Nature' },
+            in_clouds: { emoji: '😶‍🌫️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 2 }, effect: 'buff_defense', value: 2, grantAbilities: ['flying'], name: 'In the Clouds', desc: 'Creature gains +0/+2 and flying', theme: 'Fantasy' },
+            meditate: { emoji: '🧘🏽‍♀️', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'heal_draw', value: 2, drawCards: 1, name: 'Meditate', desc: 'Restore 2 life and draw a card', theme: 'City' },
+            feather: { emoji: '🪶', type: 'instant', cardType: 'Instant/Spell', cost: { light: 1 }, effect: 'buff', value: 1, grantAbilities: ['flying'], name: 'Feather', desc: '+1/+1 and flying to creature', theme: 'Nature' },
 
             // Token Generation Spells
             summon_spirits: { emoji: '👻', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3 }, effect: 'token', value: 2, tokenType: 'spirit', name: 'Summon Spirits', desc: 'Create 2 Spirit tokens (1/1 flying)', theme: 'Fantasy' },
@@ -512,7 +537,7 @@
 
         // ARTIFACTS - EXPANDED
         artifacts: {
-            sword: { emoji: '⚔️', type: 'artifact', cardType: 'Artifact', cost: { fire: 2 }, effect: 'buff', value: 2, name: 'Flaming Sword', desc: 'Equipped creature gets +2/+0', theme: 'Fantasy' },
+            sword: { emoji: '⚔️', type: 'artifact', cardType: 'Artifact', cost: { fire: 2 }, effect: 'buff', value: 2, buffType: 'power', name: 'Flaming Sword', desc: 'Equipped creature gets +2/+0', theme: 'Fantasy' },
             shield: { emoji: '🛡️', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2', theme: 'Fantasy' },
             crown: { emoji: '👑', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn', theme: 'Fantasy' },
             gem: { emoji: '💎', type: 'artifact', cardType: 'Artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana', theme: 'Fantasy' },
@@ -520,17 +545,17 @@
             chalice: { emoji: '🏆', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn', theme: 'Fantasy' },
             scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card', theme: 'Fantasy' },
             orb: { emoji: '🔮', type: 'artifact', cardType: 'Artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn', theme: 'Fantasy' },
-            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, name: 'War Horn', desc: 'All creatures get +1/+0', theme: 'City' },
-            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, name: 'Protective Amulet', desc: 'All creatures get +0/+1', theme: 'Fantasy' },
+            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, buffType: 'power', targetAll: true, name: 'War Horn', desc: 'All creatures get +1/+0', theme: 'City' },
+            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, targetAll: true, name: 'Protective Amulet', desc: 'All creatures get +0/+1', theme: 'Fantasy' },
             ring: { emoji: '💍', type: 'artifact', cardType: 'Artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production', theme: 'Fantasy' },
             armor: { emoji: '🦺', type: 'artifact', cardType: 'Artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped', theme: 'City' },
-            axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
-            bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
+            axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, buffType: 'power', name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
+            bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, buffType: 'power', grantAbilities: ['flying'], name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
             wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' },
-            halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
+            halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, targetAll: true, grantAbilities: ['lifelink'], name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
             dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
             fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
-            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 1, name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' }
+            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' }
         }
     };
 
@@ -1297,6 +1322,30 @@
                 }
                 break;
 
+            case 'heal_draw':
+                // Heal life AND draw cards (e.g., Meditate)
+                if (isCasterPlayer) {
+                    changePlayerLife(card.value);
+                    playSFX('playerHeal');
+                    const playerInfoHD = document.querySelector('.player-area:not(.enemy-area) .player-info');
+                    const rectHD = playerInfoHD.getBoundingClientRect();
+                    createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
+                } else {
+                    changeEnemyLife(card.value);
+                    playSFX('opponentHeals');
+                    const enemyInfoHD = document.querySelector('.enemy-area .player-info');
+                    const rectHD = enemyInfoHD.getBoundingClientRect();
+                    createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
+                }
+                {
+                    const healDrawCount = card.drawCards || 1;
+                    for (let i = 0; i < healDrawCount; i++) {
+                        drawCard(caster);
+                    }
+                    showGameLog(`📜 ${isCasterPlayer ? 'You' : 'Enemy'} draw ${healDrawCount} card${healDrawCount > 1 ? 's' : ''}`, !isCasterPlayer);
+                }
+                break;
+
             case 'draw':
                 for (let i = 0; i < card.value; i++) {
                     drawCard(caster);
@@ -1340,14 +1389,36 @@
                 break;
 
             case 'buff':
-                // Buff a random friendly creature with +X/+X
+                // Buff friendly creature(s) - supports power-only, target-all, and granting abilities
                 const friendlyBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures = friendlyBoard.filter(c => c.type === 'creature');
                 if (friendlyCreatures.length > 0) {
-                    const target = friendlyCreatures[Math.floor(Math.random() * friendlyCreatures.length)];
-                    target.power = (target.power || 0) + card.value;
-                    target.toughness = (target.toughness || 0) + card.value;
-                    showGameLog(`✨ ${target.emoji} ${target.name} gets +${card.value}/+${card.value}!`, !isCasterPlayer);
+                    const buffTargets = card.targetAll ? friendlyCreatures : [friendlyCreatures[Math.floor(Math.random() * friendlyCreatures.length)]];
+                    const isPowerOnly = card.buffType === 'power';
+                    buffTargets.forEach(target => {
+                        if (card.value > 0) {
+                            target.power = (target.power || 0) + card.value;
+                            if (!isPowerOnly) {
+                                target.toughness = (target.toughness || 0) + card.value;
+                            }
+                        }
+                        if (card.grantAbilities) {
+                            card.grantAbilities.forEach(ability => {
+                                if (!target.abilities) target.abilities = [];
+                                if (!target.abilities.includes(ability)) {
+                                    target.abilities.push(ability);
+                                }
+                            });
+                        }
+                    });
+                    // Build log message
+                    const buffStr = card.value > 0 ? (isPowerOnly ? `+${card.value}/+0` : `+${card.value}/+${card.value}`) : '';
+                    const abilityStr = card.grantAbilities ? (buffStr ? ' and ' : '') + card.grantAbilities.join(', ') : '';
+                    if (card.targetAll) {
+                        showGameLog(`✨ All creatures get ${buffStr}${abilityStr}!`, !isCasterPlayer);
+                    } else {
+                        showGameLog(`✨ ${buffTargets[0].emoji} ${buffTargets[0].name} gets ${buffStr}${abilityStr}!`, !isCasterPlayer);
+                    }
                     createSparkles(window.innerWidth / 2, window.innerHeight / 2, 15);
                 } else {
                     showGameLog(`No creatures to buff`, !isCasterPlayer);
@@ -1355,13 +1426,28 @@
                 break;
 
             case 'buff_defense':
-                // Buff a random friendly creature with +0/+X
+                // Buff friendly creature(s) with +0/+X - supports target-all and granting abilities
                 const friendlyBoard2 = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures2 = friendlyBoard2.filter(c => c.type === 'creature');
                 if (friendlyCreatures2.length > 0) {
-                    const target = friendlyCreatures2[Math.floor(Math.random() * friendlyCreatures2.length)];
-                    target.toughness = (target.toughness || 0) + card.value;
-                    showGameLog(`🛡️ ${target.emoji} ${target.name} gets +0/+${card.value}!`, !isCasterPlayer);
+                    const defTargets = card.targetAll ? friendlyCreatures2 : [friendlyCreatures2[Math.floor(Math.random() * friendlyCreatures2.length)]];
+                    defTargets.forEach(target => {
+                        target.toughness = (target.toughness || 0) + card.value;
+                        if (card.grantAbilities) {
+                            card.grantAbilities.forEach(ability => {
+                                if (!target.abilities) target.abilities = [];
+                                if (!target.abilities.includes(ability)) {
+                                    target.abilities.push(ability);
+                                }
+                            });
+                        }
+                    });
+                    const defAbilityStr = card.grantAbilities ? ` and ${card.grantAbilities.join(', ')}` : '';
+                    if (card.targetAll) {
+                        showGameLog(`🛡️ All creatures get +0/+${card.value}${defAbilityStr}!`, !isCasterPlayer);
+                    } else {
+                        showGameLog(`🛡️ ${defTargets[0].emoji} ${defTargets[0].name} gets +0/+${card.value}${defAbilityStr}!`, !isCasterPlayer);
+                    }
                     createSparkles(window.innerWidth / 2, window.innerHeight / 2, 15);
                 } else {
                     showGameLog(`No creatures to buff`, !isCasterPlayer);
