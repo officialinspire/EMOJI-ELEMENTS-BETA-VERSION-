@@ -2374,6 +2374,21 @@
         handEl.innerHTML = '';
         gameState.playerHand.forEach(card => {
             const cardEl = createCardElement(card, false);
+
+            if (card.type === 'land') {
+                if (gameState.landsPlayedThisTurn < 1) {
+                    cardEl.classList.add('playable');
+                }
+            } else if (canPayCost(card.cost, gameState.playerMana)) {
+                cardEl.classList.add('playable');
+            }
+
+            if (card.type !== 'land' && !canPayCost(card.cost, gameState.playerMana)) {
+                cardEl.classList.add('unplayable');
+            }
+            if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
+                cardEl.classList.add('unplayable');
+            }
             
             // Click to play
             cardEl.onclick = () => playCard(card.id);
@@ -2805,10 +2820,6 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
-        if (!onBoard && !isEnemy && canPayCost(card.cost, gameState.playerMana)) {
-            cardEl.classList.add('playable');
-        }
-
         // Emoji - centered
         const emojiEl = document.createElement('div');
         emojiEl.textContent = card.emoji;
