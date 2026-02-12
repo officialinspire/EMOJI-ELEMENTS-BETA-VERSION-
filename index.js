@@ -820,6 +820,51 @@
         document.getElementById('statsScreen').style.display = 'none';
     }
 
+    function resetElementSelection() {
+        gameState.selectedElements = [];
+        document.querySelectorAll('.element-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        const startBtn = document.getElementById('startBtn');
+        startBtn.disabled = true;
+        startBtn.textContent = 'Select 2 Elements';
+    }
+
+    function returnToMainMenu() {
+        stopSFX('gameplayMusic');
+        stopSFX('gameVictory');
+        stopSFX('gameLose');
+
+        const victoryOverlay = document.getElementById('victoryOverlay');
+        const loseOverlay = document.getElementById('loseOverlay');
+        victoryOverlay.classList.remove('show');
+        loseOverlay.classList.remove('show');
+
+        document.getElementById('pauseModal').classList.remove('show');
+        document.getElementById('graveyardModal').classList.remove('show');
+        document.getElementById('mulliganConfirmModal').classList.remove('show');
+        document.getElementById('gameConfirmModal').classList.remove('show');
+
+        const gameContainer = document.getElementById('gameContainer');
+        const startModal = document.getElementById('startModal');
+        gameContainer.style.display = 'none';
+        startModal.style.display = 'flex';
+        startModal.classList.add('modal-visible');
+
+        resetElementSelection();
+        backToMenu();
+
+        if (audioSystem.startMenuMusic.paused) {
+            playSFX('startMenuMusic', true);
+        }
+    }
+
+    function playAgain() {
+        returnToMainMenu();
+        showElementSelection();
+    }
+
     // Pause/Resume Functions
     function pauseGame() {
         if (document.getElementById('gameContainer').style.display !== 'flex') {
@@ -846,7 +891,7 @@
 
     function confirmQuit() {
         showConfirmModal('🏠 QUIT GAME?', 'Are you sure you want to quit to main menu? Current game will be lost.', function() {
-            location.reload();
+            returnToMainMenu();
         });
     }
 
