@@ -1245,6 +1245,52 @@
         updateUI();
     }
 
+    // Tap ALL untapped lands of a given element type at once
+    function tapAllLandsOfType(landKey) {
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        const landsOfType = gameState.playerBoard.filter(c => {
+            if (c.type !== 'land') return false;
+            const key = c.element || (c.elements && c.elements.join('-')) || 'colorless';
+            return key === landKey;
+        });
+
+        const untappedLands = landsOfType.filter(c => !c.tapped);
+        if (untappedLands.length === 0) {
+            showGameLog('⚠️ No untapped lands of that type!', false);
+            return;
+        }
+
+        let tappedCount = 0;
+        untappedLands.forEach(card => {
+            const isDualLand = card.elements && card.elements.length > 1;
+            let elementToAdd;
+
+            if (isDualLand) {
+                // For dual lands tapped via tap-all, use the first element
+                elementToAdd = card.elements[0];
+                card.selectedElement = elementToAdd;
+            } else if (card.element) {
+                elementToAdd = card.element;
+            } else {
+                return;
+            }
+
+            card.tapped = true;
+            gameState.playerMana[elementToAdd] = (gameState.playerMana[elementToAdd] || 0) + 1;
+            tappedCount++;
+        });
+
+        if (tappedCount > 0) {
+            playSFX('tapLand');
+            showGameLog(`⚡ You tap ${tappedCount} ${untappedLands[0].name}${tappedCount > 1 ? 's' : ''} for mana`, false);
+            updateUI();
+        }
+    }
+
     // State-based actions - check for dead creatures
     function checkStateBasedActions() {
         // Check player board for dead creatures
@@ -2297,85 +2343,128 @@
             }
         });
 
-        // Display land stacks
+        // Display land stacks as representative cards
         Object.keys(landStacks).forEach(element => {
             const stack = landStacks[element];
-            const stackContainer = document.createElement('div');
-            stackContainer.className = 'card-stack';
-            stackContainer.style.position = 'relative';
-            stackContainer.style.minWidth = '60px';
-            stackContainer.style.height = '80px';
-            stackContainer.style.marginRight = '10px';
-            
-            // Display cards in stack with slight offset
-            stack.forEach((card, index) => {
-                const cardEl = createCardElement(card, true);
-                cardEl.style.position = 'absolute';
-                cardEl.style.left = (index * 3) + 'px';
-                cardEl.style.top = (index * 3) + 'px';
-                cardEl.style.zIndex = index;
-                
-                cardEl.onclick = () => tapLand(card.id);
+            const tappedCount = stack.filter(c => c.tapped).length;
+            const untappedCount = stack.length - tappedCount;
+            const total = stack.length;
+            const representativeCard = stack[0];
+            const landEmoji = representativeCard.emoji;
 
-                // Right-click or long-press to view details
-                cardEl.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    showCardDetail(card);
-                };
-
-                let landLongPressTimer;
-                let landTouchMoved = false;
-
-                cardEl.ontouchstart = (e) => {
-                    landTouchMoved = false;
-                    landLongPressTimer = setTimeout(() => {
-                        if (!landTouchMoved) {
-                            // Haptic feedback for mobile
-                            if (navigator.vibrate) {
-                                navigator.vibrate(50);
-                            }
-                            showCardDetail(card);
-                        }
-                    }, 350);
-                };
-
-                cardEl.ontouchmove = () => {
-                    landTouchMoved = true;
-                    clearTimeout(landLongPressTimer);
-                };
-
-                cardEl.ontouchend = () => {
-                    clearTimeout(landLongPressTimer);
-                };
-
-                stackContainer.appendChild(cardEl);
-            });
-            
-            // Add count badge
-            if (stack.length > 1) {
-                const badge = document.createElement('div');
-                badge.className = 'stack-count';
-                badge.textContent = stack.length;
-                badge.style.position = 'absolute';
-                badge.style.bottom = '-5px';
-                badge.style.right = '-5px';
-                badge.style.background = 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)';
-                badge.style.color = '#2a1a0a';
-                badge.style.borderRadius = '50%';
-                badge.style.width = '24px';
-                badge.style.height = '24px';
-                badge.style.display = 'flex';
-                badge.style.alignItems = 'center';
-                badge.style.justifyContent = 'center';
-                badge.style.fontSize = '12px';
-                badge.style.fontWeight = 'bold';
-                badge.style.border = '2px solid #8b7355';
-                badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
-                badge.style.zIndex = stack.length + 1;
-                stackContainer.appendChild(badge);
+            const stackCard = document.createElement('div');
+            stackCard.className = 'land-stack-card';
+            if (tappedCount === total) {
+                stackCard.classList.add('all-tapped');
+            } else if (tappedCount > 0) {
+                stackCard.classList.add('partially-tapped');
+            } else {
+                stackCard.classList.add('all-untapped');
             }
-            
-            boardEl.appendChild(stackContainer);
+
+            // Emoji display
+            const emojiEl = document.createElement('div');
+            emojiEl.className = 'land-stack-emoji';
+            emojiEl.textContent = landEmoji;
+            stackCard.appendChild(emojiEl);
+
+            // Count display: "⚡3/5" format
+            const countEl = document.createElement('div');
+            countEl.className = 'land-stack-count';
+            if (total === 1) {
+                countEl.innerHTML = tappedCount > 0
+                    ? '<span class="tapped-count">tapped</span>'
+                    : '<span class="untapped-count">ready</span>';
+            } else {
+                countEl.innerHTML = '⚡<span class="' + (tappedCount < total ? 'untapped-count' : 'tapped-count') + '">' + tappedCount + '</span>'
+                    + '<span class="separator">/</span>'
+                    + '<span class="tapped-count">' + total + '</span>';
+            }
+            stackCard.appendChild(countEl);
+
+            // Total badge: "🔥 x5" format
+            if (total > 1) {
+                const totalEl = document.createElement('div');
+                totalEl.className = 'land-stack-total';
+                totalEl.textContent = landEmoji + ' x' + total;
+                stackCard.appendChild(totalEl);
+            }
+
+            // "Tap all" button (shown on hover / long-press)
+            if (untappedCount > 1) {
+                const tapAllBtn = document.createElement('div');
+                tapAllBtn.className = 'land-stack-tap-all';
+                tapAllBtn.textContent = '⚡';
+                tapAllBtn.title = 'Tap all untapped';
+                tapAllBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    tapAllLandsOfType(element);
+                };
+                stackCard.appendChild(tapAllBtn);
+            }
+
+            // Click to tap one untapped land
+            stackCard.onclick = () => {
+                const untappedLand = stack.find(c => !c.tapped);
+                if (untappedLand) {
+                    tapLand(untappedLand.id);
+                } else {
+                    // All tapped - untap the last tapped one
+                    const tappedLand = stack.find(c => c.tapped);
+                    if (tappedLand) {
+                        tapLand(tappedLand.id);
+                    }
+                }
+            };
+
+            // Right-click to tap ALL untapped lands of this type
+            stackCard.oncontextmenu = (e) => {
+                e.preventDefault();
+                if (untappedCount > 0) {
+                    tapAllLandsOfType(element);
+                } else {
+                    showCardDetail(representativeCard);
+                }
+            };
+
+            // Long-press: show tap-all indicator, then tap all on release
+            let landStackLongPressTimer;
+            let landStackTouchMoved = false;
+            let landStackLongPressed = false;
+
+            stackCard.ontouchstart = (e) => {
+                landStackTouchMoved = false;
+                landStackLongPressed = false;
+                landStackLongPressTimer = setTimeout(() => {
+                    if (!landStackTouchMoved) {
+                        landStackLongPressed = true;
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                        if (untappedCount > 1) {
+                            tapAllLandsOfType(element);
+                        } else {
+                            showCardDetail(representativeCard);
+                        }
+                    }
+                }, 350);
+            };
+
+            stackCard.ontouchmove = () => {
+                landStackTouchMoved = true;
+                clearTimeout(landStackLongPressTimer);
+                stackCard.classList.remove('show-tap-all');
+            };
+
+            stackCard.ontouchend = (e) => {
+                clearTimeout(landStackLongPressTimer);
+                stackCard.classList.remove('show-tap-all');
+                if (landStackLongPressed) {
+                    e.preventDefault();
+                }
+            };
+
+            boardEl.appendChild(stackCard);
         });
 
         // Display non-land cards normally
@@ -2444,83 +2533,83 @@
             }
         });
 
-        // Display enemy land stacks
+        // Display enemy land stacks as representative cards
         Object.keys(enemyLandStacks).forEach(element => {
             const stack = enemyLandStacks[element];
-            const stackContainer = document.createElement('div');
-            stackContainer.className = 'card-stack';
-            stackContainer.style.position = 'relative';
-            stackContainer.style.minWidth = '60px';
-            stackContainer.style.height = '80px';
-            stackContainer.style.marginRight = '10px';
-            
-            // Display cards in stack with slight offset
-            stack.forEach((card, index) => {
-                const cardEl = createCardElement(card, true, true);
-                cardEl.style.position = 'absolute';
-                cardEl.style.left = (index * 3) + 'px';
-                cardEl.style.top = (index * 3) + 'px';
-                cardEl.style.zIndex = index;
+            const tappedCount = stack.filter(c => c.tapped).length;
+            const total = stack.length;
+            const representativeCard = stack[0];
+            const landEmoji = representativeCard.emoji;
 
-                // Right-click or long-press to view details
-                cardEl.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    showCardDetail(card);
-                };
-
-                let enemyLandLongPressTimer;
-                let enemyLandTouchMoved = false;
-
-                cardEl.ontouchstart = (e) => {
-                    enemyLandTouchMoved = false;
-                    enemyLandLongPressTimer = setTimeout(() => {
-                        if (!enemyLandTouchMoved) {
-                            // Haptic feedback for mobile
-                            if (navigator.vibrate) {
-                                navigator.vibrate(50);
-                            }
-                            showCardDetail(card);
-                        }
-                    }, 350);
-                };
-
-                cardEl.ontouchmove = () => {
-                    enemyLandTouchMoved = true;
-                    clearTimeout(enemyLandLongPressTimer);
-                };
-
-                cardEl.ontouchend = () => {
-                    clearTimeout(enemyLandLongPressTimer);
-                };
-
-                stackContainer.appendChild(cardEl);
-            });
-            
-            // Add count badge
-            if (stack.length > 1) {
-                const badge = document.createElement('div');
-                badge.className = 'stack-count';
-                badge.textContent = stack.length;
-                badge.style.position = 'absolute';
-                badge.style.bottom = '-5px';
-                badge.style.right = '-5px';
-                badge.style.background = 'linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%)';
-                badge.style.color = '#fff';
-                badge.style.borderRadius = '50%';
-                badge.style.width = '24px';
-                badge.style.height = '24px';
-                badge.style.display = 'flex';
-                badge.style.alignItems = 'center';
-                badge.style.justifyContent = 'center';
-                badge.style.fontSize = '12px';
-                badge.style.fontWeight = 'bold';
-                badge.style.border = '2px solid #8b0000';
-                badge.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
-                badge.style.zIndex = stack.length + 1;
-                stackContainer.appendChild(badge);
+            const stackCard = document.createElement('div');
+            stackCard.className = 'land-stack-card enemy-land-stack';
+            if (tappedCount === total) {
+                stackCard.classList.add('all-tapped');
+            } else if (tappedCount > 0) {
+                stackCard.classList.add('partially-tapped');
+            } else {
+                stackCard.classList.add('all-untapped');
             }
-            
-            enemyBoardEl.appendChild(stackContainer);
+
+            // Emoji display
+            const emojiEl = document.createElement('div');
+            emojiEl.className = 'land-stack-emoji';
+            emojiEl.textContent = landEmoji;
+            stackCard.appendChild(emojiEl);
+
+            // Count display: "⚡3/5" format
+            const countEl = document.createElement('div');
+            countEl.className = 'land-stack-count';
+            if (total === 1) {
+                countEl.innerHTML = tappedCount > 0
+                    ? '<span class="tapped-count">tapped</span>'
+                    : '<span class="untapped-count">ready</span>';
+            } else {
+                countEl.innerHTML = '⚡<span class="' + (tappedCount < total ? 'untapped-count' : 'tapped-count') + '">' + tappedCount + '</span>'
+                    + '<span class="separator">/</span>'
+                    + '<span class="tapped-count">' + total + '</span>';
+            }
+            stackCard.appendChild(countEl);
+
+            // Total badge: "🔥 x5" format
+            if (total > 1) {
+                const totalEl = document.createElement('div');
+                totalEl.className = 'land-stack-total';
+                totalEl.textContent = landEmoji + ' x' + total;
+                stackCard.appendChild(totalEl);
+            }
+
+            // Long-press to view card detail (display only, no tap interaction)
+            stackCard.oncontextmenu = (e) => {
+                e.preventDefault();
+                showCardDetail(representativeCard);
+            };
+
+            let enemyLandStackLPTimer;
+            let enemyLandStackTouchMoved = false;
+
+            stackCard.ontouchstart = () => {
+                enemyLandStackTouchMoved = false;
+                enemyLandStackLPTimer = setTimeout(() => {
+                    if (!enemyLandStackTouchMoved) {
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                        showCardDetail(representativeCard);
+                    }
+                }, 350);
+            };
+
+            stackCard.ontouchmove = () => {
+                enemyLandStackTouchMoved = true;
+                clearTimeout(enemyLandStackLPTimer);
+            };
+
+            stackCard.ontouchend = () => {
+                clearTimeout(enemyLandStackLPTimer);
+            };
+
+            enemyBoardEl.appendChild(stackCard);
         });
 
         // Display enemy non-land cards normally

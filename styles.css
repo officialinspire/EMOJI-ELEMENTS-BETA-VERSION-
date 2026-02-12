@@ -891,6 +891,129 @@ body::before {
     pointer-events: none;
 }
 
+/* Land stack representative card */
+.land-stack-card {
+    position: relative;
+    min-width: 60px;
+    height: 80px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2a1a0a 0%, #3d2b1a 100%);
+    border: 2px solid #8b7355;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.land-stack-card:hover {
+    transform: translateY(-5px);
+}
+
+.land-stack-card:active {
+    transform: scale(0.95);
+}
+
+.land-stack-card.all-tapped {
+    opacity: 0.55;
+    border-color: #555;
+}
+
+.land-stack-card.partially-tapped {
+    border-color: #b8860b;
+    opacity: 0.8;
+}
+
+.land-stack-card.partially-tapped .land-stack-emoji {
+    transform: rotate(-8deg);
+}
+
+.land-stack-card.all-untapped {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.land-stack-card.enemy-land-stack {
+    cursor: default;
+    border-color: #8b0000;
+}
+
+.land-stack-card.enemy-land-stack.all-untapped {
+    border-color: #dc143c;
+    box-shadow: 0 0 10px rgba(220, 20, 60, 0.3);
+}
+
+.land-stack-emoji {
+    font-size: 28px;
+    line-height: 1;
+    transition: transform 0.2s;
+}
+
+.land-stack-count {
+    font-size: 11px;
+    font-weight: bold;
+    font-family: 'Cinzel', serif;
+    margin-top: 2px;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.land-stack-count .untapped-count {
+    color: #44ff44;
+    text-shadow: 0 0 4px rgba(68, 255, 68, 0.5);
+}
+
+.land-stack-count .tapped-count {
+    color: #888;
+}
+
+.land-stack-count .separator {
+    color: #666;
+}
+
+.land-stack-total {
+    font-size: 10px;
+    font-weight: bold;
+    font-family: 'Cinzel', serif;
+    color: #ccc;
+    margin-top: 1px;
+}
+
+.land-stack-tap-all {
+    display: none;
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    color: #2a1a0a;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 2px solid #8b7355;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.land-stack-card:hover .land-stack-tap-all,
+.land-stack-card.show-tap-all .land-stack-tap-all {
+    display: flex;
+}
+
 @media (min-width: 768px) {
     .card-stack {
         min-width: 60px;
@@ -901,6 +1024,19 @@ body::before {
         width: 26px;
         height: 26px;
         font-size: 13px;
+    }
+
+    .land-stack-card {
+        min-width: 70px;
+        height: 90px;
+    }
+
+    .land-stack-emoji {
+        font-size: 32px;
+    }
+
+    .land-stack-count {
+        font-size: 12px;
     }
 }
 
@@ -1334,6 +1470,19 @@ body::before {
         width: 30px;
         height: 30px;
         font-size: 14px;
+    }
+
+    .land-stack-card {
+        min-width: 80px;
+        height: 100px;
+    }
+
+    .land-stack-emoji {
+        font-size: 36px;
+    }
+
+    .land-stack-count {
+        font-size: 13px;
     }
 }
 
