@@ -481,6 +481,15 @@ body::after {
     box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3), 0 0 10px rgba(0, 255, 136, 0.2);
 }
 
+.card.unplayable {
+    opacity: 0.6;
+    filter: saturate(0.5);
+}
+
+.card.unplayable:hover {
+    transform: translateY(-4px) scale(1.02);
+}
+
 @keyframes playableGlow {
     0%, 100% {
         box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2), 0 0 8px rgba(0, 255, 136, 0.15);
