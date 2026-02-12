@@ -80,6 +80,71 @@
         }
     }
 
+
+    function applyMuteState() {
+        Object.values(audioSystem).forEach(audio => {
+            audio.muted = isMuted;
+        });
+
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) {
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
+        }
+    }
+
+    function toggleMute() {
+        isMuted = !isMuted;
+        localStorage.setItem('emojiElementsMuted', String(isMuted));
+        applyMuteState();
+        showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+    }
+
+    function getCardTooltipText(card) {
+        const stats = card.type === 'creature' ? ` • ${card.power}/${card.toughness}` : '';
+        return `${card.emoji} ${card.name}${stats}`;
+    }
+
+    function showCardHoverTooltip(text, event) {
+        if (isMobile || hoverTooltipPinned || !event) return;
+        const tooltip = document.getElementById('cardHoverTooltip');
+        if (!tooltip) return;
+
+        tooltip.textContent = text;
+        const offset = 14;
+        const width = tooltip.offsetWidth || 180;
+        const height = tooltip.offsetHeight || 40;
+        let x = event.clientX + offset;
+        let y = event.clientY - height - offset;
+
+        if (x + width > window.innerWidth - 10) x = window.innerWidth - width - 10;
+        if (y < 10) y = event.clientY + offset;
+
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+        tooltip.classList.add('show');
+    }
+
+    function hideCardHoverTooltip() {
+        if (hoverTooltipPinned) return;
+        const tooltip = document.getElementById('cardHoverTooltip');
+        if (tooltip) tooltip.classList.remove('show');
+    }
+
+    function attachDesktopTooltip(target, card) {
+        if (!target || !card || isMobile) return;
+
+        target.addEventListener('mouseenter', (e) => {
+            showCardHoverTooltip(getCardTooltipText(card), e);
+        });
+        target.addEventListener('mousemove', (e) => {
+            showCardHoverTooltip(getCardTooltipText(card), e);
+        });
+        target.addEventListener('mouseleave', () => {
+            hideCardHoverTooltip();
+        });
+    }
+
     // Helper function to fade audio volume in or out over a duration
     function fadeAudio(audioElement, targetVolume, duration, callback) {
         const steps = 20;
@@ -152,12 +217,17 @@
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+    let isMuted = localStorage.getItem('emojiElementsMuted') === 'true';
+    let hoverTooltipPinned = false;
+
     // Intro Video Logic with Click to Start
     window.addEventListener('DOMContentLoaded', () => {
         const clickToStart = document.getElementById('clickToStart');
         const introContainer = document.getElementById('introContainer');
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
+
+        applyMuteState();
 
         // Preload video and ensure audio is ready
         introVideo.load();
@@ -895,10 +965,13 @@
 
         content.innerHTML = html;
         popup.classList.add('show');
+        hoverTooltipPinned = true;
+        hideCardHoverTooltip();
     }
 
     function hideCardDetail() {
         document.getElementById('cardDetailPopup').classList.remove('show');
+        hoverTooltipPinned = false;
     }
 
     function showGraveyard() {
@@ -2287,38 +2360,7 @@
                                 attackingCreatures = attackers;
                             }
 
-                            if (attackingCreatures.length > 0) {
-                                showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
-                                playSFX('attack');
-                            } else {
-                                showGameLog('🛡️ Enemy does not attack', true);
-                            }
-
-                            attackingCreatures.forEach(attacker => {
-                                // Only tap if creature doesn't have vigilance
-                                if (!attacker.abilities?.includes('vigilance')) {
-                                    attacker.tapped = true;
-                                }
-                                changePlayerLife(-attacker.power);
-
-                                if (attacker.abilities?.includes('trample')) {
-                                    shakeScreen();
-                                    const playerArea = document.querySelector('.player-area:not(.enemy-area)');
-                                    const rect = playerArea.getBoundingClientRect();
-                                    createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                                }
-
-                                if (attacker.abilities?.includes('lifelink')) {
-                                    changeEnemyLife(attacker.power);
-                                    const enemyInfo = document.querySelector('.enemy-area .player-info');
-                                    const rect = enemyInfo.getBoundingClientRect();
-                                    createSparkles(rect.left + 50, rect.top + rect.height / 2, 10);
-                                }
-
-                                const playerArea = document.querySelector('.player-area:not(.enemy-area)');
-                                const rect = playerArea.getBoundingClientRect();
-                                createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
-                            });
+                            resolveEnemyAttackPhase(attackingCreatures);
 
                             updateUI();
                             checkGameOver();
@@ -2340,6 +2382,80 @@
                 startPlayerTurn();
             }, 1000);
         }
+    }
+
+
+    function declarePlayerBlockers(enemyAttackers) {
+        const blockers = {};
+        const availableBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
+
+        enemyAttackers.forEach(attacker => {
+            const blocker = availableBlockers.find(candidate =>
+                !Object.values(blockers).includes(candidate.id) &&
+                candidate.toughness >= attacker.power - 1
+            );
+
+            if (blocker) {
+                blockers[attacker.id] = blocker.id;
+            }
+        });
+
+        return blockers;
+    }
+
+    function resolveEnemyAttackPhase(attackingCreatures) {
+        if (attackingCreatures.length > 0) {
+            showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
+            showGameLog('🛡️ You declare blockers', false);
+            playSFX('attack');
+        } else {
+            showGameLog('🛡️ Enemy does not attack', true);
+            return;
+        }
+
+        const playerBlockers = declarePlayerBlockers(attackingCreatures);
+        if (Object.keys(playerBlockers).length > 0) {
+            playSFX('block');
+        }
+
+        attackingCreatures.forEach(attacker => {
+            if (!attacker.abilities?.includes('vigilance')) {
+                attacker.tapped = true;
+            }
+
+            const blockerId = playerBlockers[attacker.id];
+            const blocker = blockerId ? gameState.playerBoard.find(c => c.id === blockerId) : null;
+
+            if (blocker) {
+                attacker.damage = (attacker.damage || 0) + blocker.power;
+                blocker.damage = (blocker.damage || 0) + attacker.power;
+
+                if (attacker.abilities?.includes('trample')) {
+                    const excessDamage = attacker.power - blocker.toughness;
+                    if (excessDamage > 0) {
+                        changePlayerLife(-excessDamage);
+                    }
+                }
+            } else {
+                changePlayerLife(-attacker.power);
+                if (attacker.abilities?.includes('trample')) {
+                    shakeScreen();
+                    const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+                    const rect = playerArea.getBoundingClientRect();
+                    createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
+            }
+
+            if (attacker.abilities?.includes('lifelink')) {
+                changeEnemyLife(attacker.power);
+            }
+
+            const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+            const rect = playerArea.getBoundingClientRect();
+            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
+        });
+
+        checkStateBasedActions();
     }
 
     // Helper functions for lifepoint changes with sound and animation
@@ -2440,6 +2556,7 @@
         handEl.innerHTML = '';
         gameState.playerHand.forEach(card => {
             const cardEl = createCardElement(card, false);
+            attachDesktopTooltip(cardEl, card);
 
             if (card.type === 'land') {
                 if (gameState.landsPlayedThisTurn < 1) {
@@ -2526,6 +2643,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card';
+            attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
             } else if (tappedCount > 0) {
@@ -2642,6 +2760,7 @@
         // Display non-land cards normally
         nonLands.forEach(card => {
             const cardEl = createCardElement(card, true);
+            attachDesktopTooltip(cardEl, card);
             
             if (card.type === 'creature' && attackPhase) {
                 cardEl.onclick = () => selectAttacker(card.id);
@@ -2715,6 +2834,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card enemy-land-stack';
+            attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
             } else if (tappedCount > 0) {
@@ -2787,6 +2907,7 @@
         // Display enemy non-land cards normally
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
+            attachDesktopTooltip(cardEl, card);
 
             // Right-click or long-press to view details
             cardEl.oncontextmenu = (e) => {

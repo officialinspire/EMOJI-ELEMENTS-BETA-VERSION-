@@ -1,0 +1,23 @@
+{
+  "name": "Emoji Elements",
+  "short_name": "Emoji Elements",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0510",
+  "theme_color": "#1a0f20",
+  "description": "A fast emoji-powered elemental card battler.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

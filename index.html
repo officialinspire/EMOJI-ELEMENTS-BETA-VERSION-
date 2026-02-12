@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a0f20">
     <title>EMOJI ELEMENTS</title>
+    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -208,7 +210,10 @@
         <div class="header">
             <button class="menu-icon-btn" onclick="pauseGame()">☰</button>
             <div class="title">⚔️ EMOJI ELEMENTS ⚔️</div>
-            <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
+            <div class="header-right">
+                <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound">🔊</button>
+                <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
+            </div>
         </div>
 
         <div class="battlefield">
@@ -250,6 +255,8 @@
             <button class="btn" id="endTurnBtn" onclick="endTurn()" data-shortcut="[Space]"><span class="btn-text">END TURN</span></button>
         </div>
     </div>
+
+    <div id="cardHoverTooltip" class="card-hover-tooltip"></div>
 
     <script src="index.js"></script>
 </body>
