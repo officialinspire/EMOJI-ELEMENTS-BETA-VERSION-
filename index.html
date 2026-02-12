@@ -88,9 +88,24 @@
         <div class="pause-content">
             <div class="pause-title">⏸️ GAME PAUSED</div>
             <div class="pause-buttons">
-                <button class="menu-btn" onclick="resumeGame()">▶️ RESUME GAME</button>
+                <button class="menu-btn" onclick="resumeGame(event)">▶️ RESUME GAME</button>
                 <button class="menu-btn" onclick="confirmQuit()">🏠 MAIN MENU</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Graveyard Modal -->
+    <div id="graveyardModal" class="graveyard-modal">
+        <div class="graveyard-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title">⚰️ GRAVEYARD</div>
+                <button class="graveyard-close" onclick="hideGraveyard()">✕</button>
+            </div>
+            <div class="graveyard-tabs">
+                <button class="graveyard-tab active" id="playerGraveyardTab" onclick="renderGraveyard('player')">🧙 YOUR CARDS</button>
+                <button class="graveyard-tab" id="enemyGraveyardTab" onclick="renderGraveyard('enemy')">🤖 ENEMY CARDS</button>
+            </div>
+            <div class="graveyard-list" id="graveyardList"></div>
         </div>
     </div>
 
@@ -230,6 +245,7 @@
 
         <div class="controls">
             <button class="btn" id="mulliganBtn" onclick="mulligan()" data-shortcut="[M]"><span class="btn-text">🔄 MULLIGAN</span></button>
+            <button class="btn" id="graveyardBtn" onclick="showGraveyard()"><span class="btn-text">⚰️ GRAVEYARD</span></button>
             <button class="btn btn-attack" id="attackBtn" onclick="enterAttackPhase()" data-shortcut="[A]"><span class="btn-text">⚔️ ATTACK</span></button>
             <button class="btn" id="endTurnBtn" onclick="endTurn()" data-shortcut="[Space]"><span class="btn-text">END TURN</span></button>
         </div>

@@ -267,6 +267,7 @@
     let attackPhase = false;
     let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
+    let activeGraveyardView = 'player';
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -734,13 +735,26 @@
 
     // Pause/Resume Functions
     function pauseGame() {
+        if (document.getElementById('gameContainer').style.display !== 'flex') {
+            return;
+        }
+
         playSFX('menuOpen');
         document.getElementById('pauseModal').classList.add('show');
     }
 
-    function resumeGame() {
+    function resumeGame(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         playSFX('menuClose');
         document.getElementById('pauseModal').classList.remove('show');
+
+        // Safety fix: keep gameplay active after resuming from pause
+        document.getElementById('startModal').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'flex';
     }
 
     function confirmQuit() {
@@ -887,10 +901,62 @@
         document.getElementById('cardDetailPopup').classList.remove('show');
     }
 
+    function showGraveyard() {
+        if (document.getElementById('gameContainer').style.display !== 'flex') {
+            return;
+        }
+
+        playSFX('menuOpen');
+        document.getElementById('graveyardModal').classList.add('show');
+        renderGraveyard(activeGraveyardView);
+    }
+
+    function hideGraveyard() {
+        playSFX('menuClose');
+        document.getElementById('graveyardModal').classList.remove('show');
+    }
+
+    function renderGraveyard(owner) {
+        activeGraveyardView = owner;
+        const graveyardList = document.getElementById('graveyardList');
+        const playerTab = document.getElementById('playerGraveyardTab');
+        const enemyTab = document.getElementById('enemyGraveyardTab');
+
+        playerTab.classList.toggle('active', owner === 'player');
+        enemyTab.classList.toggle('active', owner === 'enemy');
+
+        const cards = owner === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
+        if (cards.length === 0) {
+            graveyardList.innerHTML = `<div class="graveyard-empty">No ${owner === 'player' ? 'player' : 'enemy'} cards in the graveyard yet.</div>`;
+            return;
+        }
+
+        graveyardList.innerHTML = '';
+
+        [...cards].reverse().forEach(card => {
+            const cardRow = document.createElement('button');
+            cardRow.className = 'graveyard-card';
+            cardRow.type = 'button';
+            cardRow.innerHTML = `
+                <span class="graveyard-card-emoji">${card.emoji}</span>
+                <span class="graveyard-card-name">${card.name}</span>
+                <span class="graveyard-card-type">${card.cardType}</span>
+            `;
+            cardRow.onclick = () => showCardDetail(card);
+            graveyardList.appendChild(cardRow);
+        });
+    }
+
     // Close popup when clicking outside
     document.getElementById('cardDetailPopup').addEventListener('click', function(e) {
         if (e.target === this) {
             hideCardDetail();
+        }
+    });
+
+    document.getElementById('graveyardModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideGraveyard();
         }
     });
 
@@ -2883,10 +2949,11 @@
             return;
         }
 
-        // Prevent shortcuts if in pause modal or card detail popup
+        // Prevent shortcuts if a modal is open
         const pauseModal = document.getElementById('pauseModal');
         const cardDetailPopup = document.getElementById('cardDetailPopup');
-        if (pauseModal.classList.contains('show') || cardDetailPopup.classList.contains('show')) {
+        const graveyardModal = document.getElementById('graveyardModal');
+        if (pauseModal.classList.contains('show') || cardDetailPopup.classList.contains('show') || graveyardModal.classList.contains('show')) {
             return;
         }
 
