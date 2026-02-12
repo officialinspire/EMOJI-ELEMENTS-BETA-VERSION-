@@ -1624,3 +1624,214 @@ html {
         box-shadow: 0 0 25px rgba(255, 140, 0, 0.7);
     }
 }
+
+/* ========================================
+   MANA CHOICE MODAL (Dual Land Selector)
+   ======================================== */
+.mana-choice-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 6000;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.mana-choice-modal.show {
+    display: flex;
+    opacity: 1;
+    animation: fadeInManaModal 0.25s ease forwards;
+}
+
+@keyframes fadeInManaModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.mana-choice-content {
+    background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
+    border: 4px double #ffd700;
+    border-radius: 16px;
+    padding: 25px 20px;
+    max-width: 350px;
+    width: 95%;
+    text-align: center;
+    box-shadow: 0 10px 50px rgba(255, 215, 0, 0.4), inset 0 0 40px rgba(255, 215, 0, 0.1);
+    animation: popInMana 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popInMana {
+    from {
+        transform: scale(0.7);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.mana-choice-title {
+    font-family: 'Uncial Antiqua', cursive;
+    font-size: 22px;
+    margin-bottom: 20px;
+    color: #ffd700;
+    text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00;
+    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mana-choice-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.mana-choice-btn {
+    min-width: 70px;
+    min-height: 70px;
+    width: 70px;
+    height: 70px;
+    font-size: 36px;
+    background: linear-gradient(135deg, rgba(75, 0, 130, 0.4) 0%, rgba(138, 43, 226, 0.3) 100%);
+    border: 3px solid #ffd700;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.mana-choice-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(255, 215, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.4);
+    border-color: #ffed4e;
+}
+
+.mana-choice-btn:active {
+    transform: scale(0.95);
+}
+
+.mana-choice-btn.cancel-btn {
+    min-width: 100%;
+    height: 50px;
+    font-size: 16px;
+    font-family: 'MedievalSharp', cursive;
+    color: #ffd700;
+    background: linear-gradient(135deg, rgba(139, 0, 0, 0.4) 0%, rgba(220, 20, 60, 0.3) 100%);
+    border-color: #dc143c;
+    margin-top: 8px;
+}
+
+.mana-choice-btn.cancel-btn:hover {
+    border-color: #ff6b6b;
+    box-shadow: 0 6px 25px rgba(220, 20, 60, 0.5);
+}
+
+@media (min-width: 768px) {
+    .mana-choice-btn {
+        min-width: 80px;
+        min-height: 80px;
+        width: 80px;
+        height: 80px;
+        font-size: 42px;
+    }
+
+    .mana-choice-title {
+        font-size: 26px;
+    }
+}
+
+/* ========================================
+   GAME CONFIRM MODAL (Mulligan, Quit, etc.)
+   ======================================== */
+.game-confirm-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 6000;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.game-confirm-modal.show {
+    display: flex;
+    opacity: 1;
+    animation: fadeInManaModal 0.25s ease forwards;
+}
+
+.game-confirm-content {
+    background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
+    border: 4px double #ffd700;
+    border-radius: 16px;
+    padding: 30px 25px;
+    max-width: 380px;
+    width: 95%;
+    text-align: center;
+    box-shadow: 0 10px 50px rgba(255, 215, 0, 0.4), inset 0 0 40px rgba(255, 215, 0, 0.1);
+    animation: popInMana 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game-confirm-title {
+    font-family: 'Uncial Antiqua', cursive;
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #ffd700;
+    text-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00;
+}
+
+.game-confirm-text {
+    font-family: 'MedievalSharp', cursive;
+    font-size: 16px;
+    color: #ffed4e;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.game-confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.game-confirm-buttons .menu-btn {
+    flex: 1;
+    min-height: 50px;
+    font-size: 16px;
+}
+
+@media (min-width: 768px) {
+    .game-confirm-title {
+        font-size: 28px;
+    }
+
+    .game-confirm-text {
+        font-size: 18px;
+    }
+}

@@ -744,9 +744,9 @@
     }
 
     function confirmQuit() {
-        if (confirm('Are you sure you want to quit to main menu? Current game will be lost.')) {
+        showConfirmModal('🏠 QUIT GAME?', 'Are you sure you want to quit to main menu? Current game will be lost.', function() {
             location.reload();
-        }
+        });
     }
 
     function updateStatsDisplay() {
@@ -758,12 +758,12 @@
     }
 
     function resetStats() {
-        if (confirm('Are you sure you want to reset all statistics?')) {
+        showConfirmModal('🔄 RESET STATS?', 'Are you sure you want to reset all statistics?', function() {
             playSFX('select');
             gameStats = { wins: 0, losses: 0, total: 0 };
             saveStats();
             updateStatsDisplay();
-        }
+        });
     }
 
     function selectDifficulty(difficulty) {
@@ -979,14 +979,40 @@
     // Mulligan function
     function mulligan() {
         if (mulliganUsed || playerFirstTurnCompleted) {
-            alert('You can only mulligan once at the beginning of the game!');
+            showGameLog('⚠️ You can only mulligan once at the start!', false);
             return;
         }
 
-        if (!confirm('Mulligan? Put all cards back and draw 6 new cards?')) {
-            return;
+        // Show mulligan confirm modal instead of confirm()
+        const modal = document.getElementById('mulliganConfirmModal');
+        const yesBtn = document.getElementById('mulliganYesBtn');
+        const noBtn = document.getElementById('mulliganNoBtn');
+
+        // Clone and replace to remove old listeners
+        const newYes = yesBtn.cloneNode(true);
+        const newNo = noBtn.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYes, yesBtn);
+        noBtn.parentNode.replaceChild(newNo, noBtn);
+
+        function closeModal() {
+            modal.classList.remove('show');
+            setTimeout(() => { modal.style.display = 'none'; }, 250);
         }
 
+        newYes.addEventListener('click', function() {
+            closeModal();
+            performMulligan();
+        });
+        newNo.addEventListener('click', function() {
+            closeModal();
+        });
+
+        modal.style.display = 'flex';
+        void modal.offsetWidth;
+        modal.classList.add('show');
+    }
+
+    function performMulligan() {
         playSFX('select');
 
         // Return hand to deck
@@ -1110,15 +1136,14 @@
 
         // LAND PLAY LIMIT: Enforce one land per turn rule
         if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
-            showGameLog('⚠️ You can only play one land per turn!', false);
-            setTimeout(() => alert('You can only play one land per turn!'), 100);
+            showGameLog('⚠️ Only one land per turn!', false);
             return;
         }
 
         // Check if can pay cost
         if (!canPayCost(card.cost, gameState.playerMana)) {
             showCardDetail(card);
-            setTimeout(() => alert('Not enough mana!'), 100);
+            showGameLog('⚠️ Not enough mana!', false);
             return;
         }
 
@@ -1188,6 +1213,75 @@
         }
     }
 
+    // Mana Choice Modal for dual lands
+    function showManaChoiceModal(card, callback) {
+        const modal = document.getElementById('manaChoiceModal');
+        const optionsContainer = document.getElementById('manaChoiceOptions');
+        optionsContainer.innerHTML = '';
+
+        card.elements.forEach(element => {
+            const btn = document.createElement('button');
+            btn.className = 'mana-choice-btn';
+            btn.textContent = ELEMENTS[element] ? ELEMENTS[element].emoji : element;
+            btn.title = element;
+            btn.addEventListener('click', function() {
+                modal.classList.remove('show');
+                setTimeout(() => { modal.style.display = 'none'; }, 250);
+                callback(element);
+            });
+            optionsContainer.appendChild(btn);
+        });
+
+        // Cancel button
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'mana-choice-btn cancel-btn';
+        cancelBtn.textContent = '✕ Cancel';
+        cancelBtn.addEventListener('click', function() {
+            modal.classList.remove('show');
+            setTimeout(() => { modal.style.display = 'none'; }, 250);
+        });
+        optionsContainer.appendChild(cancelBtn);
+
+        modal.style.display = 'flex';
+        // Trigger reflow for animation
+        void modal.offsetWidth;
+        modal.classList.add('show');
+    }
+
+    // Generic confirm modal
+    function showConfirmModal(title, text, onConfirm, onCancel) {
+        const modal = document.getElementById('gameConfirmModal');
+        document.getElementById('gameConfirmTitle').textContent = title;
+        document.getElementById('gameConfirmText').textContent = text;
+
+        const yesBtn = document.getElementById('gameConfirmYesBtn');
+        const noBtn = document.getElementById('gameConfirmNoBtn');
+
+        // Clone and replace to remove old listeners
+        const newYes = yesBtn.cloneNode(true);
+        const newNo = noBtn.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYes, yesBtn);
+        noBtn.parentNode.replaceChild(newNo, noBtn);
+
+        function closeModal() {
+            modal.classList.remove('show');
+            setTimeout(() => { modal.style.display = 'none'; }, 250);
+        }
+
+        newYes.addEventListener('click', function() {
+            closeModal();
+            if (onConfirm) onConfirm();
+        });
+        newNo.addEventListener('click', function() {
+            closeModal();
+            if (onCancel) onCancel();
+        });
+
+        modal.style.display = 'flex';
+        void modal.offsetWidth;
+        modal.classList.add('show');
+    }
+
     // Tap lands for mana
     function tapLand(cardId) {
         // Turn enforcement: Only allow during player's turn
@@ -1220,14 +1314,16 @@
         let elementToAdd;
 
         if (isDualLand) {
-            // DUAL LAND: Let player choose which color mana to produce
-            const choice = prompt(`${card.name} can produce: ${card.elements.join(', ')}.\nWhich mana do you want? (enter: ${card.elements.join('/')})`);
-            if (!choice || !card.elements.includes(choice.toLowerCase().trim())) {
-                showGameLog(`⚠️ Invalid choice! Please tap again and choose: ${card.elements.join(' or ')}`, false);
-                return;
-            }
-            elementToAdd = choice.toLowerCase().trim();
-            card.selectedElement = elementToAdd; // Store the choice for untapping
+            // DUAL LAND: Show mana choice modal instead of prompt
+            showManaChoiceModal(card, function(chosenElement) {
+                card.selectedElement = chosenElement;
+                card.tapped = true;
+                gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
+                playSFX('tapLand');
+                showGameLog(`⚡ You tap ${card.name} for ${chosenElement} mana`, false);
+                updateUI();
+            });
+            return; // Exit early; callback handles the rest
         } else if (card.element) {
             // Regular single-color land
             elementToAdd = card.element;

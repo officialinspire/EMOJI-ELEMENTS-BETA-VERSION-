@@ -47,6 +47,38 @@
         <div id="detailContent"></div>
     </div>
 
+    <!-- Mana Choice Modal (for dual lands) -->
+    <div id="manaChoiceModal" class="mana-choice-modal">
+        <div class="mana-choice-content">
+            <div class="mana-choice-title">Choose Mana Color</div>
+            <div class="mana-choice-options" id="manaChoiceOptions"></div>
+        </div>
+    </div>
+
+    <!-- Mulligan Confirm Modal -->
+    <div id="mulliganConfirmModal" class="game-confirm-modal">
+        <div class="game-confirm-content">
+            <div class="game-confirm-title">🔄 MULLIGAN?</div>
+            <div class="game-confirm-text">Put all cards back and draw 6 new cards?</div>
+            <div class="game-confirm-buttons">
+                <button class="menu-btn" id="mulliganYesBtn">✅ YES</button>
+                <button class="menu-btn" id="mulliganNoBtn">❌ NO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirm Modal (for quit, reset, etc.) -->
+    <div id="gameConfirmModal" class="game-confirm-modal">
+        <div class="game-confirm-content">
+            <div class="game-confirm-title" id="gameConfirmTitle"></div>
+            <div class="game-confirm-text" id="gameConfirmText"></div>
+            <div class="game-confirm-buttons">
+                <button class="menu-btn" id="gameConfirmYesBtn">✅ YES</button>
+                <button class="menu-btn" id="gameConfirmNoBtn">❌ NO</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Pause Modal -->
     <div id="pauseModal" class="pause-modal">
         <div class="pause-content">
