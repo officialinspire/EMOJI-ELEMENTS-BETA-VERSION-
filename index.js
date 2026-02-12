@@ -212,12 +212,19 @@
         // Allow clicking/tapping to skip video
         introContainer.addEventListener('click', skipIntro);
 
+        let introSkipped = false;
         function skipIntro() {
+            if (introSkipped) return;
+            introSkipped = true;
             // Smooth fade out of video
             introContainer.classList.add('hidden');
             setTimeout(() => {
                 introContainer.style.display = 'none';
                 startModal.style.display = 'flex';
+                // Trigger fade-in on the next frame so the CSS transition applies
+                requestAnimationFrame(() => {
+                    startModal.classList.add('modal-visible');
+                });
                 // Seamlessly start menu music after video ends
                 // Using setTimeout to ensure smooth transition
                 setTimeout(() => {
@@ -1027,7 +1034,9 @@
             drawCard('enemy');
         }
 
-        document.getElementById('startModal').style.display = 'none';
+        const modal = document.getElementById('startModal');
+        modal.classList.remove('modal-visible');
+        modal.style.display = 'none';
         document.getElementById('gameContainer').style.display = 'flex';
 
         // Stop menu music and start gameplay music
