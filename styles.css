@@ -558,17 +558,12 @@ body::before {
     padding: 20px;
     backdrop-filter: blur(5px);
     opacity: 0;
-    animation: fadeIn 1.5s ease-in forwards;
+    transition: opacity 1.5s ease-in;
     overflow-y: auto;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+.modal.modal-visible {
+    opacity: 1;
 }
 
 .modal-content {
