@@ -274,6 +274,42 @@ body::before {
     box-shadow: inset 0 0 30px rgba(139, 0, 0, 0.4), 0 0 20px rgba(220, 20, 60, 0.2);
 }
 
+.game-container.enemy-turn .player-area:not(.enemy-area) {
+    opacity: 0.6;
+    pointer-events: none;
+    filter: brightness(0.7);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.game-container.enemy-turn .hand-area {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: brightness(0.7);
+}
+
+.game-container.enemy-turn .controls {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.game-container.enemy-turn .enemy-area {
+    box-shadow: inset 0 0 30px rgba(220, 20, 60, 0.6), 0 0 30px rgba(220, 20, 60, 0.4);
+    border-color: #ff4444;
+    transition: box-shadow 0.3s ease;
+}
+
+.game-container.enemy-turn .phase-indicator {
+    background: linear-gradient(135deg, rgba(220, 20, 60, 0.6) 0%, rgba(139, 0, 0, 0.5) 100%);
+    border-color: #dc143c;
+    color: #ff6b6b;
+    animation: enemyPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes enemyPulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(220, 20, 60, 0.4); }
+    50% { box-shadow: 0 0 30px rgba(220, 20, 60, 0.8); }
+}
+
 .player-info {
     display: flex;
     justify-content: space-between;

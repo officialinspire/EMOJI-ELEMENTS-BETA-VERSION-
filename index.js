@@ -2007,6 +2007,7 @@
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
+        document.getElementById('gameContainer').classList.add('enemy-turn');
 
         updateUI();
 
@@ -2056,6 +2057,8 @@
 
     // Start player turn
     function startPlayerTurn() {
+        document.getElementById('gameContainer').classList.remove('enemy-turn');
+
         gameState.turn = 'player';
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
