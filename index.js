@@ -364,8 +364,6 @@
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
     let isStartingGame = false;
-    let lastElementSelectionTime = 0;
-    let elementSelectionLock = false;
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -809,7 +807,6 @@
         playSFX('menuOpen');
         setStartMenuScreen('elementSelectionScreen');
         resetElementSelection();
-        elementSelectionLock = false;
     }
 
     function showHowToPlay() {
@@ -1151,19 +1148,9 @@
             return;
         }
 
-        if (elementSelectionLock || isStartingGame) {
+        if (isStartingGame) {
             return;
         }
-        elementSelectionLock = true;
-        setTimeout(() => {
-            elementSelectionLock = false;
-        }, 260);
-
-        const now = Date.now();
-        if (now - lastElementSelectionTime < 180) {
-            return;
-        }
-        lastElementSelectionTime = now;
 
         playSFX('select');
         const btn = document.querySelector(`[data-element="${element}"]`);
@@ -1415,7 +1402,6 @@
 
         setTimeout(() => {
             isStartingGame = false;
-            elementSelectionLock = false;
         }, 300);
     }
 
