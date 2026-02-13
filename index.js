@@ -36,6 +36,13 @@
         }
     });
 
+    const MUSIC_TARGET_VOLUME = {
+        menu: 0.5,
+        gameplay: 0.5
+    };
+
+    const activeAudioFades = new WeakMap();
+
     // IMPROVED: Audio queue management to prevent overlapping sounds
     const audioQueue = {
         lastPlayed: {},
@@ -153,6 +160,11 @@
 
     // Helper function to fade audio volume in or out over a duration
     function fadeAudio(audioElement, targetVolume, duration, callback) {
+        const existingFade = activeAudioFades.get(audioElement);
+        if (existingFade) {
+            clearInterval(existingFade);
+        }
+
         const steps = 20;
         const interval = duration / steps;
         const startVolume = audioElement.volume;
@@ -164,10 +176,41 @@
             audioElement.volume = Math.max(0, Math.min(1, startVolume + volumeStep * currentStep));
             if (currentStep >= steps) {
                 clearInterval(fade);
+                activeAudioFades.delete(audioElement);
                 audioElement.volume = targetVolume;
                 if (callback) callback();
             }
         }, interval);
+
+        activeAudioFades.set(audioElement, fade);
+    }
+
+    function isAudioPlaying(audioElement) {
+        return !!audioElement && !audioElement.paused && !audioElement.ended;
+    }
+
+    function ensureStartMenuMusic() {
+        stopSFX('gameplayMusic');
+
+        if (!isAudioPlaying(audioSystem.startMenuMusic)) {
+            audioSystem.startMenuMusic.volume = 0;
+            playSFX('startMenuMusic', true);
+        }
+
+        fadeAudio(audioSystem.startMenuMusic, MUSIC_TARGET_VOLUME.menu, 800);
+    }
+
+    function transitionToGameplayMusic() {
+        fadeAudio(audioSystem.startMenuMusic, 0, 500, () => {
+            stopSFX('startMenuMusic');
+        });
+
+        if (!isAudioPlaying(audioSystem.gameplayMusic)) {
+            audioSystem.gameplayMusic.volume = 0;
+            playSFX('gameplayMusic', true);
+        }
+
+        fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay, 800);
     }
 
     // Game State
@@ -346,10 +389,8 @@
                 requestAnimationFrame(() => {
                     startModal.classList.add('modal-visible');
                 });
-                // Start menu music with smooth fade in
-                audioSystem.startMenuMusic.volume = 0;
-                playSFX('startMenuMusic', true);
-                fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
+                // Start menu music once and keep it uninterrupted while in menu
+                ensureStartMenuMusic();
             }, 500);
         }
     });
@@ -887,11 +928,8 @@
 
         initializeStartMenuState();
 
-        // Start menu music with smooth fade-in (always restart cleanly)
-        stopSFX('startMenuMusic');
-        audioSystem.startMenuMusic.volume = 0;
-        playSFX('startMenuMusic', true);
-        fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
+        // Resume menu music without restarting if it is already active
+        ensureStartMenuMusic();
     }
 
     function playAgain() {
@@ -1377,13 +1415,8 @@
         gameContainer.classList.remove('enemy-turn');
         gameContainer.style.display = 'flex';
 
-        // Fade out menu music then start gameplay music
-        fadeAudio(audioSystem.startMenuMusic, 0, 400, () => {
-            stopSFX('startMenuMusic');
-        });
-        audioSystem.gameplayMusic.volume = 0;
-        playSFX('gameplayMusic', true);
-        fadeAudio(audioSystem.gameplayMusic, 0.5, 800);
+        // Smoothly transition from menu theme into gameplay theme
+        transitionToGameplayMusic();
 
         // Reset mulligan button
         mulliganUsed = false;
