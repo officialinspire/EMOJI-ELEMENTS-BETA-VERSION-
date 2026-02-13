@@ -1019,10 +1019,16 @@ body::after {
 }
 
 .menu-buttons {
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 12px;
     margin: 20px 0;
+    width: 100%;
+}
+
+.menu-buttons .menu-btn {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .menu-btn {
