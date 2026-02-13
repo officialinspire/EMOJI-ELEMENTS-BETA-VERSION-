@@ -355,6 +355,8 @@
     let isProcessingAction = false; // Prevents rapid clicking and simultaneous actions
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
+    let isStartingGame = false;
+    let lastElementSelectionTime = 0;
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -797,6 +799,7 @@
         playSFX('menuOpen');
         document.getElementById('mainMenu').style.display = 'none';
         document.getElementById('elementSelectionScreen').style.display = 'block';
+        resetElementSelection();
     }
 
     function showHowToPlay() {
@@ -1097,8 +1100,19 @@
 
     // Element Selection
     function selectElement(element) {
+        if (document.getElementById('gameContainer').style.display === 'flex') {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastElementSelectionTime < 180) {
+            return;
+        }
+        lastElementSelectionTime = now;
+
         playSFX('select');
         const btn = document.querySelector(`[data-element="${element}"]`);
+        if (!btn) return;
 
         if (gameState.selectedElements.includes(element)) {
             gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
@@ -1244,6 +1258,21 @@
     }
 
     function startGame() {
+        if (isStartingGame) {
+            return;
+        }
+
+        if (gameState.selectedElements.length !== 2) {
+            showGameLog('⚠️ Select exactly 2 elements first!', false);
+            return;
+        }
+
+        isStartingGame = true;
+        const startBtn = document.getElementById('startBtn');
+        if (startBtn) {
+            startBtn.disabled = true;
+        }
+
         playSFX('select');
 
         // CRITICAL: Reset ALL game state to prevent crashes when starting new game
@@ -1309,6 +1338,10 @@
 
         updateUI();
         updateDeckCounters();
+
+        setTimeout(() => {
+            isStartingGame = false;
+        }, 300);
     }
 
     // Draw Card
