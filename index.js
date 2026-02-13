@@ -286,12 +286,119 @@
     let isMuted = localStorage.getItem('emojiElementsMuted') === 'true';
     let hoverTooltipPinned = false;
 
+    // Intro / startup sequence state
+    let startupState = 'awaiting-click';
+
     // Intro Video Logic with Click to Start
     window.addEventListener('DOMContentLoaded', () => {
         const clickToStart = document.getElementById('clickToStart');
         const introContainer = document.getElementById('introContainer');
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
+        const INTRO_MAX_DURATION_MS = 15000;
+        const INTRO_VIDEO_START_TIMEOUT_MS = 1200;
+        let introSkipped = false;
+        let introTimeoutId = null;
+        let introStartWatchdogId = null;
+
+        function clearIntroTimers() {
+            if (introTimeoutId) {
+                clearTimeout(introTimeoutId);
+                introTimeoutId = null;
+            }
+            if (introStartWatchdogId) {
+                clearTimeout(introStartWatchdogId);
+                introStartWatchdogId = null;
+            }
+        }
+
+        function showStartMenu() {
+            startupState = 'menu';
+            clearIntroTimers();
+
+            clickToStart.style.display = 'none';
+            clickToStart.style.pointerEvents = 'none';
+
+            introContainer.classList.remove('hidden');
+            introContainer.style.display = 'none';
+
+            startModal.style.display = 'flex';
+            requestAnimationFrame(() => {
+                startModal.classList.add('modal-visible');
+            });
+
+            ensureStartMenuMusic();
+        }
+
+        function stopAndResetIntroVideo() {
+            try {
+                introVideo.pause();
+                introVideo.currentTime = 0;
+                introVideo.volume = 0;
+            } catch (e) {
+                console.log('Video stop error:', e);
+            }
+        }
+
+        function skipIntro() {
+            if (introSkipped || startupState === 'menu') {
+                return;
+            }
+            introSkipped = true;
+            startupState = 'skipping-intro';
+            clearIntroTimers();
+            stopAndResetIntroVideo();
+
+            introContainer.classList.add('hidden');
+            setTimeout(() => {
+                showStartMenu();
+            }, 250);
+        }
+
+        function beginIntroSequence() {
+            if (startupState !== 'awaiting-click') {
+                return;
+            }
+
+            startupState = 'starting-intro';
+            introSkipped = false;
+
+            clickToStart.style.opacity = '0';
+            clickToStart.style.pointerEvents = 'none';
+
+            introContainer.classList.remove('hidden');
+            introContainer.style.display = 'flex';
+
+            introVideo.muted = false;
+            introVideo.volume = 1.0;
+
+            // Fallback in case video never becomes visible/ready on some mobile browsers
+            introStartWatchdogId = setTimeout(() => {
+                if (startupState === 'starting-intro' && (introVideo.readyState < 2 || introVideo.videoWidth === 0)) {
+                    console.warn('Intro video did not start correctly; showing menu fallback.');
+                    skipIntro();
+                }
+            }, INTRO_VIDEO_START_TIMEOUT_MS);
+
+            introTimeoutId = setTimeout(() => {
+                if (startupState !== 'menu') {
+                    skipIntro();
+                }
+            }, INTRO_MAX_DURATION_MS);
+
+            const playPromise = introVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    startupState = 'playing-intro';
+                    setTimeout(() => {
+                        clickToStart.style.display = 'none';
+                    }, 150);
+                }).catch((e) => {
+                    console.warn('Video play failed:', e);
+                    skipIntro();
+                });
+            }
+        }
 
         applyMuteState();
         initializeButtonTypes();
@@ -304,48 +411,10 @@
         introVideo.removeAttribute('muted');
         introVideo.volume = 1.0;
 
-        // Click to start handler - CRITICAL: play video immediately inside user gesture
-        clickToStart.addEventListener('click', () => {
-            // IMPORTANT: Start video play IMMEDIATELY in user gesture context
-            // Mobile browsers require play() to be called directly from user interaction
-            introVideo.muted = false;
-            introVideo.volume = 1.0;
-            introVideo.removeAttribute('muted');
-            introContainer.style.display = 'flex';
-
-            const playPromise = introVideo.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Video playing with audio');
-                    // Enforce unmuted state for first few seconds (iOS workaround)
-                    const enforceAudio = setInterval(() => {
-                        if (introVideo.paused || introVideo.ended) {
-                            clearInterval(enforceAudio);
-                            return;
-                        }
-                        introVideo.muted = false;
-                        introVideo.volume = 1.0;
-                    }, 100);
-                    setTimeout(() => clearInterval(enforceAudio), 3000);
-                }).catch(e => {
-                    console.warn('Video play failed:', e);
-                    // If play fails, skip directly to menu
-                    skipIntro();
-                });
-            }
-
-            // Fade out the click-to-start overlay
-            clickToStart.style.opacity = '0';
-            clickToStart.style.pointerEvents = 'none';
-            setTimeout(() => {
-                clickToStart.style.display = 'none';
-            }, 300);
-        });
-
-        // Also handle touchend for mobile devices that don't fire click reliably
-        clickToStart.addEventListener('touchend', (e) => {
+        // Pointer event avoids duplicate touch/click race conditions on mobile
+        clickToStart.addEventListener('pointerup', (e) => {
             e.preventDefault();
-            clickToStart.click();
+            beginIntroSequence();
         }, { once: true });
 
         // When video ends, seamlessly transition to start menu
@@ -357,42 +426,6 @@
             e.preventDefault();
             skipIntro();
         });
-
-        let introSkipped = false;
-        function skipIntro() {
-            if (introSkipped) return;
-            introSkipped = true;
-
-            // IMMEDIATELY stop video to prevent audio looping in background
-            try {
-                introVideo.pause();
-                introVideo.currentTime = 0;
-                introVideo.volume = 0;
-            } catch (e) {
-                console.log('Video stop error:', e);
-            }
-
-            // Remove event listeners to prevent double-firing
-            introVideo.removeEventListener('ended', skipIntro);
-            introContainer.removeEventListener('click', skipIntro);
-
-            // Smooth fade out of video visually
-            introContainer.classList.add('hidden');
-            setTimeout(() => {
-                introContainer.style.display = 'none';
-                // Fully clean up video element
-                introVideo.removeAttribute('src');
-                introVideo.load();
-
-                startModal.style.display = 'flex';
-                // Trigger fade-in on the next frame so the CSS transition applies
-                requestAnimationFrame(() => {
-                    startModal.classList.add('modal-visible');
-                });
-                // Start menu music once and keep it uninterrupted while in menu
-                ensureStartMenuMusic();
-            }, 500);
-        }
     });
 
     // Mulligan state
