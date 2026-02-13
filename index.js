@@ -313,26 +313,33 @@
             if (introSkipped) return;
             introSkipped = true;
 
-            // Fade out video audio to prevent overlap with menu music
+            // IMMEDIATELY stop video to prevent audio looping in background
             try {
-                fadeAudio(introVideo, 0, 400, () => {
-                    introVideo.pause();
-                    introVideo.currentTime = 0;
-                });
-            } catch (e) {
                 introVideo.pause();
+                introVideo.currentTime = 0;
+                introVideo.volume = 0;
+            } catch (e) {
+                console.log('Video stop error:', e);
             }
+
+            // Remove event listeners to prevent double-firing
+            introVideo.removeEventListener('ended', skipIntro);
+            introContainer.removeEventListener('click', skipIntro);
 
             // Smooth fade out of video visually
             introContainer.classList.add('hidden');
             setTimeout(() => {
                 introContainer.style.display = 'none';
+                // Fully clean up video element
+                introVideo.removeAttribute('src');
+                introVideo.load();
+
                 startModal.style.display = 'flex';
                 // Trigger fade-in on the next frame so the CSS transition applies
                 requestAnimationFrame(() => {
                     startModal.classList.add('modal-visible');
                 });
-                // Start menu music
+                // Start menu music with smooth fade in
                 audioSystem.startMenuMusic.volume = 0;
                 playSFX('startMenuMusic', true);
                 fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
@@ -816,8 +823,16 @@
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;
-            element.style.display = id === activeScreenId ? 'block' : 'none';
+            if (id === activeScreenId) {
+                // mainMenu needs 'flex' to preserve the column layout from .menu-buttons
+                element.style.display = id === 'mainMenu' ? 'flex' : 'block';
+            } else {
+                element.style.display = 'none';
+            }
         });
+        // Scroll modal content to top when switching screens
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) modalContent.scrollTop = 0;
     }
 
     function initializeStartMenuState() {
@@ -865,9 +880,11 @@
 
         initializeStartMenuState();
 
-        if (audioSystem.startMenuMusic.paused) {
-            playSFX('startMenuMusic', true);
-        }
+        // Start menu music with smooth fade-in (always restart cleanly)
+        stopSFX('startMenuMusic');
+        audioSystem.startMenuMusic.volume = 0;
+        playSFX('startMenuMusic', true);
+        fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
     }
 
     function playAgain() {
@@ -1350,9 +1367,13 @@
         gameContainer.classList.remove('enemy-turn');
         gameContainer.style.display = 'flex';
 
-        // Stop menu music and start gameplay music
-        stopSFX('startMenuMusic');
+        // Fade out menu music then start gameplay music
+        fadeAudio(audioSystem.startMenuMusic, 0, 400, () => {
+            stopSFX('startMenuMusic');
+        });
+        audioSystem.gameplayMusic.volume = 0;
         playSFX('gameplayMusic', true);
+        fadeAudio(audioSystem.gameplayMusic, 0.5, 800);
 
         // Reset mulligan button
         mulliganUsed = false;
