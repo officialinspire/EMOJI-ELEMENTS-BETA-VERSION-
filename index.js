@@ -100,6 +100,12 @@
         showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
     }
 
+    function initializeButtonTypes() {
+        document.querySelectorAll('button:not([type])').forEach((button) => {
+            button.type = 'button';
+        });
+    }
+
     function getCardTooltipText(card) {
         const stats = card.type === 'creature' ? ` • ${card.power}/${card.toughness}` : '';
         return `${card.emoji} ${card.name}${stats}`;
@@ -245,6 +251,7 @@
         const startModal = document.getElementById('startModal');
 
         applyMuteState();
+        initializeButtonTypes();
         initializeStartMenuState();
 
         // Preload video and ensure audio is ready
@@ -358,6 +365,7 @@
     let activeGraveyardView = 'player';
     let isStartingGame = false;
     let lastElementSelectionTime = 0;
+    let elementSelectionLock = false;
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -800,6 +808,7 @@
         playSFX('menuOpen');
         setStartMenuScreen('elementSelectionScreen');
         resetElementSelection();
+        elementSelectionLock = false;
     }
 
     function showHowToPlay() {
@@ -1141,6 +1150,14 @@
             return;
         }
 
+        if (elementSelectionLock || isStartingGame) {
+            return;
+        }
+        elementSelectionLock = true;
+        setTimeout(() => {
+            elementSelectionLock = false;
+        }, 260);
+
         const now = Date.now();
         if (now - lastElementSelectionTime < 180) {
             return;
@@ -1306,6 +1323,11 @@
             return;
         }
 
+        const elementScreen = document.getElementById('elementSelectionScreen');
+        if (!elementScreen || elementScreen.style.display === 'none') {
+            return;
+        }
+
         if (gameState.selectedElements.length !== 2) {
             showGameLog('⚠️ Select exactly 2 elements first!', false);
             return;
@@ -1392,6 +1414,7 @@
 
         setTimeout(() => {
             isStartingGame = false;
+            elementSelectionLock = false;
         }, 300);
     }
 
