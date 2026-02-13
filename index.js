@@ -401,7 +401,8 @@
         water: { emoji: '💧', color: '#4444ff' },
         earth: { emoji: '🌍', color: '#44ff44' },
         swamp: { emoji: '💀', color: '#8844ff' },
-        light: { emoji: '☀️', color: '#ffff44' }
+        light: { emoji: '☀️', color: '#ffff44' },
+        colorless: { emoji: '◇', color: '#cccccc' }
     };
 
     // Card Database - MASSIVELY EXPANDED with Themes and Card Types!
@@ -652,7 +653,7 @@
             bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, buffType: 'power', grantAbilities: ['flying'], name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
             wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' },
             halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, targetAll: true, grantAbilities: ['lifelink'], name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
-            dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
+            dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw_on_play', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
             fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
             footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' }
         }
@@ -1480,9 +1481,16 @@
             }
             showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'Science Fiction');
         } else if (card.type === 'artifact') {
-            gameState.playerBoard.push({...card, tapped: false});
+            const artifactOnBoard = {...card, tapped: false};
+            gameState.playerBoard.push(artifactOnBoard);
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
+
+            // Trigger artifact effects that should happen immediately when played
+            if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(card.effect)) {
+                resolveSpell(artifactOnBoard, 'player');
+                checkStateBasedActions();
+            }
         } else if (card.type === 'instant') {
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
@@ -1695,6 +1703,34 @@
         }
     }
 
+    function activateArtifact(cardId) {
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
+            showGameLog('⚠️ Wait for your turn!', false);
+            return;
+        }
+
+        const card = gameState.playerBoard.find(c => c.id === cardId);
+        if (!card || card.type !== 'artifact') return;
+
+        if (card.tapped) {
+            showGameLog(`⚠️ ${card.name} is already tapped`, false);
+            return;
+        }
+
+        if (card.effect !== 'mana') {
+            showCardDetail(card);
+            return;
+        }
+
+        card.tapped = true;
+        const manaToAdd = 'colorless';
+        gameState.playerMana[manaToAdd] = (gameState.playerMana[manaToAdd] || 0) + (card.value || 1);
+
+        playSFX('tapLand');
+        showGameLog(`⚡ ${card.name} adds ${ELEMENTS[manaToAdd].emoji} mana`, false);
+        updateUI();
+    }
+
     // State-based actions - check for dead creatures
     function checkStateBasedActions() {
         // Check player board for dead creatures
@@ -1815,6 +1851,13 @@
                     drawCard(caster);
                 }
                 showGameLog(`📜 ${isCasterPlayer ? 'You' : 'Enemy'} draw ${card.value} card${card.value > 1 ? 's' : ''}`, !isCasterPlayer);
+                break;
+
+            case 'draw_on_play':
+                for (let i = 0; i < (card.value || 1); i++) {
+                    drawCard(caster);
+                }
+                showGameLog(`🧬 ${isCasterPlayer ? 'You' : 'Enemy'} draw ${card.value || 1} card${(card.value || 1) > 1 ? 's' : ''}`, !isCasterPlayer);
                 break;
 
             case 'drain':
@@ -2966,6 +3009,8 @@
                 if (gameState.attackers.includes(card.id)) {
                     cardEl.classList.add('attacking');
                 }
+            } else if (card.type === 'artifact' && !attackPhase) {
+                cardEl.onclick = () => activateArtifact(card.id);
             }
 
             // Right-click or long-press to view details
