@@ -254,70 +254,59 @@
         introVideo.removeAttribute('muted');
         introVideo.volume = 1.0;
 
-        // Click to start handler
+        // Click to start handler - CRITICAL: play video immediately inside user gesture
         clickToStart.addEventListener('click', () => {
-            // Hide click to start overlay
-            clickToStart.style.opacity = '0';
-            setTimeout(() => {
-                clickToStart.style.display = 'none';
-                // Show and play intro video with audio
-                introContainer.style.display = 'flex';
-                playVideoWithAudio();
-            }, 300);
-        });
-
-        // Play video with audio - CRITICAL FIX for audio playback
-        const playVideoWithAudio = async () => {
-            // IMPORTANT: Explicitly unmute and set volume BEFORE playing
-            // This is critical for mobile browsers (iOS, Android)
+            // IMPORTANT: Start video play IMMEDIATELY in user gesture context
+            // Mobile browsers require play() to be called directly from user interaction
             introVideo.muted = false;
             introVideo.volume = 1.0;
             introVideo.removeAttribute('muted');
+            introContainer.style.display = 'flex';
 
-            // Log device type for debugging
-            console.log(`📱 Device: ${isIOS ? 'iOS' : isMobile ? 'Mobile' : 'Desktop'}`);
-
-            try {
-                // Start playback with audio
-                await introVideo.play();
-                console.log('✅ Video playing with audio');
-                console.log(`🔊 Volume: ${introVideo.volume}, Muted: ${introVideo.muted}`);
-
-                // Continuously enforce unmuted state for the first few seconds
-                // This is critical for iOS devices
-                const enforceAudio = setInterval(() => {
-                    if (introVideo.paused || introVideo.ended) {
-                        clearInterval(enforceAudio);
-                        return;
-                    }
-                    introVideo.muted = false;
-                    introVideo.volume = 1.0;
-                }, 100);
-
-                // Stop enforcing after 3 seconds
-                setTimeout(() => clearInterval(enforceAudio), 3000);
-
-                // Check if video has audio tracks
-                setTimeout(() => {
-                    if (introVideo.audioTracks) {
-                        console.log(`🎵 Audio tracks: ${introVideo.audioTracks.length}`);
-                    }
-                    // Log current playback state
-                    console.log(`▶️ Playing: ${!introVideo.paused}, Volume: ${introVideo.volume}, Muted: ${introVideo.muted}`);
-                }, 500);
-
-            } catch (e) {
-                console.error('❌ Video play failed:', e);
-                // If play fails completely, skip to menu
-                skipIntro();
+            const playPromise = introVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log('Video playing with audio');
+                    // Enforce unmuted state for first few seconds (iOS workaround)
+                    const enforceAudio = setInterval(() => {
+                        if (introVideo.paused || introVideo.ended) {
+                            clearInterval(enforceAudio);
+                            return;
+                        }
+                        introVideo.muted = false;
+                        introVideo.volume = 1.0;
+                    }, 100);
+                    setTimeout(() => clearInterval(enforceAudio), 3000);
+                }).catch(e => {
+                    console.warn('Video play failed:', e);
+                    // If play fails, skip directly to menu
+                    skipIntro();
+                });
             }
-        };
+
+            // Fade out the click-to-start overlay
+            clickToStart.style.opacity = '0';
+            clickToStart.style.pointerEvents = 'none';
+            setTimeout(() => {
+                clickToStart.style.display = 'none';
+            }, 300);
+        });
+
+        // Also handle touchend for mobile devices that don't fire click reliably
+        clickToStart.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            clickToStart.click();
+        }, { once: true });
 
         // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
 
         // Allow clicking/tapping to skip video
         introContainer.addEventListener('click', skipIntro);
+        introContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            skipIntro();
+        });
 
         let introSkipped = false;
         function skipIntro() {
@@ -325,10 +314,14 @@
             introSkipped = true;
 
             // Fade out video audio to prevent overlap with menu music
-            fadeAudio(introVideo, 0, 500, () => {
+            try {
+                fadeAudio(introVideo, 0, 400, () => {
+                    introVideo.pause();
+                    introVideo.currentTime = 0;
+                });
+            } catch (e) {
                 introVideo.pause();
-                introVideo.currentTime = 0;
-            });
+            }
 
             // Smooth fade out of video visually
             introContainer.classList.add('hidden');
@@ -339,11 +332,11 @@
                 requestAnimationFrame(() => {
                     startModal.classList.add('modal-visible');
                 });
-                // Fade in menu music after video audio has fully faded out
+                // Start menu music
                 audioSystem.startMenuMusic.volume = 0;
                 playSFX('startMenuMusic', true);
                 fadeAudio(audioSystem.startMenuMusic, 0.5, 800);
-            }, 600);
+            }, 500);
         }
     });
 
@@ -861,9 +854,14 @@
 
         const gameContainer = document.getElementById('gameContainer');
         const startModal = document.getElementById('startModal');
+        gameContainer.classList.remove('enemy-turn');
         gameContainer.style.display = 'none';
         startModal.style.display = 'flex';
         startModal.classList.add('modal-visible');
+
+        // Reset processing lock and attack phase to clean state
+        attackPhase = false;
+        releaseProcessingLock();
 
         initializeStartMenuState();
 
@@ -1144,7 +1142,14 @@
             btn.classList.add('selected');
         }
 
-        document.getElementById('startBtn').disabled = gameState.selectedElements.length !== 2;
+        const startBtn = document.getElementById('startBtn');
+        if (gameState.selectedElements.length === 2) {
+            startBtn.disabled = false;
+            startBtn.textContent = '⚔️ START BATTLE ⚔️';
+        } else {
+            startBtn.disabled = true;
+            startBtn.textContent = 'Select 2 Elements';
+        }
     }
 
     // Deck Generation with improved shuffling
@@ -1316,6 +1321,7 @@
         gameState.previousPlayerLife = 20;
         gameState.previousEnemyLife = 20;
         gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
+        gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
 
         // Generate decks
         gameState.playerDeck = generateDeck(gameState.selectedElements);
@@ -1340,7 +1346,9 @@
         const modal = document.getElementById('startModal');
         modal.classList.remove('modal-visible');
         modal.style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'flex';
+        const gameContainer = document.getElementById('gameContainer');
+        gameContainer.classList.remove('enemy-turn');
+        gameContainer.style.display = 'flex';
 
         // Stop menu music and start gameplay music
         stopSFX('startMenuMusic');
@@ -1355,7 +1363,7 @@
         // Reset attack phase variable and processing lock
         attackPhase = false;
         releaseProcessingLock();
-        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
         document.getElementById('attackBtn').onclick = enterAttackPhase;
 
         updateUI();
@@ -2055,7 +2063,7 @@
         gameState.attackers = [];
         gameState.phase = 'attack';
         document.getElementById('phaseIndicator').textContent = 'DECLARE ATTACKERS';
-        document.getElementById('attackBtn').textContent = '✓ CONFIRM';
+        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">✓ CONFIRM</span>';
         document.getElementById('attackBtn').onclick = confirmAttackers;
         updateUI();
     }
@@ -2085,7 +2093,7 @@
             attackPhase = false;
             gameState.phase = 'main';
             document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-            document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+            document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
             document.getElementById('attackBtn').onclick = enterAttackPhase;
             showGameLog('🛡️ You choose not to attack', false);
             return;
@@ -2109,7 +2117,7 @@
         attackPhase = false;
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
         document.getElementById('attackBtn').onclick = enterAttackPhase;
 
         checkGameOver();
@@ -2339,7 +2347,7 @@
         // CRITICAL FIX: Ensure attack phase is reset and button is restored
         attackPhase = false;
         gameState.attackers = [];
-        document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
+        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
         document.getElementById('attackBtn').onclick = enterAttackPhase;
 
         // Draw card at start of turn
