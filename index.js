@@ -245,6 +245,7 @@
         const startModal = document.getElementById('startModal');
 
         applyMuteState();
+        initializeStartMenuState();
 
         // Preload video and ensure audio is ready
         introVideo.load();
@@ -797,30 +798,39 @@
     // Menu Navigation
     function showElementSelection() {
         playSFX('menuOpen');
-        document.getElementById('mainMenu').style.display = 'none';
-        document.getElementById('elementSelectionScreen').style.display = 'block';
+        setStartMenuScreen('elementSelectionScreen');
         resetElementSelection();
     }
 
     function showHowToPlay() {
         playSFX('menuOpen');
-        document.getElementById('mainMenu').style.display = 'none';
-        document.getElementById('howToPlayScreen').style.display = 'block';
+        setStartMenuScreen('howToPlayScreen');
     }
 
     function showStats() {
         playSFX('menuOpen');
-        document.getElementById('mainMenu').style.display = 'none';
-        document.getElementById('statsScreen').style.display = 'block';
+        setStartMenuScreen('statsScreen');
         updateStatsDisplay();
     }
 
     function backToMenu() {
         playSFX('menuClose');
-        document.getElementById('mainMenu').style.display = 'block';
-        document.getElementById('elementSelectionScreen').style.display = 'none';
-        document.getElementById('howToPlayScreen').style.display = 'none';
-        document.getElementById('statsScreen').style.display = 'none';
+        setStartMenuScreen('mainMenu');
+    }
+
+    function setStartMenuScreen(activeScreenId = 'mainMenu') {
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen'];
+        menuScreens.forEach(id => {
+            const element = document.getElementById(id);
+            if (!element) return;
+            element.style.display = id === activeScreenId ? 'block' : 'none';
+        });
+    }
+
+    function initializeStartMenuState() {
+        setStartMenuScreen('mainMenu');
+        resetElementSelection();
+        updateStatsDisplay();
     }
 
     function resetElementSelection() {
@@ -855,8 +865,7 @@
         startModal.style.display = 'flex';
         startModal.classList.add('modal-visible');
 
-        resetElementSelection();
-        backToMenu();
+        initializeStartMenuState();
 
         if (audioSystem.startMenuMusic.paused) {
             playSFX('startMenuMusic', true);
@@ -899,11 +908,24 @@
     }
 
     function updateStatsDisplay() {
-        document.getElementById('gamesWon').textContent = gameStats.wins;
-        document.getElementById('gamesLost').textContent = gameStats.losses;
-        document.getElementById('totalGames').textContent = gameStats.total;
-        const winRate = gameStats.total > 0 ? Math.round((gameStats.wins / gameStats.total) * 100) : 0;
-        document.getElementById('winRate').textContent = winRate + '%';
+        const winsEl = document.getElementById('gamesWon');
+        const lossesEl = document.getElementById('gamesLost');
+        const totalEl = document.getElementById('totalGames');
+        const rateEl = document.getElementById('winRate');
+        if (!winsEl || !lossesEl || !totalEl || !rateEl) {
+            return;
+        }
+
+        const wins = Math.max(0, Number(gameStats.wins) || 0);
+        const losses = Math.max(0, Number(gameStats.losses) || 0);
+        const total = Math.max(wins + losses, Number(gameStats.total) || 0);
+        gameStats = { wins, losses, total };
+
+        winsEl.textContent = wins;
+        lossesEl.textContent = losses;
+        totalEl.textContent = total;
+        const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+        rateEl.textContent = winRate + '%';
     }
 
     function resetStats() {
