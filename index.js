@@ -1448,7 +1448,7 @@
             gameState.landsPlayedThisTurn++;  // Increment land counter
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
-            gameState.playerBoard.push({...card, tapped: true, damage: 0}); // summoning sickness
+            gameState.playerBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             // Play appropriate creature summon sound based on theme
             if (card.theme === 'Science Fiction') {
                 playSFX('summonCreatureScifi');
@@ -1812,7 +1812,7 @@
                 // Destroy target creature (simplified - destroys a random creature)
                 const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
                 const targetGraveyard = isCasterPlayer ? gameState.enemyGraveyard : gameState.playerGraveyard;
-                const creatures = targetBoard.filter(c => c.type === 'creature');
+                const creatures = targetBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
                 if (creatures.length > 0) {
                     const target = creatures[Math.floor(Math.random() * creatures.length)];
                     // Move to graveyard before removing from board
@@ -1898,7 +1898,7 @@
             case 'tap':
                 // Tap a random enemy creature
                 const enemyBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                const untappedCreatures = enemyBoard.filter(c => c.type === 'creature' && !c.tapped);
+                const untappedCreatures = enemyBoard.filter(c => c.type === 'creature' && !c.tapped && !c.abilities?.includes('hexproof'));
                 if (untappedCreatures.length > 0) {
                     const target = untappedCreatures[Math.floor(Math.random() * untappedCreatures.length)];
                     target.tapped = true;
@@ -1912,7 +1912,7 @@
                 // Return random enemy creatures to hand (Tsunami effect)
                 const enemyBoard2 = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
                 const enemyHand = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
-                const bounceable = enemyBoard2.filter(c => c.type === 'creature');
+                const bounceable = enemyBoard2.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
                 const bounceCount = Math.min(2, bounceable.length);
                 for (let i = 0; i < bounceCount; i++) {
                     if (bounceable.length > 0) {
@@ -1939,8 +1939,9 @@
                 if (graveyard.length > 0) {
                     const revived = graveyard.pop();
                     revived.damage = 0;
-                    revived.tapped = true;
+                    revived.tapped = false;
                     revived.id = Math.random(); // New ID
+                    revived.summoningSick = !revived.abilities?.includes('haste');
                     board.push(revived);
                     showGameLog(`⛪ ${revived.emoji} ${revived.name} is revived!`, !isCasterPlayer);
                     createSparkles(window.innerWidth / 2, window.innerHeight / 2, 20);
@@ -2001,6 +2002,7 @@
                         abilities: tokenStats.abilities,
                         cost: {},
                         tapped: false,
+                        summoningSick: !tokenStats.abilities.includes('haste'),
                         damage: 0,
                         theme: 'Fantasy'
                     };
@@ -2072,7 +2074,7 @@
 
         // Check if there are any untapped creatures that can attack
         const availableAttackers = gameState.playerBoard.filter(c =>
-            c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
+            c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
         );
 
         if (availableAttackers.length === 0) {
@@ -2093,7 +2095,7 @@
         if (!attackPhase) return;
         
         const card = gameState.playerBoard.find(c => c.id === cardId);
-        if (!card || card.type !== 'creature' || card.tapped) return;
+        if (!card || card.type !== 'creature' || card.tapped || card.summoningSick || card.abilities?.includes('defender')) return;
 
         if (gameState.attackers.includes(cardId)) {
             gameState.attackers = gameState.attackers.filter(id => id !== cardId);
@@ -2150,30 +2152,105 @@
         }, 300);
     }
 
-    function aiDeclareBlockers() {
-        gameState.blockers = {};
+    function hasAbility(creature, ability) {
+        return creature?.abilities?.includes(ability);
+    }
 
-        const availableBlockers = gameState.enemyBoard.filter(c =>
-            c.type === 'creature' && !c.tapped
-        );
+    function canBlockAttacker(blocker, attacker) {
+        if (!blocker || blocker.type !== 'creature' || blocker.tapped) return false;
+        if (hasAbility(attacker, 'flying') && !hasAbility(blocker, 'flying') && !hasAbility(blocker, 'reach')) {
+            return false;
+        }
+        return true;
+    }
 
-        let blockersAssigned = false;
-        gameState.attackers.forEach(attackerId => {
-            const attacker = gameState.playerBoard.find(c => c.id === attackerId);
+    function assignAutoBlockers(attackers, defendingBoard) {
+        const blockers = {};
+        const usedBlockers = new Set();
 
-            // AI logic: block with similarly powered creature if available
-            const blocker = availableBlockers.find(b =>
-                b.power >= attacker.power - 1 && !Object.values(gameState.blockers).includes(b.id)
-            );
+        attackers.forEach(attacker => {
+            const legalBlockers = defendingBoard
+                .filter(candidate => !usedBlockers.has(candidate.id) && canBlockAttacker(candidate, attacker))
+                .sort((a, b) => b.toughness - a.toughness);
 
-            if (blocker) {
-                gameState.blockers[attackerId] = blocker.id;
-                blockersAssigned = true;
+            const requiredBlockers = hasAbility(attacker, 'menace') ? 2 : 1;
+            if (legalBlockers.length >= requiredBlockers) {
+                blockers[attacker.id] = legalBlockers.slice(0, requiredBlockers).map(c => c.id);
+                blockers[attacker.id].forEach(id => usedBlockers.add(id));
             }
         });
 
-        // Play block sound if any blockers were assigned
-        if (blockersAssigned) {
+        return blockers;
+    }
+
+    function applyDamage(attacker, blockers, isPlayerAttacking) {
+        const dealCombatDamage = (source, target, amount) => {
+            if (!source || !target || amount <= 0) return;
+            target.damage = (target.damage || 0) + amount;
+            if (hasAbility(source, 'deathtouch')) {
+                target.damage = Math.max(target.damage, target.toughness);
+            }
+        };
+
+        const attackerHasFirstStrike = hasAbility(attacker, 'first_strike') || hasAbility(attacker, 'double_strike');
+        const blockersHaveFirstStrike = blockers.some(b => hasAbility(b, 'first_strike') || hasAbility(b, 'double_strike'));
+        const combatHasFirstStrikeStep = attackerHasFirstStrike || blockersHaveFirstStrike;
+
+        const runDamageStep = (isFirstStrikeStep) => {
+            const livingBlockers = blockers.filter(b => (b.damage || 0) < b.toughness);
+            const attackerAlive = (attacker.damage || 0) < attacker.toughness;
+            if (!attackerAlive) return;
+
+            const attackerDealsNow = hasAbility(attacker, 'double_strike') ||
+                (hasAbility(attacker, 'first_strike') ? isFirstStrikeStep : !isFirstStrikeStep);
+
+            livingBlockers.forEach((blocker, index) => {
+                const blockerDealsNow = hasAbility(blocker, 'double_strike') ||
+                    (hasAbility(blocker, 'first_strike') ? isFirstStrikeStep : !isFirstStrikeStep);
+                if (blockerDealsNow) {
+                    dealCombatDamage(blocker, attacker, blocker.power || 0);
+                }
+                if (attackerDealsNow && index === 0) {
+                    dealCombatDamage(attacker, blocker, attacker.power || 0);
+                }
+            });
+        };
+
+        if (combatHasFirstStrikeStep) {
+            runDamageStep(true);
+        }
+        runDamageStep(false);
+
+        if (hasAbility(attacker, 'trample')) {
+            const totalRemainingToughness = blockers.reduce((sum, blocker) => sum + Math.max(0, blocker.toughness - (blocker.damage || 0)), 0);
+            const trampleDamage = Math.max(0, (attacker.power || 0) - totalRemainingToughness);
+            if (trampleDamage > 0) {
+                if (isPlayerAttacking) {
+                    changeEnemyLife(-trampleDamage);
+                } else {
+                    changePlayerLife(-trampleDamage);
+                }
+            }
+        }
+
+        if (hasAbility(attacker, 'lifelink')) {
+            if (isPlayerAttacking) {
+                changePlayerLife(attacker.power || 0);
+            } else {
+                changeEnemyLife(attacker.power || 0);
+            }
+        }
+    }
+
+    function aiDeclareBlockers() {
+        const availableBlockers = gameState.enemyBoard.filter(c => c.type === 'creature' && !c.tapped);
+        const attackingCreatures = gameState.attackers
+            .map(attackerId => gameState.playerBoard.find(c => c.id === attackerId))
+            .filter(Boolean);
+
+        gameState.blockers = assignAutoBlockers(attackingCreatures, availableBlockers);
+
+        if (Object.keys(gameState.blockers).length > 0) {
             playSFX('block');
         }
     }
@@ -2183,78 +2260,24 @@
             const attacker = gameState.playerBoard.find(c => c.id === attackerId);
             if (!attacker) return;
 
-            // CRITICAL FIX: Only tap if creature doesn't have vigilance
-            if (!attacker.abilities?.includes('vigilance')) {
+            if (!hasAbility(attacker, 'vigilance')) {
                 attacker.tapped = true;
             }
 
-            const blockerId = gameState.blockers[attackerId];
-            
-            if (blockerId) {
-                // Combat between creatures
-                const blocker = gameState.enemyBoard.find(c => c.id === blockerId);
-                if (blocker) {
-                    // Apply damage
-                    attacker.damage = (attacker.damage || 0) + blocker.power;
-                    blocker.damage = (blocker.damage || 0) + attacker.power;
+            const blockerIds = gameState.blockers[attackerId] || [];
+            const blockers = blockerIds.map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean);
 
-                    // Trample effect
-                    if (attacker.abilities?.includes('trample')) {
-                        const excessDamage = attacker.power - blocker.toughness;
-                        if (excessDamage > 0) {
-                            changeEnemyLife(-excessDamage);
-                            shakeScreen();
-                            const enemyArea = document.querySelector('.enemy-area');
-                            const rect = enemyArea.getBoundingClientRect();
-                            createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ff8c00', 30);
-                        }
-                    }
-
-                    // Lifelink effect
-                    if (attacker.abilities?.includes('lifelink')) {
-                        changePlayerLife(attacker.power);
-                        const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
-                        const rect = playerInfo.getBoundingClientRect();
-                        createSparkles(rect.left + 50, rect.top + rect.height / 2);
-                    }
-
-                    // Check deaths - move to graveyard before removing
-                    if (attacker.damage >= attacker.toughness) {
-                        gameState.playerGraveyard.push({...attacker});
-                        gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== attackerId);
-                        playSFX('cardDestroyed');
-                        showGameLog(`💀 ${attacker.emoji} ${attacker.name} is destroyed!`, false);
-                    }
-                    if (blocker.damage >= blocker.toughness) {
-                        gameState.enemyGraveyard.push({...blocker});
-                        gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== blockerId);
-                        playSFX('cardDestroyed');
-                        showGameLog(`💀 ${blocker.emoji} ${blocker.name} is destroyed!`, true);
-                    }
-                }
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, true);
             } else {
-                // Direct damage to enemy
-                changeEnemyLife(-attacker.power);
-
-                // Lifelink effect
-                if (attacker.abilities?.includes('lifelink')) {
-                    changePlayerLife(attacker.power);
-                    const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
-                    const rect = playerInfo.getBoundingClientRect();
-                    createSparkles(rect.left + 50, rect.top + rect.height / 2);
+                changeEnemyLife(-(attacker.power || 0));
+                if (hasAbility(attacker, 'lifelink')) {
+                    changePlayerLife(attacker.power || 0);
                 }
-
-                // Particles
-                const enemyArea = document.querySelector('.enemy-area');
-                const rect = enemyArea.getBoundingClientRect();
-                createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 40);
             }
         });
 
-        // Check state-based actions after combat
         checkStateBasedActions();
-
         gameState.attackers = [];
         gameState.blockers = {};
     }
@@ -2292,7 +2315,12 @@
         showGameLog('✅ You end your turn', false);
 
         // Untap all player permanents
-        gameState.playerBoard.forEach(card => card.tapped = false);
+        gameState.playerBoard.forEach(card => {
+            card.tapped = false;
+            if (card.type === 'creature') {
+                card.summoningSick = false;
+            }
+        });
 
         // Reset mana
         gameState.playerMana = {};
@@ -2379,7 +2407,12 @@
         processUpkeepEffects(true);
 
         // Untap and reset mana
-        gameState.playerBoard.forEach(card => card.tapped = false);
+        gameState.playerBoard.forEach(card => {
+            card.tapped = false;
+            if (card.type === 'creature') {
+                card.summoningSick = false;
+            }
+        });
         gameState.playerMana = {};
 
         // Reset land counter for new turn
@@ -2406,7 +2439,12 @@
 
         try {
             // Untap enemy permanents
-            gameState.enemyBoard.forEach(card => card.tapped = false);
+            gameState.enemyBoard.forEach(card => {
+                card.tapped = false;
+                if (card.type === 'creature') {
+                    card.summoningSick = false;
+                }
+            });
             gameState.enemyMana = {};
 
             // Draw card
@@ -2474,7 +2512,7 @@
                         if (canPayCost(creature.cost, gameState.enemyMana)) {
                             payCost(creature.cost, gameState.enemyMana);
                             gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
-                            gameState.enemyBoard.push({...creature, tapped: true, damage: 0});
+                            gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
                             showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
                             creaturePlayed = true;
                         }
@@ -2511,7 +2549,7 @@
                         setTimeout(() => {
                             // Attack with creatures - MUCH MORE AGGRESSIVE AI
                             const attackers = gameState.enemyBoard.filter(c =>
-                                c.type === 'creature' && !c.tapped && !c.abilities?.includes('defender')
+                                c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
                             );
 
                             let attackingCreatures = [];
@@ -2552,21 +2590,8 @@
 
 
     function declarePlayerBlockers(enemyAttackers) {
-        const blockers = {};
         const availableBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
-
-        enemyAttackers.forEach(attacker => {
-            const blocker = availableBlockers.find(candidate =>
-                !Object.values(blockers).includes(candidate.id) &&
-                candidate.toughness >= attacker.power - 1
-            );
-
-            if (blocker) {
-                blockers[attacker.id] = blocker.id;
-            }
-        });
-
-        return blockers;
+        return assignAutoBlockers(enemyAttackers, availableBlockers);
     }
 
     function resolveEnemyAttackPhase(attackingCreatures) {
@@ -2585,35 +2610,20 @@
         }
 
         attackingCreatures.forEach(attacker => {
-            if (!attacker.abilities?.includes('vigilance')) {
+            if (!hasAbility(attacker, 'vigilance')) {
                 attacker.tapped = true;
             }
 
-            const blockerId = playerBlockers[attacker.id];
-            const blocker = blockerId ? gameState.playerBoard.find(c => c.id === blockerId) : null;
+            const blockerIds = playerBlockers[attacker.id] || [];
+            const blockers = blockerIds.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
 
-            if (blocker) {
-                attacker.damage = (attacker.damage || 0) + blocker.power;
-                blocker.damage = (blocker.damage || 0) + attacker.power;
-
-                if (attacker.abilities?.includes('trample')) {
-                    const excessDamage = attacker.power - blocker.toughness;
-                    if (excessDamage > 0) {
-                        changePlayerLife(-excessDamage);
-                    }
-                }
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, false);
             } else {
-                changePlayerLife(-attacker.power);
-                if (attacker.abilities?.includes('trample')) {
-                    shakeScreen();
-                    const playerArea = document.querySelector('.player-area:not(.enemy-area)');
-                    const rect = playerArea.getBoundingClientRect();
-                    createTrampleEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                changePlayerLife(-(attacker.power || 0));
+                if (hasAbility(attacker, 'lifelink')) {
+                    changeEnemyLife(attacker.power || 0);
                 }
-            }
-
-            if (attacker.abilities?.includes('lifelink')) {
-                changeEnemyLife(attacker.power);
             }
 
             const playerArea = document.querySelector('.player-area:not(.enemy-area)');
