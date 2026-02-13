@@ -2302,12 +2302,33 @@
     }
 
     function applyDamage(attacker, blockers, isPlayerAttacking) {
-        const dealCombatDamage = (source, target, amount) => {
-            if (!source || !target || amount <= 0) return;
-            target.damage = (target.damage || 0) + amount;
-            if (hasAbility(source, 'deathtouch')) {
+        const adjustLifeByController = (isPlayerControlled, amount) => {
+            if (amount <= 0) return;
+            if (isPlayerControlled) {
+                changePlayerLife(amount);
+            } else {
+                changeEnemyLife(amount);
+            }
+        };
+
+        const dealCombatDamage = (source, target, amount, sourceIsPlayerControlled) => {
+            if (!source || !target || amount <= 0) return 0;
+
+            const damageAlreadyMarked = target.damage || 0;
+            const toughnessRemaining = Math.max(0, target.toughness - damageAlreadyMarked);
+            const dealtDamage = Math.min(amount, toughnessRemaining);
+
+            target.damage = damageAlreadyMarked + dealtDamage;
+
+            if (hasAbility(source, 'deathtouch') && dealtDamage > 0) {
                 target.damage = Math.max(target.damage, target.toughness);
             }
+
+            if (hasAbility(source, 'lifelink') && dealtDamage > 0) {
+                adjustLifeByController(sourceIsPlayerControlled, dealtDamage);
+            }
+
+            return dealtDamage;
         };
 
         const attackerHasFirstStrike = hasAbility(attacker, 'first_strike') || hasAbility(attacker, 'double_strike');
@@ -2322,14 +2343,46 @@
             const attackerDealsNow = hasAbility(attacker, 'double_strike') ||
                 (hasAbility(attacker, 'first_strike') ? isFirstStrikeStep : !isFirstStrikeStep);
 
-            livingBlockers.forEach((blocker, index) => {
+            if (attackerDealsNow) {
+                let remainingAttackDamage = attacker.power || 0;
+
+                livingBlockers.forEach((blocker, index) => {
+                    if (remainingAttackDamage <= 0) return;
+
+                    const blockerDamage = blocker.damage || 0;
+                    const lethalDamage = hasAbility(attacker, 'deathtouch')
+                        ? ((blockerDamage < blocker.toughness) ? 1 : 0)
+                        : Math.max(0, blocker.toughness - blockerDamage);
+
+                    const isLastBlocker = index === livingBlockers.length - 1;
+                    const assignedDamage = hasAbility(attacker, 'trample')
+                        ? Math.min(remainingAttackDamage, lethalDamage)
+                        : (isLastBlocker ? remainingAttackDamage : Math.min(remainingAttackDamage, lethalDamage));
+
+                    if (assignedDamage > 0) {
+                        dealCombatDamage(attacker, blocker, assignedDamage, isPlayerAttacking);
+                        remainingAttackDamage -= assignedDamage;
+                    }
+                });
+
+                if (remainingAttackDamage > 0 && hasAbility(attacker, 'trample')) {
+                    if (isPlayerAttacking) {
+                        changeEnemyLife(-remainingAttackDamage);
+                    } else {
+                        changePlayerLife(-remainingAttackDamage);
+                    }
+
+                    if (hasAbility(attacker, 'lifelink')) {
+                        adjustLifeByController(isPlayerAttacking, remainingAttackDamage);
+                    }
+                }
+            }
+
+            livingBlockers.forEach((blocker) => {
                 const blockerDealsNow = hasAbility(blocker, 'double_strike') ||
                     (hasAbility(blocker, 'first_strike') ? isFirstStrikeStep : !isFirstStrikeStep);
                 if (blockerDealsNow) {
-                    dealCombatDamage(blocker, attacker, blocker.power || 0);
-                }
-                if (attackerDealsNow && index === 0) {
-                    dealCombatDamage(attacker, blocker, attacker.power || 0);
+                    dealCombatDamage(blocker, attacker, blocker.power || 0, !isPlayerAttacking);
                 }
             });
         };
@@ -2339,25 +2392,7 @@
         }
         runDamageStep(false);
 
-        if (hasAbility(attacker, 'trample')) {
-            const totalRemainingToughness = blockers.reduce((sum, blocker) => sum + Math.max(0, blocker.toughness - (blocker.damage || 0)), 0);
-            const trampleDamage = Math.max(0, (attacker.power || 0) - totalRemainingToughness);
-            if (trampleDamage > 0) {
-                if (isPlayerAttacking) {
-                    changeEnemyLife(-trampleDamage);
-                } else {
-                    changePlayerLife(-trampleDamage);
-                }
-            }
-        }
-
-        if (hasAbility(attacker, 'lifelink')) {
-            if (isPlayerAttacking) {
-                changePlayerLife(attacker.power || 0);
-            } else {
-                changeEnemyLife(attacker.power || 0);
-            }
-        }
+        // Trample and lifelink are processed within each combat damage step.
     }
 
     function aiDeclareBlockers() {
