@@ -1019,8 +1019,8 @@ body::after {
 }
 
 .menu-buttons {
-    display: flex !important;
-    flex-direction: column !important;
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     margin: 20px 0;
     width: 100%;
