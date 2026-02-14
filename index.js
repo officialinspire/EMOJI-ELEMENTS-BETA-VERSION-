@@ -507,6 +507,7 @@
             earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', theme: 'Nature' },
             swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', theme: 'Fantasy' },
             light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' },
+            wasteland: { emoji: '🏜️', type: 'land', cardType: 'Land', element: 'colorless', name: 'Crystal Wasteland', desc: 'Tap for colorless mana', theme: 'Science Fiction' },
             distant_planet: { emoji: '🪐', type: 'land', cardType: 'Land - Dual', elements: ['light', 'swamp'], name: 'Distant Planet', desc: 'Tap for Light or Swamp mana', theme: 'Science Fiction' },
             rainbow: { emoji: '🌈', type: 'land', cardType: 'Land - Universal', elements: ['fire', 'water', 'earth', 'swamp', 'light'], name: 'Rainbow', desc: 'Tap for any color mana', theme: 'Nature' }
         },
@@ -666,6 +667,62 @@
             farmer: { emoji: '🧑‍🌾', type: 'creature', cardType: 'Creature', cost: { earth: 2, light: 1 }, power: 2, toughness: 2, abilities: ['vigilance'], name: 'Farmer', desc: 'Hardworking cultivator', theme: 'City' },
             welder: { emoji: '👩‍🏭', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: [], name: 'Welder', desc: 'Industrial craftsperson', theme: 'City' },
             sunflower: { emoji: '🌻', type: 'creature', cardType: 'Creature', cost: { earth: 2, light: 1 }, power: 1, toughness: 3, abilities: ['defender', 'lifelink'], name: 'Sunflower', desc: 'Radiant bloom', theme: 'Nature' },
+
+            // New mono-color expansion creatures
+            fire_lantern_fish: { emoji: '🎏', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Lantern Koi', desc: 'Glows with ember heat', theme: 'Nature' },
+            fire_hot_pepper: { emoji: '🌶️', type: 'creature', cardType: 'Creature', cost: { fire: 1 }, power: 1, toughness: 1, abilities: ['haste'], name: 'Hot Pepper Sprite', desc: 'Spicy burst attacker', theme: 'Nature' },
+            fire_torch_runner: { emoji: '🏃‍♂️', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 2, abilities: ['haste'], name: 'Torch Runner', desc: 'Never slows down', theme: 'City' },
+            fire_forge_hound: { emoji: '🦮', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['first_strike'], name: 'Forge Hound', desc: 'Guard of blazing anvils', theme: 'Fantasy' },
+            fire_comet_hawk: { emoji: '🪶', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 1, abilities: ['flying', 'haste'], name: 'Comet Hawk', desc: 'Streaks across the sky', theme: 'Nature' },
+            fire_volcano_golem: { emoji: '🗿', type: 'creature', cardType: 'Creature', cost: { fire: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Volcano Golem', desc: 'Molten stone giant', theme: 'Fantasy' },
+            fire_rocket_imp: { emoji: '🚀', type: 'creature', cardType: 'Creature', cost: { fire: 2 }, power: 2, toughness: 1, abilities: ['flying', 'haste'], name: 'Rocket Imp', desc: 'Tiny but explosive', theme: 'Science Fiction' },
+            fire_ember_chef: { emoji: '👨‍🍳', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 2, toughness: 3, abilities: ['lifelink'], name: 'Ember Chef', desc: 'Serves healing stews', theme: 'City' },
+            fire_war_drummer: { emoji: '🥁', type: 'creature', cardType: 'Creature', cost: { fire: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'War Drummer', desc: 'Rallies the charge', theme: 'City' },
+            fire_neon_panther: { emoji: '🐆', type: 'creature', cardType: 'Creature', cost: { fire: 4 }, power: 4, toughness: 2, abilities: ['haste', 'menace'], name: 'Neon Panther', desc: 'Hunts through city lights', theme: 'Science Fiction' },
+
+            water_jelly_knight: { emoji: '🪼', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 1, toughness: 3, abilities: ['flying'], name: 'Jelly Knight', desc: 'Floats over blockers', theme: 'Nature' },
+            water_otter_scout: { emoji: '🦦', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['unblockable'], name: 'Otter Scout', desc: 'Slips past defenses', theme: 'Nature' },
+            water_moonfish: { emoji: '🐠', type: 'creature', cardType: 'Creature', cost: { water: 1 }, power: 1, toughness: 2, abilities: [], name: 'Moonfish', desc: 'Glides in calm tides', theme: 'Nature' },
+            water_tidal_turtle: { emoji: '🐢', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 2, toughness: 4, abilities: ['defender'], name: 'Tidal Turtle', desc: 'Shell like a fortress', theme: 'Nature' },
+            water_snow_owl: { emoji: '🦉', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 2, toughness: 3, abilities: ['flying'], name: 'Snow Owl', desc: 'Silent winter hunter', theme: 'Nature' },
+            water_harbor_mage: { emoji: '🧙‍♀️', type: 'creature', cardType: 'Creature', cost: { water: 4 }, power: 3, toughness: 3, abilities: ['hexproof'], name: 'Harbor Mage', desc: 'Ward of mist and tide', theme: 'Fantasy' },
+            water_dolphin_rider: { emoji: '🐬', type: 'creature', cardType: 'Creature', cost: { water: 3 }, power: 3, toughness: 2, abilities: ['haste'], name: 'Dolphin Rider', desc: 'Rushes with ocean speed', theme: 'Nature' },
+            water_hydrobot: { emoji: '🤖', type: 'creature', cardType: 'Creature', cost: { water: 4 }, power: 3, toughness: 4, abilities: ['vigilance'], name: 'Hydrobot', desc: 'Pressure-powered guardian', theme: 'Science Fiction' },
+            water_ice_gargoyle: { emoji: '🧊', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 2, abilities: ['flying'], name: 'Ice Gargoyle', desc: 'Frozen winged sentinel', theme: 'Fantasy' },
+            water_wave_skater: { emoji: '🛹', type: 'creature', cardType: 'Creature', cost: { water: 2 }, power: 2, toughness: 1, abilities: ['haste'], name: 'Wave Skater', desc: 'Rides every surge', theme: 'City' },
+
+            earth_mole_engineer: { emoji: '🦫', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 3, abilities: ['defender'], name: 'Mole Engineer', desc: 'Builds underground walls', theme: 'Nature' },
+            earth_bison_guard: { emoji: '🐃', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['vigilance'], name: 'Bison Guard', desc: 'Steadfast herd protector', theme: 'Nature' },
+            earth_stone_serpent: { emoji: '🐍', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Stone Serpent', desc: 'Cracks the battlefield', theme: 'Fantasy' },
+            earth_garden_giant: { emoji: '🧑‍🌱', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 4, abilities: ['trample'], name: 'Garden Giant', desc: 'Grows with every step', theme: 'Nature' },
+            earth_lumber_mammoth: { emoji: '🪵', type: 'creature', cardType: 'Creature', cost: { earth: 4 }, power: 4, toughness: 5, abilities: ['trample'], name: 'Lumber Mammoth', desc: 'Carries whole forests', theme: 'Nature' },
+            earth_cactus_guardian: { emoji: '🌵', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 1, toughness: 4, abilities: ['defender'], name: 'Cactus Guardian', desc: 'Painful to attack into', theme: 'Nature' },
+            earth_hiker: { emoji: '🥾', type: 'creature', cardType: 'Creature', cost: { earth: 1 }, power: 1, toughness: 2, abilities: ['vigilance'], name: 'Trail Hiker', desc: 'Finds every safe path', theme: 'City' },
+            earth_badlands_boar: { emoji: '🦬', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 3, toughness: 3, abilities: ['first_strike'], name: 'Badlands Boar', desc: 'Tusks like blades', theme: 'Nature' },
+            earth_mountain_ram: { emoji: '🐐', type: 'creature', cardType: 'Creature', cost: { earth: 2 }, power: 2, toughness: 2, abilities: ['first_strike'], name: 'Mountain Ram', desc: 'Surefooted charger', theme: 'Nature' },
+            earth_temple_keeper: { emoji: '🛖', type: 'creature', cardType: 'Creature', cost: { earth: 3 }, power: 2, toughness: 4, abilities: ['reach'], name: 'Temple Keeper', desc: 'Defends sacred ruins', theme: 'Fantasy' },
+
+            swamp_grim_crow: { emoji: '🐦‍⬛', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 1, abilities: ['flying'], name: 'Grim Crow', desc: 'Messenger of doom', theme: 'Fantasy' },
+            swamp_leech: { emoji: '🪱', type: 'creature', cardType: 'Creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['lifelink'], name: 'Blood Leech', desc: 'Feeds to empower you', theme: 'Nature' },
+            swamp_bone_hound: { emoji: '🐕‍🦺', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Bone Hound', desc: 'Tracks by scent of fear', theme: 'Fantasy' },
+            swamp_grave_digger: { emoji: '⛏️', type: 'creature', cardType: 'Creature', cost: { swamp: 2  }, power: 2, toughness: 2, abilities: [], name: 'Grave Digger', desc: 'Unearths dark relics', theme: 'City' },
+            swamp_witch_cat: { emoji: '🐈‍⬛', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 2, toughness: 2, abilities: ['hexproof'], name: 'Witch Cat', desc: 'Avoids targeted spells', theme: 'Fantasy' },
+            swamp_night_reaper: { emoji: '🪦', type: 'creature', cardType: 'Creature', cost: { swamp: 4 }, power: 4, toughness: 3, abilities: ['deathtouch'], name: 'Night Reaper', desc: 'One touch ends battles', theme: 'Fantasy' },
+            swamp_toxic_frog: { emoji: '🐸', type: 'creature', cardType: 'Creature', cost: { swamp: 2 }, power: 1, toughness: 3, abilities: ['deathtouch'], name: 'Toxic Frog', desc: 'Venomous guardian', theme: 'Nature' },
+            swamp_phantom_train: { emoji: '🚂', type: 'creature', cardType: 'Creature', cost: { swamp: 5 }, power: 5, toughness: 4, abilities: ['menace', 'trample'], name: 'Phantom Train', desc: 'Haunts midnight tracks', theme: 'City' },
+            swamp_dread_clown: { emoji: '🤡', type: 'creature', cardType: 'Creature', cost: { swamp: 3 }, power: 3, toughness: 2, abilities: ['menace'], name: 'Dread Clown', desc: 'Lurks in shadows', theme: 'City' },
+            swamp_night_moth: { emoji: '🦋', type: 'creature', cardType: 'Creature', cost: { swamp: 1 }, power: 1, toughness: 1, abilities: ['flying'], name: 'Night Moth', desc: 'Dark-winged nuisance', theme: 'Nature' },
+
+            light_monk: { emoji: '🧘', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['lifelink'], name: 'Sun Monk', desc: 'Balance through radiance', theme: 'Fantasy' },
+            light_lantern_guard: { emoji: '🏮', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 1, toughness: 3, abilities: ['vigilance'], name: 'Lantern Guard', desc: 'Watches through night', theme: 'City' },
+            light_dove_rider: { emoji: '🕊️', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 3, abilities: ['flying'], name: 'Dove Rider', desc: 'Carries blessings aloft', theme: 'Fantasy' },
+            light_paladin_captain: { emoji: '🛡️', type: 'creature', cardType: 'Creature', cost: { light: 4 }, power: 4, toughness: 4, abilities: ['first_strike', 'vigilance'], name: 'Paladin Captain', desc: 'Leads with honor', theme: 'Fantasy' },
+            light_choir_angel: { emoji: '🎶', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 2, abilities: ['flying', 'lifelink'], name: 'Choir Angel', desc: 'Songs mend wounded hearts', theme: 'Fantasy' },
+            light_healer_bot: { emoji: '🩺', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 2, toughness: 4, abilities: ['lifelink'], name: 'Healer Bot', desc: 'Programmed for mercy', theme: 'Science Fiction' },
+            light_beacon_keeper: { emoji: '🗼', type: 'creature', cardType: 'Creature', cost: { light: 2 }, power: 2, toughness: 2, abilities: ['reach'], name: 'Beacon Keeper', desc: 'Guides allies safely', theme: 'City' },
+            light_solar_drake: { emoji: '🐲', type: 'creature', cardType: 'Creature', cost: { light: 5 }, power: 5, toughness: 4, abilities: ['flying'], name: 'Solar Drake', desc: 'Burns with holy fire', theme: 'Fantasy' },
+            light_daybreak_stag: { emoji: '🦌', type: 'creature', cardType: 'Creature', cost: { light: 3 }, power: 3, toughness: 3, abilities: ['vigilance'], name: 'Daybreak Stag', desc: 'Herald of dawn', theme: 'Nature' },
+            light_mirror_knight: { emoji: '🪞', type: 'creature', cardType: 'Creature', cost: { light: 4 }, power: 3, toughness: 5, abilities: ['hexproof'], name: 'Mirror Knight', desc: 'Reflects hostile magic', theme: 'Fantasy' },
         },
         
         // SPELLS - GREATLY EXPANDED
@@ -748,7 +805,17 @@
             halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, targetAll: true, grantAbilities: ['lifelink'], name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
             dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw_on_play', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
             fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
-            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' }
+            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' },
+            prism_core: { emoji: '🔋', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'mana', value: 1, name: 'Prism Core', desc: 'Adds 1 colorless mana', theme: 'Science Fiction' },
+            gravity_boots: { emoji: '🥾', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'buff', value: 1, buffType: 'power', grantAbilities: ['haste'], name: 'Gravity Boots', desc: '+1/+0 and haste', theme: 'Science Fiction' },
+            chrono_watch: { emoji: '⌚', type: 'artifact', cardType: 'Artifact', cost: { colorless: 3 }, effect: 'draw', value: 1, name: 'Chrono Watch', desc: 'Draw an extra card each upkeep', theme: 'Science Fiction' },
+            nano_shield: { emoji: '🧫', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'buff_defense', value: 2, name: 'Nano Shield', desc: '+0/+2 to equipped creature', theme: 'Science Fiction' },
+            signal_tower: { emoji: '📡', type: 'artifact', cardType: 'Artifact', cost: { colorless: 3 }, effect: 'damage', value: 1, name: 'Signal Tower', desc: 'Deals 1 damage each upkeep', theme: 'Science Fiction' },
+            mech_claw: { emoji: '🦾', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'buff', value: 2, buffType: 'power', name: 'Mech Claw', desc: '+2/+0 to equipped creature', theme: 'Science Fiction' },
+            aether_lens: { emoji: '🔭', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'draw_on_play', value: 1, name: 'Aether Lens', desc: 'Draw a card when played', theme: 'Science Fiction' },
+            repair_drone: { emoji: '🛸', type: 'artifact', cardType: 'Artifact', cost: { colorless: 3 }, effect: 'heal', value: 1, name: 'Repair Drone', desc: 'Gain 1 life each upkeep', theme: 'Science Fiction' },
+            void_compass: { emoji: '🧭', type: 'artifact', cardType: 'Artifact', cost: { colorless: 1 }, effect: 'mana', value: 1, name: 'Void Compass', desc: 'Fixes mana with colorless energy', theme: 'Science Fiction' },
+            relic_cache: { emoji: '🗄️', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'draw', value: 1, name: 'Relic Cache', desc: 'Stores knowledge to draw cards', theme: 'Fantasy' }
         }
     };
 
@@ -1310,20 +1377,26 @@
         const deck = [];
         const LAND_COUNT = 25;
         const NON_LAND_COUNT = 35;
+        const COLORLESS_LAND_COUNT = 3;
 
         if (elements.length === 1) {
-            for (let i = 0; i < LAND_COUNT; i++) {
+            for (let i = 0; i < LAND_COUNT - COLORLESS_LAND_COUNT; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
         } else {
-            const firstLandCount = 11 + Math.floor(Math.random() * 4); // 11-14
-            const secondLandCount = LAND_COUNT - firstLandCount;
+            const coloredLandPool = LAND_COUNT - COLORLESS_LAND_COUNT;
+            const firstLandCount = 10 + Math.floor(Math.random() * 3); // 10-12
+            const secondLandCount = coloredLandPool - firstLandCount;
             for (let i = 0; i < firstLandCount; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
             for (let i = 0; i < secondLandCount; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[1]], id: Math.random() });
             }
+        }
+
+        for (let i = 0; i < COLORLESS_LAND_COUNT; i++) {
+            deck.push({ ...CARD_DATABASE.lands.wasteland, id: Math.random() });
         }
 
         const creatures = [];
@@ -1653,18 +1726,64 @@
 
     // Check if can pay cost
     function canPayCost(cost, mana) {
+        let availableColorless = mana.colorless || 0;
+
         for (let element in cost) {
-            if (!mana[element] || mana[element] < cost[element]) {
-                return false;
+            if (element === 'colorless') continue;
+
+            const required = cost[element] || 0;
+            const available = mana[element] || 0;
+
+            if (available < required) {
+                const shortage = required - available;
+                if (availableColorless < shortage) {
+                    return false;
+                }
+                availableColorless -= shortage;
             }
         }
+
+        const genericRequired = cost.colorless || 0;
+        const totalMana = Object.values(mana).reduce((sum, value) => sum + (value || 0), 0);
+        const totalCost = Object.values(cost).reduce((sum, value) => sum + (value || 0), 0);
+
+        if (totalMana < totalCost) {
+            return false;
+        }
+
+        if (genericRequired > 0 && totalMana < genericRequired) {
+            return false;
+        }
+
         return true;
     }
 
     // Pay cost
     function payCost(cost, mana) {
         for (let element in cost) {
-            mana[element] -= cost[element];
+            if (element === 'colorless') continue;
+
+            let remaining = cost[element] || 0;
+            const coloredAvailable = mana[element] || 0;
+            const useColored = Math.min(coloredAvailable, remaining);
+
+            mana[element] = coloredAvailable - useColored;
+            remaining -= useColored;
+
+            if (remaining > 0) {
+                mana.colorless = Math.max(0, (mana.colorless || 0) - remaining);
+            }
+        }
+
+        let genericRemaining = cost.colorless || 0;
+        if (genericRemaining > 0) {
+            const colorsByAmount = Object.keys(mana).sort((a, b) => (mana[b] || 0) - (mana[a] || 0));
+            for (const color of colorsByAmount) {
+                if (genericRemaining <= 0) break;
+                const spend = Math.min(mana[color] || 0, genericRemaining);
+                mana[color] = (mana[color] || 0) - spend;
+                genericRemaining -= spend;
+            }
         }
     }
 
