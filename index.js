@@ -7,6 +7,10 @@
 
     const QA_DEBUG = true;
 
+    if (QA_DEBUG && typeof window.__QA_FORCE_META_OFF === 'undefined') {
+        window.__QA_FORCE_META_OFF = false;
+    }
+
     if (QA_DEBUG) {
         window.addEventListener('error', (event) => {
             const runtimeError = event?.error;
@@ -2595,9 +2599,17 @@
 
     function createPlayerDeck(elements) {
         const fallbackDeck = () => generateDeck(elements);
+        const isMetaEnabledForDeck = META_ENABLED && !window.__QA_FORCE_META_OFF;
 
-        if (!META_ENABLED) {
+        const getFallbackDeckWithLog = () => {
+            if (QA_DEBUG) {
+                console.debug('[QA] createPlayerDeck fallback path');
+            }
             return fallbackDeck();
+        };
+
+        if (!isMetaEnabledForDeck) {
+            return getFallbackDeckWithLog();
         }
 
         try {
@@ -2610,21 +2622,24 @@
                 if (selectedDeckKey) {
                     console.warn(`Meta deck "${selectedDeckKey}" is missing or empty. Falling back to generated deck.`);
                 }
-                return fallbackDeck();
+                return getFallbackDeckWithLog();
             }
 
             const isValid = cardIds.every(cardId => window.__CARD_BY_ID && window.__CARD_BY_ID[cardId]);
             if (!isValid) {
                 console.warn(`Meta deck "${selectedDeckKey}" has invalid card ids. Falling back to generated deck.`);
-                return fallbackDeck();
+                return getFallbackDeckWithLog();
             }
 
             const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: Math.random() }));
             shuffleDeck(deck);
+            if (QA_DEBUG) {
+                console.debug('[QA] createPlayerDeck meta path');
+            }
             return deck;
         } catch (error) {
             console.warn('Failed to load meta deck at match start. Falling back to generated deck.', error);
-            return fallbackDeck();
+            return getFallbackDeckWithLog();
         }
     }
 
