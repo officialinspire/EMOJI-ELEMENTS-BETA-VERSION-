@@ -1379,6 +1379,244 @@
         return cardIds;
     }
 
+    let openModalCount = 0;
+
+    function showModal(modalEl) {
+        if (!modalEl) return;
+
+        const wasOpen = modalEl.classList.contains('show');
+        modalEl.style.display = 'flex';
+        modalEl.classList.add('show');
+
+        if (!wasOpen && modalEl.dataset.lockScroll !== 'false') {
+            openModalCount++;
+            document.body.classList.add('no-scroll');
+        }
+    }
+
+    function hideModal(modalEl) {
+        if (!modalEl) return;
+
+        const wasOpen = modalEl.classList.contains('show');
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+
+        if (wasOpen && modalEl.dataset.lockScroll !== 'false') {
+            openModalCount = Math.max(0, openModalCount - 1);
+            if (openModalCount === 0) {
+                document.body.classList.remove('no-scroll');
+            }
+        }
+    }
+
+    const packOpeningState = {
+        active: false,
+        cards: [],
+        currentIndex: 0,
+        isDragging: false,
+        dragStartX: 0,
+        maxDistance: 0,
+        progress: 0,
+        stage: 'sealed'
+    };
+
+    function fallbackPackReveal(cards) {
+        const safeCards = Array.isArray(cards) ? cards : [];
+        const lines = safeCards.length
+            ? safeCards.map(card => `• ${card.emoji} ${card.name}`).join('\n')
+            : '• Pack data unavailable';
+
+        alert(`You won a pack!\n\n${lines}`);
+        const victoryOverlay = document.getElementById('victoryOverlay');
+        if (victoryOverlay) {
+            victoryOverlay.classList.add('show');
+        }
+    }
+
+    function setPackOpeningCard(index) {
+        if (!packOpeningState.cards.length) return;
+
+        const boundedIndex = Math.max(0, Math.min(index, packOpeningState.cards.length - 1));
+        packOpeningState.currentIndex = boundedIndex;
+
+        const card = packOpeningState.cards[boundedIndex];
+        document.getElementById('packCardEmoji').textContent = card.emoji || '✨';
+        document.getElementById('packCardName').textContent = card.name || 'Unknown Card';
+        document.getElementById('packCardType').textContent = card.cardType || card.type || '';
+        document.getElementById('packCardCounter').textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
+        document.getElementById('packPrevBtn').disabled = boundedIndex === 0;
+        document.getElementById('packNextBtn').disabled = boundedIndex === packOpeningState.cards.length - 1;
+    }
+
+    function showPackRevealStage() {
+        packOpeningState.stage = 'reveal';
+        document.getElementById('packSealedStage').classList.remove('pack-stage-active');
+        document.getElementById('packRevealStage').classList.add('pack-stage-active');
+        setPackOpeningCard(0);
+    }
+
+    function closePackOpeningOverlay() {
+        const overlay = document.getElementById('packOpeningOverlay');
+        hideModal(overlay);
+        packOpeningState.active = false;
+        packOpeningState.stage = 'sealed';
+
+        const victoryOverlay = document.getElementById('victoryOverlay');
+        if (victoryOverlay) {
+            victoryOverlay.classList.remove('show');
+        }
+    }
+
+    function triggerPackOpenAnimation() {
+        if (packOpeningState.stage !== 'sealed') return;
+
+        packOpeningState.stage = 'opening';
+        const instruction = document.getElementById('packInstruction');
+        const shell = document.getElementById('packTearSurface');
+        if (instruction) {
+            instruction.textContent = 'Pack opening...';
+        }
+        shell.classList.add('opened');
+
+        setTimeout(() => {
+            showPackRevealStage();
+        }, 420);
+    }
+
+    function updatePackRipProgress(clientX) {
+        if (!packOpeningState.isDragging || packOpeningState.stage !== 'sealed') return;
+
+        const targetDistance = Math.max(window.innerWidth * 0.55, 220);
+        const dragDistance = Math.max(0, clientX - packOpeningState.dragStartX);
+        packOpeningState.maxDistance = Math.max(packOpeningState.maxDistance, dragDistance);
+        packOpeningState.progress = Math.min(1, packOpeningState.maxDistance / targetDistance);
+
+        const progressPercent = Math.round(packOpeningState.progress * 100);
+        document.getElementById('packProgressFill').style.width = `${progressPercent}%`;
+        document.getElementById('packTearLine').style.left = `${progressPercent}%`;
+
+        if (packOpeningState.progress >= 1) {
+            triggerPackOpenAnimation();
+        }
+    }
+
+    function openPackOpeningOverlayFromMeta() {
+        try {
+            const cardIds = gameMeta?.lastPack?.cardIds;
+            const cards = (Array.isArray(cardIds) ? cardIds : [])
+                .map(cardId => __CARD_BY_ID[cardId])
+                .filter(Boolean);
+
+            if (!cards.length) {
+                fallbackPackReveal([]);
+                return;
+            }
+
+            packOpeningState.active = true;
+            packOpeningState.cards = cards;
+            packOpeningState.currentIndex = 0;
+            packOpeningState.isDragging = false;
+            packOpeningState.dragStartX = 0;
+            packOpeningState.maxDistance = 0;
+            packOpeningState.progress = 0;
+            packOpeningState.stage = 'sealed';
+
+            const overlay = document.getElementById('packOpeningOverlay');
+            const sealedStage = document.getElementById('packSealedStage');
+            const revealStage = document.getElementById('packRevealStage');
+            const shell = document.getElementById('packTearSurface');
+            const instruction = document.getElementById('packInstruction');
+            const progress = document.getElementById('packProgressFill');
+            const tearLine = document.getElementById('packTearLine');
+
+            sealedStage.classList.add('pack-stage-active');
+            revealStage.classList.remove('pack-stage-active');
+            shell.classList.remove('opened');
+            instruction.textContent = 'Slide to rip open';
+            progress.style.width = '0%';
+            tearLine.style.left = '0%';
+
+            showModal(overlay);
+        } catch (error) {
+            console.warn('Pack opening overlay failed, using fallback.', error);
+            fallbackPackReveal([]);
+        }
+    }
+
+
+    function initializePackOpeningOverlay() {
+        const overlay = document.getElementById('packOpeningOverlay');
+        const tearSurface = document.getElementById('packTearSurface');
+        const closeBtn = document.getElementById('packCloseBtn');
+        const prevBtn = document.getElementById('packPrevBtn');
+        const nextBtn = document.getElementById('packNextBtn');
+        const viewport = document.getElementById('packCardViewport');
+
+        if (!overlay || !tearSurface || !closeBtn || !prevBtn || !nextBtn || !viewport) {
+            return;
+        }
+
+        tearSurface.addEventListener('pointerdown', (event) => {
+            if (!packOpeningState.active || packOpeningState.stage !== 'sealed') return;
+            packOpeningState.isDragging = true;
+            packOpeningState.dragStartX = event.clientX;
+            tearSurface.setPointerCapture?.(event.pointerId);
+        });
+
+        tearSurface.addEventListener('pointermove', (event) => {
+            updatePackRipProgress(event.clientX);
+        });
+
+        const stopDrag = () => {
+            packOpeningState.isDragging = false;
+        };
+        tearSurface.addEventListener('pointerup', stopDrag);
+        tearSurface.addEventListener('pointercancel', stopDrag);
+
+        closeBtn.addEventListener('click', () => {
+            closePackOpeningOverlay();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            setPackOpeningCard(packOpeningState.currentIndex - 1);
+        });
+
+        nextBtn.addEventListener('click', () => {
+            setPackOpeningCard(packOpeningState.currentIndex + 1);
+        });
+
+        let swipeStartX = 0;
+        let swiping = false;
+
+        viewport.addEventListener('pointerdown', (event) => {
+            if (packOpeningState.stage !== 'reveal') return;
+            swiping = true;
+            swipeStartX = event.clientX;
+            viewport.setPointerCapture?.(event.pointerId);
+        });
+
+        viewport.addEventListener('pointermove', (event) => {
+            if (!swiping || packOpeningState.stage !== 'reveal') return;
+            const deltaX = event.clientX - swipeStartX;
+            if (Math.abs(deltaX) < 55) return;
+
+            if (deltaX < 0) {
+                setPackOpeningCard(packOpeningState.currentIndex + 1);
+            } else {
+                setPackOpeningCard(packOpeningState.currentIndex - 1);
+            }
+
+            swipeStartX = event.clientX;
+        });
+
+        const stopSwipe = () => {
+            swiping = false;
+        };
+        viewport.addEventListener('pointerup', stopSwipe);
+        viewport.addEventListener('pointercancel', stopSwipe);
+    }
+
+
     function finalizeMatch(result) {
         if (gameState.matchFinalized) {
             return;
@@ -1413,8 +1651,7 @@
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
-            const victoryOverlay = document.getElementById('victoryOverlay');
-            victoryOverlay.classList.add('show');
+            openPackOpeningOverlayFromMeta();
             return;
         }
 
@@ -1877,6 +2114,7 @@
         document.getElementById('graveyardModal').classList.remove('show');
         document.getElementById('mulliganConfirmModal').classList.remove('show');
         document.getElementById('gameConfirmModal').classList.remove('show');
+        closePackOpeningOverlay();
 
         const gameContainer = document.getElementById('gameContainer');
         const startModal = document.getElementById('startModal');
@@ -4488,6 +4726,8 @@
 
         return cardEl;
     }
+
+    initializePackOpeningOverlay();
 
     // Resize canvas with debouncing for better performance
     let resizeTimeout;
