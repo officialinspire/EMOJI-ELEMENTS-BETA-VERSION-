@@ -1199,6 +1199,87 @@
         return cardElements.every(element => element === 'colorless' || deckColors.includes(element));
     }
 
+    function validateMeta(meta) {
+        try {
+            const loaded = meta && typeof meta === 'object' ? meta : {};
+            const repaired = {
+                version: 1,
+                collection: {},
+                decks: {},
+                selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
+                stats: {
+                    wins: Number.isFinite(loaded?.stats?.wins) ? loaded.stats.wins : 0,
+                    losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
+                    packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
+                },
+                lastPack: loaded.lastPack ?? null
+            };
+
+            Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
+                if (!__CARD_BY_ID[cardId]) return;
+                const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+                if (safeCount > 0) {
+                    repaired.collection[cardId] = safeCount;
+                }
+            });
+
+            Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
+                const colors = Array.isArray(deckData?.colors)
+                    ? deckData.colors.filter(color => ELEMENTS[color])
+                    : getDeckColorsFromKey(deckKey);
+                if (colors.length === 0) return;
+                const cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], repaired.collection);
+
+                repaired.decks[deckKey] = {
+                    deckKey,
+                    colors,
+                    starterCardIds: Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [],
+                    cardIds
+                };
+            });
+
+            const seededMeta = createInitialMeta();
+            STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+                if (!repaired.decks[deckKey]) {
+                    repaired.decks[deckKey] = seededMeta.decks[deckKey];
+                }
+
+                const requiredCounts = {};
+                (repaired.decks[deckKey].cardIds || []).forEach(cardId => {
+                    requiredCounts[cardId] = (requiredCounts[cardId] || 0) + 1;
+                });
+
+                Object.entries(requiredCounts).forEach(([cardId, needed]) => {
+                    const owned = repaired.collection[cardId] || 0;
+                    if (owned < needed) {
+                        repaired.collection[cardId] = needed;
+                    }
+                });
+            });
+
+            if (!repaired.decks[repaired.selectedDeckKey]) {
+                repaired.selectedDeckKey = 'FIRE';
+            }
+
+            return repaired;
+        } catch (error) {
+            console.warn('Meta validation failed. Rebuilding starter meta.', error);
+            try {
+                return createInitialMeta();
+            } catch (seedError) {
+                console.warn('Starter meta rebuild failed. Falling back to minimal safe meta.', seedError);
+                return {
+                    version: 1,
+                    collection: {},
+                    decks: {},
+                    selectedDeckKey: 'FIRE',
+                    stats: { wins: 0, losses: 0, packsOpened: 0 },
+                    lastPack: null
+                };
+            }
+        }
+    }
+
     function metaEnsureInitialized() {
         if (!META_ENABLED) {
             return createInitialMeta();
@@ -1211,64 +1292,7 @@
             return seeded;
         }
 
-        const meta = {
-            version: 1,
-            collection: {},
-            decks: {},
-            selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
-            stats: {
-                wins: Number.isFinite(loaded?.stats?.wins) ? loaded.stats.wins : 0,
-                losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
-                packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
-            },
-            lastPack: loaded.lastPack ?? null
-        };
-
-        Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
-            if (!__CARD_BY_ID[cardId]) return;
-            const safeCount = Math.max(0, Math.floor(Number(count) || 0));
-            if (safeCount > 0) {
-                meta.collection[cardId] = safeCount;
-            }
-        });
-
-        Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
-            const colors = Array.isArray(deckData?.colors)
-                ? deckData.colors.filter(color => ELEMENTS[color])
-                : getDeckColorsFromKey(deckKey);
-            if (colors.length === 0) return;
-            const cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], meta.collection);
-
-            meta.decks[deckKey] = {
-                deckKey,
-                colors,
-                starterCardIds: Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [],
-                cardIds
-            };
-        });
-
-        const seededMeta = createInitialMeta();
-        STARTER_MONO_DECK_KEYS.forEach(deckKey => {
-            if (!meta.decks[deckKey]) {
-                meta.decks[deckKey] = seededMeta.decks[deckKey];
-            }
-
-            const requiredCounts = {};
-            (meta.decks[deckKey].cardIds || []).forEach(cardId => {
-                requiredCounts[cardId] = (requiredCounts[cardId] || 0) + 1;
-            });
-
-            Object.entries(requiredCounts).forEach(([cardId, needed]) => {
-                const owned = meta.collection[cardId] || 0;
-                if (owned < needed) {
-                    meta.collection[cardId] = needed;
-                }
-            });
-        });
-
-        if (!meta.decks[meta.selectedDeckKey]) {
-            meta.selectedDeckKey = 'FIRE';
-        }
+        const meta = validateMeta(loaded);
 
         metaSave(meta);
         return meta;
@@ -1291,6 +1315,33 @@
         losses: Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0,
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
+
+    if (QA_DEBUG) {
+        window.__qaDumpMeta = function() {
+            const meta = metaLoad() || gameMeta || {};
+            const summary = {
+                wins: Number.isFinite(meta?.stats?.wins) ? meta.stats.wins : 0,
+                losses: Number.isFinite(meta?.stats?.losses) ? meta.stats.losses : 0,
+                selectedDeckKey: typeof meta?.selectedDeckKey === 'string' ? meta.selectedDeckKey : 'FIRE',
+                collectionSize: Object.keys(meta?.collection || {}).length,
+                deckKeys: Object.keys(meta?.decks || {})
+            };
+            console.log('[QA] Meta summary:', summary);
+            return summary;
+        };
+
+        window.__qaResetMeta = function() {
+            const confirmed = window.confirm('Reset persisted meta and reload page?');
+            if (!confirmed) return false;
+            try {
+                localStorage.removeItem(META_STORAGE_KEY);
+            } catch (error) {
+                console.warn('QA reset failed to clear meta storage key.', error);
+            }
+            window.location.reload();
+            return true;
+        };
+    }
 
     const PACK_THEMES = [
         { key: 'fantasy', label: 'Fantasy', weight: 24 },
