@@ -193,39 +193,60 @@
 
             <div id="howToPlayScreen" style="display: none;">
                 <div class="how-to-play">
-                    <h3>🎯 Objective</h3>
-                    <p>Reduce your opponent's life from 20 to 0 using creatures, spells, and strategy!</p>
+                    <div class="howto-page" data-page="1">
+                        <h3>🎯 Objective</h3>
+                        <p>Reduce your opponent's life from 20 to 0 using creatures, spells, and strategy!</p>
 
-                    <h3>🃏 Cards & Mana</h3>
-                    <ul>
-                        <li><strong>Lands</strong> - Play one per turn to generate mana</li>
-                        <li><strong>Creatures</strong> - Cost mana to play, can attack & block</li>
-                        <li><strong>Spells</strong> - Instant effects (damage, heal, etc.)</li>
-                        <li><strong>Artifacts</strong> - Permanent bonuses on the battlefield</li>
-                    </ul>
+                        <h3>🃏 Cards & Mana</h3>
+                        <ul>
+                            <li><strong>Lands</strong> - Play one per turn to generate mana</li>
+                            <li><strong>Creatures</strong> - Cost mana to play, can attack & block</li>
+                            <li><strong>Spells</strong> - Instant effects (damage, heal, etc.)</li>
+                            <li><strong>Artifacts</strong> - Permanent bonuses on the battlefield</li>
+                        </ul>
 
-                    <h3>⚔️ Combat</h3>
-                    <ul>
-                        <li>Tap lands to generate mana (click on them)</li>
-                        <li>Play cards from your hand using mana</li>
-                        <li>Click "ATTACK" to select attackers</li>
-                        <li>AI will declare blockers automatically</li>
-                        <li>Creatures deal damage = their power</li>
-                    </ul>
+                        <h3>⚔️ Combat</h3>
+                        <ul>
+                            <li>Tap lands to generate mana (click on them)</li>
+                            <li>Play cards from your hand using mana</li>
+                            <li>Click "ATTACK" to select attackers</li>
+                            <li>AI will declare blockers automatically</li>
+                            <li>Creatures deal damage = their power</li>
+                        </ul>
 
-                    <h3>✨ Abilities</h3>
-                    <ul>
-                        <li><strong>Flying</strong> - Can only be blocked by flying/reach</li>
-                        <li><strong>Trample</strong> - Excess damage goes through (screen shake!)</li>
-                        <li><strong>Lifelink</strong> - Damage dealt heals you (sparkles!)</li>
-                        <li><strong>Haste</strong> - Can attack immediately</li>
-                        <li><strong>Vigilance</strong> - Doesn't tap to attack</li>
-                        <li><strong>Defender</strong> - Cannot attack</li>
-                    </ul>
+                        <h3>✨ Abilities</h3>
+                        <ul>
+                            <li><strong>Flying</strong> - Can only be blocked by flying/reach</li>
+                            <li><strong>Trample</strong> - Excess damage goes through (screen shake!)</li>
+                            <li><strong>Lifelink</strong> - Damage dealt heals you (sparkles!)</li>
+                            <li><strong>Haste</strong> - Can attack immediately</li>
+                            <li><strong>Vigilance</strong> - Doesn't tap to attack</li>
+                            <li><strong>Defender</strong> - Cannot attack</li>
+                        </ul>
 
-                    <h3>📱 Controls</h3>
-                    <p>Click cards to play them, tap lands for mana, select attackers in combat phase! Right-click or long-press to see card details.</p>
+                        <h3>📱 Controls</h3>
+                        <p>Click cards to play them, tap lands for mana, select attackers in combat phase! Right-click or long-press to see card details.</p>
+                    </div>
+
+                    <div class="howto-page" data-page="2" style="display:none;">
+                        <h3>🧩 Collecting Cards &amp; Building Decks</h3>
+                        <ul>
+                            <li>Winning matches awards booster packs to keep your progress growing.</li>
+                            <li>Opening packs adds cards directly to your collection.</li>
+                            <li>The Deck Builder can only use cards you currently own.</li>
+                            <li>Standard deck keys are stable: picking FIRE or FIRE/WATER always loads your saved version for that key.</li>
+                            <li>Packs include rarity levels and themed pools like fantasy, sci-fi, tech, alien, robot, and lands.</li>
+                            <li>Use Collection to review everything you own and track what you still want to pull.</li>
+                        </ul>
+                    </div>
                 </div>
+
+                <div class="howto-page-nav">
+                    <button class="menu-btn howto-nav-btn" type="button" onclick="setHowToPlayPage(1)">← PAGE 1</button>
+                    <span class="howto-page-indicator" id="howToPlayPageIndicator">Page 1/2</span>
+                    <button class="menu-btn howto-nav-btn" type="button" onclick="setHowToPlayPage(2)">PAGE 2 →</button>
+                </div>
+
                 <button class="menu-btn" onclick="backToMenu()" style="margin-top: 20px;">← BACK TO MENU</button>
             </div>
 

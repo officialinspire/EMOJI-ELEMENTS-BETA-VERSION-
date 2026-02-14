@@ -1414,6 +1414,33 @@ body::after {
     line-height: 1.8;
 }
 
+.howto-page {
+    max-height: min(46vh, 420px);
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.howto-page-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.howto-page-indicator {
+    font-family: 'Cinzel', serif;
+    color: #ffed4e;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.howto-nav-btn {
+    min-width: 120px;
+    margin: 0;
+}
+
 .how-to-play h3 {
     font-family: 'MedievalSharp', cursive;
     color: #ffd700;
@@ -1430,6 +1457,12 @@ body::after {
 
 .how-to-play ul {
     margin-left: 20px;
+}
+
+@media (max-width: 768px) {
+    .howto-page {
+        max-height: min(48vh, 360px);
+    }
 }
 
 .card-stack {
