@@ -1829,6 +1829,9 @@ body::after {
     visibility: hidden;
     pointer-events: none;
     transition: opacity 0.5s ease;
+    box-sizing: border-box;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    overflow-y: auto;
 }
 
 .victory-overlay {
@@ -1857,8 +1860,9 @@ body.no-scroll {
     justify-content: center;
     align-items: center;
     background: radial-gradient(circle at 50% 20%, rgba(255, 225, 120, 0.2), rgba(12, 7, 18, 0.95));
-    padding: 12px;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     touch-action: none;
+    overflow-y: auto;
 }
 
 .pack-opening-overlay.show {
@@ -1873,6 +1877,8 @@ body.no-scroll {
     color: #fff8d1;
     box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
     padding: 14px;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
 }
 
 .pack-opening-header {
