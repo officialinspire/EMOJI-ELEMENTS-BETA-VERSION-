@@ -48,6 +48,39 @@
         <button class="menu-btn overlay-btn" onclick="returnToMainMenu()" style="background: linear-gradient(135deg, #4169e1 0%, #6495ed 100%); color: #fff; border-color: #1a3a7a;">🏠 MAIN MENU</button>
     </div>
 
+    <div id="packOpeningOverlay" class="pack-opening-overlay" data-lock-scroll="true">
+        <div class="pack-opening-panel">
+            <div class="pack-opening-header">
+                <div class="pack-opening-title">🎁 Victory Pack</div>
+                <button class="pack-close-btn" id="packCloseBtn">✕</button>
+            </div>
+
+            <div id="packSealedStage" class="pack-stage pack-stage-active">
+                <div class="pack-instruction" id="packInstruction">Slide to rip open</div>
+                <div class="pack-sealed-shell" id="packTearSurface">
+                    <div class="pack-tear-line" id="packTearLine"></div>
+                    <div class="pack-sealed-emoji">📦</div>
+                </div>
+                <div class="pack-progress-track">
+                    <div id="packProgressFill" class="pack-progress-fill"></div>
+                </div>
+            </div>
+
+            <div id="packRevealStage" class="pack-stage">
+                <div id="packCardViewport" class="pack-card-viewport">
+                    <div id="packCardEmoji" class="pack-card-emoji">✨</div>
+                    <div id="packCardName" class="pack-card-name"></div>
+                    <div id="packCardType" class="pack-card-type"></div>
+                </div>
+                <div id="packCardCounter" class="pack-card-counter"></div>
+                <div class="pack-nav-buttons">
+                    <button class="menu-btn" id="packPrevBtn">⬅️ PREV</button>
+                    <button class="menu-btn" id="packNextBtn">NEXT ➡️</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Card Detail Popup -->
     <div id="cardDetailPopup" class="card-detail-popup">
         <div class="close-detail" onclick="hideCardDetail()">✕</div>

@@ -1845,6 +1845,148 @@ body::after {
     pointer-events: auto;
 }
 
+body.no-scroll {
+    overflow: hidden;
+}
+
+.pack-opening-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 17000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at 50% 20%, rgba(255, 225, 120, 0.2), rgba(12, 7, 18, 0.95));
+    padding: 12px;
+    touch-action: none;
+}
+
+.pack-opening-overlay.show {
+    display: flex;
+}
+
+.pack-opening-panel {
+    width: min(100%, 460px);
+    background: linear-gradient(135deg, rgba(42, 26, 62, 0.98), rgba(27, 18, 41, 0.98));
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    color: #fff8d1;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+    padding: 14px;
+}
+
+.pack-opening-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.pack-opening-title {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.pack-close-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 215, 0, 0.8);
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+}
+
+.pack-stage {
+    display: none;
+}
+
+.pack-stage.pack-stage-active {
+    display: block;
+}
+
+.pack-instruction {
+    text-align: center;
+    margin: 8px 0 10px;
+    font-weight: 700;
+}
+
+.pack-sealed-shell {
+    position: relative;
+    min-height: 220px;
+    border-radius: 12px;
+    border: 2px dashed rgba(255, 215, 0, 0.8);
+    background: linear-gradient(135deg, rgba(255, 150, 60, 0.28), rgba(255, 90, 60, 0.2));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pack-sealed-emoji {
+    font-size: 76px;
+}
+
+.pack-tear-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 8px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.2), #ffd700, rgba(255,255,255,0.2));
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+}
+
+.pack-sealed-shell.opened {
+    animation: packOpenPulse 0.5s ease;
+    border-style: solid;
+}
+
+.pack-progress-track {
+    margin-top: 12px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.pack-progress-fill {
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #ffd700, #ffa500);
+    transition: width 0.05s linear;
+}
+
+.pack-card-viewport {
+    border-radius: 12px;
+    min-height: 230px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 0, 0, 0.4));
+    border: 1px solid rgba(255, 215, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px;
+}
+
+.pack-card-emoji { font-size: 66px; }
+.pack-card-name { font-size: 22px; font-weight: 700; margin-top: 8px; }
+.pack-card-type { opacity: 0.9; margin-top: 4px; }
+.pack-card-counter { text-align: center; margin-top: 8px; }
+
+.pack-nav-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+@keyframes packOpenPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+
 .victory-text, .lose-text {
     font-family: 'Uncial Antiqua', cursive;
     font-size: 36px;
