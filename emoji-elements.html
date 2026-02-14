@@ -1792,17 +1792,35 @@
             document.getElementById('startBtn').disabled = gameState.selectedElements.length !== 2;
         }
 
+        function getCardManaCost(card) {
+            if (!card.cost) return 0;
+            return Object.values(card.cost).reduce((sum, value) => sum + value, 0);
+        }
+
+        function getDifficultyProfile(difficulty) {
+            const profiles = {
+                easy: { attackBias: 0.5, spellChance: 0.35, reserveDefenders: 1, randomFactor: 0.35 },
+                medium: { attackBias: 0.68, spellChance: 0.62, reserveDefenders: 1, randomFactor: 0.2 },
+                hard: { attackBias: 0.82, spellChance: 0.9, reserveDefenders: 0, randomFactor: 0.1 }
+            };
+
+            return profiles[difficulty] || profiles.medium;
+        }
+
         // Deck Generation with improved shuffling
         function generateDeck(elements) {
             const deck = [];
+            const chosenElements = [...new Set(elements)].filter(element => ELEMENTS[element]);
+            const deckElements = chosenElements.length > 0 ? chosenElements : ['fire'];
             
-            // Add 25 lands (12-13 of each type)
-            elements.forEach((element, index) => {
-                const count = index === 0 ? 13 : 12;
-                for (let i = 0; i < count; i++) {
+            // Add at least 25 lands for any single-color or two-color deck setup
+            const LAND_COUNT = 25;
+            for (let i = 0; i < LAND_COUNT; i++) {
+                const element = deckElements[i % deckElements.length];
+                if (CARD_DATABASE.lands[element]) {
                     deck.push({...CARD_DATABASE.lands[element], id: Math.random()});
                 }
-            });
+            }
 
             // Add 35 spells/creatures/artifacts
             const availableCards = [];
@@ -1811,7 +1829,7 @@
             Object.values(CARD_DATABASE.creatures).forEach(creature => {
                 const costElements = Object.keys(creature.cost);
                 // Check if ALL cost elements are available in player's elements
-                if (costElements.every(e => elements.includes(e))) {
+                if (costElements.every(e => deckElements.includes(e))) {
                     availableCards.push(creature);
                 }
             });
@@ -1819,7 +1837,7 @@
             // Get spells - ONLY if ALL cost elements are in player's selected elements
             Object.values(CARD_DATABASE.spells).forEach(spell => {
                 const costElements = Object.keys(spell.cost);
-                if (costElements.every(e => elements.includes(e))) {
+                if (costElements.every(e => deckElements.includes(e))) {
                     availableCards.push(spell);
                 }
             });
@@ -1827,7 +1845,7 @@
             // Get artifacts - ONLY if ALL cost elements are in player's selected elements
             Object.values(CARD_DATABASE.artifacts).forEach(artifact => {
                 const costElements = Object.keys(artifact.cost);
-                if (costElements.every(e => elements.includes(e))) {
+                if (costElements.every(e => deckElements.includes(e))) {
                     availableCards.push(artifact);
                 }
             });
@@ -1847,6 +1865,66 @@
             }
 
             return deck;
+        }
+
+        function chooseBestEnemyPlays(playableCards, profile) {
+            return playableCards
+                .map(card => {
+                    const cost = getCardManaCost(card);
+                    let score = 0;
+
+                    if (card.type === 'creature') {
+                        score = (card.power * 1.8) + (card.toughness * 1.2) + (card.abilities?.length || 0) * 0.7;
+                        if (card.abilities?.includes('haste')) score += 1;
+                        if (card.abilities?.includes('flying')) score += 0.8;
+                    } else if (card.type === 'instant') {
+                        const spellWeights = { damage: 2.2, drain: 2.1, destroy: 2.4, draw: 1.4, heal: 1.2, buff: 1.1, buff_defense: 1 };
+                        score = (spellWeights[card.effect] || 1) * (card.value || 1);
+                    } else if (card.type === 'artifact') {
+                        score = 1.5 + (card.value || 1);
+                    }
+
+                    score += (Math.random() - 0.5) * profile.randomFactor;
+                    score -= cost * 0.18;
+
+                    return { card, score };
+                })
+                .sort((a, b) => b.score - a.score)
+                .map(entry => entry.card);
+        }
+
+        function chooseEnemyAttackers(profile) {
+            const availableAttackers = gameState.enemyBoard.filter(card =>
+                card.type === 'creature' &&
+                !card.tapped &&
+                !card.abilities?.includes('defender')
+            );
+
+            if (availableAttackers.length === 0) {
+                return [];
+            }
+
+            const playerPotentialBlockers = gameState.playerBoard.filter(card => card.type === 'creature' && !card.tapped).length;
+            const enemyPotentialBlockers = gameState.enemyBoard.filter(card =>
+                card.type === 'creature' &&
+                !card.tapped &&
+                !availableAttackers.some(attacker => attacker.id === card.id)
+            ).length;
+
+            const sortedAttackers = [...availableAttackers].sort((a, b) => b.power - a.power);
+            const dangerMode = gameState.enemyLife <= 8 && gameState.playerLife > gameState.enemyLife;
+            const cautiousThreshold = Math.max(0, playerPotentialBlockers - enemyPotentialBlockers + profile.reserveDefenders);
+
+            return sortedAttackers.filter((attacker, index) => {
+                if (dangerMode && index >= Math.max(1, sortedAttackers.length - 1)) {
+                    return false;
+                }
+
+                const pressureBonus = gameState.playerLife <= attacker.power ? 0.25 : 0;
+                const riskPenalty = index < cautiousThreshold ? 0.2 : 0;
+                const decision = profile.attackBias + pressureBonus - riskPenalty;
+                return Math.random() < Math.min(0.95, Math.max(0.2, decision));
+            });
         }
 
         // Start Game
@@ -2228,6 +2306,8 @@
 
         // AI Turn
         function aiTurn() {
+            const profile = getDifficultyProfile(gameState.difficulty);
+
             // Untap enemy permanents
             gameState.enemyBoard.forEach(card => card.tapped = false);
             gameState.enemyMana = {};
@@ -2263,88 +2343,50 @@
                     }
 
                     setTimeout(() => {
-                        // Play creatures based on difficulty
-                        const playableCreatures = gameState.enemyHand
-                            .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
-                            .sort((a, b) => {
-                                if (gameState.difficulty === 'easy') {
-                                    return 0;
-                                } else if (gameState.difficulty === 'medium') {
-                                    return (b.power + b.toughness) - (a.power + a.toughness);
-                                } else {
-                                    const effA = (a.power + a.toughness) / Object.values(a.cost).reduce((sum, v) => sum + v, 0);
-                                    const effB = (b.power + b.toughness) / Object.values(b.cost).reduce((sum, v) => sum + v, 0);
-                                    return effB - effA;
-                                }
-                            });
+                        const playableNonLands = gameState.enemyHand.filter(card =>
+                            card.type !== 'land' && canPayCost(card.cost, gameState.enemyMana)
+                        );
 
-                        let creaturePlayed = false;
-                        playableCreatures.forEach(creature => {
-                            if (canPayCost(creature.cost, gameState.enemyMana)) {
-                                payCost(creature.cost, gameState.enemyMana);
-                                gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
-                                gameState.enemyBoard.push({...creature, tapped: true, damage: 0});
-                                showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
-                                creaturePlayed = true;
+                        const prioritizedPlays = chooseBestEnemyPlays(playableNonLands, profile);
+
+                        let cardPlayed = false;
+                        prioritizedPlays.forEach(card => {
+                            if (!canPayCost(card.cost, gameState.enemyMana)) return;
+
+                            if (card.type === 'instant' && Math.random() > profile.spellChance) return;
+
+                            payCost(card.cost, gameState.enemyMana);
+                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== card.id);
+
+                            if (card.type === 'creature') {
+                                gameState.enemyBoard.push({...card, tapped: true, damage: 0});
+                                showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
+                            } else if (card.type === 'artifact') {
+                                gameState.enemyBoard.push({...card, tapped: false});
+                                showGameLog(`${card.emoji} Enemy deploys ${card.name}`, true, card.theme === 'scifi');
+                            } else if (card.type === 'instant') {
+                                showGameLog(`${card.emoji} Enemy casts ${card.name}`, true, card.theme === 'scifi');
+                                resolveSpell(card, 'enemy');
                             }
+
+                            cardPlayed = true;
                         });
 
-                        if (creaturePlayed) {
+                        if (cardPlayed) {
                             updateUI();
                         }
 
                         setTimeout(() => {
-                            // Play spells on hard difficulty
-                            if (gameState.difficulty === 'hard') {
-                                const playableSpells = gameState.enemyHand
-                                    .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana));
-                                
-                                let spellPlayed = false;
-                                playableSpells.forEach(spell => {
-                                    if (canPayCost(spell.cost, gameState.enemyMana)) {
-                                        payCost(spell.cost, gameState.enemyMana);
-                                        gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
-                                        showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
-                                        resolveSpell(spell, 'enemy');
-                                        spellPlayed = true;
-                                    }
-                                });
+                            // Attack with creatures
+                            const attackingCreatures = chooseEnemyAttackers(profile);
 
-                                if (spellPlayed) {
-                                    updateUI();
-                                }
+                            if (attackingCreatures.length > 0) {
+                                showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
+                            } else {
+                                showGameLog('🛡️ Enemy does not attack', true);
                             }
 
-                            setTimeout(() => {
-                                // Attack with creatures
-                                const attackers = gameState.enemyBoard.filter(c => 
-                                    c.type === 'creature' && !c.tapped
-                                );
-
-                                let attackingCreatures = [];
-                                if (gameState.difficulty === 'easy') {
-                                    attackingCreatures = attackers.filter(() => Math.random() > 0.5);
-                                } else if (gameState.difficulty === 'medium') {
-                                    attackingCreatures = attackers.filter(c => !c.abilities?.includes('defender'));
-                                } else {
-                                    const sorted = attackers
-                                        .filter(c => !c.abilities?.includes('defender'))
-                                        .sort((a, b) => (b.power + b.toughness) - (a.power + a.toughness));
-                                    
-                                    if (sorted.length > 1) {
-                                        attackingCreatures = sorted.slice(1);
-                                    } else {
-                                        attackingCreatures = sorted;
-                                    }
-                                }
-
-                                if (attackingCreatures.length > 0) {
-                                    showGameLog(`⚔️ Enemy attacks with ${attackingCreatures.length} creature${attackingCreatures.length > 1 ? 's' : ''}!`, true);
-                                } else {
-                                    showGameLog('🛡️ Enemy does not attack', true);
-                                }
-
-                                attackingCreatures.forEach(attacker => {
+                            attackingCreatures.forEach(attacker => {
                                     attacker.tapped = true;
                                     gameState.playerLife -= attacker.power;
                                     
@@ -2367,12 +2409,11 @@
                                     createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
                                 });
 
-                                updateUI();
-                                checkGameOver();
+                            updateUI();
+                            checkGameOver();
 
-                                setTimeout(() => {
-                                    startPlayerTurn();
-                                }, 1500);
+                            setTimeout(() => {
+                                startPlayerTurn();
                             }, 1500);
                         }, 1500);
                     }, 1500);
