@@ -438,11 +438,17 @@
         introVideo.removeAttribute('muted');
         introVideo.volume = 1.0;
 
-        // Pointer event avoids duplicate touch/click race conditions on mobile
-        clickToStart.addEventListener('pointerup', (e) => {
-            e.preventDefault();
+        // Robust startup trigger for browsers that don't consistently emit pointer events
+        const triggerIntroStart = (e) => {
+            if (e) {
+                e.preventDefault();
+            }
             beginIntroSequence();
-        }, { once: true });
+        };
+
+        clickToStart.addEventListener('pointerup', triggerIntroStart, { once: true });
+        clickToStart.addEventListener('touchend', triggerIntroStart, { once: true });
+        clickToStart.addEventListener('click', triggerIntroStart, { once: true });
 
         // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
@@ -3206,8 +3212,12 @@
                 clearTimeout(longPressTimer);
             };
 
-            cardEl.ontouchend = () => {
+            cardEl.ontouchend = (e) => {
                 clearTimeout(longPressTimer);
+                if (!touchMoved) {
+                    e.preventDefault();
+                    playCard(card.id);
+                }
             };
 
             handEl.appendChild(cardEl);
@@ -3353,6 +3363,20 @@
                 stackCard.classList.remove('show-tap-all');
                 if (landStackLongPressed) {
                     e.preventDefault();
+                    return;
+                }
+
+                if (!landStackTouchMoved) {
+                    e.preventDefault();
+                    const untappedLand = stack.find(c => !c.tapped);
+                    if (untappedLand) {
+                        tapLand(untappedLand.id);
+                    } else {
+                        const tappedLand = stack.find(c => c.tapped);
+                        if (tappedLand) {
+                            tapLand(tappedLand.id);
+                        }
+                    }
                 }
             };
 
@@ -3400,8 +3424,16 @@
                 clearTimeout(boardLongPressTimer);
             };
 
-            cardEl.ontouchend = () => {
+            cardEl.ontouchend = (e) => {
                 clearTimeout(boardLongPressTimer);
+                if (!boardTouchMoved) {
+                    e.preventDefault();
+                    if (card.type === 'creature' && attackPhase) {
+                        selectAttacker(card.id);
+                    } else if (card.type === 'artifact' && !attackPhase) {
+                        activateArtifact(card.id);
+                    }
+                }
             };
 
             boardEl.appendChild(cardEl);
