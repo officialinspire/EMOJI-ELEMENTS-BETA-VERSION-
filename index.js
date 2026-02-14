@@ -5,6 +5,35 @@
     // - Deck builder save -> next match uses saved deck
     // - Corrupt localStorage -> game still starts using fallback deck
 
+    const QA_DEBUG = true;
+
+    if (QA_DEBUG) {
+        window.addEventListener('error', (event) => {
+            const runtimeError = event?.error;
+            const stack = runtimeError?.stack || 'No stack trace available';
+            console.error('[QA] Runtime error:', {
+                message: event?.message || runtimeError?.message || 'Unknown error',
+                file: event?.filename,
+                line: event?.lineno,
+                column: event?.colno,
+                stack
+            });
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event?.reason;
+            const stack = reason?.stack || 'No stack trace available';
+            console.error('[QA] Unhandled promise rejection:', {
+                message: reason?.message || String(reason),
+                stack
+            });
+        });
+
+        // Quick manual QA checks:
+        // 1) Load page -> confirm no red errors.
+        // 2) Start match -> confirm no red errors.
+    }
+
     // Audio System
     const audioSystem = {
         startMenuMusic: new Audio('startmenu.mp3'),
