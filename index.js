@@ -238,7 +238,8 @@
         previousPlayerLife: 20,
         previousEnemyLife: 20,
         landsPlayedThisTurn: 0,  // Track lands played to enforce one land per turn rule
-        hasAttackedThisTurn: false  // VIGILANCE FIX: Prevent multiple attacks per turn
+        hasAttackedThisTurn: false,  // VIGILANCE FIX: Prevent multiple attacks per turn
+        matchFinalized: false
     };
 
     // Stats tracking
@@ -1167,6 +1168,131 @@
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
 
+    function getRewardThemeKey() {
+        const fallbackTheme = 'Nature';
+        const selectedDeckKey = gameMeta?.selectedDeckKey;
+        const selectedDeck = selectedDeckKey ? gameMeta?.decks?.[selectedDeckKey] : null;
+        const cardIds = Array.isArray(selectedDeck?.cardIds) ? selectedDeck.cardIds : [];
+        const themeCounts = {};
+
+        cardIds.forEach(cardId => {
+            const cardTheme = __CARD_BY_ID[cardId]?.theme;
+            if (!cardTheme) return;
+            themeCounts[cardTheme] = (themeCounts[cardTheme] || 0) + 1;
+        });
+
+        const sortedThemes = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]);
+        return sortedThemes[0]?.[0] || fallbackTheme;
+    }
+
+    function generatePack(themeKey) {
+        const requestedTheme = String(themeKey || '').trim().toLowerCase();
+        const themedPool = __ALL_CARDS.filter(card => {
+            const cardTheme = String(card?.theme || '').trim().toLowerCase();
+            return card.type !== 'land' && (!requestedTheme || cardTheme === requestedTheme);
+        });
+
+        const fallbackPool = __ALL_CARDS.filter(card => card.type !== 'land');
+        const sourcePool = themedPool.length > 0 ? themedPool : fallbackPool;
+        const remaining = [...sourcePool];
+
+        const tierByRarity = {
+            common: 'common',
+            rare: 'uncommon',
+            epic: 'rare_plus',
+            legendary: 'rare_plus'
+        };
+
+        function drawFromTiers(preferredTiers) {
+            for (const tier of preferredTiers) {
+                const candidates = remaining.filter(card => tierByRarity[card.__rarity] === tier);
+                if (candidates.length > 0) {
+                    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+                    const index = remaining.findIndex(card => card.__id === pick.__id);
+                    if (index >= 0) {
+                        remaining.splice(index, 1);
+                    }
+                    return pick.__id;
+                }
+            }
+
+            if (remaining.length > 0) {
+                const fallbackIndex = Math.floor(Math.random() * remaining.length);
+                const [pick] = remaining.splice(fallbackIndex, 1);
+                return pick.__id;
+            }
+
+            return null;
+        }
+
+        const cardIds = [
+            drawFromTiers(['common', 'uncommon', 'rare_plus']),
+            drawFromTiers(['common', 'uncommon', 'rare_plus']),
+            drawFromTiers(['common', 'uncommon', 'rare_plus']),
+            drawFromTiers(['uncommon', 'common']),
+            drawFromTiers(['rare_plus', 'uncommon', 'common'])
+        ].filter(Boolean);
+
+        return cardIds;
+    }
+
+    function finalizeMatch(result) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+        gameState.matchFinalized = true;
+
+        const normalizedResult = result === 'win' ? 'win' : 'loss';
+
+        if (normalizedResult === 'win') {
+            gameStats.wins++;
+            gameStats.total++;
+
+            const themeKey = getRewardThemeKey();
+            const cardIds = generatePack(themeKey);
+            const openedAt = new Date().toISOString();
+
+            if (!gameMeta.stats) {
+                gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+            }
+            gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
+            gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
+
+            cardIds.forEach(cardId => {
+                gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+            });
+
+            gameMeta.lastPack = { themeKey, cardIds, openedAt };
+            metaSave(gameMeta);
+            saveStats();
+
+            console.log('🏆 Match reward granted:', gameMeta.lastPack);
+
+            stopSFX('gameplayMusic');
+            playSFX('gameVictory');
+            const victoryOverlay = document.getElementById('victoryOverlay');
+            victoryOverlay.classList.add('show');
+            return;
+        }
+
+        gameStats.losses++;
+        gameStats.total++;
+
+        if (!gameMeta.stats) {
+            gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+        }
+        gameMeta.stats.losses = Number.isFinite(gameMeta.stats.losses) ? gameMeta.stats.losses + 1 : 1;
+        metaSave(gameMeta);
+        saveStats();
+
+        console.log('💀 Match recorded as loss.');
+
+        stopSFX('gameplayMusic');
+        playSFX('gameLose');
+        const loseOverlay = document.getElementById('loseOverlay');
+        loseOverlay.classList.add('show');
+    }
+
     // Particle System - OPTIMIZED for better performance on mobile and desktop
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
@@ -1953,6 +2079,7 @@
         gameState.previousEnemyLife = 20;
         gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
         gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
+        gameState.matchFinalized = false;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -3491,29 +3618,9 @@
     // Check Game Over
     function checkGameOver() {
         if (gameState.playerLife <= 0) {
-            gameStats.losses++;
-            gameStats.total++;
-            saveStats();
-
-            // Stop gameplay music and play lose sound
-            stopSFX('gameplayMusic');
-            playSFX('gameLose');
-
-            // Show lose overlay
-            const loseOverlay = document.getElementById('loseOverlay');
-            loseOverlay.classList.add('show');
+            finalizeMatch('loss');
         } else if (gameState.enemyLife <= 0) {
-            gameStats.wins++;
-            gameStats.total++;
-            saveStats();
-
-            // Stop gameplay music and play victory sound
-            stopSFX('gameplayMusic');
-            playSFX('gameVictory');
-
-            // Show victory overlay
-            const victoryOverlay = document.getElementById('victoryOverlay');
-            victoryOverlay.classList.add('show');
+            finalizeMatch('win');
         }
     }
 
