@@ -1542,11 +1542,16 @@
             if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(card.effect)) {
                 resolveSpell(artifactOnBoard, 'player');
                 checkStateBasedActions();
+
+                if (isOneShotArtifactEffect(card.effect)) {
+                    sendBoardCardToGraveyard(artifactOnBoard.id, 'player');
+                }
             }
         } else if (card.type === 'instant') {
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             resolveSpell(card, 'player');
+            moveCardToGraveyard(card, 'player');
             // Check for dead creatures after spell resolves
             checkStateBasedActions();
         }
@@ -1783,6 +1788,31 @@
         updateUI();
     }
 
+    function moveCardToGraveyard(card, owner) {
+        if (!card) return;
+
+        const graveyard = owner === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
+        graveyard.push({...card, tapped: false, damage: 0});
+    }
+
+    function isOneShotArtifactEffect(effect) {
+        return ['buff', 'buff_defense', 'aoe', 'draw_on_play', 'token', 'destroy', 'bounce', 'tap', 'discard', 'discard_draw'].includes(effect);
+    }
+
+    function sendBoardCardToGraveyard(cardId, owner) {
+        const board = owner === 'player' ? gameState.playerBoard : gameState.enemyBoard;
+        const target = board.find(c => c.id === cardId);
+        if (!target) return;
+
+        moveCardToGraveyard(target, owner);
+
+        if (owner === 'player') {
+            gameState.playerBoard = gameState.playerBoard.filter(c => c.id !== cardId);
+        } else {
+            gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== cardId);
+        }
+    }
+
     // State-based actions - check for dead creatures
     function checkStateBasedActions() {
         // Check player board for dead creatures
@@ -1790,7 +1820,7 @@
             c.type === 'creature' && (c.damage || 0) >= c.toughness
         );
         playerDeadCreatures.forEach(creature => {
-            gameState.playerGraveyard.push({...creature});
+            moveCardToGraveyard(creature, 'player');
             showGameLog(`💀 ${creature.emoji} ${creature.name} is destroyed!`, false);
         });
         gameState.playerBoard = gameState.playerBoard.filter(c =>
@@ -1802,7 +1832,7 @@
             c.type === 'creature' && (c.damage || 0) >= c.toughness
         );
         enemyDeadCreatures.forEach(creature => {
-            gameState.enemyGraveyard.push({...creature});
+            moveCardToGraveyard(creature, 'enemy');
             showGameLog(`💀 ${creature.emoji} ${creature.name} is destroyed!`, true);
         });
         gameState.enemyBoard = gameState.enemyBoard.filter(c =>
@@ -1929,12 +1959,11 @@
             case 'destroy':
                 // Destroy target creature (simplified - destroys a random creature)
                 const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                const targetGraveyard = isCasterPlayer ? gameState.enemyGraveyard : gameState.playerGraveyard;
                 const creatures = targetBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
                 if (creatures.length > 0) {
                     const target = creatures[Math.floor(Math.random() * creatures.length)];
                     // Move to graveyard before removing from board
-                    targetGraveyard.push({...target});
+                    moveCardToGraveyard(target, isCasterPlayer ? 'enemy' : 'player');
                     if (isCasterPlayer) {
                         gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
                     } else {
@@ -2140,6 +2169,7 @@
                     if (discardHand.length > 0) {
                         const randomIndex = Math.floor(Math.random() * discardHand.length);
                         const discarded = discardHand.splice(randomIndex, 1)[0];
+                        moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
                     }
                 }
@@ -2154,6 +2184,7 @@
                     if (discardHand2.length > 0) {
                         const randomIndex = Math.floor(Math.random() * discardHand2.length);
                         const discarded = discardHand2.splice(randomIndex, 1)[0];
+                        moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
                     }
                     drawCard(caster);
@@ -2676,6 +2707,36 @@
                     }
 
                     setTimeout(() => {
+                        // Play artifacts
+                        const playableArtifacts = gameState.enemyHand
+                            .filter(c => c.type === 'artifact' && canPayCost(c.cost, gameState.enemyMana));
+
+                        let artifactPlayed = false;
+                        playableArtifacts.forEach(artifact => {
+                            if (canPayCost(artifact.cost, gameState.enemyMana)) {
+                                payCost(artifact.cost, gameState.enemyMana);
+                                gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== artifact.id);
+                                const artifactOnBoard = {...artifact, tapped: false};
+                                gameState.enemyBoard.push(artifactOnBoard);
+                                showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
+
+                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifact.effect)) {
+                                    resolveSpell(artifactOnBoard, 'enemy');
+                                    checkStateBasedActions();
+
+                                    if (isOneShotArtifactEffect(artifact.effect)) {
+                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
+                                    }
+                                }
+
+                                artifactPlayed = true;
+                            }
+                        });
+
+                        if (artifactPlayed) {
+                            updateUI();
+                        }
+
                         // Play spells on hard difficulty
                         if (gameState.difficulty === 'hard') {
                             const playableSpells = gameState.enemyHand
@@ -2688,6 +2749,7 @@
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
                                     resolveSpell(spell, 'enemy');
+                                    moveCardToGraveyard(spell, 'enemy');
                                     // Check for dead creatures after spell resolves
                                     checkStateBasedActions();
                                     spellPlayed = true;
