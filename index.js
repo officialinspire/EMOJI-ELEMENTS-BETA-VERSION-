@@ -1539,6 +1539,31 @@
         stage: 'sealed'
     };
 
+    function updatePackOpeningDebug() {
+        const debugEl = document.getElementById('packQaDebug');
+        if (!debugEl) return;
+
+        if (!QA_DEBUG) {
+            debugEl.textContent = '';
+            debugEl.style.display = 'none';
+            return;
+        }
+
+        debugEl.style.display = 'block';
+        const total = packOpeningState.cards.length;
+        const current = total ? packOpeningState.currentIndex + 1 : 0;
+        const progress = Math.round(packOpeningState.progress * 100);
+        debugEl.textContent = `stage=${packOpeningState.stage} progress=${progress}% card=${current}/${total}`;
+    }
+
+    function getClientXFromEvent(event) {
+        if (typeof event.clientX === 'number') {
+            return event.clientX;
+        }
+        const touch = event.touches?.[0] || event.changedTouches?.[0];
+        return touch?.clientX ?? 0;
+    }
+
     function fallbackPackReveal(cards) {
         const safeCards = Array.isArray(cards) ? cards : [];
         const lines = safeCards.length
@@ -1565,6 +1590,7 @@
         document.getElementById('packCardCounter').textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
         document.getElementById('packPrevBtn').disabled = boundedIndex === 0;
         document.getElementById('packNextBtn').disabled = boundedIndex === packOpeningState.cards.length - 1;
+        updatePackOpeningDebug();
     }
 
     function showPackRevealStage() {
@@ -1572,18 +1598,42 @@
         document.getElementById('packSealedStage').classList.remove('pack-stage-active');
         document.getElementById('packRevealStage').classList.add('pack-stage-active');
         setPackOpeningCard(0);
+        updatePackOpeningDebug();
     }
 
     function closePackOpeningOverlay() {
         const overlay = document.getElementById('packOpeningOverlay');
         hideModal(overlay);
+
         packOpeningState.active = false;
+        packOpeningState.cards = [];
+        packOpeningState.currentIndex = 0;
+        packOpeningState.isDragging = false;
+        packOpeningState.dragStartX = 0;
+        packOpeningState.maxDistance = 0;
+        packOpeningState.progress = 0;
         packOpeningState.stage = 'sealed';
+
+        const sealedStage = document.getElementById('packSealedStage');
+        const revealStage = document.getElementById('packRevealStage');
+        const shell = document.getElementById('packTearSurface');
+        const instruction = document.getElementById('packInstruction');
+        const progress = document.getElementById('packProgressFill');
+        const tearLine = document.getElementById('packTearLine');
+
+        sealedStage?.classList.add('pack-stage-active');
+        revealStage?.classList.remove('pack-stage-active');
+        shell?.classList.remove('opened');
+        if (instruction) instruction.textContent = 'Slide to rip open';
+        if (progress) progress.style.width = '0%';
+        if (tearLine) tearLine.style.left = '0%';
 
         const victoryOverlay = document.getElementById('victoryOverlay');
         if (victoryOverlay) {
             victoryOverlay.classList.remove('show');
         }
+
+        updatePackOpeningDebug();
     }
 
     function triggerPackOpenAnimation() {
@@ -1596,6 +1646,7 @@
             instruction.textContent = 'Pack opening...';
         }
         shell.classList.add('opened');
+        updatePackOpeningDebug();
 
         setTimeout(() => {
             showPackRevealStage();
@@ -1613,6 +1664,7 @@
         const progressPercent = Math.round(packOpeningState.progress * 100);
         document.getElementById('packProgressFill').style.width = `${progressPercent}%`;
         document.getElementById('packTearLine').style.left = `${progressPercent}%`;
+        updatePackOpeningDebug();
 
         if (packOpeningState.progress >= 1) {
             triggerPackOpenAnimation();
@@ -1656,6 +1708,7 @@
             tearLine.style.left = '0%';
 
             showModal(overlay);
+            updatePackOpeningDebug();
         } catch (error) {
             console.warn('Pack opening overlay failed, using fallback.', error);
             fallbackPackReveal([]);
@@ -1675,22 +1728,37 @@
             return;
         }
 
-        tearSurface.addEventListener('pointerdown', (event) => {
+        const startDrag = (event) => {
             if (!packOpeningState.active || packOpeningState.stage !== 'sealed') return;
+            event.preventDefault?.();
             packOpeningState.isDragging = true;
-            packOpeningState.dragStartX = event.clientX;
-            tearSurface.setPointerCapture?.(event.pointerId);
-        });
-
-        tearSurface.addEventListener('pointermove', (event) => {
-            updatePackRipProgress(event.clientX);
-        });
-
-        const stopDrag = () => {
-            packOpeningState.isDragging = false;
+            packOpeningState.dragStartX = getClientXFromEvent(event);
+            if (typeof event.pointerId === 'number') {
+                tearSurface.setPointerCapture?.(event.pointerId);
+            }
+            updatePackOpeningDebug();
         };
+
+        const moveDrag = (event) => {
+            if (!packOpeningState.isDragging) return;
+            event.preventDefault?.();
+            updatePackRipProgress(getClientXFromEvent(event));
+        };
+
+        const stopDrag = (event) => {
+            event?.preventDefault?.();
+            packOpeningState.isDragging = false;
+            updatePackOpeningDebug();
+        };
+
+        tearSurface.addEventListener('pointerdown', startDrag);
+        tearSurface.addEventListener('pointermove', moveDrag);
         tearSurface.addEventListener('pointerup', stopDrag);
         tearSurface.addEventListener('pointercancel', stopDrag);
+        tearSurface.addEventListener('touchstart', startDrag, { passive: false });
+        tearSurface.addEventListener('touchmove', moveDrag, { passive: false });
+        tearSurface.addEventListener('touchend', stopDrag, { passive: false });
+        tearSurface.addEventListener('touchcancel', stopDrag, { passive: false });
 
         closeBtn.addEventListener('click', () => {
             closePackOpeningOverlay();
@@ -1707,16 +1775,21 @@
         let swipeStartX = 0;
         let swiping = false;
 
-        viewport.addEventListener('pointerdown', (event) => {
+        const startSwipe = (event) => {
             if (packOpeningState.stage !== 'reveal') return;
+            event.preventDefault?.();
             swiping = true;
-            swipeStartX = event.clientX;
-            viewport.setPointerCapture?.(event.pointerId);
-        });
+            swipeStartX = getClientXFromEvent(event);
+            if (typeof event.pointerId === 'number') {
+                viewport.setPointerCapture?.(event.pointerId);
+            }
+        };
 
-        viewport.addEventListener('pointermove', (event) => {
+        const moveSwipe = (event) => {
             if (!swiping || packOpeningState.stage !== 'reveal') return;
-            const deltaX = event.clientX - swipeStartX;
+            event.preventDefault?.();
+            const clientX = getClientXFromEvent(event);
+            const deltaX = clientX - swipeStartX;
             if (Math.abs(deltaX) < 55) return;
 
             if (deltaX < 0) {
@@ -1725,14 +1798,21 @@
                 setPackOpeningCard(packOpeningState.currentIndex - 1);
             }
 
-            swipeStartX = event.clientX;
-        });
+            swipeStartX = clientX;
+        };
 
-        const stopSwipe = () => {
+        const stopSwipe = (event) => {
+            event?.preventDefault?.();
             swiping = false;
         };
+        viewport.addEventListener('pointerdown', startSwipe);
+        viewport.addEventListener('pointermove', moveSwipe);
         viewport.addEventListener('pointerup', stopSwipe);
         viewport.addEventListener('pointercancel', stopSwipe);
+        viewport.addEventListener('touchstart', startSwipe, { passive: false });
+        viewport.addEventListener('touchmove', moveSwipe, { passive: false });
+        viewport.addEventListener('touchend', stopSwipe, { passive: false });
+        viewport.addEventListener('touchcancel', stopSwipe, { passive: false });
     }
 
 
