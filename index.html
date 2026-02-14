@@ -121,6 +121,7 @@
             
             <div class="menu-buttons" id="mainMenu">
                 <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
+                <button class="menu-btn" onclick="showDeckBuilder()">🛠️ DECK BUILDER</button>
                 <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
                 <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
             </div>
@@ -212,6 +213,32 @@
                 </div>
                 <button class="menu-btn" onclick="resetStats()" style="background: linear-gradient(135deg, #dc143c 0%, #8b0000 100%); color: #fff;">🔄 RESET STATS</button>
                 <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK TO MENU</button>
+            </div>
+
+            <div id="deckBuilderScreen" style="display: none;">
+                <div class="modal-subtitle">Deck Builder</div>
+                <div class="deck-builder-controls">
+                    <label for="deckBuilderDeckKey">Deck:</label>
+                    <select id="deckBuilderDeckKey"></select>
+                </div>
+                <div class="deck-builder-columns">
+                    <div class="deck-builder-column">
+                        <div class="deck-builder-column-title">Eligible Owned Cards</div>
+                        <div class="deck-builder-list" id="deckBuilderPool"></div>
+                    </div>
+                    <div class="deck-builder-column">
+                        <div class="deck-builder-column-title">Deck List</div>
+                        <div class="deck-builder-list" id="deckBuilderDeck"></div>
+                    </div>
+                </div>
+                <div class="deck-builder-footer">
+                    <div id="deckBuilderStatus"></div>
+                    <div class="deck-builder-footer-buttons">
+                        <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
+                        <button class="menu-btn" onclick="saveDeckBuilderDeck()">💾 SAVE DECK</button>
+                    </div>
+                </div>
+                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 12px;">← BACK TO MENU</button>
             </div>
         </div>
     </div>
