@@ -885,6 +885,25 @@ body::after {
     margin: -5px 0 16px;
 }
 
+.beta-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(138, 125, 255, 0.22));
+    box-shadow: 0 0 14px rgba(138, 125, 255, 0.24), inset 0 0 8px rgba(255, 255, 255, 0.08);
+    color: var(--gold-1);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    max-width: 100%;
+    white-space: nowrap;
+}
+
 .modal-footer-credit {
     margin: 16px auto 0;
     padding: 0 8px;
@@ -922,6 +941,16 @@ body::after {
     margin-bottom: 20px;
     color: #ffed4e;
     line-height: 1.6;
+}
+
+.deck-builder-subtitle {
+    margin: -8px auto 14px;
+    max-width: 34ch;
+    color: var(--text-soft);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    text-wrap: balance;
 }
 
 .element-selector {
@@ -1376,6 +1405,11 @@ body::after {
 
     .modal-intro {
         font-size: 13px;
+    }
+
+    .deck-builder-subtitle {
+        max-width: 100%;
+        font-size: 12px;
     }
 
     .menu-buttons {
