@@ -2085,9 +2085,24 @@
         resetElementSelection();
     }
 
+    function setHowToPlayPage(n) {
+        const targetPage = n === 2 ? 2 : 1;
+        const pages = document.querySelectorAll('#howToPlayScreen .howto-page');
+        pages.forEach(page => {
+            const pageNum = Number(page.dataset.page || 1);
+            page.style.display = pageNum === targetPage ? 'block' : 'none';
+        });
+
+        const indicator = document.getElementById('howToPlayPageIndicator');
+        if (indicator) {
+            indicator.textContent = `Page ${targetPage}/2`;
+        }
+    }
+
     function showHowToPlay() {
         playSFX('menuOpen');
         setStartMenuScreen('howToPlayScreen');
+        setHowToPlayPage(1);
     }
 
     function showStats() {
