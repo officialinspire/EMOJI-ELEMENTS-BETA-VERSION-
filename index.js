@@ -295,6 +295,7 @@
         const clickToStart = document.getElementById('clickToStart');
         const introContainer = document.getElementById('introContainer');
         const introVideo = document.getElementById('introVideo');
+        const introSkipHint = introContainer.querySelector('.intro-skip-hint');
         const startModal = document.getElementById('startModal');
         const INTRO_MAX_DURATION_MS = 15000;
         const INTRO_VIDEO_START_TIMEOUT_MS = 3000;
@@ -425,6 +426,11 @@
         initializeButtonTypes();
         initializeStartMenuState();
 
+        if (introSkipHint) {
+            const prefersTouchPrompt = isMobile || window.matchMedia('(pointer: coarse)').matches;
+            introSkipHint.textContent = prefersTouchPrompt ? 'Tap anywhere to skip' : 'Click anywhere to skip';
+        }
+
         // Preload video and ensure audio is ready
         introVideo.load();
 
@@ -440,6 +446,10 @@
 
         // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
+        introVideo.addEventListener('error', () => {
+            console.warn('Intro video failed to load; showing menu fallback.');
+            skipIntro();
+        });
 
         // Allow clicking/tapping to skip video
         introContainer.addEventListener('click', skipIntro);
