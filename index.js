@@ -250,6 +250,24 @@
 
     // Load stats from localStorage
     function loadStats() {
+        const savedMeta = localStorage.getItem('emoji_elements_meta_v1');
+        if (savedMeta) {
+            try {
+                const parsedMeta = JSON.parse(savedMeta);
+                if (parsedMeta && parsedMeta.stats) {
+                    gameStats = {
+                        wins: Number.isFinite(parsedMeta.stats.wins) ? parsedMeta.stats.wins : 0,
+                        losses: Number.isFinite(parsedMeta.stats.losses) ? parsedMeta.stats.losses : 0,
+                        total: (Number.isFinite(parsedMeta.stats.wins) ? parsedMeta.stats.wins : 0) +
+                               (Number.isFinite(parsedMeta.stats.losses) ? parsedMeta.stats.losses : 0)
+                    };
+                    return;
+                }
+            } catch (error) {
+                console.warn('Invalid meta stats, falling back to legacy stats.', error);
+            }
+        }
+
         const saved = localStorage.getItem('emojiElementsStats');
         if (!saved) {
             return;
@@ -274,6 +292,12 @@
     }
 
     function saveStats() {
+        if (gameMeta && gameMeta.stats) {
+            gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
+            gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
+            gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened : 0;
+            metaSave(gameMeta);
+        }
         localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
     }
 
@@ -899,6 +923,249 @@
 
     window.__ALL_CARDS = __ALL_CARDS;
     window.__CARD_BY_ID = __CARD_BY_ID;
+
+    // META persistence module
+    const META_STORAGE_KEY = 'emoji_elements_meta_v1';
+    const STARTER_MONO_DECK_KEYS = ['FIRE', 'WATER', 'EARTH', 'SWAMP', 'LIGHT'];
+    const STARTER_DUAL_DECK_KEYS = ['FIRE_WATER', 'FIRE_EARTH', 'WATER_EARTH', 'EARTH_SWAMP', 'SWAMP_LIGHT'];
+
+    function getDeckColorsFromKey(deckKey) {
+        return String(deckKey || '')
+            .split('_')
+            .map(part => part.toLowerCase())
+            .filter(color => ELEMENTS[color]);
+    }
+
+    function getDeckCardCopyLimit(card) {
+        if (!card || card.type === 'land') return Number.POSITIVE_INFINITY;
+        return card.__rarity === 'legendary' ? 1 : 2;
+    }
+
+    function metaLoad() {
+        const raw = localStorage.getItem(META_STORAGE_KEY);
+        if (!raw) return null;
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (error) {
+            console.warn('Invalid meta save, rebuilding.', error);
+            return null;
+        }
+    }
+
+    function metaSave(meta) {
+        localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+    }
+
+    function buildStarterDeckFromColors(deckKey, colors) {
+        const LAND_COUNT = 25;
+        const NON_LAND_COUNT = 35;
+        const COLORLESS_LAND_COUNT = 3;
+        const coloredLandCount = LAND_COUNT - COLORLESS_LAND_COUNT;
+
+        const cardIds = [];
+        const cardCounts = {};
+
+        function addCardById(cardId, amount = 1) {
+            const card = __CARD_BY_ID[cardId];
+            if (!card) return;
+            const limit = getDeckCardCopyLimit(card);
+            const current = cardCounts[cardId] || 0;
+            const room = Math.max(0, limit - current);
+            const toAdd = Math.min(room, amount);
+            for (let i = 0; i < toAdd; i++) {
+                cardIds.push(cardId);
+            }
+            cardCounts[cardId] = current + toAdd;
+        }
+
+        if (colors.length === 1) {
+            const monoLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[0]])];
+            if (monoLand) {
+                for (let i = 0; i < coloredLandCount; i++) {
+                    cardIds.push(monoLand.__id);
+                }
+            }
+        } else {
+            const firstCount = Math.ceil(coloredLandCount / 2);
+            const secondCount = Math.floor(coloredLandCount / 2);
+            const firstLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[0]])];
+            const secondLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[1]])];
+            if (firstLand) {
+                for (let i = 0; i < firstCount; i++) {
+                    cardIds.push(firstLand.__id);
+                }
+            }
+            if (secondLand) {
+                for (let i = 0; i < secondCount; i++) {
+                    cardIds.push(secondLand.__id);
+                }
+            }
+        }
+
+        const wastelandId = getCardId(CARD_DATABASE.lands.wasteland);
+        for (let i = 0; i < COLORLESS_LAND_COUNT; i++) {
+            cardIds.push(wastelandId);
+        }
+
+        const eligibleNonLands = __ALL_CARDS
+            .filter(card => card.type !== 'land')
+            .filter(card => {
+                const costElements = Object.keys(card.cost || {});
+                return costElements.every(element => element === 'colorless' || colors.includes(element));
+            })
+            .sort((a, b) => a.__id.localeCompare(b.__id));
+
+        while (Object.keys(cardCounts).reduce((sum, id) => sum + (cardCounts[id] || 0), 0) < NON_LAND_COUNT) {
+            let addedInPass = false;
+            for (const card of eligibleNonLands) {
+                const before = cardCounts[card.__id] || 0;
+                addCardById(card.__id, 1);
+                if ((cardCounts[card.__id] || 0) > before) {
+                    addedInPass = true;
+                }
+                const currentNonLandCount = Object.keys(cardCounts).reduce((sum, id) => sum + (cardCounts[id] || 0), 0);
+                if (currentNonLandCount >= NON_LAND_COUNT) break;
+            }
+
+            if (!addedInPass) {
+                break;
+            }
+        }
+
+        return {
+            deckKey,
+            colors: [...colors],
+            starterCardIds: [...cardIds],
+            cardIds
+        };
+    }
+
+    function createInitialMeta() {
+        const decks = {};
+        const collection = {};
+        const starterDeckKeys = [...STARTER_MONO_DECK_KEYS, ...STARTER_DUAL_DECK_KEYS];
+
+        starterDeckKeys.forEach(deckKey => {
+            const colors = getDeckColorsFromKey(deckKey);
+            if (colors.length === 0) return;
+            const starterDeck = buildStarterDeckFromColors(deckKey, colors);
+            decks[deckKey] = starterDeck;
+
+            if (STARTER_MONO_DECK_KEYS.includes(deckKey)) {
+                starterDeck.cardIds.forEach(cardId => {
+                    collection[cardId] = (collection[cardId] || 0) + 1;
+                });
+            }
+        });
+
+        return {
+            version: 1,
+            collection,
+            decks,
+            selectedDeckKey: 'FIRE',
+            stats: { wins: 0, losses: 0, packsOpened: 0 },
+            lastPack: null
+        };
+    }
+
+    function clampDeckCardIdsToOwned(cardIds, collection) {
+        const ownedRemaining = { ...(collection || {}) };
+        const usageCount = {};
+        const output = [];
+
+        (Array.isArray(cardIds) ? cardIds : []).forEach(cardId => {
+            const card = __CARD_BY_ID[cardId];
+            if (!card) return;
+            if (!Number.isFinite(ownedRemaining[cardId]) || ownedRemaining[cardId] <= 0) return;
+            const limit = getDeckCardCopyLimit(card);
+            const used = usageCount[cardId] || 0;
+            if (used >= limit) return;
+            output.push(cardId);
+            usageCount[cardId] = used + 1;
+            ownedRemaining[cardId] -= 1;
+        });
+
+        return output;
+    }
+
+    function metaEnsureInitialized() {
+        const loaded = metaLoad();
+        if (!loaded || loaded.version !== 1) {
+            const seeded = createInitialMeta();
+            metaSave(seeded);
+            return seeded;
+        }
+
+        const meta = {
+            version: 1,
+            collection: {},
+            decks: {},
+            selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
+            stats: {
+                wins: Number.isFinite(loaded?.stats?.wins) ? loaded.stats.wins : 0,
+                losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
+                packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
+            },
+            lastPack: loaded.lastPack ?? null
+        };
+
+        Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
+            if (!__CARD_BY_ID[cardId]) return;
+            const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+            if (safeCount > 0) {
+                meta.collection[cardId] = safeCount;
+            }
+        });
+
+        Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
+            const colors = Array.isArray(deckData?.colors)
+                ? deckData.colors.filter(color => ELEMENTS[color])
+                : getDeckColorsFromKey(deckKey);
+            if (colors.length === 0) return;
+            const cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], meta.collection);
+
+            meta.decks[deckKey] = {
+                deckKey,
+                colors,
+                starterCardIds: Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [],
+                cardIds
+            };
+        });
+
+        const seededMeta = createInitialMeta();
+        STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+            if (!meta.decks[deckKey]) {
+                meta.decks[deckKey] = seededMeta.decks[deckKey];
+            }
+
+            const requiredCounts = {};
+            (meta.decks[deckKey].cardIds || []).forEach(cardId => {
+                requiredCounts[cardId] = (requiredCounts[cardId] || 0) + 1;
+            });
+
+            Object.entries(requiredCounts).forEach(([cardId, needed]) => {
+                const owned = meta.collection[cardId] || 0;
+                if (owned < needed) {
+                    meta.collection[cardId] = needed;
+                }
+            });
+        });
+
+        if (!meta.decks[meta.selectedDeckKey]) {
+            meta.selectedDeckKey = 'FIRE';
+        }
+
+        metaSave(meta);
+        return meta;
+    }
+
+    let gameMeta = metaEnsureInitialized();
+    gameStats = {
+        wins: Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0,
+        losses: Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0,
+        total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
+    };
 
     // Particle System - OPTIMIZED for better performance on mobile and desktop
     const canvas = document.getElementById('particles');
