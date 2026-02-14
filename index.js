@@ -942,6 +942,11 @@
         return card.__rarity === 'legendary' ? 1 : 2;
     }
 
+    function getDeckBuilderCopyLimit(card) {
+        if (!card) return 0;
+        return card.__rarity === 'legendary' ? 1 : 2;
+    }
+
     function metaLoad() {
         const raw = localStorage.getItem(META_STORAGE_KEY);
         if (!raw) return null;
@@ -1090,6 +1095,53 @@
         return output;
     }
 
+
+    function getDeckTargetSize(deck) {
+        if (Array.isArray(deck?.starterCardIds) && deck.starterCardIds.length > 0) {
+            return deck.starterCardIds.length;
+        }
+        return 30;
+    }
+
+    function inferCardElements(card) {
+        if (!card) return [];
+
+        const explicitElements = new Set();
+        if (Array.isArray(card.elements)) {
+            card.elements.forEach(element => {
+                if (element === 'colorless' || ELEMENTS[element]) explicitElements.add(element);
+            });
+        }
+        if (card.element && (card.element === 'colorless' || ELEMENTS[card.element])) {
+            explicitElements.add(card.element);
+        }
+        Object.keys(card.cost || {}).forEach(element => {
+            if (element === 'colorless' || ELEMENTS[element]) explicitElements.add(element);
+        });
+        if (explicitElements.size > 0) return [...explicitElements];
+
+        const keywordMap = {
+            fire: ['fire', 'flame', 'ember', 'lava', 'magma', 'infernal', 'volcanic', 'blaze', 'burning'],
+            water: ['water', 'aqua', 'ocean', 'river', 'wave', 'frost', 'ice', 'mist', 'tidal'],
+            earth: ['earth', 'forest', 'stone', 'rock', 'nature', 'grove', 'bloom', 'vine', 'bamboo'],
+            swamp: ['swamp', 'shadow', 'dark', 'cursed', 'undead', 'venom', 'poison', 'bog', 'necro'],
+            light: ['light', 'holy', 'sun', 'angel', 'radiant', 'sacred', 'dawn', 'solar']
+        };
+
+        const haystack = `${card._category || ''} ${card.name || ''} ${card.desc || ''} ${card.cardType || ''} ${card.theme || ''}`.toLowerCase();
+        const inferred = Object.entries(keywordMap)
+            .filter(([, keywords]) => keywords.some(keyword => haystack.includes(keyword)))
+            .map(([color]) => color);
+
+        return inferred.length > 0 ? inferred : ['colorless'];
+    }
+
+    function isCardEligibleForDeck(card, deckColors) {
+        if (!card || !Array.isArray(deckColors) || deckColors.length === 0) return false;
+        const cardElements = inferCardElements(card);
+        return cardElements.every(element => element === 'colorless' || deckColors.includes(element));
+    }
+
     function metaEnsureInitialized() {
         const loaded = metaLoad();
         if (!loaded || loaded.version !== 1) {
@@ -1160,6 +1212,11 @@
         metaSave(meta);
         return meta;
     }
+
+    let deckBuilderState = {
+        deckKey: null,
+        workingCardIds: []
+    };
 
     let gameMeta = metaEnsureInitialized();
     gameStats = {
@@ -1542,13 +1599,192 @@
         updateStatsDisplay();
     }
 
+
+    function showDeckBuilder() {
+        playSFX('menuOpen');
+        setStartMenuScreen('deckBuilderScreen');
+        initializeDeckBuilder();
+    }
+
+    function getDeckBuilderDeckEntries(deckKey) {
+        const deck = gameMeta?.decks?.[deckKey];
+        const counts = {};
+        (deckBuilderState.workingCardIds || []).forEach(cardId => {
+            counts[cardId] = (counts[cardId] || 0) + 1;
+        });
+
+        const deckColors = Array.isArray(deck?.colors) ? deck.colors : getDeckColorsFromKey(deckKey);
+        const eligibleCardIds = Object.keys(gameMeta.collection || {})
+            .filter(cardId => {
+                const card = __CARD_BY_ID[cardId];
+                if (!card) return false;
+                return isCardEligibleForDeck(card, deckColors);
+            })
+            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b));
+
+        return { deck, counts, deckColors, eligibleCardIds };
+    }
+
+    function renderDeckBuilderListRows(container, rows, emptyText) {
+        if (!container) return;
+        container.innerHTML = '';
+        if (rows.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'deck-builder-empty';
+            empty.textContent = emptyText;
+            container.appendChild(empty);
+            return;
+        }
+        rows.forEach(row => container.appendChild(row));
+    }
+
+    function updateDeckBuilderStatus(deck) {
+        const status = document.getElementById('deckBuilderStatus');
+        if (!status) return;
+        const targetSize = getDeckTargetSize(deck);
+        const current = deckBuilderState.workingCardIds.length;
+        const ready = current === targetSize;
+        status.textContent = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
+    }
+
+    function renderDeckBuilder() {
+        const poolContainer = document.getElementById('deckBuilderPool');
+        const deckContainer = document.getElementById('deckBuilderDeck');
+        const saveBtn = document.querySelector('#deckBuilderScreen button[onclick="saveDeckBuilderDeck()"]');
+        if (!poolContainer || !deckContainer) return;
+
+        const { deck, counts, eligibleCardIds } = getDeckBuilderDeckEntries(deckBuilderState.deckKey);
+        if (!deck) return;
+
+        const targetSize = getDeckTargetSize(deck);
+
+        const poolRows = eligibleCardIds.map(cardId => {
+            const card = __CARD_BY_ID[cardId];
+            const owned = gameMeta.collection[cardId] || 0;
+            const inDeck = counts[cardId] || 0;
+            const remaining = Math.max(0, owned - inDeck);
+            const atLimit = inDeck >= getDeckBuilderCopyLimit(card);
+            const row = document.createElement('div');
+            row.className = 'deck-builder-row';
+            row.innerHTML = `<button type="button">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
+            const btn = row.querySelector('button');
+            btn.disabled = remaining <= 0 || atLimit || deckBuilderState.workingCardIds.length >= targetSize;
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+                deckBuilderState.workingCardIds.push(cardId);
+                renderDeckBuilder();
+            });
+            return row;
+        });
+
+        const deckRows = Object.keys(counts)
+            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b))
+            .map(cardId => {
+                const card = __CARD_BY_ID[cardId];
+                const row = document.createElement('div');
+                row.className = 'deck-builder-row';
+                row.innerHTML = `<button type="button">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
+                row.querySelector('button').addEventListener('click', () => {
+                    const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
+                    if (idx >= 0) {
+                        deckBuilderState.workingCardIds.splice(idx, 1);
+                        renderDeckBuilder();
+                    }
+                });
+                return row;
+            });
+
+        renderDeckBuilderListRows(poolContainer, poolRows, 'No eligible owned cards for this deck.');
+        renderDeckBuilderListRows(deckContainer, deckRows, 'Deck is empty.');
+
+        if (saveBtn) {
+            saveBtn.disabled = deckBuilderState.workingCardIds.length !== targetSize;
+        }
+        updateDeckBuilderStatus(deck);
+    }
+
+    function initializeDeckBuilder() {
+        const select = document.getElementById('deckBuilderDeckKey');
+        if (!select) return;
+
+        const deckKeys = Object.keys(gameMeta.decks || {}).sort();
+        const preferredDeckKey = deckBuilderState.deckKey && gameMeta.decks[deckBuilderState.deckKey]
+            ? deckBuilderState.deckKey
+            : (gameMeta.selectedDeckKey && gameMeta.decks[gameMeta.selectedDeckKey] ? gameMeta.selectedDeckKey : deckKeys[0]);
+
+        select.innerHTML = '';
+        deckKeys.forEach(deckKey => {
+            const option = document.createElement('option');
+            option.value = deckKey;
+            option.textContent = deckKey;
+            option.selected = deckKey === preferredDeckKey;
+            select.appendChild(option);
+        });
+
+        deckBuilderState.deckKey = preferredDeckKey || null;
+        deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
+
+        select.onchange = (event) => {
+            const deckKey = event.target.value;
+            deckBuilderState.deckKey = deckKey;
+            deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
+            renderDeckBuilder();
+        };
+
+        renderDeckBuilder();
+    }
+
+    function resetDeckBuilderDeck() {
+        const deckKey = deckBuilderState.deckKey;
+        const deck = gameMeta.decks?.[deckKey];
+        if (!deck) return;
+        playSFX('menuClose');
+        deckBuilderState.workingCardIds = [...(deck.starterCardIds || [])];
+        renderDeckBuilder();
+    }
+
+    function saveDeckBuilderDeck() {
+        const deckKey = deckBuilderState.deckKey;
+        const deck = gameMeta.decks?.[deckKey];
+        if (!deck) return;
+
+        const targetSize = getDeckTargetSize(deck);
+        const ownedRemaining = { ...(gameMeta.collection || {}) };
+        const used = {};
+        const candidate = [];
+        (deckBuilderState.workingCardIds || []).forEach(cardId => {
+            const card = __CARD_BY_ID[cardId];
+            if (!card) return;
+            if (!isCardEligibleForDeck(card, deck.colors || getDeckColorsFromKey(deckKey))) return;
+            if ((ownedRemaining[cardId] || 0) <= 0) return;
+            const limit = getDeckBuilderCopyLimit(card);
+            if ((used[cardId] || 0) >= limit) return;
+            candidate.push(cardId);
+            used[cardId] = (used[cardId] || 0) + 1;
+            ownedRemaining[cardId] -= 1;
+        });
+
+        if (candidate.length !== targetSize) {
+            showGameLog(`Deck must contain exactly ${targetSize} cards to save.`, true);
+            renderDeckBuilder();
+            return;
+        }
+
+        gameMeta.decks[deckKey].cardIds = [...candidate];
+        metaSave(gameMeta);
+        playSFX('select');
+        showGameLog(`Saved deck ${deckKey}.`, false);
+        deckBuilderState.workingCardIds = [...candidate];
+        renderDeckBuilder();
+    }
+
     function backToMenu() {
         playSFX('menuClose');
         setStartMenuScreen('mainMenu');
     }
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
-        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen'];
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen'];
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;

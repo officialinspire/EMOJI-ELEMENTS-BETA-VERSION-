@@ -1105,6 +1105,133 @@ body::after {
     box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
 }
 
+.deck-builder-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px 0 14px;
+}
+
+.deck-builder-controls label {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-soft);
+}
+
+.deck-builder-controls select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(22, 14, 38, 0.95);
+    color: var(--text-soft);
+}
+
+.deck-builder-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.deck-builder-column {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: 10px;
+    padding: 8px;
+}
+
+.deck-builder-column-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 8px;
+    color: var(--gold-1);
+}
+
+.deck-builder-list {
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.deck-builder-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+}
+
+.deck-builder-row button {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--text-soft);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.deck-builder-row button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.deck-builder-name {
+    text-align: left;
+    color: var(--text-soft);
+}
+
+.deck-builder-count {
+    color: #ffd86d;
+    font-weight: 700;
+    min-width: 52px;
+    text-align: right;
+}
+
+.deck-builder-empty {
+    font-family: 'Inter', sans-serif;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 12px;
+    padding: 8px 6px;
+}
+
+.deck-builder-footer {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#deckBuilderStatus {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: var(--text-soft);
+}
+
+.deck-builder-footer-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.deck-builder-footer-buttons .menu-btn {
+    flex: 1 1 160px;
+}
+
+@media (max-width: 768px) {
+    .deck-builder-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
 .difficulty-btn {
     padding: 12px 20px;
     background: rgba(52, 36, 92, 0.55);
