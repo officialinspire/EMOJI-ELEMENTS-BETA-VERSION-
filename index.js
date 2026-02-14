@@ -5178,6 +5178,13 @@
         cardEl.className = 'card';
         cardEl.dataset.cardId = card.id;
         cardEl.id = `card-${isEnemy ? 'enemy' : 'player'}-${card.id}`;
+
+        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
+        const rarity = validRarities.has(card.__rarity) ? card.__rarity : 'common';
+        cardEl.classList.add(`rarity-${rarity}`);
+        if (rarity === 'rare' || rarity === 'legendary') {
+            cardEl.classList.add(`juice-glow-${rarity}`);
+        }
         
         if (card.type === 'land') {
             cardEl.classList.add('land');

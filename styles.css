@@ -2845,6 +2845,22 @@ html {
     box-shadow: 0 0 12px rgba(255, 206, 96, 0.42), 0 0 26px rgba(255, 206, 96, 0.3);
 }
 
+.card.rarity-common,
+.card.rarity-uncommon,
+.card.rarity-rare,
+.card.rarity-epic,
+.card.rarity-legendary {
+    transition: box-shadow 0.2s ease;
+}
+
+.card.rarity-rare {
+    border-color: rgba(96, 181, 255, 0.7);
+}
+
+.card.rarity-legendary {
+    border-color: rgba(255, 206, 96, 0.8);
+}
+
 .screen-shake {
     animation: screenShakeFx 0.24s ease-in-out;
 }
