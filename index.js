@@ -4629,21 +4629,20 @@
                     }
 
                         setTimeout(() => {
-                            // Attack with creatures - MUCH MORE AGGRESSIVE AI
-                            const attackers = gameState.enemyBoard.filter(c =>
+                            const fallbackAttackers = gameState.enemyBoard.filter(c =>
                                 c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
                             );
 
                             let attackingCreatures = [];
-                            if (gameState.difficulty === 'easy') {
-                                // Easy: 70% chance to attack with each creature
-                                attackingCreatures = attackers.filter(() => Math.random() > 0.3);
-                            } else if (gameState.difficulty === 'medium') {
-                                // Medium: Attack with all non-defender creatures
-                                attackingCreatures = attackers;
-                            } else {
-                                // Hard: Attack with ALL non-defender creatures (most aggressive)
-                                attackingCreatures = attackers;
+                            try {
+                                attackingCreatures = chooseEnemyAttackers(fallbackAttackers, gameState.difficulty);
+                            } catch (attackSelectionError) {
+                                console.warn('AI attack selection failed, using fallback behavior:', attackSelectionError);
+                                if (gameState.difficulty === 'easy') {
+                                    attackingCreatures = fallbackAttackers.filter(() => Math.random() > 0.3);
+                                } else {
+                                    attackingCreatures = fallbackAttackers;
+                                }
                             }
 
                             resolveEnemyAttackPhase(attackingCreatures);
@@ -4673,6 +4672,56 @@
     function declarePlayerBlockers(enemyAttackers) {
         const availableBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
         return assignAutoBlockers(enemyAttackers, availableBlockers);
+    }
+
+    function chooseEnemyAttackers(eligibleAttackers, difficulty) {
+        if (!Array.isArray(eligibleAttackers) || eligibleAttackers.length === 0) {
+            return [];
+        }
+
+        if (difficulty === 'easy') {
+            return eligibleAttackers.filter(() => Math.random() > 0.3);
+        }
+
+        const potentialBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
+        const scoredAttackers = eligibleAttackers.map(attacker => {
+            let score = 0;
+            const power = attacker.power || 0;
+            const toughness = attacker.toughness || 0;
+
+            if (power >= 2) {
+                score += 2;
+            }
+
+            potentialBlockers.forEach(blocker => {
+                const blockerPower = blocker.power || 0;
+                const blockerToughness = blocker.toughness || 0;
+                const blockerDamage = blocker.damage || 0;
+                const blockerRemainingHealth = Math.max(0, blockerToughness - blockerDamage);
+
+                // Prefer attacks that can survive and trade up into likely blockers.
+                if (power >= blockerToughness && toughness > blockerPower) {
+                    score += 4;
+                }
+
+                // Prefer finishing off damaged blockers that are close to dying.
+                if (blockerDamage > 0 && blockerRemainingHealth > 0 && power >= blockerRemainingHealth) {
+                    score += 3;
+                }
+            });
+
+            return {attacker, score};
+        });
+
+        scoredAttackers.sort((a, b) => b.score - a.score);
+
+        const attackCount = difficulty === 'hard'
+            ? eligibleAttackers.length
+            : Math.max(1, Math.ceil(eligibleAttackers.length * 0.6));
+
+        return scoredAttackers
+            .slice(0, attackCount)
+            .map(({attacker}) => attacker);
     }
 
     function resolveEnemyAttackPhase(attackingCreatures) {
