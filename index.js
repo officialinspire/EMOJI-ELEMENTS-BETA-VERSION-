@@ -296,7 +296,7 @@
         const introVideo = document.getElementById('introVideo');
         const startModal = document.getElementById('startModal');
         const INTRO_MAX_DURATION_MS = 15000;
-        const INTRO_VIDEO_START_TIMEOUT_MS = 1200;
+        const INTRO_VIDEO_START_TIMEOUT_MS = 3000;
         let introSkipped = false;
         let introTimeoutId = null;
         let introStartWatchdogId = null;
@@ -355,6 +355,15 @@
             }, 250);
         }
 
+        function markIntroAsPlaying() {
+            if (startupState === 'starting-intro') {
+                startupState = 'playing-intro';
+            }
+            setTimeout(() => {
+                clickToStart.style.display = 'none';
+            }, 150);
+        }
+
         function beginIntroSequence() {
             if (startupState !== 'awaiting-click') {
                 return;
@@ -372,9 +381,10 @@
             introVideo.muted = false;
             introVideo.volume = 1.0;
 
-            // Fallback in case video never becomes visible/ready on some mobile browsers
+            // Fallback in case video playback never starts on slower mobile browsers
             introStartWatchdogId = setTimeout(() => {
-                if (startupState === 'starting-intro' && (introVideo.readyState < 2 || introVideo.videoWidth === 0)) {
+                const playbackStillBlocked = introVideo.paused && introVideo.currentTime === 0;
+                if (startupState === 'starting-intro' && playbackStillBlocked) {
                     console.warn('Intro video did not start correctly; showing menu fallback.');
                     skipIntro();
                 }
@@ -389,14 +399,24 @@
             const playPromise = introVideo.play();
             if (playPromise !== undefined) {
                 playPromise.then(() => {
-                    startupState = 'playing-intro';
-                    setTimeout(() => {
-                        clickToStart.style.display = 'none';
-                    }, 150);
+                    markIntroAsPlaying();
                 }).catch((e) => {
-                    console.warn('Video play failed:', e);
-                    skipIntro();
+                    console.warn('Video play failed with audio. Retrying muted:', e);
+                    introVideo.muted = true;
+                    const mutedPlayPromise = introVideo.play();
+                    if (mutedPlayPromise !== undefined) {
+                        mutedPlayPromise.then(() => {
+                            markIntroAsPlaying();
+                        }).catch((mutedError) => {
+                            console.warn('Muted video play failed:', mutedError);
+                            skipIntro();
+                        });
+                    } else {
+                        markIntroAsPlaying();
+                    }
                 });
+            } else {
+                markIntroAsPlaying();
             }
         }
 
