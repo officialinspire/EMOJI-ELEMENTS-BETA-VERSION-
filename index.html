@@ -274,10 +274,26 @@
                     <div id="deckBuilderStatus"></div>
                     <div class="deck-builder-footer-buttons">
                         <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
+                        <button class="menu-btn" onclick="openDeckBuilderGuide()">📘 DECK BUILDER GUIDE</button>
                         <button class="menu-btn" onclick="saveDeckBuilderDeck()">💾 SAVE DECK</button>
                     </div>
                 </div>
                 <button class="menu-btn" onclick="backToMenu()" style="margin-top: 12px;">← BACK TO MENU</button>
+            </div>
+
+            <div id="deckBuilderGuideOverlay" class="guide-overlay" style="display:none;">
+                <div class="guide-panel">
+                    <button class="guide-close-btn" type="button" onclick="closeDeckBuilderGuide()" aria-label="Close Deck Builder Guide">✕</button>
+                    <h3>📘 Deck Builder Guide</h3>
+                    <ul>
+                        <li>You can only add cards you <strong>OWN</strong>, earned from booster packs.</li>
+                        <li>Copy limits apply: normal cards have a max duplicate limit, and legendary cards have a stricter cap.</li>
+                        <li>Color identity matters: mono decks use one element, while two-color decks can only use cards legal for both selected elements.</li>
+                        <li>Deck size must match the exact requirement; this keeps draws fair and consistent and is required before saving.</li>
+                        <li>Standard decks auto-load by selection: choosing FIRE or FIRE/WATER in battle setup uses that saved deck every match.</li>
+                        <li>Winning matches earns themed booster packs, expanding your collection and unlocking more deck-building options.</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="modal-footer-credit">
