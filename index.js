@@ -1168,32 +1168,102 @@
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
 
-    function getRewardThemeKey() {
-        const fallbackTheme = 'Nature';
-        const selectedDeckKey = gameMeta?.selectedDeckKey;
-        const selectedDeck = selectedDeckKey ? gameMeta?.decks?.[selectedDeckKey] : null;
-        const cardIds = Array.isArray(selectedDeck?.cardIds) ? selectedDeck.cardIds : [];
-        const themeCounts = {};
+    const PACK_THEMES = [
+        { key: 'fantasy', label: 'Fantasy', weight: 24 },
+        { key: 'scifi', label: 'Science Fiction', weight: 18 },
+        { key: 'tech', label: 'Tech', weight: 16 },
+        { key: 'alien', label: 'Alien', weight: 14 },
+        { key: 'robot', label: 'Robot', weight: 14 },
+        { key: 'lands', label: 'Lands', weight: 14 }
+    ];
 
-        cardIds.forEach(cardId => {
-            const cardTheme = __CARD_BY_ID[cardId]?.theme;
-            if (!cardTheme) return;
-            themeCounts[cardTheme] = (themeCounts[cardTheme] || 0) + 1;
+    const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
+    const THEME_KEYWORDS = {
+        fantasy: ['wizard', 'mage', 'witch', 'sorcer', 'knight', 'dragon', 'demon', 'angel', 'temple', 'wand', 'relic', 'ancient', 'holy', 'cursed'],
+        scifi: ['science fiction', 'space', 'star', 'cosmic', 'quantum', 'galaxy', 'void', 'planet', 'orbital', 'aether', 'chrono', 'nano', 'signal'],
+        tech: ['tech', 'artifact', 'engine', 'device', 'scanner', 'battery', 'core', 'prism', 'watch', 'lens', 'compass', 'tower'],
+        alien: ['alien', 'ufo', 'planet', 'void', 'cosmic', 'xeno', 'martian', 'nebula'],
+        robot: ['robot', 'drone', 'mech', 'android', 'cyber', 'machine', 'construct', 'automaton'],
+        lands: ['land', 'wasteland', 'grove', 'bog', 'peak', 'springs', 'temple', 'planet', 'rainbow']
+    };
+
+    function inferTheme(card) {
+        if (!card) return null;
+
+        const explicitTheme = String(card.theme || '').trim().toLowerCase();
+        if (explicitTheme) {
+            if (explicitTheme.includes('fantasy')) return 'fantasy';
+            if (explicitTheme.includes('science')) return 'scifi';
+            if (explicitTheme.includes('tech')) return 'tech';
+            if (explicitTheme.includes('alien')) return 'alien';
+            if (explicitTheme.includes('robot')) return 'robot';
+            if (explicitTheme.includes('land')) return 'lands';
+        }
+
+        if ((card.type || '').toLowerCase() === 'land') {
+            return 'lands';
+        }
+
+        const haystack = `${card._category || ''} ${card.name || ''} ${card.desc || ''} ${card.cardType || ''}`.toLowerCase();
+        const matches = {};
+
+        Object.entries(THEME_KEYWORDS).forEach(([themeKey, keywords]) => {
+            matches[themeKey] = keywords.reduce((sum, keyword) => (
+                haystack.includes(keyword) ? sum + 1 : sum
+            ), 0);
         });
 
-        const sortedThemes = Object.entries(themeCounts).sort((a, b) => b[1] - a[1]);
-        return sortedThemes[0]?.[0] || fallbackTheme;
+        const sorted = Object.entries(matches)
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1]);
+
+        return sorted[0]?.[0] || null;
+    }
+
+    function getThemePool(themeKey) {
+        const normalizedTheme = String(themeKey || '').trim().toLowerCase();
+        const themedCards = __ALL_CARDS.filter(card => inferTheme(card) === normalizedTheme);
+
+        if (normalizedTheme === 'lands') {
+            const landCards = __ALL_CARDS.filter(card => (card.type || '').toLowerCase() === 'land');
+            const nonLands = themedCards.filter(card => (card.type || '').toLowerCase() !== 'land');
+            const prioritizedLands = [...landCards, ...nonLands];
+            return prioritizedLands.length > 0 ? prioritizedLands : __ALL_CARDS;
+        }
+
+        if (themedCards.length >= 16) {
+            return themedCards;
+        }
+
+        const neutralCards = __ALL_CARDS.filter(card => {
+            const cardThemeKey = inferTheme(card);
+            return !cardThemeKey || !PACK_THEME_KEYS.has(cardThemeKey);
+        });
+
+        return [...themedCards, ...neutralCards];
+    }
+
+    function choosePackThemeByWeight() {
+        const totalWeight = PACK_THEMES.reduce((sum, theme) => sum + Math.max(0, Number(theme.weight) || 0), 0);
+        if (totalWeight <= 0) {
+            return PACK_THEMES[0]?.key || 'fantasy';
+        }
+
+        let roll = Math.random() * totalWeight;
+        for (const theme of PACK_THEMES) {
+            roll -= Math.max(0, Number(theme.weight) || 0);
+            if (roll <= 0) {
+                return theme.key;
+            }
+        }
+
+        return PACK_THEMES[PACK_THEMES.length - 1]?.key || 'fantasy';
     }
 
     function generatePack(themeKey) {
         const requestedTheme = String(themeKey || '').trim().toLowerCase();
-        const themedPool = __ALL_CARDS.filter(card => {
-            const cardTheme = String(card?.theme || '').trim().toLowerCase();
-            return card.type !== 'land' && (!requestedTheme || cardTheme === requestedTheme);
-        });
-
-        const fallbackPool = __ALL_CARDS.filter(card => card.type !== 'land');
-        const sourcePool = themedPool.length > 0 ? themedPool : fallbackPool;
+        const sourcePool = getThemePool(requestedTheme);
+        const isLandsPack = requestedTheme === 'lands';
         const remaining = [...sourcePool];
 
         const tierByRarity = {
@@ -1207,10 +1277,26 @@
             for (const tier of preferredTiers) {
                 const candidates = remaining.filter(card => tierByRarity[card.__rarity] === tier);
                 if (candidates.length > 0) {
-                    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-                    const index = remaining.findIndex(card => card.__id === pick.__id);
-                    if (index >= 0) {
-                        remaining.splice(index, 1);
+                    const weighted = candidates.map(card => ({
+                        card,
+                        weight: isLandsPack && (card.type || '').toLowerCase() === 'land' ? 3 : 1
+                    }));
+                    const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+                    let roll = Math.random() * totalWeight;
+                    let pick = weighted[0].card;
+
+                    for (const option of weighted) {
+                        roll -= option.weight;
+                        if (roll <= 0) {
+                            pick = option.card;
+                            break;
+                        }
+                    }
+
+                    for (let i = remaining.length - 1; i >= 0; i--) {
+                        if (remaining[i].__id === pick.__id) {
+                            remaining.splice(i, 1);
+                        }
                     }
                     return pick.__id;
                 }
@@ -1248,7 +1334,7 @@
             gameStats.wins++;
             gameStats.total++;
 
-            const themeKey = getRewardThemeKey();
+            const themeKey = choosePackThemeByWeight();
             const cardIds = generatePack(themeKey);
             const openedAt = new Date().toISOString();
 
