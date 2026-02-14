@@ -2103,6 +2103,18 @@
         initializeDeckBuilder();
     }
 
+    function openDeckBuilderGuide() {
+        const overlay = document.getElementById('deckBuilderGuideOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+    }
+
+    function closeDeckBuilderGuide() {
+        const overlay = document.getElementById('deckBuilderGuideOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'none';
+    }
+
     function getDeckBuilderDeckEntries(deckKey) {
         const deck = gameMeta?.decks?.[deckKey];
         const counts = {};
@@ -2308,6 +2320,7 @@
 
     function backToMenu() {
         playSFX('menuClose');
+        closeDeckBuilderGuide();
         setStartMenuScreen('mainMenu');
         focusSafeElement();
     }
@@ -5090,6 +5103,13 @@
             }
 
             const startModal = document.getElementById('startModal');
+            const deckBuilderGuideOverlay = document.getElementById('deckBuilderGuideOverlay');
+            if (startModal?.classList.contains('modal-visible') && deckBuilderGuideOverlay?.style.display !== 'none') {
+                e.preventDefault();
+                closeDeckBuilderGuide();
+                return;
+            }
+
             const deckBuilderScreen = document.getElementById('deckBuilderScreen');
             if (startModal?.classList.contains('modal-visible') && deckBuilderScreen?.style.display === 'block') {
                 e.preventDefault();
