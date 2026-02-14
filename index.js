@@ -835,6 +835,71 @@
         }
     };
 
+    function slugifyCardText(text) {
+        return String(text || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    function getAllCardsFlat() {
+        const cards = [];
+
+        Object.entries(CARD_DATABASE).forEach(([category, categoryCards]) => {
+            Object.values(categoryCards).forEach(card => {
+                card._category = category;
+                cards.push(card);
+            });
+        });
+
+        return cards;
+    }
+
+    function getCardId(card) {
+        const categorySlug = slugifyCardText(card && card._category ? card._category : 'card');
+        const nameSlug = slugifyCardText(card && card.name ? card.name : card && card.emoji ? card.emoji : 'unnamed');
+        return `${categorySlug}-${nameSlug}`;
+    }
+
+    function inferRarity(card) {
+        const text = `${card.name || ''} ${card.desc || ''}`.toLowerCase();
+        const abilities = Array.isArray(card.abilities) ? card.abilities : [];
+        const keywords = ['legendary', 'ancient', 'cosmic', 'phoenix', 'dragon', 'angel', 'demon', 'titan'];
+        const highValueEffects = ['destroy', 'counter', 'boardwipe', 'discard_draw'];
+        const landName = (card.name || '').toLowerCase();
+
+        let score = 0;
+
+        if (keywords.some(keyword => text.includes(keyword))) score += 3;
+        if ((card.power || 0) + (card.toughness || 0) >= 9) score += 2;
+        if ((card.power || 0) >= 5 || (card.toughness || 0) >= 6) score += 2;
+        if (abilities.length >= 2) score += 2;
+        if (abilities.includes('flying') && abilities.includes('trample')) score += 1;
+        if (highValueEffects.includes(card.effect)) score += 2;
+        if ((card.value || 0) >= 3) score += 1;
+        if ((card.type || '').toLowerCase() === 'land') {
+            if (Array.isArray(card.elements) && card.elements.length > 1) score += 2;
+            if (landName.includes('rainbow') || landName.includes('crystal') || landName.includes('distant')) score += 2;
+        }
+
+        if (score >= 6) return 'legendary';
+        if (score >= 4) return 'epic';
+        if (score >= 2) return 'rare';
+        return 'common';
+    }
+
+    const __ALL_CARDS = getAllCardsFlat();
+    const __CARD_BY_ID = {};
+
+    __ALL_CARDS.forEach(card => {
+        card.__id = getCardId(card);
+        card.__rarity = inferRarity(card);
+        __CARD_BY_ID[card.__id] = card;
+    });
+
+    window.__ALL_CARDS = __ALL_CARDS;
+    window.__CARD_BY_ID = __CARD_BY_ID;
+
     // Particle System - OPTIMIZED for better performance on mobile and desktop
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
