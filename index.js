@@ -1688,12 +1688,51 @@
         packOpeningState.currentIndex = boundedIndex;
 
         const card = packOpeningState.cards[boundedIndex];
-        document.getElementById('packCardEmoji').textContent = card.emoji || '✨';
-        document.getElementById('packCardName').textContent = card.name || 'Unknown Card';
-        document.getElementById('packCardType').textContent = card.cardType || card.type || '';
-        document.getElementById('packCardCounter').textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
-        document.getElementById('packPrevBtn').disabled = boundedIndex === 0;
-        document.getElementById('packNextBtn').disabled = boundedIndex === packOpeningState.cards.length - 1;
+        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
+        const rarity = validRarities.has(card?.__rarity) ? card.__rarity : 'common';
+        const packCardEmoji = document.getElementById('packCardEmoji');
+        const packCardName = document.getElementById('packCardName');
+        const packCardType = document.getElementById('packCardType');
+        const packCardCounter = document.getElementById('packCardCounter');
+        const packPrevBtn = document.getElementById('packPrevBtn');
+        const packNextBtn = document.getElementById('packNextBtn');
+        const packOverlay = document.getElementById('packOpeningOverlay');
+        const packViewport = document.getElementById('packCardViewport');
+
+        if (packCardEmoji) packCardEmoji.textContent = card.emoji || '✨';
+        if (packCardName) packCardName.textContent = card.name || 'Unknown Card';
+        if (packCardType) packCardType.textContent = card.cardType || card.type || '';
+        if (packCardCounter) packCardCounter.textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
+        if (packPrevBtn) packPrevBtn.disabled = boundedIndex === 0;
+        if (packNextBtn) packNextBtn.disabled = boundedIndex === packOpeningState.cards.length - 1;
+
+        const flashClass = `pack-flash-${rarity}`;
+        const glowClass = `juice-glow-${rarity}`;
+        const allFlashClasses = ['pack-flash-common', 'pack-flash-uncommon', 'pack-flash-rare', 'pack-flash-epic', 'pack-flash-legendary'];
+        const allGlowClasses = ['juice-glow-common', 'juice-glow-uncommon', 'juice-glow-rare', 'juice-glow-epic', 'juice-glow-legendary'];
+
+        try {
+            if (packOverlay) {
+                packOverlay.classList.remove(...allFlashClasses);
+                packOverlay.classList.add(flashClass);
+                setTimeout(() => {
+                    try {
+                        packOverlay.classList.remove(flashClass);
+                    } catch (_) {
+                        // no-op
+                    }
+                }, 320);
+            }
+
+            if (packViewport) {
+                packViewport.classList.remove(...allGlowClasses);
+                packViewport.classList.add(glowClass);
+                applyJuice(packViewport, 'juice-pop', 360);
+            }
+        } catch (_) {
+            // no-op
+        }
+
         updatePackOpeningDebug();
     }
 
