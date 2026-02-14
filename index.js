@@ -229,6 +229,7 @@
         enemyGraveyard: [],  // Enemy graveyard
         selectedCard: null,
         selectedElements: [],
+        deckMode: 'dual',
         phase: 'main',
         turn: 'player',
         attackers: [],
@@ -922,15 +923,61 @@
         updateStatsDisplay();
     }
 
-    function resetElementSelection() {
+    function getRequiredElementCount() {
+        return gameState.deckMode === 'single' ? 1 : 2;
+    }
+
+    function updateStartButtonState() {
+        const startBtn = document.getElementById('startBtn');
+        if (!startBtn) return;
+
+        const required = getRequiredElementCount();
+        if (gameState.selectedElements.length === required) {
+            startBtn.disabled = false;
+            startBtn.textContent = '⚔️ START BATTLE ⚔️';
+        } else {
+            startBtn.disabled = true;
+            startBtn.textContent = required === 1 ? 'Select 1 Element' : 'Select 2 Elements';
+        }
+    }
+
+    function setDeckMode(mode) {
+        if (document.getElementById('gameContainer').style.display === 'flex' || isStartingGame) {
+            return;
+        }
+
+        if (!['single', 'dual'].includes(mode)) {
+            return;
+        }
+
+        playSFX('select');
+        gameState.deckMode = mode;
         gameState.selectedElements = [];
+
+        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.deckMode === mode);
+        });
+
         document.querySelectorAll('.element-btn').forEach(btn => {
             btn.classList.remove('selected');
         });
 
-        const startBtn = document.getElementById('startBtn');
-        startBtn.disabled = true;
-        startBtn.textContent = 'Select 2 Elements';
+        updateStartButtonState();
+    }
+
+    function resetElementSelection() {
+        gameState.selectedElements = [];
+        gameState.deckMode = 'dual';
+
+        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.deckMode === 'dual');
+        });
+
+        document.querySelectorAll('.element-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+
+        updateStartButtonState();
     }
 
     function returnToMainMenu() {
@@ -1230,70 +1277,83 @@
         if (gameState.selectedElements.includes(element)) {
             gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
             btn.classList.remove('selected');
-        } else if (gameState.selectedElements.length < 2) {
+        } else if (gameState.selectedElements.length < getRequiredElementCount()) {
             gameState.selectedElements.push(element);
             btn.classList.add('selected');
         }
 
-        const startBtn = document.getElementById('startBtn');
-        if (gameState.selectedElements.length === 2) {
-            startBtn.disabled = false;
-            startBtn.textContent = '⚔️ START BATTLE ⚔️';
-        } else {
-            startBtn.disabled = true;
-            startBtn.textContent = 'Select 2 Elements';
-        }
+        updateStartButtonState();
     }
 
     // Deck Generation with improved shuffling
     function generateDeck(elements) {
         const deck = [];
-        
-        // Add 25 lands (12-13 of each type)
-        elements.forEach((element, index) => {
-            const count = index === 0 ? 13 : 12;
-            for (let i = 0; i < count; i++) {
-                deck.push({...CARD_DATABASE.lands[element], id: Math.random()});
-            }
-        });
+        const LAND_COUNT = 25;
+        const NON_LAND_COUNT = 35;
 
-        // Add 35 spells/creatures/artifacts
-        const availableCards = [];
-        
-        // Get creatures - ONLY if ALL cost elements are in player's selected elements
-        Object.values(CARD_DATABASE.creatures).forEach(creature => {
-            const costElements = Object.keys(creature.cost);
-            // Check if ALL cost elements are available in player's elements
-            if (costElements.every(e => elements.includes(e))) {
-                availableCards.push(creature);
+        if (elements.length === 1) {
+            for (let i = 0; i < LAND_COUNT; i++) {
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
-        });
-
-        // Get spells - ONLY if ALL cost elements are in player's selected elements
-        Object.values(CARD_DATABASE.spells).forEach(spell => {
-            const costElements = Object.keys(spell.cost);
-            if (costElements.every(e => elements.includes(e))) {
-                availableCards.push(spell);
+        } else {
+            const firstLandCount = 11 + Math.floor(Math.random() * 4); // 11-14
+            const secondLandCount = LAND_COUNT - firstLandCount;
+            for (let i = 0; i < firstLandCount; i++) {
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
-        });
-
-        // Get artifacts - ONLY if ALL cost elements are in player's selected elements
-        Object.values(CARD_DATABASE.artifacts).forEach(artifact => {
-            const costElements = Object.keys(artifact.cost);
-            if (costElements.every(e => elements.includes(e))) {
-                availableCards.push(artifact);
-            }
-        });
-
-        // Add 35 random cards from available pool
-        for (let i = 0; i < 35; i++) {
-            if (availableCards.length > 0) {
-                const card = availableCards[Math.floor(Math.random() * availableCards.length)];
-                deck.push({...card, id: Math.random()});
+            for (let i = 0; i < secondLandCount; i++) {
+                deck.push({ ...CARD_DATABASE.lands[elements[1]], id: Math.random() });
             }
         }
 
-        // Improved shuffle algorithm (Fisher-Yates)
+        const creatures = [];
+        const spells = [];
+        const artifacts = [];
+
+        Object.values(CARD_DATABASE.creatures).forEach(creature => {
+            const costElements = Object.keys(creature.cost);
+            if (costElements.every(e => elements.includes(e))) {
+                creatures.push(creature);
+            }
+        });
+
+        Object.values(CARD_DATABASE.spells).forEach(spell => {
+            const costElements = Object.keys(spell.cost);
+            if (costElements.every(e => elements.includes(e))) {
+                spells.push(spell);
+            }
+        });
+
+        Object.values(CARD_DATABASE.artifacts).forEach(artifact => {
+            const costElements = Object.keys(artifact.cost);
+            if (costElements.every(e => elements.includes(e))) {
+                artifacts.push(artifact);
+            }
+        });
+
+        const creatureTarget = 18 + Math.floor(Math.random() * 7); // 18-24
+        const spellTarget = 7 + Math.floor(Math.random() * 7); // 7-13
+        const artifactTarget = Math.max(0, NON_LAND_COUNT - creatureTarget - spellTarget);
+
+        function addCardsFromPool(pool, count) {
+            for (let i = 0; i < count; i++) {
+                if (pool.length > 0) {
+                    const card = pool[Math.floor(Math.random() * pool.length)];
+                    deck.push({ ...card, id: Math.random() });
+                }
+            }
+        }
+
+        addCardsFromPool(creatures, creatureTarget);
+        addCardsFromPool(spells, spellTarget);
+        addCardsFromPool(artifacts, artifactTarget);
+
+        const fallbackPool = [...creatures, ...spells, ...artifacts];
+        while (deck.length < LAND_COUNT + NON_LAND_COUNT && fallbackPool.length > 0) {
+            const card = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
+            deck.push({ ...card, id: Math.random() });
+        }
+
         for (let i = deck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -1387,8 +1447,9 @@
             return;
         }
 
-        if (gameState.selectedElements.length !== 2) {
-            showGameLog('⚠️ Select exactly 2 elements first!', false);
+        const requiredElementCount = getRequiredElementCount();
+        if (gameState.selectedElements.length !== requiredElementCount) {
+            showGameLog(`⚠️ Select exactly ${requiredElementCount} element${requiredElementCount === 1 ? '' : 's'} first!`, false);
             return;
         }
 
@@ -1425,9 +1486,10 @@
         gameState.playerDeck = generateDeck(gameState.selectedElements);
 
         // AI picks random elements
-        const aiElements = [];
         const elementKeys = Object.keys(ELEMENTS);
-        while (aiElements.length < 2) {
+        const aiRequiredCount = Math.random() < 0.5 ? 1 : 2;
+        const aiElements = [];
+        while (aiElements.length < aiRequiredCount) {
             const element = elementKeys[Math.floor(Math.random() * elementKeys.length)];
             if (!aiElements.includes(element)) {
                 aiElements.push(element);

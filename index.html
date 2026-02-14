@@ -116,7 +116,7 @@
     <div id="startModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-title">⚔️ EMOJI ELEMENTS ⚔️</div>
-            <div class="modal-intro">Build your two-element deck and conquer the arena.</div>
+            <div class="modal-intro">Build a single-color or two-color deck and conquer the arena.</div>
             
             <div class="menu-buttons" id="mainMenu">
                 <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
@@ -125,7 +125,13 @@
             </div>
 
             <div id="elementSelectionScreen" style="display: none;">
-                <div class="modal-subtitle">Select TWO elements for your deck:</div>
+                <div class="modal-subtitle">Choose your deck type:</div>
+                <div class="deck-mode-selector">
+                    <button type="button" class="deck-mode-btn" data-deck-mode="single" onclick="setDeckMode('single')">Single Color</button>
+                    <button type="button" class="deck-mode-btn selected" data-deck-mode="dual" onclick="setDeckMode('dual')">Two Colors</button>
+                </div>
+
+                <div class="modal-subtitle">Select elements for your deck:</div>
                 
                 <div class="modal-subtitle" style="margin-top: 20px;">AI Difficulty:</div>
                 <div class="difficulty-selector">

@@ -1059,6 +1059,34 @@ body::after {
     margin: 20px 0;
 }
 
+.deck-mode-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 16px 0 20px;
+}
+
+.deck-mode-btn {
+    flex: 1 1 140px;
+    min-width: 130px;
+    padding: 10px 14px;
+    background: rgba(52, 36, 92, 0.55);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.deck-mode-btn.selected {
+    background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 100%);
+    color: #2a1a0a;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
 .difficulty-btn {
     padding: 12px 20px;
     background: rgba(52, 36, 92, 0.55);
