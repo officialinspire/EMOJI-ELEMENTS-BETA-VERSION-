@@ -1803,6 +1803,37 @@
         return deck;
     }
 
+    function createPlayerDeck(elements) {
+        const fallbackDeck = () => generateDeck(elements);
+
+        try {
+            const meta = gameMeta;
+            const selectedDeckKey = meta?.selectedDeckKey;
+            const metaDeck = meta?.decks?.[selectedDeckKey];
+            const cardIds = Array.isArray(metaDeck?.cardIds) ? metaDeck.cardIds : null;
+
+            if (!cardIds || cardIds.length === 0) {
+                if (selectedDeckKey) {
+                    console.warn(`Meta deck "${selectedDeckKey}" is missing or empty. Falling back to generated deck.`);
+                }
+                return fallbackDeck();
+            }
+
+            const isValid = cardIds.every(cardId => window.__CARD_BY_ID && window.__CARD_BY_ID[cardId]);
+            if (!isValid) {
+                console.warn(`Meta deck "${selectedDeckKey}" has invalid card ids. Falling back to generated deck.`);
+                return fallbackDeck();
+            }
+
+            const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: Math.random() }));
+            shuffleDeck(deck);
+            return deck;
+        } catch (error) {
+            console.warn('Failed to load meta deck at match start. Falling back to generated deck.', error);
+            return fallbackDeck();
+        }
+    }
+
     // Shuffle deck function (Fisher-Yates algorithm)
     function shuffleDeck(deck) {
         for (let i = deck.length - 1; i > 0; i--) {
@@ -1924,7 +1955,7 @@
         gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
 
         // Generate decks
-        gameState.playerDeck = generateDeck(gameState.selectedElements);
+        gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
 
         // AI picks random elements
         const elementKeys = Object.keys(ELEMENTS);
