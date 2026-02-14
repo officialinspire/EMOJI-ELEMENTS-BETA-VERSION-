@@ -72,6 +72,18 @@
             flex-shrink: 0;
         }
 
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .binder-open-btn {
+            width: auto;
+            padding: 0 10px;
+            font-size: 12px;
+        }
+
         .menu-icon-btn {
             font-size: 24px;
             width: 40px;
@@ -866,6 +878,107 @@
             display: flex;
         }
 
+        #binderModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10002;
+            padding: 12px;
+        }
+
+        #binderModal.show {
+            display: flex;
+        }
+
+        #binderModal .binder-content {
+            width: min(900px, 96vw);
+            max-height: 88vh;
+            background: linear-gradient(135deg, rgba(15, 15, 35, 0.96) 0%, rgba(30, 10, 45, 0.98) 100%);
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        #binderModal .binder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #binderModal .binder-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #binderModal .binder-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        #binderModal select,
+        #binderModal input {
+            background: rgba(0, 0, 0, 0.5);
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            border-radius: 6px;
+            padding: 6px 8px;
+            min-height: 34px;
+        }
+
+        #binderModal .binder-list {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 4px;
+        }
+
+        #binderModal .binder-card {
+            display: grid;
+            grid-template-columns: 38px 1fr auto auto;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.25);
+            border-radius: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        #binderModal .binder-emoji {
+            font-size: 24px;
+            text-align: center;
+        }
+
+        #binderModal .binder-rarity {
+            font-size: 11px;
+            border-radius: 999px;
+            padding: 4px 8px;
+            border: 1px solid currentColor;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #binderModal .binder-count {
+            font-size: 13px;
+            color: #ffed90;
+        }
+
+        #binderModal .binder-empty {
+            text-align: center;
+            color: #e8d283;
+            opacity: 0.85;
+            padding: 16px;
+        }
+
         .pause-content {
             background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
             border: 4px double #ffd700;
@@ -1139,7 +1252,10 @@
 
     <div class="game-container" id="gameContainer" style="display: none;">
         <div class="header">
-            <button class="menu-icon-btn" onclick="pauseGame()">☰</button>
+            <div class="header-actions">
+                <button class="menu-icon-btn" onclick="pauseGame()">☰</button>
+                <button class="menu-icon-btn binder-open-btn" onclick="openBinder()" aria-label="Open card binder">Binder</button>
+            </div>
             <div class="title">⚔️ EMOJI ELEMENTS ⚔️</div>
             <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
         </div>
@@ -1176,6 +1292,21 @@
         </div>
     </div>
 
+    <div id="binderModal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Card Binder">
+        <div class="binder-content">
+            <div class="binder-header">
+                <div class="binder-title">📘 Binder</div>
+                <button class="menu-btn" style="margin: 0; width: auto; padding: 8px 12px;" onclick="closeBinder()">✖ Close</button>
+            </div>
+            <div class="binder-filters">
+                <select id="binderRarityFilter" onchange="renderBinderList()"></select>
+                <select id="binderThemeFilter" onchange="renderBinderList()"></select>
+                <input id="binderSearch" type="text" placeholder="Search cards..." oninput="renderBinderList()">
+            </div>
+            <div id="binderList" class="binder-list"></div>
+        </div>
+    </div>
+
     <script>
         // Game State
         const gameState = {
@@ -1195,7 +1326,8 @@
             turn: 'player',
             attackers: [],
             blockers: {},
-            difficulty: 'easy'
+            difficulty: 'easy',
+            playerCollection: []
         };
 
         let introWasSkipped = false;
@@ -1807,6 +1939,110 @@
             return profiles[difficulty] || profiles.medium;
         }
 
+        function getRarity(card) {
+            if (card.type === 'land') return 'common';
+            const cost = getCardManaCost(card);
+            if (cost >= 6 || (card.abilities?.length || 0) >= 2) return 'legendary';
+            if (cost >= 4) return 'rare';
+            return 'common';
+        }
+
+        function getRarityColor(rarity) {
+            const rarityColors = {
+                common: '#c8c8c8',
+                rare: '#5bc0ff',
+                legendary: '#ff9f40'
+            };
+            return rarityColors[rarity] || '#c8c8c8';
+        }
+
+        function getOwnedBinderCards() {
+            const ownedMap = new Map();
+
+            gameState.playerCollection.forEach(card => {
+                const key = `${card.name}-${card.type}-${card.theme || 'none'}`;
+                if (!ownedMap.has(key)) {
+                    ownedMap.set(key, {
+                        emoji: card.emoji,
+                        name: card.name,
+                        type: card.type,
+                        theme: card.theme || 'classic',
+                        rarity: getRarity(card),
+                        count: 0
+                    });
+                }
+                ownedMap.get(key).count += 1;
+            });
+
+            return Array.from(ownedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        function renderBinderFilters(cards) {
+            const rarityFilter = document.getElementById('binderRarityFilter');
+            const themeFilter = document.getElementById('binderThemeFilter');
+            const rarityValue = rarityFilter.value;
+            const themeValue = themeFilter.value;
+
+            const rarities = ['all', ...new Set(cards.map(card => card.rarity))];
+            const themes = ['all', ...new Set(cards.map(card => card.theme))];
+
+            rarityFilter.innerHTML = rarities.map(rarity =>
+                `<option value="${rarity}">${rarity === 'all' ? 'All Rarities' : rarity.toUpperCase()}</option>`
+            ).join('');
+
+            themeFilter.innerHTML = themes.map(theme =>
+                `<option value="${theme}">${theme === 'all' ? 'All Themes' : theme}</option>`
+            ).join('');
+
+            rarityFilter.value = rarities.includes(rarityValue) ? rarityValue : 'all';
+            themeFilter.value = themes.includes(themeValue) ? themeValue : 'all';
+        }
+
+        function renderBinderList() {
+            const cards = getOwnedBinderCards();
+            renderBinderFilters(cards);
+
+            const rarityFilter = document.getElementById('binderRarityFilter').value;
+            const themeFilter = document.getElementById('binderThemeFilter').value;
+            const searchTerm = document.getElementById('binderSearch').value.trim().toLowerCase();
+            const listEl = document.getElementById('binderList');
+
+            const filteredCards = cards.filter(card => {
+                if (rarityFilter !== 'all' && card.rarity !== rarityFilter) return false;
+                if (themeFilter !== 'all' && card.theme !== themeFilter) return false;
+                if (searchTerm && !card.name.toLowerCase().includes(searchTerm) && !card.emoji.includes(searchTerm)) return false;
+                return true;
+            });
+
+            if (filteredCards.length === 0) {
+                listEl.innerHTML = '<div class="binder-empty">No owned cards match your filters.</div>';
+                return;
+            }
+
+            listEl.innerHTML = filteredCards.map(card => `
+                <div class="binder-card">
+                    <div class="binder-emoji">${card.emoji}</div>
+                    <div>${card.name}</div>
+                    <div class="binder-rarity" style="color: ${getRarityColor(card.rarity)};">${card.rarity}</div>
+                    <div class="binder-count">Owned: ${card.count}</div>
+                </div>
+            `).join('');
+        }
+
+        function openBinder() {
+            const modal = document.getElementById('binderModal');
+            if (modal.classList.contains('show')) return;
+            renderBinderList();
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeBinder() {
+            const modal = document.getElementById('binderModal');
+            modal.classList.remove('show');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
         // Deck Generation with improved shuffling
         function generateDeck(elements) {
             const deck = [];
@@ -1930,6 +2166,7 @@
         // Start Game
         function startGame() {
             gameState.playerDeck = generateDeck(gameState.selectedElements);
+            gameState.playerCollection = gameState.playerDeck.map(card => ({ ...card }));
             
             // AI picks random elements
             const aiElements = [];
@@ -2705,6 +2942,18 @@
             window.visualViewport.addEventListener('resize', updateViewportHeight);
             window.visualViewport.addEventListener('scroll', updateViewportHeight);
         }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && document.getElementById('binderModal').classList.contains('show')) {
+                closeBinder();
+            }
+        });
+
+        document.getElementById('binderModal').addEventListener('click', (event) => {
+            if (event.target.id === 'binderModal') {
+                closeBinder();
+            }
+        });
 
         updateViewportHeight();
         showIntroForMobile();
