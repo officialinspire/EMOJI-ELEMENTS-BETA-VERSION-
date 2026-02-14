@@ -1672,8 +1672,10 @@
             return;
         }
 
-        // Check if can pay cost
-        if (!canPayCost(card.cost, gameState.playerMana)) {
+        const cardCost = card.cost || {};
+
+        // Lands are always free; other card types must be affordable.
+        if (card.type !== 'land' && !canPayCost(cardCost, gameState.playerMana)) {
             showCardDetail(card);
             showGameLog('⚠️ Not enough mana!', false);
             return;
@@ -1683,7 +1685,9 @@
         setProcessingLock(3000);
 
         // Pay cost
-        payCost(card.cost, gameState.playerMana);
+        if (card.type !== 'land') {
+            payCost(cardCost, gameState.playerMana);
+        }
 
         // Remove from hand
         gameState.playerHand = gameState.playerHand.filter(c => c.id !== cardId);
@@ -1742,6 +1746,8 @@
 
     // Check if can pay cost
     function canPayCost(cost, mana) {
+        if (!cost) return true;
+
         let availableColorless = mana.colorless || 0;
 
         for (let element in cost) {
@@ -1776,6 +1782,8 @@
 
     // Pay cost
     function payCost(cost, mana) {
+        if (!cost) return;
+
         for (let element in cost) {
             if (element === 'colorless') continue;
 
