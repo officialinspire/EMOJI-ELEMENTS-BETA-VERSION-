@@ -1500,6 +1500,43 @@
 
     let openModalCount = 0;
 
+    function getSafeFocusTarget() {
+        const gameContainer = document.getElementById('gameContainer');
+        if (gameContainer?.style.display === 'flex') {
+            const gameplayTargets = ['endTurnBtn', 'attackBtn', 'graveyardBtn'];
+            for (const id of gameplayTargets) {
+                const element = document.getElementById(id);
+                if (element && !element.disabled && element.offsetParent !== null) {
+                    return element;
+                }
+            }
+
+            const pauseButton = document.querySelector('#gameContainer .menu-icon-btn');
+            if (pauseButton && pauseButton.offsetParent !== null) {
+                return pauseButton;
+            }
+        }
+
+        const mainMenuButton = document.querySelector('#mainMenu .menu-btn');
+        if (mainMenuButton && mainMenuButton.offsetParent !== null) {
+            return mainMenuButton;
+        }
+
+        const activeStartScreenButton = document.querySelector('#startModal [style*="display: block"] .menu-btn, #startModal [style*="display: flex"] .menu-btn');
+        if (activeStartScreenButton && activeStartScreenButton.offsetParent !== null) {
+            return activeStartScreenButton;
+        }
+
+        return null;
+    }
+
+    function focusSafeElement() {
+        const target = getSafeFocusTarget();
+        if (target && typeof target.focus === 'function') {
+            target.focus();
+        }
+    }
+
     function showModal(modalEl) {
         if (!modalEl) return;
 
@@ -1634,6 +1671,7 @@
         }
 
         updatePackOpeningDebug();
+        focusSafeElement();
     }
 
     function triggerPackOpenAnimation() {
@@ -2271,6 +2309,7 @@
     function backToMenu() {
         playSFX('menuClose');
         setStartMenuScreen('mainMenu');
+        focusSafeElement();
     }
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
@@ -5034,6 +5073,31 @@
 
     // DESKTOP ENHANCEMENT: Keyboard shortcuts for better desktop experience
     document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const packOverlay = document.getElementById('packOpeningOverlay');
+            if (packOverlay?.classList.contains('show')) {
+                e.preventDefault();
+                closePackOpeningOverlay();
+                return;
+            }
+
+            const victoryOverlay = document.getElementById('victoryOverlay');
+            if (victoryOverlay?.classList.contains('show')) {
+                e.preventDefault();
+                victoryOverlay.classList.remove('show');
+                focusSafeElement();
+                return;
+            }
+
+            const startModal = document.getElementById('startModal');
+            const deckBuilderScreen = document.getElementById('deckBuilderScreen');
+            if (startModal?.classList.contains('modal-visible') && deckBuilderScreen?.style.display === 'block') {
+                e.preventDefault();
+                backToMenu();
+                return;
+            }
+        }
+
         // Only enable keyboard shortcuts during active gameplay (not in menus)
         if (document.getElementById('gameContainer').style.display !== 'flex') {
             return;
