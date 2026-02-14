@@ -3143,6 +3143,10 @@
         const card = gameState.playerHand.find(c => c.id === cardId);
         if (!card) return;
 
+        const clickedHandCardEl = document.querySelector(`#playerHand .card[data-card-id="${cardId}"]`) ||
+            document.querySelector(`#playerHand .card[data-id="${cardId}"]`) ||
+            document.getElementById(`card-player-${cardId}`);
+
         // LAND PLAY LIMIT: Enforce one land per turn rule
         if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
             showGameLog('⚠️ Only one land per turn!', false);
@@ -3157,6 +3161,10 @@
             showGameLog('⚠️ Not enough mana!', false);
             return;
         }
+
+        applyJuice(clickedHandCardEl, 'juice-pop');
+
+        let playedBoardCardId = null;
 
         // Set processing lock to prevent rapid clicking (with 3 second failsafe)
         setProcessingLock(3000);
@@ -3173,10 +3181,12 @@
         if (card.type === 'land') {
             // Lands go to board and generate mana
             gameState.playerBoard.push({...card, tapped: false});
+            playedBoardCardId = card.id;
             gameState.landsPlayedThisTurn++;  // Increment land counter
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
             gameState.playerBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
+            playedBoardCardId = card.id;
             // Play appropriate creature summon sound based on theme
             if (card.theme === 'Science Fiction') {
                 playSFX('summonCreatureScifi');
@@ -3187,6 +3197,7 @@
         } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.playerBoard.push(artifactOnBoard);
+            playedBoardCardId = artifactOnBoard.id;
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
 
@@ -3214,6 +3225,13 @@
         createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#ffd700', 30);
 
         updateUI();
+
+        if (playedBoardCardId) {
+            const playedCardEl = document.querySelector(`#playerBoard .card[data-card-id="${playedBoardCardId}"]`) ||
+                document.querySelector(`#playerBoard .card[data-id="${playedBoardCardId}"]`) ||
+                document.getElementById(`card-player-${playedBoardCardId}`);
+            applyJuice(playedCardEl || document.getElementById('playerBoard'), 'juice-pop');
+        }
 
         // Release processing lock after a short delay
         setTimeout(() => {
@@ -4348,6 +4366,10 @@
                 gameState.enemyBoard.push({...landInHand, tapped: false});
                 showGameLog(`🌍 Enemy plays ${landInHand.name}`, true);
                 updateUI();
+                const enemyLandEl = document.querySelector(`#enemyBoard .card[data-card-id="${landInHand.id}"]`) ||
+                    document.querySelector(`#enemyBoard .card[data-id="${landInHand.id}"]`) ||
+                    document.getElementById(`card-enemy-${landInHand.id}`);
+                applyJuice(enemyLandEl || document.getElementById('enemyBoard'), 'juice-pop');
             }
 
             setTimeout(() => {
@@ -4394,11 +4416,13 @@
                         });
 
                     let creaturePlayed = false;
+                    const playedEnemyCreatureIds = [];
                     playableCreatures.forEach(creature => {
                         if (canPayCost(creature.cost, gameState.enemyMana)) {
                             payCost(creature.cost, gameState.enemyMana);
                             gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
                             gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
+                            playedEnemyCreatureIds.push(creature.id);
                             showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
                             creaturePlayed = true;
                         }
@@ -4406,6 +4430,12 @@
 
                     if (creaturePlayed) {
                         updateUI();
+                        playedEnemyCreatureIds.forEach(playedId => {
+                            const enemyCreatureEl = document.querySelector(`#enemyBoard .card[data-card-id="${playedId}"]`) ||
+                                document.querySelector(`#enemyBoard .card[data-id="${playedId}"]`) ||
+                                document.getElementById(`card-enemy-${playedId}`);
+                            applyJuice(enemyCreatureEl || document.getElementById('enemyBoard'), 'juice-pop');
+                        });
                     }
 
                     setTimeout(() => {
@@ -4414,12 +4444,14 @@
                             .filter(c => c.type === 'artifact' && canPayCost(c.cost, gameState.enemyMana));
 
                         let artifactPlayed = false;
+                        const playedEnemyArtifactIds = [];
                         playableArtifacts.forEach(artifact => {
                             if (canPayCost(artifact.cost, gameState.enemyMana)) {
                                 payCost(artifact.cost, gameState.enemyMana);
                                 gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== artifact.id);
                                 const artifactOnBoard = {...artifact, tapped: false};
                                 gameState.enemyBoard.push(artifactOnBoard);
+                                playedEnemyArtifactIds.push(artifactOnBoard.id);
                                 showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
 
                                 if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifact.effect)) {
@@ -4437,6 +4469,12 @@
 
                         if (artifactPlayed) {
                             updateUI();
+                            playedEnemyArtifactIds.forEach(playedId => {
+                                const enemyArtifactEl = document.querySelector(`#enemyBoard .card[data-card-id="${playedId}"]`) ||
+                                    document.querySelector(`#enemyBoard .card[data-id="${playedId}"]`) ||
+                                    document.getElementById(`card-enemy-${playedId}`);
+                                applyJuice(enemyArtifactEl || document.getElementById('enemyBoard'), 'juice-pop');
+                            });
                         }
 
                         // Play spells on hard difficulty
@@ -4460,6 +4498,7 @@
 
                             if (spellPlayed) {
                                 updateUI();
+                                applyJuice(document.getElementById('enemyBoard'), 'juice-pop');
                             }
                         }
 
@@ -5095,6 +5134,8 @@
     function createCardElement(card, onBoard, isEnemy = false) {
         const cardEl = document.createElement('div');
         cardEl.className = 'card';
+        cardEl.dataset.cardId = card.id;
+        cardEl.id = `card-${isEnemy ? 'enemy' : 'player'}-${card.id}`;
         
         if (card.type === 'land') {
             cardEl.classList.add('land');
