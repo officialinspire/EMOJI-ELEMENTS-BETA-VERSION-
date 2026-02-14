@@ -1686,6 +1686,9 @@
 
     function finalizeMatch(result) {
         if (gameState.matchFinalized) {
+            if (QA_DEBUG) {
+                console.log('[QA] finalizeMatch skipped (already finalized)');
+            }
             return;
         }
         gameState.matchFinalized = true;
@@ -1720,6 +1723,10 @@
             }
             saveStats();
 
+            if (QA_DEBUG) {
+                console.log(`[QA] finalizeMatch result=WIN awardedPack=true theme=${themeKey}`);
+            }
+
             console.log('🏆 Match reward granted:', gameMeta.lastPack);
 
             stopSFX('gameplayMusic');
@@ -1743,6 +1750,10 @@
             }
         }
         saveStats();
+
+        if (QA_DEBUG) {
+            console.log('[QA] finalizeMatch result=LOSS awardedPack=false');
+        }
 
         console.log('💀 Match recorded as loss.');
 
