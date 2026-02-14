@@ -1300,7 +1300,8 @@
 
     let deckBuilderState = {
         deckKey: null,
-        workingCardIds: []
+        workingCardIds: [],
+        debugWarning: ''
     };
 
     let gameMeta;
@@ -1996,6 +1997,7 @@
             .filter(cardId => {
                 const card = __CARD_BY_ID[cardId];
                 if (!card) return false;
+                if ((gameMeta.collection[cardId] || 0) <= 0) return false;
                 return isCardEligibleForDeck(card, deckColors);
             })
             .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b));
@@ -2022,7 +2024,12 @@
         const targetSize = getDeckTargetSize(deck);
         const current = deckBuilderState.workingCardIds.length;
         const ready = current === targetSize;
-        status.textContent = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
+        const baseMessage = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
+        if (QA_DEBUG && deckBuilderState.debugWarning) {
+            status.textContent = `${baseMessage} | QA: ${deckBuilderState.debugWarning}`;
+            return;
+        }
+        status.textContent = baseMessage;
     }
 
     function renderDeckBuilder() {
@@ -2046,9 +2053,25 @@
             row.className = 'deck-builder-row';
             row.innerHTML = `<button type="button">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
             const btn = row.querySelector('button');
-            btn.disabled = remaining <= 0 || atLimit || deckBuilderState.workingCardIds.length >= targetSize;
+            btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
             btn.addEventListener('click', () => {
-                if (btn.disabled) return;
+                if (owned <= 0) {
+                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
+                    renderDeckBuilder();
+                    return;
+                }
+                if (remaining <= 0) {
+                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
+                    renderDeckBuilder();
+                    return;
+                }
+                if (atLimit) {
+                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
+                    renderDeckBuilder();
+                    return;
+                }
+                if (deckBuilderState.workingCardIds.length >= targetSize) return;
+                deckBuilderState.debugWarning = '';
                 deckBuilderState.workingCardIds.push(cardId);
                 renderDeckBuilder();
             });
@@ -2101,11 +2124,13 @@
 
         deckBuilderState.deckKey = preferredDeckKey || null;
         deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
+        deckBuilderState.debugWarning = '';
 
         select.onchange = (event) => {
             const deckKey = event.target.value;
             deckBuilderState.deckKey = deckKey;
             deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
+            deckBuilderState.debugWarning = '';
             renderDeckBuilder();
         };
 
@@ -2118,6 +2143,7 @@
         if (!deck) return;
         playSFX('menuClose');
         deckBuilderState.workingCardIds = [...(deck.starterCardIds || [])];
+        deckBuilderState.debugWarning = '';
         renderDeckBuilder();
     }
 
@@ -2143,6 +2169,7 @@
         });
 
         if (candidate.length !== targetSize) {
+            if (QA_DEBUG) deckBuilderState.debugWarning = `Save blocked: deck must contain exactly ${targetSize} cards.`;
             showGameLog(`Deck must contain exactly ${targetSize} cards to save.`, true);
             renderDeckBuilder();
             return;
@@ -2157,6 +2184,7 @@
         playSFX('select');
         showGameLog(`Saved deck ${deckKey}.`, false);
         deckBuilderState.workingCardIds = [...candidate];
+        deckBuilderState.debugWarning = '';
         renderDeckBuilder();
     }
 
