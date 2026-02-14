@@ -4372,6 +4372,34 @@
 
     // AI Turn
     function aiTurn() {
+        const scoreAiPlay = (card) => {
+            const playerCreatures = gameState.playerBoard.filter(c => c.type === 'creature');
+            const enemyCreatures = gameState.enemyBoard.filter(c => c.type === 'creature');
+            const strongestPlayerPower = playerCreatures.reduce((maxPower, creature) => Math.max(maxPower, creature.power || 0), 0);
+            const boardDelta = enemyCreatures.length - playerCreatures.length;
+
+            if (card.type === 'creature') {
+                return (card.power || 0) + (card.toughness || 0);
+            }
+
+            if (card.type === 'instant') {
+                const isRemovalOrDamage = ['damage', 'destroy', 'aoe'].includes(card.effect) ||
+                    /damage|destroy|bolt|blast|fire|burn/i.test(card.name || '');
+                return isRemovalOrDamage
+                    ? 6 + strongestPlayerPower
+                    : 2 + (card.value || 0);
+            }
+
+            if (card.type === 'artifact') {
+                const isDrawOrBuff = ['draw_on_play', 'buff', 'buff_defense'].includes(card.effect);
+                return isDrawOrBuff
+                    ? 4 + Math.max(0, -boardDelta)
+                    : 1;
+            }
+
+            return 0;
+        };
+
         // Emergency failsafe: ensure player turn starts even if something goes wrong
         const emergencyTurnStart = setTimeout(() => {
             console.warn('Emergency turn transition triggered');
@@ -4439,46 +4467,44 @@
                 }
 
                 setTimeout(() => {
-                    // Play creatures based on difficulty
-                    const playableCreatures = gameState.enemyHand
-                        .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
-                        .sort((a, b) => {
-                            if (gameState.difficulty === 'easy') {
-                                return 0;
-                            } else if (gameState.difficulty === 'medium') {
-                                return (b.power + b.toughness) - (a.power + a.toughness);
-                            } else {
-                                const effA = (a.power + a.toughness) / Object.values(a.cost).reduce((sum, v) => sum + v, 0);
-                                const effB = (b.power + b.toughness) / Object.values(b.cost).reduce((sum, v) => sum + v, 0);
-                                return effB - effA;
+                    const applyOldMainPhaseBehavior = () => {
+                        const playableCreatures = gameState.enemyHand
+                            .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
+                            .sort((a, b) => {
+                                if (gameState.difficulty === 'easy') {
+                                    return 0;
+                                } else if (gameState.difficulty === 'medium') {
+                                    return (b.power + b.toughness) - (a.power + a.toughness);
+                                } else {
+                                    const effA = (a.power + a.toughness) / Object.values(a.cost).reduce((sum, v) => sum + v, 0);
+                                    const effB = (b.power + b.toughness) / Object.values(b.cost).reduce((sum, v) => sum + v, 0);
+                                    return effB - effA;
+                                }
+                            });
+
+                        let creaturePlayed = false;
+                        const playedEnemyCreatureIds = [];
+                        playableCreatures.forEach(creature => {
+                            if (canPayCost(creature.cost, gameState.enemyMana)) {
+                                payCost(creature.cost, gameState.enemyMana);
+                                gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
+                                gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
+                                playedEnemyCreatureIds.push(creature.id);
+                                showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
+                                creaturePlayed = true;
                             }
                         });
 
-                    let creaturePlayed = false;
-                    const playedEnemyCreatureIds = [];
-                    playableCreatures.forEach(creature => {
-                        if (canPayCost(creature.cost, gameState.enemyMana)) {
-                            payCost(creature.cost, gameState.enemyMana);
-                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== creature.id);
-                            gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
-                            playedEnemyCreatureIds.push(creature.id);
-                            showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
-                            creaturePlayed = true;
+                        if (creaturePlayed) {
+                            updateUI();
+                            playedEnemyCreatureIds.forEach(playedId => {
+                                const enemyCreatureEl = document.querySelector(`#enemyBoard .card[data-card-id="${playedId}"]`) ||
+                                    document.querySelector(`#enemyBoard .card[data-id="${playedId}"]`) ||
+                                    document.getElementById(`card-enemy-${playedId}`);
+                                applyJuice(enemyCreatureEl || document.getElementById('enemyBoard'), 'juice-pop');
+                            });
                         }
-                    });
 
-                    if (creaturePlayed) {
-                        updateUI();
-                        playedEnemyCreatureIds.forEach(playedId => {
-                            const enemyCreatureEl = document.querySelector(`#enemyBoard .card[data-card-id="${playedId}"]`) ||
-                                document.querySelector(`#enemyBoard .card[data-id="${playedId}"]`) ||
-                                document.getElementById(`card-enemy-${playedId}`);
-                            applyJuice(enemyCreatureEl || document.getElementById('enemyBoard'), 'juice-pop');
-                        });
-                    }
-
-                    setTimeout(() => {
-                        // Play artifacts
                         const playableArtifacts = gameState.enemyHand
                             .filter(c => c.type === 'artifact' && canPayCost(c.cost, gameState.enemyMana));
 
@@ -4516,11 +4542,10 @@
                             });
                         }
 
-                        // Play spells on hard difficulty
                         if (gameState.difficulty === 'hard') {
                             const playableSpells = gameState.enemyHand
                                 .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana));
-                            
+
                             let spellPlayed = false;
                             playableSpells.forEach(spell => {
                                 if (canPayCost(spell.cost, gameState.enemyMana)) {
@@ -4529,7 +4554,6 @@
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
                                     resolveSpell(spell, 'enemy');
                                     moveCardToGraveyard(spell, 'enemy');
-                                    // Check for dead creatures after spell resolves
                                     checkStateBasedActions();
                                     spellPlayed = true;
                                 }
@@ -4540,6 +4564,69 @@
                                 applyJuice(document.getElementById('enemyBoard'), 'juice-pop');
                             }
                         }
+                    };
+
+                    try {
+                        const maxPlays = gameState.difficulty === 'hard' ? 2 : 1;
+                        const playedEnemyCardIds = [];
+                        let playsMade = 0;
+
+                        while (playsMade < maxPlays) {
+                            const candidates = gameState.enemyHand.filter(card => {
+                                const isAllowedType = card.type === 'creature' || card.type === 'artifact' || card.type === 'instant';
+                                const allowInstants = gameState.difficulty === 'hard' || card.type !== 'instant';
+                                return isAllowedType && allowInstants && canPayCost(card.cost, gameState.enemyMana);
+                            });
+
+                            const best = candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
+                            if (!best || !canPayCost(best.cost, gameState.enemyMana)) {
+                                break;
+                            }
+
+                            payCost(best.cost, gameState.enemyMana);
+                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== best.id);
+
+                            if (best.type === 'creature') {
+                                gameState.enemyBoard.push({...best, tapped: false, summoningSick: !best.abilities?.includes('haste'), damage: 0});
+                                showGameLog(`${best.emoji} Enemy summons ${best.name}`, true, best.theme === 'scifi');
+                                playedEnemyCardIds.push(best.id);
+                            } else if (best.type === 'artifact') {
+                                const artifactOnBoard = {...best, tapped: false};
+                                gameState.enemyBoard.push(artifactOnBoard);
+                                showGameLog(`${best.emoji} Enemy plays ${best.name}`, true);
+                                playedEnemyCardIds.push(artifactOnBoard.id);
+
+                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifactOnBoard.effect)) {
+                                    resolveSpell(artifactOnBoard, 'enemy');
+                                    checkStateBasedActions();
+
+                                    if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
+                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
+                                    }
+                                }
+                            } else {
+                                showGameLog(`${best.emoji} Enemy casts ${best.name}`, true);
+                                resolveSpell(best, 'enemy');
+                                moveCardToGraveyard(best, 'enemy');
+                                checkStateBasedActions();
+                            }
+
+                            playsMade++;
+                        }
+
+                        if (playsMade > 0) {
+                            updateUI();
+                            playedEnemyCardIds.forEach(playedId => {
+                                const enemyCardEl = document.querySelector(`#enemyBoard .card[data-card-id="${playedId}"]`) ||
+                                    document.querySelector(`#enemyBoard .card[data-id="${playedId}"]`) ||
+                                    document.getElementById(`card-enemy-${playedId}`);
+                                applyJuice(enemyCardEl || document.getElementById('enemyBoard'), 'juice-pop');
+                            });
+                        }
+                    } catch (aiScoringError) {
+                        console.warn('AI scoring failed, using fallback behavior:', aiScoringError);
+                        applyOldMainPhaseBehavior();
+                    }
 
                         setTimeout(() => {
                             // Attack with creatures - MUCH MORE AGGRESSIVE AI
@@ -4571,8 +4658,7 @@
                         }, 1500);
                     }, 1500);
                 }, 1500);
-            }, 1500);
-        }, 1000);
+            }, 1000);
         } catch (error) {
             console.error('Error during AI turn:', error);
             clearTimeout(emergencyTurnStart);
