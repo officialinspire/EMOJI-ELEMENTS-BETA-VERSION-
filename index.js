@@ -4598,20 +4598,41 @@
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('playerLife');
+            const targetEl = lifeElement || document.querySelector('.player-area:not(.enemy-area)');
+            const absChange = Math.abs(actualChange);
+
+            if (targetEl) {
+                spawnFloatingNumber({
+                    targetEl,
+                    text: actualChange > 0 ? `+${absChange}` : `-${absChange}`,
+                    kind: actualChange < 0 ? 'damage' : 'heal'
+                });
+            }
+
+            if (absChange >= 8) {
+                screenShake('high');
+            } else if (absChange >= 4) {
+                screenShake('med');
+            }
+
             if (actualChange > 0) {
                 // Life increase - play heal sound for each point
                 for (let i = 0; i < actualChange; i++) {
                     setTimeout(() => playSFX('playerHeal'), i * 100);
                 }
-                lifeElement.classList.add('life-increase');
-                setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                if (lifeElement) {
+                    lifeElement.classList.add('life-increase');
+                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                }
             } else {
                 // Life decrease - play damage sound for each point
-                for (let i = 0; i < Math.abs(actualChange); i++) {
+                for (let i = 0; i < absChange; i++) {
                     setTimeout(() => playSFX('playerTakeDamage'), i * 100);
                 }
-                lifeElement.classList.add('life-decrease');
-                setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                if (lifeElement) {
+                    lifeElement.classList.add('life-decrease');
+                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                }
             }
         }
     }
@@ -4623,20 +4644,41 @@
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('enemyLife');
+            const targetEl = lifeElement || document.querySelector('.enemy-area');
+            const absChange = Math.abs(actualChange);
+
+            if (targetEl) {
+                spawnFloatingNumber({
+                    targetEl,
+                    text: actualChange > 0 ? `+${absChange}` : `-${absChange}`,
+                    kind: actualChange < 0 ? 'damage' : 'heal'
+                });
+            }
+
+            if (absChange >= 8) {
+                screenShake('high');
+            } else if (absChange >= 4) {
+                screenShake('med');
+            }
+
             if (actualChange > 0) {
                 // Life increase - play heal sound for each point
                 for (let i = 0; i < actualChange; i++) {
                     setTimeout(() => playSFX('opponentHeals'), i * 100);
                 }
-                lifeElement.classList.add('life-increase');
-                setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                if (lifeElement) {
+                    lifeElement.classList.add('life-increase');
+                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                }
             } else {
                 // Life decrease - play damage sound for each point
-                for (let i = 0; i < Math.abs(actualChange); i++) {
+                for (let i = 0; i < absChange; i++) {
                     setTimeout(() => playSFX('opponentTakeDamage'), i * 100);
                 }
-                lifeElement.classList.add('life-decrease');
-                setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                if (lifeElement) {
+                    lifeElement.classList.add('life-decrease');
+                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                }
             }
         }
     }
