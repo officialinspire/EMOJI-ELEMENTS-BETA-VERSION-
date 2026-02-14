@@ -198,6 +198,73 @@
         });
     }
 
+    function applyJuice(el, className, ms = 450) {
+        if (!el || !className) return;
+
+        try {
+            el.classList.remove(className);
+            void el.offsetWidth;
+            el.classList.add(className);
+            setTimeout(() => {
+                try {
+                    el.classList.remove(className);
+                } catch (_) {
+                    // no-op
+                }
+            }, ms);
+        } catch (_) {
+            // no-op
+        }
+    }
+
+    function screenShake(intensity = 'med') {
+        const el = document.body || document.querySelector('.game-container');
+        if (!el) return;
+
+        const durationMap = {
+            low: 180,
+            med: 250,
+            high: 320
+        };
+
+        try {
+            applyJuice(el, 'screen-shake', durationMap[intensity] || durationMap.med);
+        } catch (_) {
+            // no-op
+        }
+    }
+
+    function spawnFloatingNumber({ targetEl, text, kind } = {}) {
+        if (!targetEl) return;
+
+        try {
+            const rect = targetEl.getBoundingClientRect();
+            if (!rect || (!rect.width && !rect.height)) return;
+
+            const floater = document.createElement('div');
+            floater.className = 'floating-dmg';
+            floater.textContent = text ?? '';
+
+            if (kind) {
+                floater.classList.add(`floating-dmg-${kind}`);
+            }
+
+            floater.style.left = `${rect.left + rect.width / 2}px`;
+            floater.style.top = `${rect.top + rect.height / 2}px`;
+
+            document.body.appendChild(floater);
+            setTimeout(() => {
+                try {
+                    floater.remove();
+                } catch (_) {
+                    // no-op
+                }
+            }, 900);
+        } catch (_) {
+            // no-op
+        }
+    }
+
     // Helper function to fade audio volume in or out over a duration
     function fadeAudio(audioElement, targetVolume, duration, callback) {
         const existingFade = activeAudioFades.get(audioElement);
