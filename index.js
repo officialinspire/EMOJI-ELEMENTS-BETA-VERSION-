@@ -1,3 +1,10 @@
+    // QA Checklist:
+    // - Start match, play, end turn
+    // - Win -> pack awarded + pack opening works
+    // - Binder opens/closes
+    // - Deck builder save -> next match uses saved deck
+    // - Corrupt localStorage -> game still starts using fallback deck
+
     // Audio System
     const audioSystem = {
         startMenuMusic: new Audio('startmenu.mp3'),
@@ -249,8 +256,14 @@
         total: 0
     };
 
+    const META_ENABLED = true;
+
     // Load stats from localStorage
     function loadStats() {
+        if (!META_ENABLED) {
+            return;
+        }
+
         const savedMeta = localStorage.getItem('emoji_elements_meta_v1');
         if (savedMeta) {
             try {
@@ -293,11 +306,15 @@
     }
 
     function saveStats() {
-        if (gameMeta && gameMeta.stats) {
-            gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
-            gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
-            gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened : 0;
-            metaSave(gameMeta);
+        if (META_ENABLED && gameMeta && gameMeta.stats) {
+            try {
+                gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
+                gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
+                gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened : 0;
+                metaSave(gameMeta);
+            } catch (error) {
+                console.warn('Meta save hook failed while saving stats. Proceeding with baseline stats save.', error);
+            }
         }
         localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
     }
@@ -948,6 +965,8 @@
     }
 
     function metaLoad() {
+        if (!META_ENABLED) return null;
+
         const raw = localStorage.getItem(META_STORAGE_KEY);
         if (!raw) return null;
         try {
@@ -960,7 +979,12 @@
     }
 
     function metaSave(meta) {
-        localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+        if (!META_ENABLED) return;
+        try {
+            localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+        } catch (error) {
+            console.warn('Meta save failed. Continuing without persisting meta.', error);
+        }
     }
 
     function buildStarterDeckFromColors(deckKey, colors) {
@@ -1143,6 +1167,10 @@
     }
 
     function metaEnsureInitialized() {
+        if (!META_ENABLED) {
+            return createInitialMeta();
+        }
+
         const loaded = metaLoad();
         if (!loaded || loaded.version !== 1) {
             const seeded = createInitialMeta();
@@ -1218,7 +1246,13 @@
         workingCardIds: []
     };
 
-    let gameMeta = metaEnsureInitialized();
+    let gameMeta;
+    try {
+        gameMeta = metaEnsureInitialized();
+    } catch (error) {
+        console.warn('Meta initialization failed. Falling back to in-memory starter meta.', error);
+        gameMeta = createInitialMeta();
+    }
     gameStats = {
         wins: Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0,
         losses: Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0,
@@ -1633,18 +1667,24 @@
             const cardIds = generatePack(themeKey);
             const openedAt = new Date().toISOString();
 
-            if (!gameMeta.stats) {
-                gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+            if (META_ENABLED) {
+                try {
+                    if (!gameMeta.stats) {
+                        gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+                    }
+                    gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
+                    gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
+
+                    cardIds.forEach(cardId => {
+                        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+                    });
+
+                    gameMeta.lastPack = { themeKey, cardIds, openedAt };
+                    metaSave(gameMeta);
+                } catch (error) {
+                    console.warn('Meta reward hook failed after win. Continuing with baseline victory flow.', error);
+                }
             }
-            gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
-            gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
-
-            cardIds.forEach(cardId => {
-                gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-            });
-
-            gameMeta.lastPack = { themeKey, cardIds, openedAt };
-            metaSave(gameMeta);
             saveStats();
 
             console.log('🏆 Match reward granted:', gameMeta.lastPack);
@@ -1658,11 +1698,17 @@
         gameStats.losses++;
         gameStats.total++;
 
-        if (!gameMeta.stats) {
-            gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+        if (META_ENABLED) {
+            try {
+                if (!gameMeta.stats) {
+                    gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
+                }
+                gameMeta.stats.losses = Number.isFinite(gameMeta.stats.losses) ? gameMeta.stats.losses + 1 : 1;
+                metaSave(gameMeta);
+            } catch (error) {
+                console.warn('Meta loss hook failed. Continuing with baseline loss flow.', error);
+            }
         }
-        gameMeta.stats.losses = Number.isFinite(gameMeta.stats.losses) ? gameMeta.stats.losses + 1 : 1;
-        metaSave(gameMeta);
         saveStats();
 
         console.log('💀 Match recorded as loss.');
@@ -2008,7 +2054,11 @@
         }
 
         gameMeta.decks[deckKey].cardIds = [...candidate];
-        metaSave(gameMeta);
+        try {
+            metaSave(gameMeta);
+        } catch (error) {
+            console.warn('Meta deck-save hook failed. Proceeding with in-memory deck update only.', error);
+        }
         playSFX('select');
         showGameLog(`Saved deck ${deckKey}.`, false);
         deckBuilderState.workingCardIds = [...candidate];
@@ -2195,6 +2245,31 @@
             gameStats = { wins: 0, losses: 0, total: 0 };
             saveStats();
             updateStatsDisplay();
+        });
+    }
+
+    function resetMetaProgress() {
+        showConfirmModal('🧹 RESET PROGRESS?', 'This clears collection/decks/packs progress. Continue?', function() {
+            try {
+                localStorage.removeItem(META_STORAGE_KEY);
+            } catch (error) {
+                console.warn('Failed to clear meta save key. Proceeding with in-memory reset fallback.', error);
+            }
+
+            try {
+                gameMeta = metaEnsureInitialized();
+            } catch (error) {
+                console.warn('Meta reset hook failed. Falling back to starter meta in memory.', error);
+                gameMeta = createInitialMeta();
+            }
+
+            deckBuilderState = {
+                deckKey: null,
+                workingCardIds: []
+            };
+
+            showGameLog('Progress reset. Starter collection restored.', false);
+            playSFX('menuClose');
         });
     }
 
@@ -2491,6 +2566,10 @@
 
     function createPlayerDeck(elements) {
         const fallbackDeck = () => generateDeck(elements);
+
+        if (!META_ENABLED) {
+            return fallbackDeck();
+        }
 
         try {
             const meta = gameMeta;
