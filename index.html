@@ -163,8 +163,24 @@
             <div class="menu-buttons" id="mainMenu">
                 <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
                 <button class="menu-btn" onclick="showDeckBuilder()">🛠️ DECK BUILDER</button>
+                <button class="menu-btn" onclick="showPackShop()">🛒 PACK SHOP</button>
                 <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
                 <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
+            </div>
+
+            <div id="packShopScreen" class="menu-screen" style="display:none;">
+                <div class="modal-subtitle">Pack Shop</div>
+                <div class="shop-credits-badge" id="shopCreditsBadge">💳 Credits: 0</div>
+                <div class="pack-shop-grid">
+                    <button class="menu-btn shop-pack-btn" data-theme="fantasy" type="button" onclick="purchasePack('fantasy')">🧙 Fantasy Pack · 60 Credits</button>
+                    <button class="menu-btn shop-pack-btn" data-theme="scifi" type="button" onclick="purchasePack('scifi')">🚀 SciFi Pack · 60 Credits</button>
+                    <button class="menu-btn shop-pack-btn" data-theme="tech" type="button" onclick="purchasePack('tech')">⚙️ Tech Pack · 60 Credits</button>
+                    <button class="menu-btn shop-pack-btn" data-theme="alien" type="button" onclick="purchasePack('alien')">👽 Alien Pack · 60 Credits</button>
+                    <button class="menu-btn shop-pack-btn" data-theme="robot" type="button" onclick="purchasePack('robot')">🤖 Robot Pack · 60 Credits</button>
+                    <button class="menu-btn shop-pack-btn" data-theme="lands" type="button" onclick="purchasePack('lands')">🌍 Lands Pack · 40 Credits</button>
+                </div>
+                <div class="pack-shop-message" id="packShopMessage" aria-live="polite"></div>
+                <button class="menu-btn" onclick="hidePackShop()" style="margin-top: 15px;">← BACK TO MENU</button>
             </div>
 
             <div id="elementSelectionScreen" style="display: none;">
