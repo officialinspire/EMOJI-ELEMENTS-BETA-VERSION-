@@ -2185,6 +2185,7 @@ body.no-scroll {
     justify-content: center;
     align-items: center;
     touch-action: none;
+    overscroll-behavior: contain;
 }
 
 .pack-sealed-emoji {
@@ -2232,7 +2233,8 @@ body.no-scroll {
     justify-content: center;
     text-align: center;
     padding: 12px;
-    touch-action: pan-y;
+    touch-action: none;
+    overscroll-behavior: contain;
 }
 
 .pack-qa-debug {
