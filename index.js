@@ -1617,6 +1617,41 @@
     };
 
 
+    window.__qaBuyPack = function(themeKey) {
+        const qaPrefix = '[QA][BuyPack]';
+        const normalizedTheme = String(themeKey || '').trim().toLowerCase();
+        const beforeCredits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const beforeCollectionTotal = Object.values(gameMeta?.collection || {}).reduce((sum, count) => sum + (Number.isFinite(count) ? count : 0), 0);
+
+        console.log(`${qaPrefix} credits(before)=${beforeCredits} theme=${normalizedTheme || 'auto'}`);
+        const result = purchasePack(normalizedTheme);
+
+        const afterCredits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const afterCollectionTotal = Object.values(gameMeta?.collection || {}).reduce((sum, count) => sum + (Number.isFinite(count) ? count : 0), 0);
+        console.log(`${qaPrefix} credits(after)=${afterCredits}`);
+
+        if (!gameMeta?.lastPack || !Array.isArray(gameMeta.lastPack.cardIds) || gameMeta.lastPack.cardIds.length === 0) {
+            throw new Error(`${qaPrefix} Assertion failed: meta.lastPack missing after purchase.`);
+        }
+
+        if (afterCollectionTotal <= beforeCollectionTotal) {
+            throw new Error(`${qaPrefix} Assertion failed: collection did not increase (${beforeCollectionTotal} -> ${afterCollectionTotal}).`);
+        }
+
+        console.log(`${qaPrefix} ✅ PASS purchased=${result?.ok === true} cards=${gameMeta.lastPack.cardIds.length} collection=${beforeCollectionTotal}->${afterCollectionTotal}`);
+
+        return {
+            ok: true,
+            result,
+            creditsBefore: beforeCredits,
+            creditsAfter: afterCredits,
+            collectionBefore: beforeCollectionTotal,
+            collectionAfter: afterCollectionTotal,
+            lastPack: gameMeta.lastPack
+        };
+    };
+
+
     window.__qaDeckBuilderSmoke = function(deckKey) {
         const qaPrefix = '[QA][DeckBuilderSmoke]';
         const selectedDeckKey = deckKey || deckBuilderState.deckKey || gameMeta?.selectedDeckKey || Object.keys(gameMeta?.decks || {})[0];
@@ -2584,7 +2619,7 @@
             if (!Number.isFinite(cost)) {
                 console.warn('Pack Shop purchase blocked: unknown theme key.', themeKey);
                 setPackShopMessage('That pack is unavailable right now.', 'error');
-                return;
+                return { ok: false, reason: 'unknown_theme' };
             }
 
             if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
@@ -2593,16 +2628,17 @@
 
             const currentCredits = Math.max(0, Math.floor(gameMeta.wallet.credits));
             if (currentCredits < cost) {
-                setPackShopMessage(`Not enough credits. ${cost} needed, you have ${currentCredits}.`, 'error');
+                console.info('[Pack Shop] Purchase skipped: insufficient credits.', { cost, currentCredits, themeKey: normalizedTheme });
+                setPackShopMessage(`Not enough credits yet (${currentCredits}/${cost}). Play a match to earn more!`, 'error');
                 updatePackShopCreditsBadge();
-                return;
+                return { ok: false, reason: 'insufficient_credits', cost, currentCredits };
             }
 
             const cardIds = generatePack(normalizedTheme);
             if (!Array.isArray(cardIds) || cardIds.length === 0) {
                 console.warn('Pack Shop purchase failed: generatePack returned no cards.', normalizedTheme);
                 setPackShopMessage('Pack generation failed. Please try again.', 'error');
-                return;
+                return { ok: false, reason: 'empty_pack', themeKey: normalizedTheme };
             }
 
             const openedAt = new Date().toISOString();
@@ -2621,9 +2657,11 @@
             setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
             updatePackShopCreditsBadge();
             openPackOpeningOverlayFromMeta();
+            return { ok: true, themeKey: normalizedTheme, cardIds, cost };
         } catch (error) {
             console.warn('Pack Shop purchase flow failed but UI remains usable.', error);
             setPackShopMessage('Something went wrong. Please try again.', 'error');
+            return { ok: false, reason: 'exception', error };
         }
     }
 
