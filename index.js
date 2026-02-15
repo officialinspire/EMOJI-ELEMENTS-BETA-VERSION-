@@ -146,6 +146,17 @@
         });
     }
 
+    function qaAssertDomIds(ids = []) {
+        if (!QA_MODE || !Array.isArray(ids)) return;
+
+        ids.forEach((id) => {
+            if (typeof id !== 'string' || !id) return;
+            if (!document.getElementById(id)) {
+                console.warn('[QA] missing DOM id:', id);
+            }
+        });
+    }
+
     function getCardTooltipText(card) {
         const stats = card.type === 'creature' ? ` • ${card.power}/${card.toughness}` : '';
         return `${card.emoji} ${card.name}${stats}`;
@@ -427,6 +438,47 @@
 
     // Intro Video Logic with Click to Start
     window.addEventListener('DOMContentLoaded', () => {
+        if (QA_MODE) {
+            const requiredQaDomIds = [
+                // start / menu screens
+                'clickToStart',
+                'introContainer',
+                'introVideo',
+                'startModal',
+                'mainMenu',
+                'startBtn',
+                // deck builder
+                'deckBuilderScreen',
+                'deckBuilderDeckKey',
+                'deckBuilderPool',
+                'deckBuilderDeck',
+                'deckBuilderStatus',
+                // pack opening
+                'packOpeningOverlay',
+                'packCardViewport',
+                // victory / how-to-play
+                'victoryOverlay',
+                'howToPlayScreen',
+                'howToPlayPageIndicator'
+            ];
+
+            const optionalQaDomIds = [];
+
+            // Pack shop + credits badge are optional as a feature set.
+            if (document.getElementById('packShopScreen')) {
+                optionalQaDomIds.push('packShopScreen', 'shopCreditsBadge');
+            }
+
+            // Binder / collection UI varies by build; only assert known IDs when present.
+            ['binderScreen', 'collectionScreen', 'binderOverlay', 'collectionModal'].forEach((id) => {
+                if (document.getElementById(id)) {
+                    optionalQaDomIds.push(id);
+                }
+            });
+
+            qaAssertDomIds([...requiredQaDomIds, ...optionalQaDomIds]);
+        }
+
         const clickToStart = document.getElementById('clickToStart');
         const introContainer = document.getElementById('introContainer');
         const introVideo = document.getElementById('introVideo');
