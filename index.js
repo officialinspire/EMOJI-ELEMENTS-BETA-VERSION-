@@ -1175,6 +1175,19 @@
             .filter(color => ELEMENTS[color]);
     }
 
+    function getDeckKeyFromElements(elements) {
+        const normalized = Array.isArray(elements)
+            ? [...new Set(elements.filter(element => ELEMENTS[element]))]
+            : [];
+
+        if (normalized.length === 0) return null;
+        if (normalized.length === 1) return normalized[0].toUpperCase();
+
+        const priority = ['fire', 'water', 'earth', 'swamp', 'light'];
+        const ordered = [...normalized].sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
+        return ordered.slice(0, 2).map(color => color.toUpperCase()).join('_');
+    }
+
     function getDeckCardCopyLimit(card) {
         if (!card || card.type === 'land') return Number.POSITIVE_INFINITY;
         return card.__rarity === 'legendary' ? 1 : 2;
@@ -3468,7 +3481,18 @@
     }
 
     function createPlayerDeck(elements) {
-        const fallbackDeck = () => generateDeck(elements);
+        const normalizedElements = Array.isArray(elements)
+            ? elements.filter(element => ELEMENTS[element])
+            : [];
+        const fallbackDeck = () => {
+            if (normalizedElements.length === 0) {
+                return generateDeck(['fire', 'water']);
+            }
+            if (normalizedElements.length === 1) {
+                return generateDeck(normalizedElements);
+            }
+            return generateDeck(normalizedElements.slice(0, 2));
+        };
         const isMetaEnabledForDeck = isMetaRuntimeEnabled();
 
         const getFallbackDeckWithLog = () => {
@@ -3484,7 +3508,7 @@
 
         try {
             const meta = gameMeta;
-            const selectedDeckKey = meta?.selectedDeckKey;
+            const selectedDeckKey = getDeckKeyFromElements(normalizedElements) || meta?.selectedDeckKey;
             const metaDeck = meta?.decks?.[selectedDeckKey];
             const cardIds = Array.isArray(metaDeck?.cardIds) ? metaDeck.cardIds : null;
 
@@ -3612,6 +3636,14 @@
 
         playSFX('select');
 
+        if (isMetaRuntimeEnabled()) {
+            const chosenDeckKey = getDeckKeyFromElements(gameState.selectedElements);
+            if (chosenDeckKey && gameMeta?.decks?.[chosenDeckKey]) {
+                gameMeta.selectedDeckKey = chosenDeckKey;
+                metaSave(gameMeta);
+            }
+        }
+
         // CRITICAL: Reset ALL game state to prevent crashes when starting new game
         gameState.playerLife = 20;
         gameState.enemyLife = 20;
@@ -3636,6 +3668,10 @@
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
+        if (!Array.isArray(gameState.playerDeck) || gameState.playerDeck.length === 0) {
+            console.warn('Player deck resolved to empty. Rebuilding with generated fallback deck.');
+            gameState.playerDeck = generateDeck(gameState.selectedElements);
+        }
 
         // AI picks random elements
         const elementKeys = Object.keys(ELEMENTS);
