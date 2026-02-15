@@ -255,16 +255,86 @@
             floater.style.top = `${rect.top + rect.height / 2}px`;
 
             document.body.appendChild(floater);
-            setTimeout(() => {
+            let removed = false;
+            const cleanup = () => {
+                if (removed) return;
+                removed = true;
                 try {
                     floater.remove();
                 } catch (_) {
                     // no-op
                 }
-            }, 900);
+            };
+
+            floater.addEventListener('animationend', cleanup, { once: true });
+            setTimeout(cleanup, 900);
         } catch (_) {
             // no-op
         }
+    }
+
+    function qaWarnDomPressure(context = '') {
+        if (!QA_MODE) return;
+
+        const overlays = document.querySelectorAll('.victory-overlay.show, .lose-overlay.show, .pack-opening-overlay.show, .guide-overlay[style*="display: flex"]');
+        const floaters = document.querySelectorAll('.floating-dmg');
+
+        if (overlays.length > 3) {
+            console.warn(`[QA PERF] ${context} overlay pressure high:`, overlays.length);
+        }
+
+        if (floaters.length > 24) {
+            console.warn(`[QA PERF] ${context} floating elements lingering:`, floaters.length);
+        }
+    }
+
+    function runQAPerfBurst() {
+        if (!QA_MODE) return;
+
+        const targetEl = document.getElementById('playerLife') || document.getElementById('enemyLife');
+        if (!targetEl) {
+            console.warn('[QA PERF] Missing life target for burst test.');
+            return;
+        }
+
+        const frameDeltas = [];
+        let frames = 0;
+        const maxFrames = 30;
+        let lastTs = performance.now();
+
+        const captureFrame = (ts) => {
+            frameDeltas.push(ts - lastTs);
+            lastTs = ts;
+            frames += 1;
+
+            if (frames < maxFrames) {
+                requestAnimationFrame(captureFrame);
+                return;
+            }
+
+            const avg = frameDeltas.reduce((acc, delta) => acc + delta, 0) / frameDeltas.length;
+            const peak = Math.max(...frameDeltas);
+            console.log(`[QA PERF] Burst frame timing avg=${avg.toFixed(2)}ms peak=${peak.toFixed(2)}ms samples=${frameDeltas.length}`);
+            qaWarnDomPressure('burst-end');
+        };
+
+        requestAnimationFrame(captureFrame);
+
+        for (let i = 0; i < 20; i++) {
+            setTimeout(() => {
+                spawnFloatingNumber({
+                    targetEl,
+                    text: `-${(i % 5) + 1}`,
+                    kind: 'damage'
+                });
+            }, i * 12);
+        }
+
+        setTimeout(() => qaWarnDomPressure('post-cleanup'), 1100);
+    }
+
+    if (QA_MODE) {
+        window.__qaPerfBurst = runQAPerfBurst;
     }
 
     // Helper function to fade audio volume in or out over a duration
@@ -5323,8 +5393,28 @@
         }
     }
 
+    let uiUpdateRafId = 0;
+    let isUIUpdateScheduled = false;
+
+    function scheduleUIUpdate() {
+        if (isUIUpdateScheduled) return;
+        isUIUpdateScheduled = true;
+
+        const runner = () => {
+            isUIUpdateScheduled = false;
+            uiUpdateRafId = 0;
+            performUIUpdate();
+        };
+
+        if (typeof requestAnimationFrame === 'function') {
+            uiUpdateRafId = requestAnimationFrame(runner);
+        } else {
+            setTimeout(runner, 16);
+        }
+    }
+
     // Update UI
-    function updateUI() {
+    function performUIUpdate() {
         // Update life totals
         document.getElementById('playerLife').textContent = gameState.playerLife;
         document.getElementById('enemyLife').textContent = gameState.enemyLife;
@@ -5788,6 +5878,20 @@
                 endTurnBtn.style.cursor = 'pointer';
             }
         }
+    }
+
+    function updateUI({ immediate = false } = {}) {
+        if (immediate) {
+            if (uiUpdateRafId && typeof cancelAnimationFrame === 'function') {
+                cancelAnimationFrame(uiUpdateRafId);
+            }
+            isUIUpdateScheduled = false;
+            uiUpdateRafId = 0;
+            performUIUpdate();
+            return;
+        }
+
+        scheduleUIUpdate();
     }
 
     function updateManaDisplay(elementId, manaPool) {
