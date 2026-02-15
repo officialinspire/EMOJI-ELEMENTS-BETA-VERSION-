@@ -1179,6 +1179,51 @@
         'EARTH_LIGHT',
         'SWAMP_LIGHT'
     ];
+    const STANDARD_DECK_SIZE = 60;
+    const STANDARD_MAX_LANDS = 20;
+    const STANDARD_NON_LAND_COUNT = STANDARD_DECK_SIZE - STANDARD_MAX_LANDS;
+
+    function getDeckLandCaps(deckColors) {
+        const normalizedColors = Array.isArray(deckColors)
+            ? deckColors.filter(color => ELEMENTS[color]).slice(0, 2)
+            : [];
+        if (normalizedColors.length === 1) {
+            return {
+                maxLands: STANDARD_MAX_LANDS,
+                maxPerColor: { [normalizedColors[0]]: STANDARD_MAX_LANDS },
+                colors: normalizedColors
+            };
+        }
+
+        if (normalizedColors.length >= 2) {
+            return {
+                maxLands: STANDARD_MAX_LANDS,
+                maxPerColor: {
+                    [normalizedColors[0]]: 10,
+                    [normalizedColors[1]]: 10
+                },
+                colors: normalizedColors
+            };
+        }
+
+        return { maxLands: STANDARD_MAX_LANDS, maxPerColor: {}, colors: [] };
+    }
+
+    function inferLandElements(card) {
+        if (!card || card.type !== 'land') return [];
+        const output = [];
+        if (Array.isArray(card.elements)) {
+            card.elements.forEach(element => {
+                if ((element === 'colorless' || ELEMENTS[element]) && !output.includes(element)) {
+                    output.push(element);
+                }
+            });
+        }
+        if (card.element && (card.element === 'colorless' || ELEMENTS[card.element]) && !output.includes(card.element)) {
+            output.push(card.element);
+        }
+        return output;
+    }
 
     function getDeckColorsFromKey(deckKey) {
         return String(deckKey || '')
@@ -1219,6 +1264,9 @@
         const deckColors = Array.isArray(deck?.colors) && deck.colors.length > 0
             ? deck.colors
             : getDeckColorsFromKey(deckKey);
+        const landCaps = getDeckLandCaps(deckColors);
+        const landColorCounts = {};
+        let totalLands = 0;
         const collection = safeMeta?.collection || {};
         const usedCounts = {};
 
@@ -1247,6 +1295,31 @@
             const maxCopies = getDeckBuilderCopyLimit(card);
             if (usedCounts[cardId] > maxCopies) {
                 errors.push(`${card.name} exceeds max copies (${maxCopies}${maxCopies === 1 ? ', legendary limit' : ''}).`);
+            }
+
+            if (card.type === 'land') {
+                totalLands += 1;
+                const supportedLandColors = inferLandElements(card)
+                    .filter(element => element !== 'colorless' && landCaps.colors.includes(element));
+
+                if (landCaps.colors.length > 0 && supportedLandColors.length === 0) {
+                    errors.push(`${card.name} is not a valid land color for ${deckKey}.`);
+                } else if (supportedLandColors.length > 0) {
+                    const targetColor = supportedLandColors
+                        .sort((a, b) => (landColorCounts[a] || 0) - (landColorCounts[b] || 0))[0];
+                    landColorCounts[targetColor] = (landColorCounts[targetColor] || 0) + 1;
+                }
+            }
+        });
+
+        if (totalLands > landCaps.maxLands) {
+            errors.push(`Deck can contain at most ${landCaps.maxLands} lands (currently ${totalLands}).`);
+        }
+
+        Object.entries(landCaps.maxPerColor).forEach(([color, max]) => {
+            const used = landColorCounts[color] || 0;
+            if (used > max) {
+                errors.push(`${deckKey} can contain at most ${max} ${color} lands (currently ${used}).`);
             }
         });
 
@@ -1280,10 +1353,9 @@
     }
 
     function buildStarterDeckFromColors(deckKey, colors) {
-        const LAND_COUNT = 25;
-        const NON_LAND_COUNT = 35;
-        const COLORLESS_LAND_COUNT = 3;
-        const coloredLandCount = LAND_COUNT - COLORLESS_LAND_COUNT;
+        const LAND_COUNT = STANDARD_MAX_LANDS;
+        const NON_LAND_COUNT = STANDARD_NON_LAND_COUNT;
+        const landCaps = getDeckLandCaps(colors);
         const STARTER_TYPE_TARGETS = {
             creature: 20,
             instant: 9,
@@ -1362,13 +1434,13 @@
         if (colors.length === 1) {
             const monoLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[0]])];
             if (monoLand) {
-                for (let i = 0; i < coloredLandCount; i++) {
+                for (let i = 0; i < LAND_COUNT; i++) {
                     cardIds.push(monoLand.__id);
                 }
             }
         } else {
-            const firstCount = Math.ceil(coloredLandCount / 2);
-            const secondCount = Math.floor(coloredLandCount / 2);
+            const firstCount = landCaps.maxPerColor[colors[0]] || Math.ceil(LAND_COUNT / 2);
+            const secondCount = landCaps.maxPerColor[colors[1]] || (LAND_COUNT - firstCount);
             const firstLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[0]])];
             const secondLand = __CARD_BY_ID[getCardId(CARD_DATABASE.lands[colors[1]])];
             if (firstLand) {
@@ -1381,11 +1453,6 @@
                     cardIds.push(secondLand.__id);
                 }
             }
-        }
-
-        const wastelandId = getCardId(CARD_DATABASE.lands.wasteland);
-        for (let i = 0; i < COLORLESS_LAND_COUNT; i++) {
-            cardIds.push(wastelandId);
         }
 
         const eligibleNonLands = __ALL_CARDS
@@ -3555,28 +3622,23 @@
     // Deck Generation with improved shuffling
     function generateDeck(elements) {
         const deck = [];
-        const LAND_COUNT = 25;
-        const NON_LAND_COUNT = 35;
-        const COLORLESS_LAND_COUNT = 3;
+        const LAND_COUNT = STANDARD_MAX_LANDS;
+        const NON_LAND_COUNT = STANDARD_NON_LAND_COUNT;
+        const landCaps = getDeckLandCaps(elements);
 
         if (elements.length === 1) {
-            for (let i = 0; i < LAND_COUNT - COLORLESS_LAND_COUNT; i++) {
+            for (let i = 0; i < LAND_COUNT; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
         } else {
-            const coloredLandPool = LAND_COUNT - COLORLESS_LAND_COUNT;
-            const firstLandCount = 10 + Math.floor(Math.random() * 3); // 10-12
-            const secondLandCount = coloredLandPool - firstLandCount;
+            const firstLandCount = landCaps.maxPerColor[elements[0]] || 10;
+            const secondLandCount = landCaps.maxPerColor[elements[1]] || (LAND_COUNT - firstLandCount);
             for (let i = 0; i < firstLandCount; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
             for (let i = 0; i < secondLandCount; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[1]], id: Math.random() });
             }
-        }
-
-        for (let i = 0; i < COLORLESS_LAND_COUNT; i++) {
-            deck.push({ ...CARD_DATABASE.lands.wasteland, id: Math.random() });
         }
 
         const creatures = [];
@@ -3627,10 +3689,7 @@
             deck.push({ ...card, id: Math.random() });
         }
 
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
+        shuffleDeck(deck, 6);
 
         return deck;
     }
@@ -3692,11 +3751,22 @@
         }
     }
 
-    // Shuffle deck function (Fisher-Yates algorithm)
-    function shuffleDeck(deck) {
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
+    // Shuffle deck function (multi-pass Fisher-Yates + cut for better randomness)
+    function shuffleDeck(deck, passes = 1) {
+        if (!Array.isArray(deck) || deck.length < 2) return;
+        const safePasses = Math.max(1, Math.floor(passes));
+
+        for (let pass = 0; pass < safePasses; pass++) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+
+            if (deck.length > 10) {
+                const cutIndex = Math.floor(deck.length * (0.25 + Math.random() * 0.5));
+                const top = deck.splice(0, cutIndex);
+                deck.push(...top);
+            }
         }
     }
 
@@ -3744,8 +3814,8 @@
         gameState.playerDeck = gameState.playerDeck.concat(gameState.playerHand);
         gameState.playerHand = [];
 
-        // Shuffle deck properly
-        shuffleDeck(gameState.playerDeck);
+        // Super shuffle after returning hand to deck
+        shuffleDeck(gameState.playerDeck, 8);
 
         // Draw 6 cards
         for (let i = 0; i < 6; i++) {
@@ -3839,6 +3909,10 @@
             }
         }
         gameState.enemyDeck = generateDeck(aiElements);
+
+        // Super shuffle both decks before opening hands
+        shuffleDeck(gameState.playerDeck, 8);
+        shuffleDeck(gameState.enemyDeck, 8);
 
         // Draw starting hands
         for (let i = 0; i < 7; i++) {
