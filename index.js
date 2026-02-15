@@ -1115,6 +1115,52 @@
         return card.__rarity === 'legendary' ? 1 : 2;
     }
 
+    function validateDeckBuild(deckKey, cardIds, meta) {
+        const errors = [];
+        const safeMeta = meta && typeof meta === 'object' ? meta : {};
+        const deck = safeMeta?.decks?.[deckKey];
+        const candidate = Array.isArray(cardIds) ? cardIds : [];
+        const targetSize = getDeckTargetSize(deck);
+        const deckColors = Array.isArray(deck?.colors) && deck.colors.length > 0
+            ? deck.colors
+            : getDeckColorsFromKey(deckKey);
+        const collection = safeMeta?.collection || {};
+        const usedCounts = {};
+
+        if (candidate.length !== targetSize) {
+            errors.push(`Deck must contain exactly ${targetSize} cards (currently ${candidate.length}).`);
+        }
+
+        candidate.forEach(cardId => {
+            const card = __CARD_BY_ID[cardId];
+            if (!card) {
+                errors.push(`Unknown card id: ${cardId}`);
+                return;
+            }
+
+            usedCounts[cardId] = (usedCounts[cardId] || 0) + 1;
+
+            if (!isCardEligibleForDeck(card, deckColors)) {
+                errors.push(`${card.name} is not valid for ${deckKey} identity.`);
+            }
+
+            const owned = Number.isFinite(collection[cardId]) ? collection[cardId] : 0;
+            if (usedCounts[cardId] > owned) {
+                errors.push(`${card.name} exceeds owned copies (${usedCounts[cardId]}/${owned}).`);
+            }
+
+            const maxCopies = getDeckBuilderCopyLimit(card);
+            if (usedCounts[cardId] > maxCopies) {
+                errors.push(`${card.name} exceeds max copies (${maxCopies}${maxCopies === 1 ? ', legendary limit' : ''}).`);
+            }
+        });
+
+        return {
+            ok: errors.length === 0,
+            errors: [...new Set(errors)]
+        };
+    }
+
     function metaLoad() {
         if (!isMetaRuntimeEnabled()) return null;
 
@@ -1432,7 +1478,8 @@
     let deckBuilderState = {
         deckKey: null,
         workingCardIds: [],
-        debugWarning: ''
+        debugWarning: '',
+        validationErrors: []
     };
 
     let gameMeta;
@@ -1563,6 +1610,82 @@
 
         return {
             total,
+            passed,
+            failed,
+            results
+        };
+    };
+
+
+    window.__qaDeckBuilderSmoke = function(deckKey) {
+        const qaPrefix = '[QA][DeckBuilderSmoke]';
+        const selectedDeckKey = deckKey || deckBuilderState.deckKey || gameMeta?.selectedDeckKey || Object.keys(gameMeta?.decks || {})[0];
+        const deck = gameMeta?.decks?.[selectedDeckKey];
+        if (!deck) {
+            const reason = `Missing deck for key: ${selectedDeckKey}`;
+            console.log(`${qaPrefix} ❌ FAIL ${reason}`);
+            return { ok: false, failed: 1, passed: 0, results: [{ label: 'init deck', pass: false, reason }] };
+        }
+
+        const targetSize = getDeckTargetSize(deck);
+        const baseDeck = Array.isArray(deck.starterCardIds) ? [...deck.starterCardIds] : [];
+        const collection = gameMeta?.collection || {};
+        const deckColors = Array.isArray(deck.colors) ? deck.colors : getDeckColorsFromKey(selectedDeckKey);
+
+        const findCardId = (predicate) => Object.keys(__CARD_BY_ID).find(cardId => predicate(__CARD_BY_ID[cardId], cardId));
+        const ownedEligibleId = findCardId((card, cardId) => card && card.type !== 'land' && (collection[cardId] || 0) > 0 && isCardEligibleForDeck(card, deckColors));
+        const unownedEligibleId = findCardId((card, cardId) => card && card.type !== 'land' && (collection[cardId] || 0) === 0 && isCardEligibleForDeck(card, deckColors));
+
+        const results = [];
+        const test = (label, fn, expectedPass = true) => {
+            let pass = false;
+            let detail = '';
+            try {
+                pass = !!fn();
+            } catch (error) {
+                pass = false;
+                detail = error?.message || String(error);
+            }
+            const finalPass = expectedPass ? pass : !pass;
+            const marker = finalPass ? '✅ PASS' : '❌ FAIL';
+            console.log(`${qaPrefix} ${marker} ${label}${detail ? ` (${detail})` : ''}`);
+            results.push({ label, pass: finalPass, detail });
+        };
+
+        test('add unowned card should fail', () => {
+            if (!unownedEligibleId) return true;
+            return !validateDeckBuild(selectedDeckKey, [...baseDeck, unownedEligibleId], gameMeta).ok;
+        });
+
+        test('exceed copies should fail', () => {
+            if (!ownedEligibleId) return true;
+            const card = __CARD_BY_ID[ownedEligibleId];
+            const limit = getDeckBuilderCopyLimit(card);
+            return !validateDeckBuild(selectedDeckKey, new Array(limit + 1).fill(ownedEligibleId), gameMeta).ok;
+        });
+
+        test('save wrong size should fail', () => {
+            deckBuilderState.deckKey = selectedDeckKey;
+            deckBuilderState.workingCardIds = baseDeck.slice(0, Math.max(0, targetSize - 1));
+            deckBuilderState.validationErrors = [];
+            saveDeckBuilderDeck();
+            const persisted = gameMeta?.decks?.[selectedDeckKey]?.cardIds || [];
+            return persisted.length === targetSize && deckBuilderState.validationErrors.length > 0;
+        });
+
+        test('save correct size should pass', () => {
+            deckBuilderState.deckKey = selectedDeckKey;
+            deckBuilderState.workingCardIds = [...baseDeck];
+            deckBuilderState.validationErrors = [];
+            saveDeckBuilderDeck();
+            const persisted = gameMeta?.decks?.[selectedDeckKey]?.cardIds || [];
+            return validateDeckBuild(selectedDeckKey, persisted, gameMeta).ok;
+        });
+
+        const passed = results.filter(result => result.pass).length;
+        const failed = results.length - passed;
+        return {
+            ok: failed === 0,
             passed,
             failed,
             results
@@ -2556,6 +2679,10 @@
         const current = deckBuilderState.workingCardIds.length;
         const ready = current === targetSize;
         const baseMessage = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
+        if (Array.isArray(deckBuilderState.validationErrors) && deckBuilderState.validationErrors.length > 0) {
+            status.textContent = `${baseMessage} | ${deckBuilderState.validationErrors.join(' ')}`;
+            return;
+        }
         if (QA_DEBUG && deckBuilderState.debugWarning) {
             status.textContent = `${baseMessage} | QA: ${deckBuilderState.debugWarning}`;
             return;
@@ -2603,6 +2730,7 @@
                 }
                 if (deckBuilderState.workingCardIds.length >= targetSize) return;
                 deckBuilderState.debugWarning = '';
+                deckBuilderState.validationErrors = [];
                 deckBuilderState.workingCardIds.push(cardId);
                 renderDeckBuilder();
             });
@@ -2620,6 +2748,7 @@
                     const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
                     if (idx >= 0) {
                         deckBuilderState.workingCardIds.splice(idx, 1);
+                        deckBuilderState.validationErrors = [];
                         renderDeckBuilder();
                     }
                 });
@@ -2656,12 +2785,14 @@
         deckBuilderState.deckKey = preferredDeckKey || null;
         deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
         deckBuilderState.debugWarning = '';
+        deckBuilderState.validationErrors = [];
 
         select.onchange = (event) => {
             const deckKey = event.target.value;
             deckBuilderState.deckKey = deckKey;
             deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
             deckBuilderState.debugWarning = '';
+            deckBuilderState.validationErrors = [];
             renderDeckBuilder();
         };
 
@@ -2675,6 +2806,7 @@
         playSFX('menuClose');
         deckBuilderState.workingCardIds = [...(deck.starterCardIds || [])];
         deckBuilderState.debugWarning = '';
+        deckBuilderState.validationErrors = [];
         renderDeckBuilder();
     }
 
@@ -2683,25 +2815,14 @@
         const deck = gameMeta.decks?.[deckKey];
         if (!deck) return;
 
-        const targetSize = getDeckTargetSize(deck);
-        const ownedRemaining = { ...(gameMeta.collection || {}) };
-        const used = {};
-        const candidate = [];
-        (deckBuilderState.workingCardIds || []).forEach(cardId => {
-            const card = __CARD_BY_ID[cardId];
-            if (!card) return;
-            if (!isCardEligibleForDeck(card, deck.colors || getDeckColorsFromKey(deckKey))) return;
-            if ((ownedRemaining[cardId] || 0) <= 0) return;
-            const limit = getDeckBuilderCopyLimit(card);
-            if ((used[cardId] || 0) >= limit) return;
-            candidate.push(cardId);
-            used[cardId] = (used[cardId] || 0) + 1;
-            ownedRemaining[cardId] -= 1;
-        });
+        const candidate = [...(deckBuilderState.workingCardIds || [])];
+        const validation = validateDeckBuild(deckKey, candidate, gameMeta);
 
-        if (candidate.length !== targetSize) {
-            if (QA_DEBUG) deckBuilderState.debugWarning = `Save blocked: deck must contain exactly ${targetSize} cards.`;
-            showGameLog(`Deck must contain exactly ${targetSize} cards to save.`, true);
+        if (!validation.ok) {
+            const targetSize = getDeckTargetSize(deck);
+            if (QA_DEBUG) deckBuilderState.debugWarning = `Save blocked: ${validation.errors.join(' | ')}`;
+            deckBuilderState.validationErrors = validation.errors;
+            showGameLog(validation.errors[0] || `Deck must contain exactly ${targetSize} cards to save.`, true);
             renderDeckBuilder();
             return;
         }
@@ -2716,6 +2837,7 @@
         showGameLog(`Saved deck ${deckKey}.`, false);
         deckBuilderState.workingCardIds = [...candidate];
         deckBuilderState.debugWarning = '';
+        deckBuilderState.validationErrors = [];
         renderDeckBuilder();
     }
 
@@ -2921,7 +3043,9 @@
 
             deckBuilderState = {
                 deckKey: null,
-                workingCardIds: []
+                workingCardIds: [],
+                debugWarning: '',
+                validationErrors: []
             };
 
             showGameLog('Progress reset. Starter collection restored.', false);
