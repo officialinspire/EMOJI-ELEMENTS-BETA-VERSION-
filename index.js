@@ -1242,6 +1242,7 @@
 
         return {
             version: 1,
+            initialized: true,
             collection,
             decks,
             selectedDeckKey: 'FIRE',
@@ -1321,8 +1322,10 @@
     function validateMeta(meta) {
         try {
             const loaded = meta && typeof meta === 'object' ? meta : {};
+            const shouldSeedStarter = loaded.initialized !== true;
             const repaired = {
                 version: 1,
+                initialized: true,
                 collection: {},
                 decks: {},
                 selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
@@ -1368,6 +1371,8 @@
                     repaired.decks[deckKey] = seededMeta.decks[deckKey];
                 }
 
+                if (!shouldSeedStarter) return;
+
                 const requiredCounts = {};
                 (repaired.decks[deckKey].cardIds || []).forEach(cardId => {
                     requiredCounts[cardId] = (requiredCounts[cardId] || 0) + 1;
@@ -1394,6 +1399,7 @@
                 console.warn('Starter meta rebuild failed. Falling back to minimal safe meta.', seedError);
                 return {
                     version: 1,
+                    initialized: true,
                     collection: {},
                     decks: {},
                     selectedDeckKey: 'FIRE',
@@ -1445,13 +1451,15 @@
     if (QA_DEBUG) {
         window.__qaDumpMeta = function() {
             const meta = metaLoad() || gameMeta || {};
+            const wins = Number.isFinite(meta?.stats?.wins) ? meta.stats.wins : 0;
+            const losses = Number.isFinite(meta?.stats?.losses) ? meta.stats.losses : 0;
             const summary = {
-                wins: Number.isFinite(meta?.stats?.wins) ? meta.stats.wins : 0,
-                losses: Number.isFinite(meta?.stats?.losses) ? meta.stats.losses : 0,
                 credits: Number.isFinite(meta?.wallet?.credits) ? meta.wallet.credits : STARTER_CREDITS,
+                winsLosses: `${wins}/${losses}`,
+                packsOpened: Number.isFinite(meta?.stats?.packsOpened) ? meta.stats.packsOpened : 0,
                 selectedDeckKey: typeof meta?.selectedDeckKey === 'string' ? meta.selectedDeckKey : 'FIRE',
                 collectionSize: Object.keys(meta?.collection || {}).length,
-                deckKeys: Object.keys(meta?.decks || {})
+                deckKeysCount: Object.keys(meta?.decks || {}).length
             };
             console.log('[QA] Meta summary:', summary);
             return summary;
