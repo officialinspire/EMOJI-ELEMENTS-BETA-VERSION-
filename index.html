@@ -71,6 +71,7 @@
 
             <div id="packRevealStage" class="pack-stage">
                 <div id="packCardViewport" class="pack-card-viewport">
+                    <div class="pack-card-cover" id="packCardCover">Tap to reveal</div>
                     <div id="packCardEmoji" class="pack-card-emoji">✨</div>
                     <div id="packCardName" class="pack-card-name"></div>
                     <div id="packCardType" class="pack-card-type"></div>
@@ -164,6 +165,7 @@
                 <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
                 <button class="menu-btn" onclick="showDeckBuilder()">🛠️ DECK BUILDER</button>
                 <button class="menu-btn" onclick="showPackShop()">🛒 PACK SHOP</button>
+                <button class="menu-btn" onclick="showBinder()">📚 BINDER / COLLECTION</button>
                 <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
                 <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
             </div>
@@ -181,6 +183,14 @@
                 </div>
                 <div class="pack-shop-message" id="packShopMessage" aria-live="polite"></div>
                 <button class="menu-btn" onclick="hidePackShop()" style="margin-top: 15px;">← BACK TO MENU</button>
+            </div>
+
+
+            <div id="binderScreen" class="menu-screen" style="display:none;">
+                <div class="modal-subtitle">Binder / Collection</div>
+                <div class="binder-summary-badge" id="binderSummaryBadge">🗂️ 0 unique cards • 0 total cards</div>
+                <div class="binder-list" id="binderList"></div>
+                <button class="menu-btn" onclick="hideBinder()" style="margin-top: 15px;">← BACK TO MENU</button>
             </div>
 
             <div id="elementSelectionScreen" style="display: none;">

@@ -1301,6 +1301,61 @@ body::after {
     flex: 1 1 160px;
 }
 
+
+.binder-summary-badge {
+    display: inline-block;
+    margin: 8px 0 12px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 215, 0, 0.6);
+    background: rgba(47, 25, 72, 0.8);
+    color: #ffefaa;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.binder-list {
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.binder-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    background: rgba(0, 0, 0, 0.35);
+    font-family: 'Inter', sans-serif;
+}
+
+.binder-row-emoji {
+    font-size: 24px;
+}
+
+.binder-row-name {
+    text-align: left;
+    color: var(--text-soft);
+    font-size: 12px;
+}
+
+.binder-row-meta {
+    opacity: 0.75;
+    font-size: 11px;
+}
+
+.binder-row-count {
+    font-weight: 700;
+    color: #ffd86d;
+    font-size: 13px;
+}
+
 .shop-credits-badge {
     display: inline-block;
     margin: 8px 0 14px;
@@ -2223,6 +2278,7 @@ body.no-scroll {
 }
 
 .pack-card-viewport {
+    position: relative;
     border-radius: 12px;
     min-height: 230px;
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(0, 0, 0, 0.4));
@@ -2235,6 +2291,40 @@ body.no-scroll {
     padding: 12px;
     touch-action: none;
     overscroll-behavior: contain;
+}
+
+
+.pack-card-cover {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+    background: linear-gradient(135deg, rgba(34, 20, 53, 0.95), rgba(15, 9, 25, 0.98));
+    color: #ffe38e;
+    text-transform: uppercase;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+
+.pack-card-viewport.is-revealed .pack-card-cover {
+    opacity: 0;
+}
+
+.pack-card-viewport:not(.is-revealed) .pack-card-emoji,
+.pack-card-viewport:not(.is-revealed) .pack-card-name,
+.pack-card-viewport:not(.is-revealed) .pack-card-type {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.pack-card-emoji,
+.pack-card-name,
+.pack-card-type {
+    transition: transform 0.22s ease, opacity 0.22s ease;
 }
 
 .pack-qa-debug {
