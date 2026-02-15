@@ -1,139 +1,190 @@
-# 🎮 EMOJI ELEMENTS — Beta Version (v2.0)
+# ⚔️ EMOJI ELEMENTS v2 (Beta)
 
-A browser-based, Magic-inspired card battler built with vanilla HTML/CSS/JavaScript, now with intro video, full audio asset pack, expanded card content, and polished UI effects.
+EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real progression loop: build decks from cards you own, earn credits from every match, crack themed booster packs, and tune mono/dual-color lists for your next run. It’s pure HTML/CSS/JS, runs on desktop and mobile, and saves your meta progress locally.
 
-## 🚀 Recent Updates (v2.0)
+## Features
 
-### 🎬 Intro Experience
-- Added opening credit video: `inspiresoftwareintro.mp4`
-- Auto-play intro on load with click/tap skip support
-- Smooth transition from intro to start menu
+- 1v1 turn-based card battles with lands, creatures, instants, and artifacts.
+- Match economy with credits on **win and loss**, plus a **free booster chance on win**.
+- Deck Builder backed by owned cards (collection-driven), with copy-limit + deck-size validation.
+- Standardized starter deck keys for mono and dual identities.
+- Pack Shop with themed packs: fantasy, sci-fi, tech, alien, robot, lands.
+- Animated pack opening flow with drag-to-rip + swipe card reveal.
+- Desktop shortcuts + mobile touch support.
+- localStorage persistence for stats, collection, decks, wallet, and last pack.
 
-### 🔊 Audio Expansion
-- Start menu background music loop (`startmenu.mp3`)
-- Gameplay BGM asset included (`gameplaybackgroundmusic.mp3`)
-- Expanded SFX pack for core actions:
-  - land tap/untap, summon types, combat, damage/heal, menu actions, victory/defeat
+## Gameplay Overview
 
-### 🃏 Gameplay + Card System Enhancements
-- Expanded card pool with 150+ cards across elements and themes
-- Added/expanded keyword ability support, including:
-  - Flying, Trample, Lifelink, Haste, Vigilance, Defender, Reach
-  - Deathtouch, First Strike, Double Strike, Hexproof, Menace, Flash
-- Rebalanced mana costs and creature stat profiles for smoother matches
+- Start at **20 life** vs AI at 20.
+- Draw 7-card opening hands.
+- On your turn, play cards from hand if you can pay mana costs.
+- You can play **one land per turn**.
+- Use **Attack** to enter combat and confirm attackers.
+- End turn, let AI play, repeat until life reaches 0.
+- Match ends when:
+  - your life <= 0 → loss
+  - enemy life <= 0 → win
 
-### ✨ UX / UI Improvements
-- Start menu dramatic fade-in animation
-- Victory/defeat overlays and animated life-counter feedback
-- Improved responsive behavior and mobile touch interactions
-- Long-press card detail support on touch devices
+## Progression & Collection
 
-### 📊 Stats + Persistence
-- Tracks wins, losses, total games, and win rate
-- Saves stats locally with browser localStorage
+- Your long-term data is in a meta save (`emoji_elements_meta_v1`) containing:
+  - `collection` (owned card copy counts)
+  - `decks` (saved per deck key)
+  - `wallet.credits`
+  - `stats` (`wins`, `losses`, `packsOpened`)
+  - `lastPack`
+- Opening packs increments owned copies directly in `collection`.
+- Rarity is inferred and used for pack reveal glow/flash tiers: `common`, `uncommon`, `rare`, `epic`, `legendary`.
+- **Collection/Binder note:** this beta tracks ownership in meta + Deck Builder pool. A dedicated Binder screen is optional/variant and not guaranteed in this build.
 
----
+## Decks & Deck Builder
 
-## 📁 Project Structure
+Standardized starter keys created on fresh meta:
 
-Core runtime files:
-1. `index.html` — app structure, overlays, intro integration
-2. `styles.css` — layout, animations, responsive UI
-3. `index.js` — game logic, card database, state + systems
+- **Mono:** `FIRE`, `WATER`, `EARTH`, `SWAMP`, `LIGHT`
+- **Dual:** `FIRE_WATER`, `FIRE_EARTH`, `WATER_EARTH`, `EARTH_SWAMP`, `SWAMP_LIGHT`
 
-Media assets (included in this repo):
-- Intro: `inspiresoftwareintro.mp4`
-- Music: `startmenu.mp3`, `gameplaybackgroundmusic.mp3`
-- SFX: tap, untap, summon, attack, block, heal/damage, menu, game result clips
+How deck persistence works now:
 
----
+- Each key has `starterCardIds` + editable `cardIds`.
+- Saved deck lists are persistent and reused.
+- Match load currently reads `gameMeta.selectedDeckKey` (default `FIRE`) for the player deck.
 
-## ▶️ How to Run
+Rules enforced by validation:
 
-1. Keep all files in this repository together (HTML/CSS/JS + media assets).
-2. Open `index.html` in a modern browser.
-3. Start playing — no build step or dependency install required.
+- **Owned cards only** (cannot exceed owned copies).
+- **Exact deck size required** (`getDeckTargetSize(deck)`, currently starter-size, default fallback `30`).
+- **Copy limits:**
+  - non-legendary: max `2`
+  - legendary: max `1`
+- Deck legality by color identity (card must be legal for that deck’s colors).
 
-> Tip: For best autoplay/audio behavior, interact once (click/tap) after load if your browser blocks media autoplay.
+Starter composition baseline (`buildStarterDeckFromColors`):
 
----
+- `LAND_COUNT = 25`
+- `NON_LAND_COUNT = 35`
+- `COLORLESS_LAND_COUNT = 3`
+- Total starter deck size = **60 cards**.
 
-## 🎯 Core Controls
+## Booster Packs & Themes
 
-- **Click/Tap hand cards**: Play cards
-- **Click land**: Tap for mana
-- **Click tapped land**: Untap and refund mana (when allowed by game logic)
-- **Mulligan**: One-time starting hand redraw to 6 cards
-- **Attack Phase**: Select attackers
-- **End Turn**: Pass turn to AI
-- **Right-click / Long-press**: View card details
-- **Menu button**: Open pause/settings flow
+Pack sources:
 
----
+- **Win rewards:** free pack chance via `WIN_FREE_PACK_CHANCE`.
+- **Shop:** buy themed packs with credits.
 
-## 🧠 Gameplay Overview
+Pack themes (`PACK_THEMES`):
 
-### Objective
-Reduce the opponent from 20 life to 0.
+- `fantasy`
+- `scifi`
+- `tech`
+- `alien`
+- `robot`
+- `lands`
 
-### Card Types
-- **Land** — mana generation (typically one per turn)
-- **Creature** — board presence, attack/block units
-- **Instant/Spell** — immediate effects
-- **Artifact** — persistent value effects
+Theme meaning:
 
-### Turn Flow
-1. Untap
-2. Draw
-3. Main Phase
-4. Combat
-5. Main Phase 2
-6. End Turn
+- Cards are selected from inferred theme pools (explicit theme + keyword inference), with fallback behavior if a pool is shallow.
+- Lands packs prioritize land pulls.
 
----
+Pack contents (`generatePack`):
 
-## 🤖 AI & Modes
+- 5 cards per pack, drawn across common/uncommon/rare+ tiers.
 
-- **Element-based deck identity** (Fire, Water, Earth, Swamp, Light)
-- **Difficulty options**:
-  - Easy
-  - Medium
-  - Hard
+## Economy (Coins/Credits)
 
----
+Currency label in UI: **Credits**.
 
-## 📱 Compatibility
+Code constants:
 
-Tested target environments:
-- Chrome (Desktop/Mobile)
-- Safari (Desktop/iOS)
-- Firefox
-- Edge
-- Android Chrome
+- Win credits: `BASE_WIN_CREDITS = 25`
+- Loss credits: `BASE_LOSS_CREDITS = 10`
+- Free win pack chance: `WIN_FREE_PACK_CHANCE = 0.15` (15%)
+- Starting credits: `STARTER_CREDITS = 100`
 
-Touch + mouse inputs are supported.
+Shop costs (`PACK_SHOP_COSTS`):
 
----
+- `fantasy`: 60
+- `scifi`: 60
+- `tech`: 60
+- `alien`: 60
+- `robot`: 60
+- `lands`: 40
 
-## 🔧 Technical Notes
+Credits display locations:
 
-- Pure vanilla JavaScript implementation
-- No framework or bundler required
-- Local persistence via `localStorage`
-- Responsive design and animation-heavy UI
+- Pack Shop badge: `💳 Credits: <value>` (`#shopCreditsBadge`)
+- Match reward updates happen in `finalizeMatch()`.
 
----
+## Controls & UX
 
-## 📌 Planned Next Improvements
+### Desktop
 
-- Deeper integration of all SFX in every gameplay action
-- Extended rules coverage for advanced keyword interactions
-- More card effects and balance passes
-- Tournament/deck-building features
-- Multiplayer exploration
+- Mouse/touch click cards to play.
+- Click lands to tap for mana.
+- Keyboard shortcuts during active player turn:
+  - `Space` / `E`: End Turn
+  - `A`: Attack / Confirm
+  - `M`: Mulligan (when available)
+  - `Esc`: pause or close overlays/contextually
 
----
+### Mobile
 
-## 🎉 Ready to Play
+- Touch interactions supported across gameplay cards/board.
+- Pack opening supports:
+  - **drag/swipe to rip open sealed pack**
+  - **horizontal swipe to browse revealed cards**
+- Intro and menu interactions are touch-aware (`touchend` handlers).
 
-Open `index.html`, choose your setup, and battle.
+## How To Run
+
+Entry point: `index.html` (loads `styles.css` and `index.js`).
+
+Recommended (local server):
+
+```bash
+python -m http.server 8000
+# then open http://localhost:8000
+```
+
+Alternative:
+
+```bash
+npx http-server -p 8000
+# then open http://localhost:8000
+```
+
+You can also open `index.html` directly in many browsers, but a local server is best for consistent media behavior.
+
+## Data & Persistence
+
+Primary keys:
+
+- `emoji_elements_meta_v1` → main progression/meta save
+- `emojiElementsStats` → legacy/compat stats
+- `emojiElementsMuted` → audio mute state
+
+Reset options:
+
+- In-game: **Stats screen → 🧹 RESET PROGRESS** (`resetMetaProgress()`) clears and reseeds progression.
+- QA/dev helper: `window.__qaResetMeta()` (confirm + clear + reload).
+- Manual console hard reset:
+
+```js
+localStorage.removeItem('emoji_elements_meta_v1');
+location.reload();
+```
+
+## Roadmap (Beta)
+
+- Add explicit deck-key selection wiring from battle setup to `selectedDeckKey`.
+- Expand collection UX with a dedicated binder/album view.
+- Improve pack telemetry + duplicate-protection tuning.
+- Add more dual deck templates across all color pairings.
+- Continue mobile UX polish for battle + menus.
+
+## Credits
+
+Built by Inspire Software / EMOJI ELEMENTS team.
+
+🌐 https://www.inspireclothing.art
