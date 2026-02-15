@@ -2973,10 +2973,10 @@ html {
 }
 
 .floating-dmg {
-    position: absolute;
+    position: fixed;
     left: 0;
     top: 0;
-    transform: translate(-50%, -50%);
+    transform: translate3d(-50%, -50%, 0);
     pointer-events: none;
     z-index: 11000;
     font-family: 'MedievalSharp', cursive;
@@ -3025,7 +3025,7 @@ html {
 
 @keyframes floatingDmgRise {
     0% {
-        transform: translate(-50%, -50%);
+        transform: translate3d(-50%, -50%, 0);
         opacity: 0;
     }
 
@@ -3034,7 +3034,7 @@ html {
     }
 
     100% {
-        transform: translate(-50%, -130%);
+        transform: translate3d(-50%, -130%, 0);
         opacity: 0;
     }
 }
