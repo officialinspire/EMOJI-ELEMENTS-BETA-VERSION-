@@ -2183,6 +2183,19 @@
         cardRevealed: false
     };
 
+    let pendingMatchResultOverlay = null;
+
+    function showMatchResultOverlay(result) {
+        const normalizedResult = result === 'win' ? 'win' : 'loss';
+        const overlayId = normalizedResult === 'win' ? 'victoryOverlay' : 'loseOverlay';
+        const overlay = document.getElementById(overlayId);
+
+        if (overlay) {
+            overlay.classList.add('show');
+            pendingMatchResultOverlay = null;
+        }
+    }
+
     function updatePackOpeningDebug() {
         const debugEl = document.getElementById('packQaDebug');
         if (!debugEl) return;
@@ -2342,9 +2355,8 @@
             if (progress) progress.style.width = '0%';
             if (tearLine) tearLine.style.left = '0%';
 
-            const victoryOverlay = document.getElementById('victoryOverlay');
-            if (victoryOverlay) {
-                victoryOverlay.classList.remove('show');
+            if (pendingMatchResultOverlay) {
+                showMatchResultOverlay(pendingMatchResultOverlay);
             }
 
             updatePackOpeningDebug();
@@ -2619,7 +2631,10 @@
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
             if (awardedFreePack) {
+                pendingMatchResultOverlay = 'win';
                 openPackOpeningOverlayFromMeta();
+            } else {
+                showMatchResultOverlay('win');
             }
             return;
         }
@@ -2656,8 +2671,7 @@
 
         stopSFX('gameplayMusic');
         playSFX('gameLose');
-        const loseOverlay = document.getElementById('loseOverlay');
-        loseOverlay.classList.add('show');
+        showMatchResultOverlay('loss');
     }
 
     // Particle System - OPTIMIZED for better performance on mobile and desktop
@@ -3295,6 +3309,7 @@
         const loseOverlay = document.getElementById('loseOverlay');
         victoryOverlay.classList.remove('show');
         loseOverlay.classList.remove('show');
+        pendingMatchResultOverlay = null;
 
         document.getElementById('pauseModal').classList.remove('show');
         document.getElementById('graveyardModal').classList.remove('show');
@@ -3890,6 +3905,7 @@
         gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
         gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
         gameState.matchFinalized = false;
+        pendingMatchResultOverlay = null;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -3961,6 +3977,10 @@
 
     // Play Card
     function playCard(cardId) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         // Turn enforcement and rapid-click protection
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
@@ -4208,6 +4228,10 @@
 
     // Tap lands for mana
     function tapLand(cardId) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         // Turn enforcement: Only allow during player's turn
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
@@ -4267,6 +4291,10 @@
 
     // Tap ALL untapped lands of a given element type at once
     function tapAllLandsOfType(landKey) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
             return;
@@ -4750,6 +4778,10 @@
     }
 
     function enterAttackPhase() {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         // Turn enforcement: Only allow during player's turn and main phase
         if (gameState.turn !== 'player' || gameState.phase !== 'main') {
             showGameLog('⚠️ Wait for your turn!', false);
@@ -4792,7 +4824,7 @@
     }
 
     function selectAttacker(cardId) {
-        if (!attackPhase) return;
+        if (gameState.matchFinalized || !attackPhase) return;
         
         const card = gameState.playerBoard.find(c => c.id === cardId);
         if (!card || card.type !== 'creature' || card.tapped || card.summoningSick || card.abilities?.includes('defender')) return;
@@ -4807,6 +4839,10 @@
     }
 
     function confirmAttackers() {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         // Turn enforcement
         if (gameState.turn !== 'player' || isProcessingAction) {
             return;
@@ -5019,6 +5055,10 @@
 
     // End Turn
     function endTurn() {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         // Turn enforcement: Only allow ending turn during player's turn and main phase
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
@@ -5122,6 +5162,11 @@
 
     // Start player turn
     function startPlayerTurn() {
+        if (gameState.matchFinalized) {
+            releaseProcessingLock();
+            return;
+        }
+
         document.getElementById('gameContainer').classList.remove('enemy-turn');
 
         gameState.turn = 'player';
@@ -5164,6 +5209,11 @@
 
     // AI Turn
     function aiTurn() {
+        if (gameState.matchFinalized) {
+            releaseProcessingLock();
+            return;
+        }
+
         const scoreAiPlay = (card) => {
             const playerCreatures = gameState.playerBoard.filter(c => c.type === 'creature');
             const enemyCreatures = gameState.enemyBoard.filter(c => c.type === 'creature');
@@ -5218,6 +5268,7 @@
             processUpkeepEffects(false);
 
             setTimeout(() => {
+            if (gameState.matchFinalized) return;
             // Play lands
             const landInHand = gameState.enemyHand.find(c => c.type === 'land');
             if (landInHand) {
@@ -5232,6 +5283,7 @@
             }
 
             setTimeout(() => {
+                if (gameState.matchFinalized) return;
                 // Tap lands for mana
                 let manaTapped = false;
                 gameState.enemyBoard.forEach(card => {
@@ -5259,6 +5311,7 @@
                 }
 
                 setTimeout(() => {
+                    if (gameState.matchFinalized) return;
                     const applyOldMainPhaseBehavior = () => {
                         const playableCreatures = gameState.enemyHand
                             .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
@@ -5421,6 +5474,7 @@
                     }
 
                         setTimeout(() => {
+                            if (gameState.matchFinalized) return;
                             const fallbackAttackers = gameState.enemyBoard.filter(c =>
                                 c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
                             );
@@ -5443,6 +5497,7 @@
                             checkGameOver();
 
                             setTimeout(() => {
+                                if (gameState.matchFinalized) return;
                                 clearTimeout(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
                             }, 1500);
@@ -5558,6 +5613,8 @@
 
     // Helper functions for lifepoint changes with sound and animation
     function changePlayerLife(amount) {
+        if (gameState.matchFinalized) return;
+
         const oldLife = gameState.playerLife;
         gameState.playerLife = Math.max(0, gameState.playerLife + amount);
         const actualChange = gameState.playerLife - oldLife;
@@ -5600,10 +5657,14 @@
                     setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
+
+            checkGameOver();
         }
     }
 
     function changeEnemyLife(amount) {
+        if (gameState.matchFinalized) return;
+
         const oldLife = gameState.enemyLife;
         gameState.enemyLife = Math.max(0, gameState.enemyLife + amount);
         const actualChange = gameState.enemyLife - oldLife;
@@ -5646,6 +5707,8 @@
                     setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
+
+            checkGameOver();
         }
     }
 
@@ -6182,9 +6245,7 @@
         const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
         const rarity = validRarities.has(card.__rarity) ? card.__rarity : 'common';
         cardEl.classList.add(`rarity-${rarity}`);
-        if (rarity === 'rare' || rarity === 'legendary') {
-            cardEl.classList.add(`juice-glow-${rarity}`);
-        }
+        cardEl.classList.add(`juice-glow-${rarity}`);
         
         if (card.type === 'land') {
             cardEl.classList.add('land');
