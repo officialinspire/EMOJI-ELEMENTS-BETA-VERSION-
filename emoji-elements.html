@@ -878,6 +878,53 @@
             display: flex;
         }
 
+        .endgame-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 6000;
+            padding: 16px;
+        }
+
+        .endgame-modal.show {
+            display: flex;
+        }
+
+        .endgame-content {
+            width: min(460px, 100%);
+            background: linear-gradient(135deg, #2a1a3e 0%, #3a2a4e 100%);
+            border: 4px double #ffd700;
+            border-radius: 16px;
+            padding: 26px 18px;
+            text-align: center;
+            box-shadow: 0 10px 50px rgba(255, 215, 0, 0.45);
+        }
+
+        .endgame-title {
+            font-family: 'Uncial Antiqua', cursive;
+            font-size: 30px;
+            margin-bottom: 12px;
+            text-shadow: 0 0 20px #ffd700;
+        }
+
+        .endgame-reward {
+            font-size: 20px;
+            margin: 14px 0;
+        }
+
+        .resource-display {
+            margin-top: 14px;
+            border: 1px solid rgba(255, 215, 0, 0.45);
+            border-radius: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.28);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
         #binderModal {
             position: fixed;
             inset: 0;
@@ -1148,6 +1195,18 @@
         </div>
     </div>
 
+    <div id="endGameModal" class="endgame-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Match result">
+        <div class="endgame-content">
+            <div id="endGameTitle" class="endgame-title">🏆 VICTORY! 🏆</div>
+            <div id="endGameMessage"></div>
+            <div id="endGameReward" class="endgame-reward"></div>
+            <div id="endGameResources" class="resource-display"></div>
+            <div class="pause-buttons" style="margin-top: 16px;">
+                <button class="menu-btn" onclick="closeEndGameModal()">🏠 MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
     <div id="introVideoModal" class="intro-video-modal" role="dialog" aria-label="Intro video" aria-hidden="true">
         <video id="introVideo" class="intro-video" playsinline preload="auto" muted>
             <source src="inspiresoftwareintro.mp4" type="video/mp4">
@@ -1163,6 +1222,11 @@
                 <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
                 <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
                 <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
+            </div>
+
+            <div id="menuResourceDisplay" class="resource-display">
+                🪙 Coins: 0<br>
+                🎁 Booster Packs: 0
             </div>
 
             <div id="elementSelectionScreen" style="display: none;">
@@ -1327,7 +1391,8 @@
             attackers: [],
             blockers: {},
             difficulty: 'easy',
-            playerCollection: []
+            playerCollection: [],
+            isGameOver: false
         };
 
         let introWasSkipped = false;
@@ -1390,6 +1455,11 @@
             total: 0
         };
 
+        let playerProgress = {
+            coins: 0,
+            boosterPacks: 0
+        };
+
         // Load stats from localStorage
         function loadStats() {
             const saved = localStorage.getItem('emojiElementsStats');
@@ -1402,7 +1472,27 @@
             localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
         }
 
+        function loadProgress() {
+            const saved = localStorage.getItem('emojiElementsProgress');
+            if (saved) {
+                playerProgress = { ...playerProgress, ...JSON.parse(saved) };
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('emojiElementsProgress', JSON.stringify(playerProgress));
+        }
+
+        function updateProgressDisplay() {
+            const menuResourceDisplay = document.getElementById('menuResourceDisplay');
+            if (!menuResourceDisplay) return;
+
+            menuResourceDisplay.innerHTML = `🪙 Coins: ${playerProgress.coins}<br>🎁 Booster Packs: ${playerProgress.boosterPacks}`;
+        }
+
         loadStats();
+        loadProgress();
+        updateProgressDisplay();
 
         // Mana System
         const ELEMENTS = {
@@ -2165,6 +2255,21 @@
 
         // Start Game
         function startGame() {
+            gameState.playerLife = 20;
+            gameState.enemyLife = 20;
+            gameState.playerMana = {};
+            gameState.enemyMana = {};
+            gameState.playerHand = [];
+            gameState.enemyHand = [];
+            gameState.playerBoard = [];
+            gameState.enemyBoard = [];
+            gameState.attackers = [];
+            gameState.blockers = {};
+            gameState.turn = 'player';
+            gameState.phase = 'main';
+            gameState.isGameOver = false;
+            attackPhase = false;
+
             gameState.playerDeck = generateDeck(gameState.selectedElements);
             gameState.playerCollection = gameState.playerDeck.map(card => ({ ...card }));
             
@@ -2202,6 +2307,7 @@
 
         // Play Card
         function playCard(cardId) {
+            if (gameState.isGameOver) return;
             const card = gameState.playerHand.find(c => c.id === cardId);
             if (!card) return;
 
@@ -2261,6 +2367,7 @@
 
         // Tap lands for mana
         function tapLand(cardId) {
+            if (gameState.isGameOver) return;
             const card = gameState.playerBoard.find(c => c.id === cardId);
             if (!card || card.type !== 'land') return;
             
@@ -2352,12 +2459,16 @@
                     }
                     break;
             }
+
+            updateUI();
+            checkGameOver();
         }
 
         // Attack Phase
         let attackPhase = false;
 
         function enterAttackPhase() {
+            if (gameState.isGameOver) return;
             attackPhase = true;
             gameState.attackers = [];
             gameState.phase = 'attack';
@@ -2383,6 +2494,7 @@
         }
 
         function confirmAttackers() {
+            if (gameState.isGameOver) return;
             if (gameState.attackers.length === 0) {
                 attackPhase = false;
                 gameState.phase = 'main';
@@ -2407,8 +2519,12 @@
             document.getElementById('attackBtn').textContent = '⚔️ ATTACK';
             document.getElementById('attackBtn').onclick = enterAttackPhase;
 
-            checkGameOver();
+            const gameEnded = checkGameOver();
             updateUI();
+
+            if (gameEnded) {
+                return;
+            }
         }
 
         function aiDeclareBlockers() {
@@ -2503,6 +2619,7 @@
 
         // End Turn
         function endTurn() {
+            if (gameState.isGameOver) return;
             // Show end turn message
             showGameLog('✅ You end your turn', false);
             
@@ -2526,6 +2643,7 @@
 
         // Start player turn
         function startPlayerTurn() {
+            if (gameState.isGameOver) return;
             gameState.turn = 'player';
             gameState.phase = 'main';
             document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
@@ -2543,6 +2661,7 @@
 
         // AI Turn
         function aiTurn() {
+            if (gameState.isGameOver) return;
             const profile = getDifficultyProfile(gameState.difficulty);
 
             // Untap enemy permanents
@@ -2554,6 +2673,8 @@
             showGameLog('🎴 Enemy draws a card', true);
             
             setTimeout(() => {
+                if (gameState.isGameOver) return;
+
                 // Play lands
                 const landInHand = gameState.enemyHand.find(c => c.type === 'land');
                 if (landInHand) {
@@ -2564,6 +2685,8 @@
                 }
 
                 setTimeout(() => {
+                    if (gameState.isGameOver) return;
+
                     // Tap lands for mana
                     let manaTapped = false;
                     gameState.enemyBoard.forEach(card => {
@@ -2580,6 +2703,8 @@
                     }
 
                     setTimeout(() => {
+                        if (gameState.isGameOver) return;
+
                         const playableNonLands = gameState.enemyHand.filter(card =>
                             card.type !== 'land' && canPayCost(card.cost, gameState.enemyMana)
                         );
@@ -2588,6 +2713,7 @@
 
                         let cardPlayed = false;
                         prioritizedPlays.forEach(card => {
+                            if (gameState.isGameOver) return;
                             if (!canPayCost(card.cost, gameState.enemyMana)) return;
 
                             if (card.type === 'instant' && Math.random() > profile.spellChance) return;
@@ -2604,6 +2730,7 @@
                             } else if (card.type === 'instant') {
                                 showGameLog(`${card.emoji} Enemy casts ${card.name}`, true, card.theme === 'scifi');
                                 resolveSpell(card, 'enemy');
+                                if (gameState.isGameOver) return;
                             }
 
                             cardPlayed = true;
@@ -2614,6 +2741,8 @@
                         }
 
                         setTimeout(() => {
+                            if (gameState.isGameOver) return;
+
                             // Attack with creatures
                             const attackingCreatures = chooseEnemyAttackers(profile);
 
@@ -2647,9 +2776,14 @@
                                 });
 
                             updateUI();
-                            checkGameOver();
+                            const gameEnded = checkGameOver();
+
+                            if (gameEnded) {
+                                return;
+                            }
 
                             setTimeout(() => {
+                                if (gameState.isGameOver) return;
                                 startPlayerTurn();
                             }, 1500);
                         }, 1500);
@@ -2658,25 +2792,76 @@
             }, 1000);
         }
 
+        function closeEndGameModal() {
+            location.reload();
+        }
+
+        function getVictoryRewards() {
+            const coinRewards = {
+                easy: 20,
+                medium: 30,
+                hard: 45
+            };
+
+            return {
+                coins: coinRewards[gameState.difficulty] || 20,
+                boosterPacks: 1
+            };
+        }
+
+        function showEndGameModal(outcome, rewards = { coins: 0, boosterPacks: 0 }) {
+            const modal = document.getElementById('endGameModal');
+            const title = document.getElementById('endGameTitle');
+            const message = document.getElementById('endGameMessage');
+            const rewardText = document.getElementById('endGameReward');
+            const resources = document.getElementById('endGameResources');
+
+            if (outcome === 'victory') {
+                title.textContent = '🏆 VICTORY! 🏆';
+                message.textContent = 'You defeated your opponent and claimed your rewards!';
+                rewardText.innerHTML = `+${rewards.coins} 🪙 &nbsp;&nbsp; +${rewards.boosterPacks} 🎁`;
+            } else {
+                title.textContent = '💀 DEFEAT 💀';
+                message.textContent = 'The enemy has conquered this battle. Try a new strategy!';
+                rewardText.textContent = 'No rewards earned this match.';
+            }
+
+            resources.innerHTML = `Total Coins: ${playerProgress.coins}<br>Total Booster Packs: ${playerProgress.boosterPacks}`;
+
+            modal.classList.add('show');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
         // Check Game Over
         function checkGameOver() {
+            if (gameState.isGameOver) {
+                return true;
+            }
+
             if (gameState.playerLife <= 0) {
+                gameState.isGameOver = true;
                 gameStats.losses++;
                 gameStats.total++;
                 saveStats();
-                setTimeout(() => {
-                    alert('💀 DEFEAT! The enemy has conquered! 💀');
-                    location.reload();
-                }, 100);
+                updateStatsDisplay();
+                showEndGameModal('defeat');
+                return true;
             } else if (gameState.enemyLife <= 0) {
+                gameState.isGameOver = true;
                 gameStats.wins++;
                 gameStats.total++;
+                const rewards = getVictoryRewards();
+                playerProgress.coins += rewards.coins;
+                playerProgress.boosterPacks += rewards.boosterPacks;
                 saveStats();
-                setTimeout(() => {
-                    alert('🏆 VICTORY! You are triumphant! 🏆');
-                    location.reload();
-                }, 100);
+                saveProgress();
+                updateStatsDisplay();
+                updateProgressDisplay();
+                showEndGameModal('victory', rewards);
+                return true;
             }
+
+            return false;
         }
 
         // Update UI
