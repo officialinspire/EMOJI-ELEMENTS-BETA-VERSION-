@@ -5,32 +5,25 @@
     // - Deck builder save -> next match uses saved deck
     // - Corrupt localStorage -> game still starts using fallback deck
 
-    const QA_DEBUG = true;
+    const QA_MODE = true;
 
-    if (QA_DEBUG && typeof window.__QA_FORCE_META_OFF === 'undefined') {
+    if (QA_MODE && typeof window.__QA_FORCE_META_OFF === 'undefined') {
         window.__QA_FORCE_META_OFF = false;
     }
 
-    if (QA_DEBUG) {
+    if (QA_MODE) {
         window.addEventListener('error', (event) => {
             const runtimeError = event?.error;
+            const message = event?.message || runtimeError?.message || 'Unknown error';
             const stack = runtimeError?.stack || 'No stack trace available';
-            console.error('[QA] Runtime error:', {
-                message: event?.message || runtimeError?.message || 'Unknown error',
-                file: event?.filename,
-                line: event?.lineno,
-                column: event?.colno,
-                stack
-            });
+            console.error('[QA]', message, stack);
         });
 
         window.addEventListener('unhandledrejection', (event) => {
             const reason = event?.reason;
+            const message = reason?.message || String(reason);
             const stack = reason?.stack || 'No stack trace available';
-            console.error('[QA] Unhandled promise rejection:', {
-                message: reason?.message || String(reason),
-                stack
-            });
+            console.error('[QA]', message, stack);
         });
 
         // Quick manual QA checks:
