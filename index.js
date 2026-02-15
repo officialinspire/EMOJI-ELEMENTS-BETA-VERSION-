@@ -1166,7 +1166,18 @@
     const WIN_FREE_PACK_CHANCE = 0.15;
     const STARTER_CREDITS = 100;
     const STARTER_MONO_DECK_KEYS = ['FIRE', 'WATER', 'EARTH', 'SWAMP', 'LIGHT'];
-    const STARTER_DUAL_DECK_KEYS = ['FIRE_WATER', 'FIRE_EARTH', 'WATER_EARTH', 'EARTH_SWAMP', 'SWAMP_LIGHT'];
+    const STARTER_DUAL_DECK_KEYS = [
+        'FIRE_WATER',
+        'FIRE_EARTH',
+        'FIRE_SWAMP',
+        'FIRE_LIGHT',
+        'WATER_EARTH',
+        'WATER_SWAMP',
+        'WATER_LIGHT',
+        'EARTH_SWAMP',
+        'EARTH_LIGHT',
+        'SWAMP_LIGHT'
+    ];
 
     function getDeckColorsFromKey(deckKey) {
         return String(deckKey || '')
@@ -1272,9 +1283,21 @@
         const NON_LAND_COUNT = 35;
         const COLORLESS_LAND_COUNT = 3;
         const coloredLandCount = LAND_COUNT - COLORLESS_LAND_COUNT;
+        const STARTER_TYPE_TARGETS = {
+            creature: 20,
+            instant: 9,
+            artifact: 6
+        };
+        const rarityWeight = {
+            common: 0,
+            rare: 1,
+            epic: 2,
+            legendary: 3
+        };
 
         const cardIds = [];
         const cardCounts = {};
+        const nonLandCardCounts = {};
 
         function addCardById(cardId, amount = 1) {
             const card = __CARD_BY_ID[cardId];
@@ -1287,6 +1310,52 @@
                 cardIds.push(cardId);
             }
             cardCounts[cardId] = current + toAdd;
+            if (card.type !== 'land') {
+                nonLandCardCounts[cardId] = (nonLandCardCounts[cardId] || 0) + toAdd;
+            }
+        }
+
+        function getNonLandCount() {
+            return Object.keys(nonLandCardCounts).reduce((sum, id) => sum + (nonLandCardCounts[id] || 0), 0);
+        }
+
+        function getManaValue(card) {
+            return Object.values(card.cost || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+        }
+
+        function sortStarterPool(pool) {
+            return [...pool].sort((a, b) => {
+                const manaDiff = getManaValue(a) - getManaValue(b);
+                if (manaDiff !== 0) return manaDiff;
+
+                const rarityDiff = (rarityWeight[a.__rarity] ?? 10) - (rarityWeight[b.__rarity] ?? 10);
+                if (rarityDiff !== 0) return rarityDiff;
+
+                return a.__id.localeCompare(b.__id);
+            });
+        }
+
+        function addFromPool(pool, targetCount) {
+            if (!Array.isArray(pool) || pool.length === 0 || targetCount <= 0) return;
+
+            const orderedPool = sortStarterPool(pool);
+            while (getNonLandCount() < NON_LAND_COUNT && targetCount > 0) {
+                let addedInPass = false;
+
+                for (const card of orderedPool) {
+                    if (targetCount <= 0 || getNonLandCount() >= NON_LAND_COUNT) break;
+
+                    const before = nonLandCardCounts[card.__id] || 0;
+                    addCardById(card.__id, 1);
+                    const after = nonLandCardCounts[card.__id] || 0;
+                    if (after > before) {
+                        targetCount -= 1;
+                        addedInPass = true;
+                    }
+                }
+
+                if (!addedInPass) break;
+            }
         }
 
         if (colors.length === 1) {
@@ -1323,24 +1392,18 @@
             .filter(card => {
                 const costElements = Object.keys(card.cost || {});
                 return costElements.every(element => element === 'colorless' || colors.includes(element));
-            })
-            .sort((a, b) => a.__id.localeCompare(b.__id));
+            });
 
-        while (Object.keys(cardCounts).reduce((sum, id) => sum + (cardCounts[id] || 0), 0) < NON_LAND_COUNT) {
-            let addedInPass = false;
-            for (const card of eligibleNonLands) {
-                const before = cardCounts[card.__id] || 0;
-                addCardById(card.__id, 1);
-                if ((cardCounts[card.__id] || 0) > before) {
-                    addedInPass = true;
-                }
-                const currentNonLandCount = Object.keys(cardCounts).reduce((sum, id) => sum + (cardCounts[id] || 0), 0);
-                if (currentNonLandCount >= NON_LAND_COUNT) break;
-            }
+        const creaturePool = eligibleNonLands.filter(card => card.type === 'creature');
+        const spellPool = eligibleNonLands.filter(card => card.type === 'instant');
+        const artifactPool = eligibleNonLands.filter(card => card.type === 'artifact');
 
-            if (!addedInPass) {
-                break;
-            }
+        addFromPool(creaturePool, STARTER_TYPE_TARGETS.creature);
+        addFromPool(spellPool, STARTER_TYPE_TARGETS.instant);
+        addFromPool(artifactPool, STARTER_TYPE_TARGETS.artifact);
+
+        if (getNonLandCount() < NON_LAND_COUNT) {
+            addFromPool(eligibleNonLands, NON_LAND_COUNT - getNonLandCount());
         }
 
         return {
