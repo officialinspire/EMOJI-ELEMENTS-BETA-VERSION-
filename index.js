@@ -6,6 +6,7 @@
     // - Corrupt localStorage -> game still starts using fallback deck
 
     const QA_MODE = true;
+    const QA_DEBUG = QA_MODE;
 
     window.__QA_FORCE_META_OFF = false;
 
@@ -5492,8 +5493,8 @@
         }
     }
 
-    let uiUpdateRafId = 0;
-    let isUIUpdateScheduled = false;
+    var uiUpdateRafId = 0;
+    var isUIUpdateScheduled = false;
 
     function scheduleUIUpdate() {
         if (isUIUpdateScheduled) return;
