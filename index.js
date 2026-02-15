@@ -2112,7 +2112,8 @@
         dragStartX: 0,
         maxDistance: 0,
         progress: 0,
-        stage: 'sealed'
+        stage: 'sealed',
+        cardRevealed: false
     };
 
     function updatePackOpeningDebug() {
@@ -2150,6 +2151,30 @@
         const victoryOverlay = document.getElementById('victoryOverlay');
         if (victoryOverlay) {
             victoryOverlay.classList.add('show');
+        }
+    }
+
+    function setPackCardRevealState(isRevealed) {
+        const viewport = document.getElementById('packCardViewport');
+        const cover = document.getElementById('packCardCover');
+        packOpeningState.cardRevealed = Boolean(isRevealed);
+
+        if (viewport) {
+            viewport.classList.toggle('is-revealed', packOpeningState.cardRevealed);
+        }
+
+        if (cover) {
+            cover.textContent = packOpeningState.cardRevealed ? '' : 'Tap to reveal';
+        }
+    }
+
+    function revealCurrentPackCard() {
+        if (packOpeningState.stage !== 'reveal' || packOpeningState.cardRevealed) return;
+        setPackCardRevealState(true);
+
+        const viewport = document.getElementById('packCardViewport');
+        if (viewport) {
+            applyJuice(viewport, 'juice-pop', 320);
         }
     }
 
@@ -2199,12 +2224,12 @@
             if (packViewport) {
                 packViewport.classList.remove(...allGlowClasses);
                 packViewport.classList.add(glowClass);
-                applyJuice(packViewport, 'juice-pop', 360);
             }
         } catch (_) {
             // no-op
         }
 
+        setPackCardRevealState(false);
         updatePackOpeningDebug();
     }
 
@@ -2213,6 +2238,7 @@
         document.getElementById('packSealedStage').classList.remove('pack-stage-active');
         document.getElementById('packRevealStage').classList.add('pack-stage-active');
         setPackOpeningCard(0);
+        setTimeout(() => revealCurrentPackCard(), 200);
         updatePackOpeningDebug();
     }
 
@@ -2233,6 +2259,7 @@
             packOpeningState.maxDistance = 0;
             packOpeningState.progress = 0;
             packOpeningState.stage = 'sealed';
+            packOpeningState.cardRevealed = false;
 
             const sealedStage = document.getElementById('packSealedStage');
             const revealStage = document.getElementById('packRevealStage');
@@ -2285,8 +2312,9 @@
     function updatePackRipProgress(clientX) {
         if (!packOpeningState.isDragging || packOpeningState.stage !== 'sealed') return;
 
-        const targetDistance = Math.max(window.innerWidth * 0.55, 220);
-        const dragDistance = Math.max(0, clientX - packOpeningState.dragStartX);
+        const tearSurface = document.getElementById('packTearSurface');
+        const targetDistance = Math.max((tearSurface?.clientWidth || window.innerWidth) * 0.45, 120);
+        const dragDistance = Math.abs(clientX - packOpeningState.dragStartX);
         packOpeningState.maxDistance = Math.max(packOpeningState.maxDistance, dragDistance);
         packOpeningState.progress = Math.min(1, packOpeningState.maxDistance / targetDistance);
 
@@ -2328,6 +2356,7 @@
             packOpeningState.maxDistance = 0;
             packOpeningState.progress = 0;
             packOpeningState.stage = 'sealed';
+            packOpeningState.cardRevealed = false;
 
             const sealedStage = document.getElementById('packSealedStage');
             const revealStage = document.getElementById('packRevealStage');
@@ -2404,11 +2433,15 @@
 
         prevBtn.addEventListener('click', () => {
             setPackOpeningCard(packOpeningState.currentIndex - 1);
+            setTimeout(() => revealCurrentPackCard(), 180);
         });
 
         nextBtn.addEventListener('click', () => {
             setPackOpeningCard(packOpeningState.currentIndex + 1);
+            setTimeout(() => revealCurrentPackCard(), 180);
         });
+
+        viewport.addEventListener('click', revealCurrentPackCard);
 
         let swipeStartX = 0;
         let swiping = false;
@@ -2436,6 +2469,7 @@
                 setPackOpeningCard(packOpeningState.currentIndex - 1);
             }
 
+            setTimeout(() => revealCurrentPackCard(), 180);
             swipeStartX = clientX;
         };
 
@@ -2774,6 +2808,63 @@
         focusSafeElement();
     }
 
+    function renderBinderCollection() {
+        const listEl = document.getElementById('binderList');
+        const summaryEl = document.getElementById('binderSummaryBadge');
+        if (!listEl || !summaryEl) return;
+
+        const collection = gameMeta?.collection || {};
+        const entries = Object.entries(collection)
+            .filter(([, count]) => Number.isFinite(count) && count > 0)
+            .map(([cardId, count]) => ({
+                cardId,
+                count,
+                card: __CARD_BY_ID[cardId]
+            }))
+            .filter(entry => entry.card)
+            .sort((a, b) => (a.card.name || '').localeCompare(b.card.name || ''));
+
+        const totalCards = entries.reduce((sum, entry) => sum + entry.count, 0);
+        summaryEl.textContent = `🗂️ ${entries.length} unique cards • ${totalCards} total cards`;
+
+        listEl.innerHTML = '';
+        if (!entries.length) {
+            const empty = document.createElement('div');
+            empty.className = 'deck-builder-empty';
+            empty.textContent = 'No cards in your binder yet. Open a few packs!';
+            listEl.appendChild(empty);
+            return;
+        }
+
+        entries.forEach(({ card, count }) => {
+            const row = document.createElement('div');
+            row.className = 'binder-row';
+            row.innerHTML = `
+                <div class="binder-row-emoji">${card.emoji || '✨'}</div>
+                <div class="binder-row-name">
+                    ${card.name || 'Unknown Card'}
+                    <div class="binder-row-meta">${card.type || 'card'}${card.element ? ` • ${card.element}` : ''}</div>
+                </div>
+                <div class="binder-row-count">x${count}</div>
+            `;
+            row.title = getCardTooltipText(card);
+            row.addEventListener('click', () => showCardDetail(card));
+            listEl.appendChild(row);
+        });
+    }
+
+    function showBinder() {
+        playSFX('menuOpen');
+        setStartMenuScreen('binderScreen');
+        renderBinderCollection();
+    }
+
+    function hideBinder() {
+        playSFX('menuClose');
+        setStartMenuScreen('mainMenu');
+        focusSafeElement();
+    }
+
     function purchasePack(themeKey) {
         try {
             const normalizedTheme = String(themeKey || '').trim().toLowerCase();
@@ -3049,7 +3140,7 @@
     }
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
-        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen'];
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;
@@ -6128,6 +6219,13 @@
             if (startModal?.classList.contains('modal-visible') && packShopScreen?.style.display === 'block') {
                 e.preventDefault();
                 hidePackShop();
+                return;
+            }
+
+            const binderScreen = document.getElementById('binderScreen');
+            if (startModal?.classList.contains('modal-visible') && binderScreen?.style.display === 'block') {
+                e.preventDefault();
+                hideBinder();
                 return;
             }
         }
