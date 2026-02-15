@@ -1468,6 +1468,97 @@
         };
     }
 
+    window.__qaNavSmoke = function() {
+        const qaPrefix = '[QA][NavSmoke]';
+        const isElementVisible = (id) => {
+            const el = document.getElementById(id);
+            if (!el) return false;
+
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+            if (el.classList.contains('show') || el.classList.contains('modal-visible')) return true;
+
+            return style.display === 'block' || style.display === 'flex' || el.style.display === 'block' || el.style.display === 'flex';
+        };
+
+        const check = (label, expectedVisibleId) => {
+            const pass = isElementVisible(expectedVisibleId);
+            const marker = pass ? '✅ PASS' : '❌ FAIL';
+            console.log(`${qaPrefix} ${marker} ${label} -> ${expectedVisibleId}`);
+            return { label, expectedVisibleId, pass };
+        };
+
+        const callIfExists = (fnName, ...args) => {
+            const fn = window[fnName];
+            if (typeof fn !== 'function') {
+                console.log(`${qaPrefix} ⚠️ SKIP ${fnName}() missing`);
+                return false;
+            }
+            fn(...args);
+            return true;
+        };
+
+        const results = [];
+
+        if (!callIfExists('showMenu') && typeof window.backToMenu === 'function') {
+            window.backToMenu();
+        }
+        results.push(check('showMenu()', 'mainMenu'));
+
+        if (callIfExists('showHowToPlay')) {
+            results.push(check('showHowToPlay()', 'howToPlayScreen'));
+        }
+
+        if (callIfExists('setHowToPlayPage', 1)) {
+            const page1Visible = isElementVisible('howToPlayPage1') || !!document.querySelector('#howToPlayScreen .howto-page[data-page="1"]:not([style*="display: none"])');
+            const pass = page1Visible;
+            console.log(`${qaPrefix} ${pass ? '✅ PASS' : '❌ FAIL'} setHowToPlayPage(1)`);
+            results.push({ label: 'setHowToPlayPage(1)', expectedVisibleId: 'howToPlayPage1', pass });
+        }
+
+        if (callIfExists('setHowToPlayPage', 2)) {
+            const page2Visible = isElementVisible('howToPlayPage2') || !!document.querySelector('#howToPlayScreen .howto-page[data-page="2"]:not([style*="display: none"])');
+            const pass = page2Visible;
+            console.log(`${qaPrefix} ${pass ? '✅ PASS' : '❌ FAIL'} setHowToPlayPage(2)`);
+            results.push({ label: 'setHowToPlayPage(2)', expectedVisibleId: 'howToPlayPage2', pass });
+        }
+
+        if (callIfExists('showDeckBuilder')) {
+            results.push(check('showDeckBuilder()', 'deckBuilderScreen'));
+        }
+
+        if (typeof window.showBinder === 'function') {
+            window.showBinder();
+            results.push(check('showBinder()', 'binderScreen'));
+        } else {
+            console.log(`${qaPrefix} ⚠️ SKIP showBinder() missing`);
+        }
+
+        if (typeof window.showPackShop === 'function' && document.getElementById('packShopScreen')) {
+            window.showPackShop();
+            results.push(check('showPackShop()', 'packShopScreen'));
+        } else {
+            console.log(`${qaPrefix} ⚠️ SKIP showPackShop() missing`);
+        }
+
+        if (callIfExists('backToMenu')) {
+            results.push(check('backToMenu()', 'mainMenu'));
+        }
+
+        const passed = results.filter(entry => entry.pass).length;
+        const total = results.length;
+        const failed = total - passed;
+        console.log(`${qaPrefix} Summary: ${passed}/${total} passed, ${failed} failed.`);
+
+        return {
+            total,
+            passed,
+            failed,
+            results
+        };
+    };
+
     const PACK_THEMES = [
         { key: 'fantasy', label: 'Fantasy', weight: 24 },
         { key: 'scifi', label: 'Science Fiction', weight: 18 },
