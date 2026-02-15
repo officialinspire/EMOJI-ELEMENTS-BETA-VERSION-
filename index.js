@@ -1046,6 +1046,7 @@
     const META_STORAGE_KEY = 'emoji_elements_meta_v1';
     const BASE_WIN_CREDITS = 25;
     const BASE_LOSS_CREDITS = 10;
+    const WIN_FREE_PACK_CHANCE = 0.15;
     const STARTER_CREDITS = 100;
     const STARTER_MONO_DECK_KEYS = ['FIRE', 'WATER', 'EARTH', 'SWAMP', 'LIGHT'];
     const STARTER_DUAL_DECK_KEYS = ['FIRE_WATER', 'FIRE_EARTH', 'WATER_EARTH', 'EARTH_SWAMP', 'SWAMP_LIGHT'];
@@ -1995,9 +1996,10 @@
             gameStats.wins++;
             gameStats.total++;
 
-            const themeKey = choosePackThemeByWeight();
-            const cardIds = generatePack(themeKey);
-            const openedAt = new Date().toISOString();
+            const awardedFreePack = Math.random() < WIN_FREE_PACK_CHANCE;
+            const themeKey = awardedFreePack ? choosePackThemeByWeight() : null;
+            const cardIds = awardedFreePack ? generatePack(themeKey) : [];
+            const openedAt = awardedFreePack ? new Date().toISOString() : null;
 
             if (META_ENABLED) {
                 try {
@@ -2008,14 +2010,17 @@
                         gameMeta.wallet = { credits: STARTER_CREDITS };
                     }
                     gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
-                    gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
                     gameMeta.wallet.credits = Math.max(0, Math.floor(gameMeta.wallet.credits + BASE_WIN_CREDITS));
 
-                    cardIds.forEach(cardId => {
-                        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-                    });
+                    if (awardedFreePack) {
+                        gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
 
-                    gameMeta.lastPack = { themeKey, cardIds, openedAt };
+                        cardIds.forEach(cardId => {
+                            gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+                        });
+
+                        gameMeta.lastPack = { themeKey, cardIds, openedAt };
+                    }
                     metaSave(gameMeta);
                 } catch (error) {
                     console.warn('Meta reward hook failed after win. Continuing with baseline victory flow.', error);
@@ -2024,14 +2029,20 @@
             saveStats();
 
             if (QA_DEBUG) {
-                console.log(`[QA] finalizeMatch result=WIN awardedPack=true theme=${themeKey}`);
+                console.log(`[QA] finalizeMatch result=WIN awardedPack=${awardedFreePack} theme=${themeKey || 'none'}`);
             }
 
-            console.log('🏆 Match reward granted:', gameMeta.lastPack);
+            console.log('🏆 Match reward granted:', {
+                creditsAwarded: BASE_WIN_CREDITS,
+                freePackAwarded: awardedFreePack,
+                lastPack: awardedFreePack ? gameMeta.lastPack : null
+            });
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
-            openPackOpeningOverlayFromMeta();
+            if (awardedFreePack) {
+                openPackOpeningOverlayFromMeta();
+            }
             return;
         }
 
