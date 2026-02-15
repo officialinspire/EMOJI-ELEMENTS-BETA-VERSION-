@@ -1976,6 +1976,14 @@
 
     function openPackOpeningOverlayFromMeta() {
         try {
+            const overlay = document.getElementById('packOpeningOverlay');
+            if (packOpeningState.active || overlay?.classList.contains('show')) {
+                if (QA_DEBUG) {
+                    console.log('[QA] pack opening trigger skipped (already active)');
+                }
+                return;
+            }
+
             const cardIds = gameMeta?.lastPack?.cardIds;
             const cards = (Array.isArray(cardIds) ? cardIds : [])
                 .map(cardId => __CARD_BY_ID[cardId])
@@ -1995,7 +2003,6 @@
             packOpeningState.progress = 0;
             packOpeningState.stage = 'sealed';
 
-            const overlay = document.getElementById('packOpeningOverlay');
             const sealedStage = document.getElementById('packSealedStage');
             const revealStage = document.getElementById('packRevealStage');
             const shell = document.getElementById('packTearSurface');
@@ -2166,6 +2173,10 @@
             }
             saveStats();
 
+            const lastPack = awardedFreePack ? (gameMeta?.lastPack || { themeKey, cardIds, openedAt }) : null;
+            const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
+            console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
+
             if (QA_DEBUG) {
                 console.log(`[QA] finalizeMatch result=WIN awardedPack=${awardedFreePack} theme=${themeKey || 'none'}`);
             }
@@ -2203,6 +2214,10 @@
             }
         }
         saveStats();
+
+        const lastPack = null;
+        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
+        console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
 
         if (QA_DEBUG) {
             console.log('[QA] finalizeMatch result=LOSS awardedPack=false');
