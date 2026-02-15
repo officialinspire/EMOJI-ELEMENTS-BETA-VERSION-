@@ -58,12 +58,14 @@ Rules enforced by validation:
   - non-legendary: max `2`
   - legendary: max `1`
 - Deck legality by color identity (card must be legal for that deck’s colors).
+- Land rules for standard decks: max `20` lands total, with mono decks allowing up to `20` in that color and dual decks allowing up to `10` per selected color.
 
 Starter composition baseline (`buildStarterDeckFromColors`):
 
-- `LAND_COUNT = 25`
-- `NON_LAND_COUNT = 35`
-- `COLORLESS_LAND_COUNT = 3`
+- `LAND_COUNT = 20`
+- `NON_LAND_COUNT = 40`
+- Mono decks: `20` lands of the selected color
+- Dual decks: `10` lands per selected color
 - Total starter deck size = **60 cards**.
 
 ## Booster Packs & Themes
