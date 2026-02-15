@@ -1044,6 +1044,9 @@
 
     // META persistence module
     const META_STORAGE_KEY = 'emoji_elements_meta_v1';
+    const BASE_WIN_CREDITS = 25;
+    const BASE_LOSS_CREDITS = 10;
+    const STARTER_CREDITS = 100;
     const STARTER_MONO_DECK_KEYS = ['FIRE', 'WATER', 'EARTH', 'SWAMP', 'LIGHT'];
     const STARTER_DUAL_DECK_KEYS = ['FIRE_WATER', 'FIRE_EARTH', 'WATER_EARTH', 'EARTH_SWAMP', 'SWAMP_LIGHT'];
 
@@ -1195,6 +1198,7 @@
             decks,
             selectedDeckKey: 'FIRE',
             stats: { wins: 0, losses: 0, packsOpened: 0 },
+            wallet: { credits: STARTER_CREDITS },
             lastPack: null
         };
     }
@@ -1279,6 +1283,11 @@
                     losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
                     packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
                 },
+                wallet: {
+                    credits: Number.isFinite(loaded?.wallet?.credits)
+                        ? Math.max(0, Math.floor(loaded.wallet.credits))
+                        : STARTER_CREDITS
+                },
                 lastPack: loaded.lastPack ?? null
             };
 
@@ -1341,6 +1350,7 @@
                     decks: {},
                     selectedDeckKey: 'FIRE',
                     stats: { wins: 0, losses: 0, packsOpened: 0 },
+                    wallet: { credits: STARTER_CREDITS },
                     lastPack: null
                 };
             }
@@ -1390,6 +1400,7 @@
             const summary = {
                 wins: Number.isFinite(meta?.stats?.wins) ? meta.stats.wins : 0,
                 losses: Number.isFinite(meta?.stats?.losses) ? meta.stats.losses : 0,
+                credits: Number.isFinite(meta?.wallet?.credits) ? meta.wallet.credits : STARTER_CREDITS,
                 selectedDeckKey: typeof meta?.selectedDeckKey === 'string' ? meta.selectedDeckKey : 'FIRE',
                 collectionSize: Object.keys(meta?.collection || {}).length,
                 deckKeys: Object.keys(meta?.decks || {})
@@ -1984,8 +1995,12 @@
                     if (!gameMeta.stats) {
                         gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
                     }
+                    if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
+                        gameMeta.wallet = { credits: STARTER_CREDITS };
+                    }
                     gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
                     gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
+                    gameMeta.wallet.credits = Math.max(0, Math.floor(gameMeta.wallet.credits + BASE_WIN_CREDITS));
 
                     cardIds.forEach(cardId => {
                         gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
@@ -2019,7 +2034,11 @@
                 if (!gameMeta.stats) {
                     gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
                 }
+                if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
+                    gameMeta.wallet = { credits: STARTER_CREDITS };
+                }
                 gameMeta.stats.losses = Number.isFinite(gameMeta.stats.losses) ? gameMeta.stats.losses + 1 : 1;
+                gameMeta.wallet.credits = Math.max(0, Math.floor(gameMeta.wallet.credits + BASE_LOSS_CREDITS));
                 metaSave(gameMeta);
             } catch (error) {
                 console.warn('Meta loss hook failed. Continuing with baseline loss flow.', error);
