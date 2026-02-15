@@ -1301,6 +1301,57 @@ body::after {
     flex: 1 1 160px;
 }
 
+.shop-credits-badge {
+    display: inline-block;
+    margin: 8px 0 14px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 215, 0, 0.7);
+    background: radial-gradient(circle at top, rgba(255, 234, 148, 0.3) 0%, rgba(80, 35, 125, 0.65) 100%);
+    color: #ffed8b;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.12);
+}
+
+.pack-shop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.shop-pack-btn {
+    width: 100%;
+    font-size: 13px;
+    padding: 12px 10px;
+    letter-spacing: 0.5px;
+}
+
+.shop-pack-btn[data-theme="fantasy"] { background: linear-gradient(135deg, #ffd86e 0%, #b88cff 100%); }
+.shop-pack-btn[data-theme="scifi"] { background: linear-gradient(135deg, #6df1ff 0%, #6787ff 100%); }
+.shop-pack-btn[data-theme="tech"] { background: linear-gradient(135deg, #b8c0cc 0%, #7d8fa4 100%); }
+.shop-pack-btn[data-theme="alien"] { background: linear-gradient(135deg, #9dff89 0%, #2f8a67 100%); }
+.shop-pack-btn[data-theme="robot"] { background: linear-gradient(135deg, #cfd6df 0%, #8a95a8 100%); }
+.shop-pack-btn[data-theme="lands"] { background: linear-gradient(135deg, #9fdd84 0%, #d8b16a 100%); }
+
+.pack-shop-message {
+    min-height: 24px;
+    margin-top: 12px;
+    color: var(--text-soft);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+}
+
+.pack-shop-message.error {
+    color: #ff8f8f;
+}
+
+.pack-shop-message.success {
+    color: #8effb0;
+}
+
 .guide-overlay {
     position: absolute;
     inset: 0;
@@ -1361,6 +1412,10 @@ body::after {
 
 @media (max-width: 768px) {
     .deck-builder-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .pack-shop-grid {
         grid-template-columns: 1fr;
     }
 

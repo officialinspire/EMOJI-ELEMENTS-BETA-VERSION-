@@ -1431,6 +1431,15 @@
         { key: 'lands', label: 'Lands', weight: 14 }
     ];
 
+    const PACK_SHOP_COSTS = {
+        fantasy: 60,
+        scifi: 60,
+        tech: 60,
+        alien: 60,
+        robot: 60,
+        lands: 40
+    };
+
     const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
     const THEME_KEYWORDS = {
         fantasy: ['wizard', 'mage', 'witch', 'sorcer', 'knight', 'dragon', 'demon', 'angel', 'temple', 'wand', 'relic', 'ancient', 'holy', 'cursed'],
@@ -2243,6 +2252,86 @@
         initializeDeckBuilder();
     }
 
+    function updatePackShopCreditsBadge() {
+        const creditsEl = document.getElementById('shopCreditsBadge');
+        if (!creditsEl) return;
+        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        creditsEl.textContent = `💳 Credits: ${credits}`;
+    }
+
+    function setPackShopMessage(message = '', type = '') {
+        const messageEl = document.getElementById('packShopMessage');
+        if (!messageEl) return;
+        messageEl.textContent = message;
+        messageEl.classList.remove('error', 'success');
+        if (type === 'error' || type === 'success') {
+            messageEl.classList.add(type);
+        }
+    }
+
+    function showPackShop() {
+        playSFX('menuOpen');
+        setStartMenuScreen('packShopScreen');
+        updatePackShopCreditsBadge();
+        setPackShopMessage('Choose a themed pack to buy with credits.');
+    }
+
+    function hidePackShop() {
+        playSFX('menuClose');
+        setStartMenuScreen('mainMenu');
+        focusSafeElement();
+    }
+
+    function purchasePack(themeKey) {
+        try {
+            const normalizedTheme = String(themeKey || '').trim().toLowerCase();
+            const cost = PACK_SHOP_COSTS[normalizedTheme];
+            if (!Number.isFinite(cost)) {
+                console.warn('Pack Shop purchase blocked: unknown theme key.', themeKey);
+                setPackShopMessage('That pack is unavailable right now.', 'error');
+                return;
+            }
+
+            if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
+                gameMeta.wallet = { credits: STARTER_CREDITS };
+            }
+
+            const currentCredits = Math.max(0, Math.floor(gameMeta.wallet.credits));
+            if (currentCredits < cost) {
+                setPackShopMessage(`Not enough credits. ${cost} needed, you have ${currentCredits}.`, 'error');
+                updatePackShopCreditsBadge();
+                return;
+            }
+
+            const cardIds = generatePack(normalizedTheme);
+            if (!Array.isArray(cardIds) || cardIds.length === 0) {
+                console.warn('Pack Shop purchase failed: generatePack returned no cards.', normalizedTheme);
+                setPackShopMessage('Pack generation failed. Please try again.', 'error');
+                return;
+            }
+
+            const openedAt = new Date().toISOString();
+            gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
+            cardIds.forEach(cardId => {
+                gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+            });
+            gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
+
+            try {
+                metaSave(gameMeta);
+            } catch (saveError) {
+                console.warn('Pack Shop metaSave failed; continuing with in-memory purchase state.', saveError);
+            }
+
+            setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
+            updatePackShopCreditsBadge();
+            openPackOpeningOverlayFromMeta();
+        } catch (error) {
+            console.warn('Pack Shop purchase flow failed but UI remains usable.', error);
+            setPackShopMessage('Something went wrong. Please try again.', 'error');
+        }
+    }
+
     function openDeckBuilderGuide() {
         const overlay = document.getElementById('deckBuilderGuideOverlay');
         if (!overlay) return;
@@ -2466,7 +2555,7 @@
     }
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
-        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen'];
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen'];
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;
@@ -5479,6 +5568,13 @@
             if (startModal?.classList.contains('modal-visible') && deckBuilderScreen?.style.display === 'block') {
                 e.preventDefault();
                 backToMenu();
+                return;
+            }
+
+            const packShopScreen = document.getElementById('packShopScreen');
+            if (startModal?.classList.contains('modal-visible') && packShopScreen?.style.display === 'block') {
+                e.preventDefault();
+                hidePackShop();
                 return;
             }
         }
