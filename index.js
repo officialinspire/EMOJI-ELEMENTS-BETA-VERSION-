@@ -7,9 +7,7 @@
 
     const QA_MODE = true;
 
-    if (QA_MODE && typeof window.__QA_FORCE_META_OFF === 'undefined') {
-        window.__QA_FORCE_META_OFF = false;
-    }
+    window.__QA_FORCE_META_OFF = false;
 
     if (QA_MODE) {
         window.addEventListener('error', (event) => {
@@ -362,9 +360,13 @@
 
     const META_ENABLED = true;
 
+    function isMetaRuntimeEnabled() {
+        return META_ENABLED && !window.__QA_FORCE_META_OFF;
+    }
+
     // Load stats from localStorage
     function loadStats() {
-        if (!META_ENABLED) {
+        if (!isMetaRuntimeEnabled()) {
             return;
         }
 
@@ -410,7 +412,7 @@
     }
 
     function saveStats() {
-        if (META_ENABLED && gameMeta && gameMeta.stats) {
+        if (isMetaRuntimeEnabled() && gameMeta && gameMeta.stats) {
             try {
                 gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
                 gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
@@ -1114,7 +1116,7 @@
     }
 
     function metaLoad() {
-        if (!META_ENABLED) return null;
+        if (!isMetaRuntimeEnabled()) return null;
 
         const raw = localStorage.getItem(META_STORAGE_KEY);
         if (!raw) return null;
@@ -1128,7 +1130,7 @@
     }
 
     function metaSave(meta) {
-        if (!META_ENABLED) return;
+        if (!isMetaRuntimeEnabled()) return;
         try {
             localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
         } catch (error) {
@@ -1404,7 +1406,7 @@
     }
 
     function metaEnsureInitialized() {
-        if (!META_ENABLED) {
+        if (!isMetaRuntimeEnabled()) {
             return createInitialMeta();
         }
 
@@ -3197,11 +3199,11 @@
 
     function createPlayerDeck(elements) {
         const fallbackDeck = () => generateDeck(elements);
-        const isMetaEnabledForDeck = META_ENABLED && !window.__QA_FORCE_META_OFF;
+        const isMetaEnabledForDeck = isMetaRuntimeEnabled();
 
         const getFallbackDeckWithLog = () => {
-            if (QA_DEBUG) {
-                console.debug('[QA] createPlayerDeck fallback path');
+            if (QA_MODE) {
+                console.debug('[QA] fallback path');
             }
             return fallbackDeck();
         };
@@ -3231,8 +3233,8 @@
 
             const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: Math.random() }));
             shuffleDeck(deck);
-            if (QA_DEBUG) {
-                console.debug('[QA] createPlayerDeck meta path');
+            if (QA_MODE) {
+                console.debug('[QA] META path');
             }
             return deck;
         } catch (error) {
