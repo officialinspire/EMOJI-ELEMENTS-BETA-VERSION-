@@ -51,6 +51,16 @@
         <button class="menu-btn overlay-btn" onclick="returnToMainMenu()" style="background: linear-gradient(135deg, #4169e1 0%, #6495ed 100%); color: #fff; border-color: #1a3a7a;">🏠 MAIN MENU</button>
     </div>
 
+
+    <div id="matchRewardOverlay" class="match-reward-overlay">
+        <div class="match-reward-panel">
+            <div class="match-reward-title">🎉 MATCH REWARDS 🎉</div>
+            <div class="match-reward-line">💳 Credits Earned: <strong id="rewardCreditsAmount">+0</strong></div>
+            <div class="match-reward-line">🎁 Booster Packs: <strong id="rewardPackAmount">0</strong></div>
+            <button class="menu-btn overlay-btn" onclick="proceedFromMatchRewards()">🎁 OPEN BOOSTER</button>
+        </div>
+    </div>
+
     <div id="packOpeningOverlay" class="pack-opening-overlay" data-lock-scroll="true">
         <div class="pack-opening-panel">
             <div class="pack-opening-header">

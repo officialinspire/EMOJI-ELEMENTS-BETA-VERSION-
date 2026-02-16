@@ -277,7 +277,7 @@
     function qaWarnDomPressure(context = '') {
         if (!QA_MODE) return;
 
-        const overlays = document.querySelectorAll('.victory-overlay.show, .lose-overlay.show, .pack-opening-overlay.show, .guide-overlay[style*="display: flex"]');
+        const overlays = document.querySelectorAll('.victory-overlay.show, .lose-overlay.show, .match-reward-overlay.show, .pack-opening-overlay.show, .guide-overlay[style*="display: flex"]');
         const floaters = document.querySelectorAll('.floating-dmg');
 
         if (overlays.length > 3) {
@@ -1181,7 +1181,8 @@
     ];
     const STANDARD_DECK_SIZE = 60;
     const STANDARD_MAX_LANDS = 20;
-    const STANDARD_NON_LAND_COUNT = STANDARD_DECK_SIZE - STANDARD_MAX_LANDS;
+    const DUAL_DECK_MAX_LANDS_PER_COLOR = 11;
+    const DUAL_DECK_MAX_LANDS_TOTAL = DUAL_DECK_MAX_LANDS_PER_COLOR * 2;
 
     function getDeckLandCaps(deckColors) {
         const normalizedColors = Array.isArray(deckColors)
@@ -1197,10 +1198,10 @@
 
         if (normalizedColors.length >= 2) {
             return {
-                maxLands: STANDARD_MAX_LANDS,
+                maxLands: DUAL_DECK_MAX_LANDS_TOTAL,
                 maxPerColor: {
-                    [normalizedColors[0]]: 10,
-                    [normalizedColors[1]]: 10
+                    [normalizedColors[0]]: DUAL_DECK_MAX_LANDS_PER_COLOR,
+                    [normalizedColors[1]]: DUAL_DECK_MAX_LANDS_PER_COLOR
                 },
                 colors: normalizedColors
             };
@@ -1353,9 +1354,9 @@
     }
 
     function buildStarterDeckFromColors(deckKey, colors) {
-        const LAND_COUNT = STANDARD_MAX_LANDS;
-        const NON_LAND_COUNT = STANDARD_NON_LAND_COUNT;
         const landCaps = getDeckLandCaps(colors);
+        const LAND_COUNT = landCaps.maxLands;
+        const NON_LAND_COUNT = Math.max(0, STANDARD_DECK_SIZE - LAND_COUNT);
         const STARTER_TYPE_TARGETS = {
             creature: 20,
             instant: 9,
@@ -2184,6 +2185,7 @@
     };
 
     let pendingMatchResultOverlay = null;
+    let pendingMatchRewardSummary = null;
 
     function showMatchResultOverlay(result) {
         const normalizedResult = result === 'win' ? 'win' : 'loss';
@@ -2194,6 +2196,36 @@
             overlay.classList.add('show');
             pendingMatchResultOverlay = null;
         }
+    }
+
+
+    function showMatchRewardOverlay(summary) {
+        const overlay = document.getElementById('matchRewardOverlay');
+        const creditsEl = document.getElementById('rewardCreditsAmount');
+        const packEl = document.getElementById('rewardPackAmount');
+
+        if (!overlay) {
+            pendingMatchResultOverlay = 'win';
+            openPackOpeningOverlayFromMeta();
+            return;
+        }
+
+        pendingMatchRewardSummary = {
+            creditsAwarded: Number.isFinite(summary?.creditsAwarded) ? summary.creditsAwarded : BASE_WIN_CREDITS,
+            packCount: Number.isFinite(summary?.packCount) ? summary.packCount : 1
+        };
+
+        if (creditsEl) creditsEl.textContent = `+${pendingMatchRewardSummary.creditsAwarded}`;
+        if (packEl) packEl.textContent = `${pendingMatchRewardSummary.packCount}`;
+
+        overlay.classList.add('show');
+    }
+
+    function proceedFromMatchRewards() {
+        const overlay = document.getElementById('matchRewardOverlay');
+        overlay?.classList.remove('show');
+        pendingMatchResultOverlay = 'win';
+        openPackOpeningOverlayFromMeta();
     }
 
     function updatePackOpeningDebug() {
@@ -2582,10 +2614,10 @@
             gameStats.wins++;
             gameStats.total++;
 
-            const awardedFreePack = Math.random() < WIN_FREE_PACK_CHANCE;
-            const themeKey = awardedFreePack ? choosePackThemeByWeight() : null;
-            const cardIds = awardedFreePack ? generatePack(themeKey) : [];
-            const openedAt = awardedFreePack ? new Date().toISOString() : null;
+            const awardedFreePack = true;
+            const themeKey = choosePackThemeByWeight();
+            const cardIds = generatePack(themeKey);
+            const openedAt = new Date().toISOString();
 
             if (META_ENABLED) {
                 try {
@@ -2598,15 +2630,13 @@
                     gameMeta.stats.wins = Number.isFinite(gameMeta.stats.wins) ? gameMeta.stats.wins + 1 : 1;
                     gameMeta.wallet.credits = Math.max(0, Math.floor(gameMeta.wallet.credits + BASE_WIN_CREDITS));
 
-                    if (awardedFreePack) {
-                        gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
+                    gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
 
-                        cardIds.forEach(cardId => {
-                            gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-                        });
+                    cardIds.forEach(cardId => {
+                        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+                    });
 
-                        gameMeta.lastPack = { themeKey, cardIds, openedAt };
-                    }
+                    gameMeta.lastPack = { themeKey, cardIds, openedAt };
                     metaSave(gameMeta);
                 } catch (error) {
                     console.warn('Meta reward hook failed after win. Continuing with baseline victory flow.', error);
@@ -2614,7 +2644,7 @@
             }
             saveStats();
 
-            const lastPack = awardedFreePack ? (gameMeta?.lastPack || { themeKey, cardIds, openedAt }) : null;
+            const lastPack = gameMeta?.lastPack || { themeKey, cardIds, openedAt };
             const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
             console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
 
@@ -2624,18 +2654,16 @@
 
             console.log('🏆 Match reward granted:', {
                 creditsAwarded: BASE_WIN_CREDITS,
-                freePackAwarded: awardedFreePack,
-                lastPack: awardedFreePack ? gameMeta.lastPack : null
+                freePackAwarded: true,
+                lastPack: gameMeta.lastPack
             });
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
-            if (awardedFreePack) {
-                pendingMatchResultOverlay = 'win';
-                openPackOpeningOverlayFromMeta();
-            } else {
-                showMatchResultOverlay('win');
-            }
+            showMatchRewardOverlay({
+                creditsAwarded: BASE_WIN_CREDITS,
+                packCount: 1
+            });
             return;
         }
 
@@ -3307,9 +3335,12 @@
 
         const victoryOverlay = document.getElementById('victoryOverlay');
         const loseOverlay = document.getElementById('loseOverlay');
+        const rewardOverlay = document.getElementById('matchRewardOverlay');
         victoryOverlay.classList.remove('show');
         loseOverlay.classList.remove('show');
+        rewardOverlay?.classList.remove('show');
         pendingMatchResultOverlay = null;
+        pendingMatchRewardSummary = null;
 
         document.getElementById('pauseModal').classList.remove('show');
         document.getElementById('graveyardModal').classList.remove('show');
@@ -3637,16 +3668,16 @@
     // Deck Generation with improved shuffling
     function generateDeck(elements) {
         const deck = [];
-        const LAND_COUNT = STANDARD_MAX_LANDS;
-        const NON_LAND_COUNT = STANDARD_NON_LAND_COUNT;
         const landCaps = getDeckLandCaps(elements);
+        const LAND_COUNT = landCaps.maxLands;
+        const NON_LAND_COUNT = Math.max(0, STANDARD_DECK_SIZE - LAND_COUNT);
 
         if (elements.length === 1) {
             for (let i = 0; i < LAND_COUNT; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
             }
         } else {
-            const firstLandCount = landCaps.maxPerColor[elements[0]] || 10;
+            const firstLandCount = landCaps.maxPerColor[elements[0]] || Math.ceil(LAND_COUNT / 2);
             const secondLandCount = landCaps.maxPerColor[elements[1]] || (LAND_COUNT - firstLandCount);
             for (let i = 0; i < firstLandCount; i++) {
                 deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
