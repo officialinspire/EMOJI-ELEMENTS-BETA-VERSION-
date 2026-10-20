@@ -22,7 +22,8 @@ node tests/card-audit.mjs --write   # after an intended catalog change: refresh 
 The script extracts the catalog **and the game's own functions** from `index.js` and runs them in a Node VM, with
 no browser and no copied logic. The functions cover starter decks, `validateDeckBuild`, `isCardEligibleForDeck`,
 `getThemePool`, `generateDeck` (with a seeded RNG) and `validateMeta`. The "supported" effects and abilities are
-read from the engine code (`resolveSpell`, `processUpkeepEffects`, `activateArtifact`, `playCard`, `hasAbility`),
+read from the engine code (`resolveSpell`, `processUpkeepEffects`, `activateArtifact`, `ON_PLAY_ARTIFACT_EFFECTS`,
+`TOKEN_TYPES`, `hasAbility`),
 so implementing `flash` updates the check automatically.
 
 It **fails** on any of the following:
@@ -32,6 +33,9 @@ It **fails** on any of the following:
 - a bad cost colour or amount, or more than 2 colours;
 - a bad power or toughness;
 - an effect, ability, token type, buff type or target the engine doesn't handle, or a missing or invalid `value`;
+- an effect flag on the wrong kind of card (`untilEndOfTurn` only on a power buff, `skipUntap` only on a tap);
+- an instant or artifact that `describeEffect` can't explain (its **Rules** line in card details; see
+  [EFFECTS.md](EFFECTS.md));
 - a card that is unobtainable or not legal in any deck;
 - a starter deck that is the wrong size, invalid, uses an unowned card, or shrinks on reload;
 - a stale manifest or counts block;
@@ -42,7 +46,8 @@ allow-listed issue that disappears also fails, so the list stays exact.
 
 Each failure mode was tested by injecting it into a temporary copy of `index.js`: a renamed card, a field typo
 (`toughnes`), an unknown effect (`lifesteal`), a bad cost colour (`fyre`), a duplicate object key, and an unknown
-ability (`regenerate`). All six exit 1 with a specific message.
+ability (`regenerate`). All six exit 1 with a specific message. The effects pass added two more: `untilEndOfTurn`
+on Growth (a +2/+2 buff), and an effect that `describeEffect` doesn't cover. Both exit 1.
 
 ## 2. Exact catalog counts
 
@@ -240,7 +245,7 @@ Each item is listed in `KNOWN_ISSUES` (or noted as text-only) until you decide.
 | C | **3 free artifacts** (cost `{}`): DNA Sequence (draw a card), **Fingerprint Scanner (+1 mana every turn for 0)**, Footsteps (all your creatures gain haste). Similar sci-fi artifacts cost 1–3 colourless. All three are in **all 15 starter decks** (2 copies each). | 1) Give them colourless costs. This regenerates every starter for new players; existing saved decks keep their lists. 2) Keep them as deliberate 0-drops. |
 | D | **Duplicate names**: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact, with the same emoji. | 1) Rename the creature versions, with a save alias so owned copies carry over. Renaming changes ids, and the check blocks a bare rename. 2) Keep. |
 | E | **Keyword with no rules effect**: `flash` (9 creatures). `unblockable` (Otter Scout, Surf's grant) was implemented in the combat pass (RULES.md C3). | 1) Implement Flash: it needs an instant-speed window during the AI turn (gameplay work). 2) Replace it with a supported keyword. |
-| F | **Rules text that doesn't match the engine** (15 cards, not allow-listed because it's text): Fireball, Explosion, Inferno and Comet Strike say "target" but hit the opponent. Anger says "until end of turn" but buffs are permanent. Deep Freeze says "doesn't untap" but it untaps (so it's Freeze at +1 cost). Earthquake and Avalanche say "all creatures" but only hit enemy creatures. Six "equipped" artifacts (Flaming Sword, Earth Shield, Heavy Armor, Battle Axe, Nano Shield, Mech Claw) are one-shot buffs to a random creature. Magic Wand says "when activated" but deals 2 **every upkeep**. | 1) Rewrite the text to match the engine now (no balance change), and plan the rules work separately. 2) Implement the described behaviour. |
+| F | ✅ **Resolved in the effects pass** ([EFFECTS.md](EFFECTS.md) §3): Earthquake/Avalanche, Anger and Deep Freeze now do what their text says; damage-spell, Wrestle, Magic Wand, Bomb, War Horn, Amulet, Footsteps and Dark Scroll text now says what the engine does; equipment and random targets are written house rules shown on every card's Rules line. ~~**Rules text that doesn't match the engine** (15 cards, not allow-listed because it's text): Fireball, Explosion, Inferno and Comet Strike say "target" but hit the opponent. Anger says "until end of turn" but buffs are permanent. Deep Freeze says "doesn't untap" but it untaps (so it's Freeze at +1 cost). Earthquake and Avalanche say "all creatures" but only hit enemy creatures. Six "equipped" artifacts (Flaming Sword, Earth Shield, Heavy Armor, Battle Axe, Nano Shield, Mech Claw) are one-shot buffs to a random creature. Magic Wand says "when activated" but deals 2 **every upkeep**.~~ | Both, case by case (see EFFECTS.md §3). |
 | G | ✅ **Resolved in the progression pass.** ~~FIRE_SWAMP starter used Web Trap, which nobody owns (QA D10).~~ Dual starters are now built only from owned cards: Curse replaces Web Trap. Saved FIRE_SWAMP decks that were never edited are migrated to the new list; edited decks are left alone; no cards are granted. | Option 1 was taken, without excluding owned two-colour cards. |
 | H | **Crystal Wasteland** (colourless land) can be pulled from SciFi and Lands packs but is legal in no deck. | 1) Allow colourless lands in any deck (counting toward the total land cap, not toward colour caps). 2) Remove it from the pools. |
 | I | **Copy limit for special lands**: basic lands are now unlimited. Rainbow and Distant Planet stay at 2 (rarity rule). | Keep 2 / make all lands unlimited / some other cap. |

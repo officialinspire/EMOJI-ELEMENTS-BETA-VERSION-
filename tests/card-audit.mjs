@@ -129,7 +129,7 @@ const GAME_DECLARATIONS = [
     'validateDeckBuild', 'buildStarterDeckFromColors', 'createInitialMeta', 'clampDeckCardIdsToOwned',
     'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'readStoredNumber', 'sameCardMultiset', 'validateMeta', 'PACK_THEMES',
     'PACK_SHOP_COSTS', 'PACK_THEME_KEYS', 'THEME_KEYWORDS', 'inferTheme', 'getThemePool', 'generatePack',
-    'shuffleDeck', 'generateDeck'
+    'shuffleDeck', 'generateDeck', 'KEYWORD_RULES', 'TOKEN_TYPES', 'describeEffect'
 ];
 
 function seededRandom(seed) {
@@ -160,14 +160,15 @@ function loadGame() {
     // Rules support, read from the engine code so the audit follows the implementation.
     const body = name => extractDeclaration(rest, name);
     const all = (text, re) => [...text.matchAll(re)].map(m => m[1]);
-    const onPlay = /if \(\[([^\]]+)\]\.includes\(card\.effect\)\)/.exec(body('playCard'));
-    if (!onPlay) throw new Error('Could not find on-play artifact effects in playCard()');
+    const onPlay = /const ON_PLAY_ARTIFACT_EFFECTS = \[([^\]]+)\]/.exec(rest);
+    if (!onPlay) throw new Error('Could not find ON_PLAY_ARTIFACT_EFFECTS in index.js');
     const support = {
         instantEffects: new Set(all(body('resolveSpell'), /case '(\w+)':/g)),
         artifactOnPlay: new Set(all(onPlay[1], /'(\w+)'/g)),
         artifactUpkeep: new Set(all(body('processUpkeepEffects'), /case '(\w+)':/g)),
         artifactActivated: new Set(all(body('activateArtifact'), /card\.effect !== '(\w+)'/g)),
-        tokenTypes: new Set(all(body('resolveSpell'), /tokenType === '(\w+)'/g)),
+        tokenTypes: new Set(Object.keys(game.TOKEN_TYPES).filter(key => key !== 'default')),
+        flags: new Set(all(body('resolveSpell'), /card\.(untilEndOfTurn|skipUntap)\b/g)),
         buffTypes: new Set(all(body('resolveSpell'), /buffType === '(\w+)'/g)),
         spellTargets: new Set(all(body('resolveSpell'), /card\.target === '(\w+)'/g)),
         abilities: new Set([
@@ -196,7 +197,7 @@ function loadGame() {
 const TYPE_FIELDS = {
     land: ['element', 'elements'],
     creature: ['cost', 'power', 'toughness', 'abilities'],
-    instant: ['cost', 'effect', 'value', 'buffType', 'grantAbilities', 'target', 'drawCards', 'tokenType'],
+    instant: ['cost', 'effect', 'value', 'buffType', 'grantAbilities', 'target', 'drawCards', 'tokenType', 'untilEndOfTurn', 'skipUntap'],
     artifact: ['cost', 'effect', 'value', 'buffType', 'grantAbilities', 'targetAll']
 };
 const COMMON_FIELDS = ['emoji', 'type', 'cardType', 'name', 'desc', 'theme', '_category', '__id', '__rarity'];
@@ -292,6 +293,15 @@ function audit() {
         if (card.target !== undefined && !support.spellTargets.has(card.target)) add('bad-effect-param', id, `target ${card.target}`);
         if (card.drawCards !== undefined && !(isInt(card.drawCards) && card.drawCards > 0)) add('bad-effect-param', id, `drawCards ${card.drawCards}`);
         if (card.targetAll !== undefined && typeof card.targetAll !== 'boolean') add('bad-effect-param', id, 'targetAll must be boolean');
+        // Flags the engine reads only for one kind of effect (EFFECTS.md).
+        const flagRules = { untilEndOfTurn: c => c.effect === 'buff' && c.buffType === 'power', skipUntap: c => c.effect === 'tap' };
+        for (const [flag, fits] of Object.entries(flagRules)) {
+            if (card[flag] === undefined) continue;
+            if (card[flag] !== true || !fits(card) || !support.flags.has(flag)) add('bad-effect-param', id, `${flag} not supported here`);
+        }
+        // Card details show describeEffect(card) as the rules line; it must describe every effect.
+        const rulesText = game.describeEffect(card);
+        if (!rulesText || rulesText === card.desc || /undefined|NaN/.test(rulesText)) add('no-rules-text', id, `describeEffect: "${rulesText}"`);
         (card.grantAbilities || []).forEach(ability => {
             if (!support.abilities.has(ability)) add('unsupported-ability', id, `grants ${ability}`);
         });
@@ -356,7 +366,7 @@ function audit() {
     // ---- manifest
     const manifestCards = cards.map(card => {
         const params = {};
-        ['value', 'buffType', 'grantAbilities', 'target', 'targetAll', 'drawCards', 'tokenType']
+        ['value', 'buffType', 'grantAbilities', 'target', 'targetAll', 'drawCards', 'tokenType', 'untilEndOfTurn', 'skipUntap']
             .forEach(field => { if (card[field] !== undefined) params[field] = card[field]; });
         return {
             id: card.__id,
@@ -373,7 +383,7 @@ function audit() {
             cost: card.type === 'land' ? null : card.cost,
             manaValue: card.type === 'land' ? 0 : manaValue(card),
             ...(card.type === 'creature' ? { power: card.power, toughness: card.toughness, abilities: card.abilities } : {}),
-            ...(card.effect ? { effect: card.effect, effectParams: params } : {}),
+            ...(card.effect ? { effect: card.effect, effectParams: params, rules: game.describeEffect(card) } : {}),
             desc: card.desc ?? null,
             deckBuilderCopyLimit: Number.isFinite(game.getDeckBuilderCopyLimit(card)) ? game.getDeckBuilderCopyLimit(card) : 'unlimited',
             availability: {

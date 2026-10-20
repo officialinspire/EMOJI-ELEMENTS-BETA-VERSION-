@@ -32,12 +32,13 @@ that differ from, or aren't covered by, the trading-card games this one is model
 - **R3.1 Your turn:**
   1. Draw a card.
   2. Upkeep: your artifacts' "each turn" effects happen.
-  3. Untap all your permanents.
+  3. Untap all your permanents (a Deep Frozen one stays tapped this once, EFFECTS.md E4).
   4. Your mana pool is emptied and your one-land allowance resets.
   5. **Main phase.** You play cards and tap lands. You may attack **once**: ATTACK, select attackers,
      then CONFIRM. Cards can still be played after combat.
-  6. END TURN: unused mana is lost.
-- **R3.2 AI turn:** untap, draw, upkeep, play at most one land, tap all its lands, play cards, attack.
+  6. END TURN: unused mana is lost, and "until end of turn" bonuses (Anger) end on both sides.
+- **R3.2 AI turn:** untap, draw, upkeep, play at most one land, tap all its lands and mana artifacts, play
+  cards, attack. Its "until end of turn" bonuses end when your turn starts.
 - **R3.3 Timing:** you can only play cards, tap lands, use artifacts, attack or end the turn **during your
   own turn**. There is no instant-speed play (see `flash` in the card audit). You can't end your turn while
   attackers are being declared; confirm or cancel the attack first.
@@ -149,14 +150,15 @@ Emoji Elements borrows trading-card-game vocabulary, but these rules are its own
   after that applies (including later lifelink).
 - **C10 Death and graveyards.**
   - A creature with damage at least equal to its toughness goes to its **owner's** graveyard, untapped and
-    undamaged.
+    undamaged, as its printed card: bonuses and granted keywords end ([EFFECTS.md](EFFECTS.md) E3).
   - **House rule:** tokens also go to the graveyard and can be revived.
   - **Changed:** revive spells return the **most recent creature** in your graveyard. They used to return the
     last card of any type, including instants and artifacts.
 - **C11 Cleanup.** Damage marked on creatures wears off between turns. After combat the game returns to the
   main phase with no attackers selected.
-- **C12 Hexproof.** Your opponent's destroy, tap and bounce effects can't choose this creature. It still blocks,
-  is blocked, and is hit by "all creatures" effects such as Earthquake.
+- **C12 Hexproof.** Your opponent's destroy, tap (including Deep Freeze) and bounce effects can't choose this
+  creature. Your own buffs can. It still blocks, is blocked, and is hit by sweepers (Earthquake, Avalanche,
+  Bomb). See [EFFECTS.md](EFFECTS.md) E2.
 - **C13 Vigilance.** Attacking doesn't tap the creature, so it can still block on the next enemy turn (see R5.3).
 - **C14 Granted keywords** (Feather, Surf, In the Clouds, Halo, Gravity Boots, Footsteps, Elven Bow) apply
   only to the creature that received them. **Changed:** a granted keyword used to be added to the shared card
@@ -185,10 +187,9 @@ Emoji Elements borrows trading-card-game vocabulary, but these rules are its own
 | Topic | Current behaviour | Why it's open |
 |---|---|---|
 | Choosing blockers | Automatic for both sides (R5.4) | Manual blocking would be new UI. |
-| Spell targets | Damage spells hit the opponent; destroy/tap/bounce/buff pick random targets | Card text says "target" (card audit, decision F). |
+| Spell targets | Damage spells hit the opponent; destroy/tap/bounce/buff pick random targets ([EFFECTS.md](EFFECTS.md) E2, now a written house rule) | Real targeting would need new UI. |
 | `flash` | No effect (C15) | Needs an instant-speed window during the AI turn (card audit, decision E). |
 | Damage order among blockers | Toughest blocker first (C4) | Letting the attacker choose the order would need new UI. |
-| Bonuses on dead creatures | A creature keeps its buffs and granted keywords in the graveyard and if revived or bounced | It could instead reset to the printed card. |
 | Upkeep order | You draw before your upkeep effects and untap. The AI untaps, then draws, then upkeep. | Only the order of log messages differs. Neither side can act in between. |
 | AI mana display | The AI's unspent mana stays visible during your turn | Cosmetic; the AI's pool is cleared at the start of its turn. |
 | Who goes first | Always the player | It could alternate or be random. |

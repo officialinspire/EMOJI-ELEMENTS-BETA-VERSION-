@@ -8849,7 +8849,8 @@
       "effectParams": {
         "value": 3
       },
-      "desc": "Deal 3 damage to target",
+      "rules": "Deals 3 damage to your opponent.",
+      "desc": "Deal 3 damage to the enemy",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 1,
@@ -8895,7 +8896,8 @@
       "effectParams": {
         "value": 4
       },
-      "desc": "Deal 4 damage to target",
+      "rules": "Deals 4 damage to your opponent.",
+      "desc": "Deal 4 damage to the enemy",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 1,
@@ -8937,7 +8939,8 @@
       "effectParams": {
         "value": 5
       },
-      "desc": "Deal 5 damage to target",
+      "rules": "Deals 5 damage to your opponent.",
+      "desc": "Deal 5 damage to the enemy",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 1,
@@ -8979,6 +8982,7 @@
       "effectParams": {
         "value": 6
       },
+      "rules": "Deals 6 damage to your opponent.",
       "desc": "Devastating impact",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9023,6 +9027,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Deals 1 damage to your opponent.",
       "desc": "Quick burn",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9068,8 +9073,10 @@
       "effect": "buff",
       "effectParams": {
         "value": 3,
-        "buffType": "power"
+        "buffType": "power",
+        "untilEndOfTurn": true
       },
+      "rules": "A random creature you control gets +3/+0 until end of turn.",
       "desc": "+3/+0 to creature until end of turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9116,6 +9123,7 @@
       "manaValue": 2,
       "effect": "tap",
       "effectParams": {},
+      "rules": "Taps a random untapped enemy creature without Hexproof.",
       "desc": "Tap target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9162,6 +9170,7 @@
       "manaValue": 5,
       "effect": "bounce",
       "effectParams": {},
+      "rules": "Returns up to 2 random enemy creatures without Hexproof to their owner's hand.",
       "desc": "Return creatures to hand",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9206,6 +9215,7 @@
       "effectParams": {
         "value": 3
       },
+      "rules": "A random creature you control gets +0/+3 while it stays on the battlefield.",
       "desc": "+0/+3 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9251,6 +9261,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "You gain 2 life.",
       "desc": "Restore 2 life",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9297,6 +9308,7 @@
       "manaValue": 4,
       "effect": "destroy",
       "effectParams": {},
+      "rules": "Destroys a random enemy creature without Hexproof.",
       "desc": "Destroy target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9338,7 +9350,10 @@
       },
       "manaValue": 3,
       "effect": "tap",
-      "effectParams": {},
+      "effectParams": {
+        "skipUntap": true
+      },
+      "rules": "Taps a random enemy creature without Hexproof (an untapped one if there is one). It doesn't untap during its controller's next untap.",
       "desc": "Tap target creature, it doesn't untap",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9386,6 +9401,7 @@
           "unblockable"
         ]
       },
+      "rules": "A random creature you control gets +2/+2 and Unblockable while it stays on the battlefield.",
       "desc": "Creature gets +2/+2 and unblockable",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9434,6 +9450,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +0/+2 while it stays on the battlefield.",
       "desc": "+0/+2 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9483,6 +9500,7 @@
         "value": 2,
         "target": "all"
       },
+      "rules": "Deals 2 damage to every creature, yours too.",
       "desc": "Deal 2 to all creatures",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9527,6 +9545,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +2/+2 while it stays on the battlefield.",
       "desc": "+2/+2 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9575,6 +9594,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +0/+2 while it stays on the battlefield.",
       "desc": "+0/+2 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9624,6 +9644,7 @@
         "value": 3,
         "target": "all"
       },
+      "rules": "Deals 3 damage to every creature, yours too.",
       "desc": "Deal 3 to all creatures",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9668,6 +9689,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "Draw 2 cards.",
       "desc": "Draw 2 cards",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9714,7 +9736,8 @@
       "manaValue": 3,
       "effect": "destroy",
       "effectParams": {},
-      "desc": "Destroy target creature in combat",
+      "rules": "Destroys a random enemy creature without Hexproof.",
+      "desc": "Destroy target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 1,
@@ -9759,6 +9782,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "A random creature you control gets +1/+1 while it stays on the battlefield.",
       "desc": "+1/+1 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9805,6 +9829,7 @@
       "manaValue": 3,
       "effect": "destroy",
       "effectParams": {},
+      "rules": "Destroys a random enemy creature without Hexproof.",
       "desc": "Destroy target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9848,6 +9873,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "Your opponent loses 2 life and you gain 2.",
       "desc": "Deal 2, gain 2 life",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9894,6 +9920,7 @@
       "effectParams": {
         "value": 3
       },
+      "rules": "Deals 3 damage to your opponent.",
       "desc": "Deal 3 damage",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9936,6 +9963,7 @@
       "manaValue": 4,
       "effect": "revive",
       "effectParams": {},
+      "rules": "Returns the most recent creature in your graveyard to the battlefield. It can attack next turn (or now, with Haste).",
       "desc": "Return creature from graveyard",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -9976,6 +10004,7 @@
       "manaValue": 2,
       "effect": "tap",
       "effectParams": {},
+      "rules": "Taps a random untapped enemy creature without Hexproof.",
       "desc": "Tap target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10022,6 +10051,7 @@
       "effectParams": {
         "value": 3
       },
+      "rules": "You gain 3 life.",
       "desc": "Restore 3 life",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10068,6 +10098,7 @@
       "effectParams": {
         "value": 3
       },
+      "rules": "Deals 3 damage to your opponent.",
       "desc": "Deal 3 damage",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10112,6 +10143,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +2/+2 while it stays on the battlefield.",
       "desc": "+2/+2 to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10158,6 +10190,7 @@
       "effectParams": {
         "value": 4
       },
+      "rules": "Deals 4 damage to your opponent.",
       "desc": "Deal 4 damage",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10198,6 +10231,7 @@
       "manaValue": 5,
       "effect": "revive",
       "effectParams": {},
+      "rules": "Returns the most recent creature in your graveyard to the battlefield. It can attack next turn (or now, with Haste).",
       "desc": "Return creature from graveyard",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10243,6 +10277,7 @@
           "flying"
         ]
       },
+      "rules": "A random creature you control gets +0/+2 and Flying while it stays on the battlefield.",
       "desc": "Creature gains +0/+2 and flying",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10290,6 +10325,7 @@
         "value": 2,
         "drawCards": 1
       },
+      "rules": "You gain 2 life and draw 1 card.",
       "desc": "Restore 2 life and draw a card",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10341,6 +10377,7 @@
           "flying"
         ]
       },
+      "rules": "A random creature you control gets +1/+1 and Flying while it stays on the battlefield.",
       "desc": "+1/+1 and flying to creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10390,6 +10427,7 @@
         "value": 2,
         "tokenType": "spirit"
       },
+      "rules": "Creates 2 Spirit Tokens (1/1 Flying).",
       "desc": "Create 2 Spirit tokens (1/1 flying)",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10434,6 +10472,7 @@
         "value": 3,
         "tokenType": "soldier"
       },
+      "rules": "Creates 3 Soldier Tokens (1/1).",
       "desc": "Create 3 Soldier tokens (1/1)",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10477,6 +10516,7 @@
         "value": 2,
         "tokenType": "beast"
       },
+      "rules": "Creates 2 Beast Tokens (2/2).",
       "desc": "Create 2 Beast tokens (2/2)",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10523,6 +10563,7 @@
       "manaValue": 2,
       "effect": "tap",
       "effectParams": {},
+      "rules": "Taps a random untapped enemy creature without Hexproof.",
       "desc": "Tap target creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10563,7 +10604,8 @@
       "effectParams": {
         "value": 5
       },
-      "desc": "Deal 5 damage to target",
+      "rules": "Deals 5 damage to your opponent.",
+      "desc": "Deal 5 damage to the enemy",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
@@ -10599,6 +10641,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "Your opponent discards 2 random cards.",
       "desc": "Enemy discards 2 cards",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10645,6 +10688,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Your opponent discards 1 random card, and you draw 1 card either way.",
       "desc": "Enemy discards 1, you draw 1",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10688,6 +10732,7 @@
         "value": 2,
         "buffType": "power"
       },
+      "rules": "A random creature you control gets +2/+0 while it stays on the battlefield. The artifact is then used up.",
       "desc": "Equipped creature gets +2/+0",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10732,6 +10777,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +0/+2 while it stays on the battlefield. The artifact is then used up.",
       "desc": "Equipped creature gets +0/+2",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10777,6 +10823,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, you draw 1 extra card.",
       "desc": "Draw extra card each turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10817,6 +10864,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Once per turn, click it to add 1 ◇ colourless mana.",
       "desc": "Generate extra mana",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10857,7 +10905,8 @@
       "effectParams": {
         "value": 2
       },
-      "desc": "Deal 2 to all enemies",
+      "rules": "Deals 2 damage to each enemy creature. The artifact is then used up.",
+      "desc": "Deal 2 to each enemy creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
@@ -10897,6 +10946,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, you gain 1 life.",
       "desc": "Gain 1 life each turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -10937,7 +10987,8 @@
       "effectParams": {
         "value": 1
       },
-      "desc": "Draw extra card",
+      "rules": "At the start of each of your turns, you draw 1 extra card.",
+      "desc": "Draw an extra card each turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 1,
@@ -10983,6 +11034,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, it deals 1 damage to your opponent.",
       "desc": "Deal 1 to enemy each turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11025,7 +11077,8 @@
         "buffType": "power",
         "targetAll": true
       },
-      "desc": "All creatures get +1/+0",
+      "rules": "Each creature you control gets +1/+0 while it stays on the battlefield. The artifact is then used up.",
+      "desc": "Your creatures get +1/+0",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
@@ -11066,7 +11119,8 @@
         "value": 1,
         "targetAll": true
       },
-      "desc": "All creatures get +0/+1",
+      "rules": "Each creature you control gets +0/+1 while it stays on the battlefield. The artifact is then used up.",
+      "desc": "Your creatures get +0/+1",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
@@ -11108,6 +11162,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Once per turn, click it to add 1 ◇ colourless mana.",
       "desc": "Boost mana production",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11144,6 +11199,7 @@
       "effectParams": {
         "value": 3
       },
+      "rules": "A random creature you control gets +0/+3 while it stays on the battlefield. The artifact is then used up.",
       "desc": "+0/+3 to equipped",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11185,6 +11241,7 @@
         "value": 3,
         "buffType": "power"
       },
+      "rules": "A random creature you control gets +3/+0 while it stays on the battlefield. The artifact is then used up.",
       "desc": "+3/+0 to equipped",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11231,6 +11288,7 @@
           "flying"
         ]
       },
+      "rules": "A random creature you control gets +2/+0 and Flying while it stays on the battlefield. The artifact is then used up.",
       "desc": "+2/+0 and flying",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11267,7 +11325,8 @@
       "effectParams": {
         "value": 2
       },
-      "desc": "Deal 2 damage when activated",
+      "rules": "At the start of each of your turns, it deals 2 damage to your opponent.",
+      "desc": "Deal 2 damage to the enemy each turn",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
@@ -11311,6 +11370,7 @@
         ],
         "targetAll": true
       },
+      "rules": "Each creature you control gets +1/+1 and Lifelink while it stays on the battlefield. The artifact is then used up.",
       "desc": "All your creatures get +1/+1 and lifelink",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11347,6 +11407,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "When played, draw 1 card. The artifact is then used up.",
       "desc": "Draw a card when played",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11409,6 +11470,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Once per turn, click it to add 1 ◇ colourless mana.",
       "desc": "Add 1 colorless mana",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11475,7 +11537,8 @@
         ],
         "targetAll": true
       },
-      "desc": "Creatures get haste",
+      "rules": "Each creature you control gets Haste while it stays on the battlefield. The artifact is then used up.",
+      "desc": "Your creatures get haste",
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 10,
@@ -11539,6 +11602,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Once per turn, click it to add 1 ◇ colourless mana.",
       "desc": "Adds 1 colorless mana",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11591,6 +11655,7 @@
           "haste"
         ]
       },
+      "rules": "A random creature you control gets +1/+0 and Haste while it stays on the battlefield. The artifact is then used up.",
       "desc": "+1/+0 and haste",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11643,6 +11708,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, you draw 1 extra card.",
       "desc": "Draw an extra card each upkeep",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11691,6 +11757,7 @@
       "effectParams": {
         "value": 2
       },
+      "rules": "A random creature you control gets +0/+2 while it stays on the battlefield. The artifact is then used up.",
       "desc": "+0/+2 to equipped creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11739,6 +11806,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, it deals 1 damage to your opponent.",
       "desc": "Deals 1 damage each upkeep",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11788,6 +11856,7 @@
         "value": 2,
         "buffType": "power"
       },
+      "rules": "A random creature you control gets +2/+0 while it stays on the battlefield. The artifact is then used up.",
       "desc": "+2/+0 to equipped creature",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11836,6 +11905,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "When played, draw 1 card. The artifact is then used up.",
       "desc": "Draw a card when played",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11900,6 +11970,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, you gain 1 life.",
       "desc": "Gain 1 life each upkeep",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -11948,6 +12019,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "Once per turn, click it to add 1 ◇ colourless mana.",
       "desc": "Fixes mana with colorless energy",
       "deckBuilderCopyLimit": 2,
       "availability": {
@@ -12012,6 +12084,7 @@
       "effectParams": {
         "value": 1
       },
+      "rules": "At the start of each of your turns, you draw 1 extra card.",
       "desc": "Stores knowledge to draw cards",
       "deckBuilderCopyLimit": 2,
       "availability": {

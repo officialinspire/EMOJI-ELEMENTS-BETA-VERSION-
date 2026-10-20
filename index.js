@@ -791,6 +791,78 @@
         return rule ? `${rule.label}: ${rule.text}` : ability;
     }
 
+    // Token creatures made by token spells (tokenType). `default` is for a token spell without a type.
+    const TOKEN_TYPES = {
+        spirit: { name: 'Spirit Token', emoji: '👻', power: 1, toughness: 1, abilities: ['flying'] },
+        soldier: { name: 'Soldier Token', emoji: '🗡️', power: 1, toughness: 1, abilities: [] },
+        beast: { name: 'Beast Token', emoji: '🐻', power: 2, toughness: 2, abilities: [] },
+        default: { name: 'Token', emoji: '🪙', power: 1, toughness: 1, abilities: [] }
+    };
+
+    // Rules text for instants and artifacts: exactly what the engine does (EFFECTS.md). Card details show
+    // it under the card's own text.
+    function describeEffect(card) {
+        const v = card.value;
+        const isArtifact = card.type === 'artifact';
+        const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+        const eachTurn = text => `At the start of each of your turns, ${text}.`;
+        const usedUp = isArtifact ? ' The artifact is then used up.' : '';
+        const keywordLabels = abilities => (abilities || []).map(a => KEYWORD_RULES[a]?.label || a);
+
+        switch (card.effect) {
+            case 'damage':
+                if (isArtifact) return eachTurn(`it deals ${v} damage to your opponent`);
+                if (card.target === 'all') return `Deals ${v} damage to every creature, yours too.`;
+                return `Deals ${v} damage to your opponent.`;
+            case 'heal':
+                return isArtifact ? eachTurn(`you gain ${v} life`) : `You gain ${v} life.`;
+            case 'heal_draw':
+                return `You gain ${v} life and draw ${plural(card.drawCards || 1, 'card')}.`;
+            case 'draw':
+                return isArtifact ? eachTurn(`you draw ${plural(v, 'extra card')}`) : `Draw ${plural(v, 'card')}.`;
+            case 'draw_on_play':
+                return `When played, draw ${plural(v || 1, 'card')}.${usedUp}`;
+            case 'drain':
+                return `Your opponent loses ${v} life and you gain ${v}.`;
+            case 'destroy':
+                return 'Destroys a random enemy creature without Hexproof.';
+            case 'buff':
+            case 'buff_defense': {
+                const power = card.effect === 'buff' ? v : 0;
+                const toughness = card.effect === 'buff_defense' || card.buffType !== 'power' ? v : 0;
+                const parts = [];
+                if (v > 0) parts.push(`+${power}/+${toughness}`);
+                parts.push(...keywordLabels(card.grantAbilities));
+                const who = card.targetAll ? 'Each creature you control gets' : 'A random creature you control gets';
+                const duration = card.untilEndOfTurn ? ' until end of turn' : ' while it stays on the battlefield';
+                return `${who} ${parts.join(' and ')}${duration}.${usedUp}`;
+            }
+            case 'tap':
+                return card.skipUntap
+                    ? "Taps a random enemy creature without Hexproof (an untapped one if there is one). It doesn't untap during its controller's next untap."
+                    : 'Taps a random untapped enemy creature without Hexproof.';
+            case 'bounce':
+                return "Returns up to 2 random enemy creatures without Hexproof to their owner's hand.";
+            case 'revive':
+                return 'Returns the most recent creature in your graveyard to the battlefield. It can attack next turn (or now, with Haste).';
+            case 'aoe':
+                return `Deals ${v} damage to each enemy creature.${usedUp}`;
+            case 'mana':
+                return `Once per turn, click it to add ${v} ${ELEMENTS.colorless.emoji} colourless mana.`;
+            case 'token': {
+                const token = TOKEN_TYPES[card.tokenType] || TOKEN_TYPES.default;
+                const keywords = keywordLabels(token.abilities);
+                return `Creates ${plural(v || 1, token.name)} (${token.power}/${token.toughness}${keywords.length ? ' ' + keywords.join(', ') : ''}).`;
+            }
+            case 'discard':
+                return `Your opponent discards ${plural(v || 1, 'random card')}.`;
+            case 'discard_draw':
+                return `Your opponent discards ${plural(v || 1, 'random card')}, and you draw ${plural(v || 1, 'card')} either way.`;
+            default:
+                return card.desc || '';
+        }
+    }
+
     // Mana System
     const ELEMENTS = {
         fire: { emoji: '🔥', color: '#ff4444' },
@@ -1031,12 +1103,12 @@
         // SPELLS - GREATLY EXPANDED
         spells: {
             // Fire Spells
-            fireball: { emoji: '💥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to target', theme: 'Fantasy' },
-            explosion: { emoji: '🎆', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to target', theme: 'Fantasy' },
-            inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target', theme: 'Fantasy' },
+            fireball: { emoji: '💥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to the enemy', theme: 'Fantasy' },
+            explosion: { emoji: '🎆', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to the enemy', theme: 'Fantasy' },
+            inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to the enemy', theme: 'Fantasy' },
             meteor: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact', theme: 'Nature' },
             flame: { emoji: '🕯️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn', theme: 'Fantasy' },
-            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, buffType: 'power', name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
+            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, buffType: 'power', untilEndOfTurn: true, name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
 
             // Water Spells
             freeze: { emoji: '❄️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature', theme: 'Nature' },
@@ -1044,7 +1116,7 @@
             bubble: { emoji: '🫧', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature', theme: 'Fantasy' },
             rain: { emoji: '🌧️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life', theme: 'Nature' },
             whirlpool: { emoji: '🌀', type: 'instant', cardType: 'Instant/Spell', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature', theme: 'Nature' },
-            deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
+            deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', skipUntap: true, name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
             surf: { emoji: '🏄', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff', value: 2, grantAbilities: ['unblockable'], name: 'Surf', desc: 'Creature gets +2/+2 and unblockable', theme: 'City' },
             coral: { emoji: '🪸', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff_defense', value: 2, name: 'Coral Shield', desc: '+0/+2 to creature', theme: 'Nature' },
 
@@ -1054,7 +1126,7 @@
             roots: { emoji: '🌿', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature', theme: 'Nature' },
             avalanche: { emoji: '🏔️', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures', theme: 'Nature' },
             harvest: { emoji: '🌾', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards', theme: 'Nature' },
-            wrestle: { emoji: '🤼', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'destroy', name: 'Wrestle', desc: 'Destroy target creature in combat', theme: 'City' },
+            wrestle: { emoji: '🤼', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'destroy', name: 'Wrestle', desc: 'Destroy target creature', theme: 'City' },
             shroom: { emoji: '🍄', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff', value: 1, name: 'Mushroom Power', desc: '+1/+1 to creature', theme: 'Nature' },
 
             // Swamp Spells
@@ -1081,7 +1153,7 @@
 
             // Mixed Color Spells
             web: { emoji: '🕸️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 1, fire: 1 }, effect: 'tap', name: 'Web Trap', desc: 'Tap target creature', theme: 'Nature' },
-            comet: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3, fire: 2 }, effect: 'damage', value: 5, name: 'Comet Strike', desc: 'Deal 5 damage to target', theme: 'Science Fiction' },
+            comet: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3, fire: 2 }, effect: 'damage', value: 5, name: 'Comet Strike', desc: 'Deal 5 damage to the enemy', theme: 'Science Fiction' },
 
             // Discard Spells
             mind_rot: { emoji: '🧠', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'discard', value: 2, name: 'Mind Rot', desc: 'Enemy discards 2 cards', theme: 'Fantasy' },
@@ -1094,21 +1166,21 @@
             shield: { emoji: '🛡️', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2', theme: 'Fantasy' },
             crown: { emoji: '👑', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn', theme: 'Fantasy' },
             gem: { emoji: '💎', type: 'artifact', cardType: 'Artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana', theme: 'Fantasy' },
-            bomb: { emoji: '💣', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to all enemies', theme: 'City' },
+            bomb: { emoji: '💣', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to each enemy creature', theme: 'City' },
             chalice: { emoji: '🏆', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn', theme: 'Fantasy' },
-            scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card', theme: 'Fantasy' },
+            scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw an extra card each turn', theme: 'Fantasy' },
             orb: { emoji: '🔮', type: 'artifact', cardType: 'Artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn', theme: 'Fantasy' },
-            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, buffType: 'power', targetAll: true, name: 'War Horn', desc: 'All creatures get +1/+0', theme: 'City' },
-            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, targetAll: true, name: 'Protective Amulet', desc: 'All creatures get +0/+1', theme: 'Fantasy' },
+            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, buffType: 'power', targetAll: true, name: 'War Horn', desc: 'Your creatures get +1/+0', theme: 'City' },
+            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, targetAll: true, name: 'Protective Amulet', desc: 'Your creatures get +0/+1', theme: 'Fantasy' },
             ring: { emoji: '💍', type: 'artifact', cardType: 'Artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production', theme: 'Fantasy' },
             armor: { emoji: '🦺', type: 'artifact', cardType: 'Artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped', theme: 'City' },
             axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, buffType: 'power', name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
             bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, buffType: 'power', grantAbilities: ['flying'], name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
-            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' },
+            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage to the enemy each turn', theme: 'Fantasy' },
             halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, targetAll: true, grantAbilities: ['lifelink'], name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
             dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw_on_play', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
             fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
-            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' },
+            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Your creatures get haste', theme: 'Science Fiction' },
             prism_core: { emoji: '🔋', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'mana', value: 1, name: 'Prism Core', desc: 'Adds 1 colorless mana', theme: 'Science Fiction' },
             gravity_boots: { emoji: '🥾', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'buff', value: 1, buffType: 'power', grantAbilities: ['haste'], name: 'Gravity Boots', desc: '+1/+0 and haste', theme: 'Science Fiction' },
             chrono_watch: { emoji: '⌚', type: 'artifact', cardType: 'Artifact', cost: { colorless: 3 }, effect: 'draw', value: 1, name: 'Chrono Watch', desc: 'Draw an extra card each upkeep', theme: 'Science Fiction' },
@@ -3692,6 +3764,9 @@
                     <div class="card-detail-info">
                         <span class="card-detail-label">Effect:</span> ${card.desc || 'Magical effect'}
                     </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
+                    </div>
                 </div>
             `;
         } else if (card.type === 'artifact') {
@@ -3709,6 +3784,9 @@
                     </div>
                     <div class="card-detail-info">
                         <span class="card-detail-label">Effect:</span> ${card.desc || 'Powerful artifact'}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
                     </div>
                 </div>
             `;
@@ -4246,21 +4324,11 @@
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
 
             // Trigger artifact effects that should happen immediately when played
-            if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(card.effect)) {
-                resolveSpell(artifactOnBoard, 'player');
-                checkStateBasedActions();
-
-                if (isOneShotArtifactEffect(card.effect)) {
-                    sendBoardCardToGraveyard(artifactOnBoard.id, 'player');
-                }
-            }
+            resolveArtifactOnPlay(artifactOnBoard, 'player');
         } else if (card.type === 'instant') {
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
-            resolveSpell(card, 'player');
-            moveCardToGraveyard(card, 'player');
-            // Check for dead creatures after spell resolves
-            checkStateBasedActions();
+            castInstant(card, 'player');
         }
 
         // Particles
@@ -4571,15 +4639,71 @@
         updateUI();
     }
 
+    // A card that leaves the battlefield goes back to its printed self: stat bonuses, granted keywords,
+    // damage, Anger and Deep Freeze end with it (EFFECTS.md E3). Tokens keep their token stats.
+    function asPrintedCard(card) {
+        const copy = {...card, tapped: false, damage: 0};
+        delete copy.eotPower;
+        delete copy.frozen;
+        const printed = (card.__id && __CARD_BY_ID[card.__id]) || card.printed;
+        if (card.type === 'creature' && printed) {
+            copy.power = printed.power;
+            copy.toughness = printed.toughness;
+            copy.abilities = printed.abilities;
+        }
+        return copy;
+    }
+
     function moveCardToGraveyard(card, owner) {
         if (!card) return;
 
         const graveyard = owner === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
-        graveyard.push({...card, tapped: false, damage: 0});
+        graveyard.push(asPrintedCard(card));
     }
 
     function isOneShotArtifactEffect(effect) {
         return ['buff', 'buff_defense', 'aoe', 'draw_on_play', 'token', 'destroy', 'bounce', 'tap', 'discard', 'discard_draw'].includes(effect);
+    }
+
+    // Artifacts whose effect happens once, when played. They are then used up (EFFECTS.md E1).
+    const ON_PLAY_ARTIFACT_EFFECTS = ['buff', 'buff_defense', 'aoe', 'draw_on_play'];
+
+    // Shared by the player and the AI, so both sides resolve cards the same way.
+    function resolveArtifactOnPlay(artifactOnBoard, owner) {
+        if (!ON_PLAY_ARTIFACT_EFFECTS.includes(artifactOnBoard.effect)) return;
+        resolveSpell(artifactOnBoard, owner);
+        checkStateBasedActions();
+        if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
+            sendBoardCardToGraveyard(artifactOnBoard.id, owner);
+        }
+    }
+
+    function castInstant(card, caster) {
+        resolveSpell(card, caster);
+        moveCardToGraveyard(card, caster);
+        checkStateBasedActions();
+    }
+
+    // Untap step for one permanent. A Deep Frozen permanent skips one untap (EFFECTS.md E4).
+    function untapAtTurnStart(card) {
+        if (card.frozen) {
+            card.frozen = false;
+        } else {
+            card.tapped = false;
+        }
+        if (card.type === 'creature') {
+            card.summoningSick = false;
+        }
+    }
+
+    // "Until end of turn" bonuses (Anger) end when the turn ends, on both sides (EFFECTS.md E4).
+    function clearEndOfTurnEffects() {
+        [...gameState.playerBoard, ...gameState.enemyBoard].forEach(card => {
+            if (card.eotPower) {
+                card.power -= card.eotPower;
+                delete card.eotPower;
+            }
+        });
     }
 
     function sendBoardCardToGraveyard(cardId, owner) {
@@ -4649,9 +4773,8 @@
         switch(card.effect) {
             case 'damage':
                 if (card.target === 'all') {
-                    // Damage all creatures
-                    const board = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                    board.forEach(c => {
+                    // Every creature on both sides, the caster's too (EFFECTS.md)
+                    [...gameState.playerBoard, ...gameState.enemyBoard].forEach(c => {
                         if (c.type === 'creature') {
                             c.damage = (c.damage || 0) + card.value;
                         }
@@ -4726,15 +4849,16 @@
                 break;
 
             case 'drain':
+                // Gain first: a lethal drain still gains its life before the match ends.
                 if (isCasterPlayer) {
-                    changeEnemyLife(-card.value);
                     changePlayerLife(card.value);
+                    changeEnemyLife(-card.value);
                     const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rect = playerInfo.getBoundingClientRect();
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 15);
                 } else {
-                    changePlayerLife(-card.value);
                     changeEnemyLife(card.value);
+                    changePlayerLife(-card.value);
                 }
                 showGameLog(`💉 Drain ${card.value} life`, !isCasterPlayer);
                 break;
@@ -4769,6 +4893,9 @@
                     buffTargets.forEach(target => {
                         if (card.value > 0) {
                             target.power = (target.power || 0) + card.value;
+                            if (card.untilEndOfTurn) {
+                                target.eotPower = (target.eotPower || 0) + card.value;
+                            }
                             if (!isPowerOnly) {
                                 target.toughness = (target.toughness || 0) + card.value;
                             }
@@ -4784,7 +4911,8 @@
                     });
                     // Build log message
                     const buffStr = card.value > 0 ? (isPowerOnly ? `+${card.value}/+0` : `+${card.value}/+${card.value}`) : '';
-                    const abilityStr = card.grantAbilities ? (buffStr ? ' and ' : '') + card.grantAbilities.join(', ') : '';
+                    const abilityStr = (card.grantAbilities ? (buffStr ? ' and ' : '') + card.grantAbilities.join(', ') : '') +
+                        (card.untilEndOfTurn ? ' until end of turn' : '');
                     if (card.targetAll) {
                         showGameLog(`✨ All creatures get ${buffStr}${abilityStr}!`, !isCasterPlayer);
                     } else {
@@ -4826,13 +4954,21 @@
                 break;
 
             case 'tap':
-                // Tap a random enemy creature
+                // Tap a random enemy creature. Deep Freeze (skipUntap) prefers an untapped one, else freezes a
+                // tapped one, and it skips its controller's next untap (EFFECTS.md E4).
                 const enemyBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                const untappedCreatures = enemyBoard.filter(c => c.type === 'creature' && !c.tapped && !c.abilities?.includes('hexproof'));
-                if (untappedCreatures.length > 0) {
-                    const target = untappedCreatures[Math.floor(Math.random() * untappedCreatures.length)];
+                const tappable = enemyBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
+                const untappedCreatures = tappable.filter(c => !c.tapped);
+                const tapPool = untappedCreatures.length > 0 || !card.skipUntap ? untappedCreatures : tappable;
+                if (tapPool.length > 0) {
+                    const target = tapPool[Math.floor(Math.random() * tapPool.length)];
                     target.tapped = true;
-                    showGameLog(`❄️ ${target.emoji} ${target.name} is tapped!`, !isCasterPlayer);
+                    if (card.skipUntap) {
+                        target.frozen = true;
+                    }
+                    showGameLog(card.skipUntap
+                        ? `🥶 ${target.emoji} ${target.name} is frozen: it won't untap next turn!`
+                        : `❄️ ${target.emoji} ${target.name} is tapped!`, !isCasterPlayer);
                 } else {
                     showGameLog(`No creatures to tap`, !isCasterPlayer);
                 }
@@ -4849,9 +4985,7 @@
                         const idx = Math.floor(Math.random() * bounceable.length);
                         const target = bounceable[idx];
                         bounceable.splice(idx, 1);
-                        target.tapped = false;
-                        target.damage = 0;
-                        enemyHand.push(target);
+                        enemyHand.push(asPrintedCard(target));
                         if (isCasterPlayer) {
                             gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
                         } else {
@@ -4898,51 +5032,35 @@
                 showGameLog(`💎 Mana artifact activated!`, !isCasterPlayer);
                 break;
 
-            case 'token':
-                // Create token creatures
+            case 'token': {
+                // Create token creatures (TOKEN_TYPES). Each token has its own keyword list.
                 const tokenBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const tokenCount = card.value || 1;
-
-                let tokenStats = { power: 1, toughness: 1, abilities: [] };
-                let tokenEmoji = '🪙';
-                let tokenName = 'Token';
-
-                if (card.tokenType === 'spirit') {
-                    tokenStats = { power: 1, toughness: 1, abilities: ['flying'] };
-                    tokenEmoji = '👻';
-                    tokenName = 'Spirit Token';
-                } else if (card.tokenType === 'soldier') {
-                    tokenStats = { power: 1, toughness: 1, abilities: [] };
-                    tokenEmoji = '🗡️';
-                    tokenName = 'Soldier Token';
-                } else if (card.tokenType === 'beast') {
-                    tokenStats = { power: 2, toughness: 2, abilities: [] };
-                    tokenEmoji = '🐻';
-                    tokenName = 'Beast Token';
-                }
+                const tokenType = TOKEN_TYPES[card.tokenType] || TOKEN_TYPES.default;
 
                 for (let i = 0; i < tokenCount; i++) {
-                    const token = {
+                    const printed = { power: tokenType.power, toughness: tokenType.toughness, abilities: [...tokenType.abilities] };
+                    tokenBoard.push({
                         id: Math.random(),
-                        emoji: tokenEmoji,
+                        emoji: tokenType.emoji,
                         type: 'creature',
                         cardType: 'Creature Token',
-                        name: tokenName,
-                        power: tokenStats.power,
-                        toughness: tokenStats.toughness,
-                        abilities: tokenStats.abilities,
+                        name: tokenType.name,
+                        ...printed,
+                        abilities: [...tokenType.abilities],
+                        printed,
                         cost: {},
                         tapped: false,
-                        summoningSick: !tokenStats.abilities.includes('haste'),
+                        summoningSick: !tokenType.abilities.includes('haste'),
                         damage: 0,
                         theme: 'Fantasy'
-                    };
-                    tokenBoard.push(token);
+                    });
                 }
 
-                showGameLog(`✨ Created ${tokenCount} ${tokenName}${tokenCount > 1 ? 's' : ''}!`, !isCasterPlayer);
+                showGameLog(`✨ Created ${tokenCount} ${tokenType.name}${tokenCount > 1 ? 's' : ''}!`, !isCasterPlayer);
                 createSparkles(window.innerWidth / 2, window.innerHeight / 2, 20);
                 break;
+            }
 
             case 'discard':
                 // Force opponent to discard cards
@@ -4960,9 +5078,9 @@
                 break;
 
             case 'discard_draw':
-                // Opponent discards, caster draws
+                // Opponent discards, caster draws. The draw happens even if they had nothing to discard.
                 const discardHand2 = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
-                const discardDrawCount = Math.min(card.value || 1, discardHand2.length);
+                const discardDrawCount = card.value || 1;
 
                 for (let i = 0; i < discardDrawCount; i++) {
                     if (discardHand2.length > 0) {
@@ -5341,6 +5459,7 @@
 
         // Clear temporary combat damage at end of turn
         clearCombatDamage();
+        clearEndOfTurnEffects();
 
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
@@ -5421,24 +5540,53 @@
         processUpkeepEffects(true);
 
         // Untap and reset mana
-        gameState.playerBoard.forEach(card => {
-            card.tapped = false;
-            if (card.type === 'creature') {
-                card.summoningSick = false;
-            }
-        });
+        gameState.playerBoard.forEach(untapAtTurnStart);
         gameState.playerMana = {};
 
         // Reset land counter for new turn
         gameState.landsPlayedThisTurn = 0;
 
-        // Clear temporary combat damage from enemy turn combat
+        // Clear temporary combat damage and "until end of turn" bonuses from the enemy turn
         clearCombatDamage();
+        clearEndOfTurnEffects();
 
         updateUI();
 
         // Release processing lock - player can now take actions
         releaseProcessingLock();
+    }
+
+    // The AI plays a creature, artifact or instant from its hand, through the same resolution as the player.
+    // Returns the id of the permanent it put on the battlefield, if any.
+    function aiPlayCard(card) {
+        payCost(card.cost, gameState.enemyMana);
+        gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== card.id);
+
+        if (card.type === 'creature') {
+            gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
+            showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
+            return card.id;
+        }
+
+        if (card.type === 'artifact') {
+            const artifactOnBoard = {...card, tapped: false};
+            gameState.enemyBoard.push(artifactOnBoard);
+            showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
+            resolveArtifactOnPlay(artifactOnBoard, 'enemy');
+            return artifactOnBoard.id;
+        }
+
+        showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+        castInstant(card, 'enemy');
+        return null;
+    }
+
+    // The AI holds a two-sided sweeper (Earthquake, Avalanche) unless it kills more of your creatures than
+    // of its own.
+    function aiWantsToCast(card) {
+        if (!(card.effect === 'damage' && card.target === 'all')) return true;
+        const kills = board => board.filter(c => c.type === 'creature' && (c.damage || 0) + card.value >= c.toughness).length;
+        return kills(gameState.playerBoard) > kills(gameState.enemyBoard);
     }
 
     // AI Turn
@@ -5490,12 +5638,7 @@
 
         try {
             // Untap enemy permanents
-            gameState.enemyBoard.forEach(card => {
-                card.tapped = false;
-                if (card.type === 'creature') {
-                    card.summoningSick = false;
-                }
-            });
+            gameState.enemyBoard.forEach(untapAtTurnStart);
             gameState.enemyMana = {};
 
             // Draw card
@@ -5540,6 +5683,11 @@
                             gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
                             manaTapped = true;
                         }
+                    } else if (card.type === 'artifact' && card.effect === 'mana' && !card.tapped) {
+                        // Mana artifacts, as for the player (activateArtifact)
+                        card.tapped = true;
+                        gameState.enemyMana.colorless = (gameState.enemyMana.colorless || 0) + (card.value || 1);
+                        manaTapped = true;
                     }
                 });
 
@@ -5602,14 +5750,7 @@
                                 playedEnemyArtifactIds.push(artifactOnBoard.id);
                                 showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
 
-                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifact.effect)) {
-                                    resolveSpell(artifactOnBoard, 'enemy');
-                                    checkStateBasedActions();
-
-                                    if (isOneShotArtifactEffect(artifact.effect)) {
-                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
-                                    }
-                                }
+                                resolveArtifactOnPlay(artifactOnBoard, 'enemy');
 
                                 artifactPlayed = true;
                             }
@@ -5627,7 +5768,7 @@
 
                         if (gameState.difficulty === 'hard') {
                             const playableSpells = gameState.enemyHand
-                                .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana));
+                                .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana) && aiWantsToCast(c));
 
                             let spellPlayed = false;
                             playableSpells.forEach(spell => {
@@ -5635,9 +5776,7 @@
                                     payCost(spell.cost, gameState.enemyMana);
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
-                                    resolveSpell(spell, 'enemy');
-                                    moveCardToGraveyard(spell, 'enemy');
-                                    checkStateBasedActions();
+                                    castInstant(spell, 'enemy');
                                     spellPlayed = true;
                                 }
                             });
@@ -5654,11 +5793,11 @@
                         const playedEnemyCardIds = [];
                         let playsMade = 0;
 
-                        while (playsMade < maxPlays) {
+                        while (playsMade < maxPlays && !gameState.matchFinalized) {
                             const candidates = gameState.enemyHand.filter(card => {
                                 const isAllowedType = card.type === 'creature' || card.type === 'artifact' || card.type === 'instant';
                                 const allowInstants = gameState.difficulty === 'hard' || card.type !== 'instant';
-                                return isAllowedType && allowInstants && canPayCost(card.cost, gameState.enemyMana);
+                                return isAllowedType && allowInstants && canPayCost(card.cost, gameState.enemyMana) && aiWantsToCast(card);
                             });
 
                             const best = candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
@@ -5666,32 +5805,9 @@
                                 break;
                             }
 
-                            payCost(best.cost, gameState.enemyMana);
-                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== best.id);
-
-                            if (best.type === 'creature') {
-                                gameState.enemyBoard.push({...best, tapped: false, summoningSick: !best.abilities?.includes('haste'), damage: 0});
-                                showGameLog(`${best.emoji} Enemy summons ${best.name}`, true, best.theme === 'scifi');
-                                playedEnemyCardIds.push(best.id);
-                            } else if (best.type === 'artifact') {
-                                const artifactOnBoard = {...best, tapped: false};
-                                gameState.enemyBoard.push(artifactOnBoard);
-                                showGameLog(`${best.emoji} Enemy plays ${best.name}`, true);
-                                playedEnemyCardIds.push(artifactOnBoard.id);
-
-                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifactOnBoard.effect)) {
-                                    resolveSpell(artifactOnBoard, 'enemy');
-                                    checkStateBasedActions();
-
-                                    if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
-                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
-                                    }
-                                }
-                            } else {
-                                showGameLog(`${best.emoji} Enemy casts ${best.name}`, true);
-                                resolveSpell(best, 'enemy');
-                                moveCardToGraveyard(best, 'enemy');
-                                checkStateBasedActions();
+                            const playedId = aiPlayCard(best);
+                            if (playedId !== null) {
+                                playedEnemyCardIds.push(playedId);
                             }
 
                             playsMade++;

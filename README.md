@@ -22,6 +22,9 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 - Attackers stay tapped until your next turn (so they can't block) unless they have vigilance. Blocking is automatic for both sides.
 - Match ends when a player reaches 0 life **or must draw from an empty deck**; if both happen in the same check, it counts as a loss.
 - Full, test-backed turn and mana rules: [RULES.md](RULES.md) (`npm run rules`).
+- Every spell and artifact effect, with timing and target rules: [EFFECTS.md](EFFECTS.md) (`npm run effects`).
+  Where a card says "target", the game picks a random legal creature (damage goes to your opponent); card
+  details show each card's exact **Rules** line.
 
 ## Progression & Collection
 

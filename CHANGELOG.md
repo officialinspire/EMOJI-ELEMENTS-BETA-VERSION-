@@ -1,5 +1,26 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: spell and artifact effects
+
+Every instant and artifact effect is written down in `EFFECTS.md` and covered by `tests/effects.test.mjs`:
+each of the 70 cards is cast by the player and by the AI and its exact result checked.
+- Earthquake and Avalanche hit every creature, yours too, as their text says (they used to hit only enemy
+  creatures). The AI holds them when they would kill more of its own creatures than yours.
+- Anger's +3/+0 now ends at end of turn (it used to be permanent).
+- Deep Freeze now stops the creature untapping on its controller's next turn, and can freeze an already
+  tapped creature (it used to be a plain Freeze).
+- Thought Steal always draws, even if the opponent has no cards to discard.
+- A lethal Drain Life still gives you the 2 life.
+- A creature that dies, is destroyed or is bounced goes back to its printed card: buffs and granted keywords
+  no longer come back with it.
+- The AI now taps its mana artifacts.
+- The AI stops playing cards once the match is over.
+- Card details show a **Rules** line for every instant and artifact, saying exactly what it does (targets,
+  timing, whether an artifact is used up). How To Play explains random targets and the kinds of artifact.
+- Card text corrected to match the engine: Fireball, Explosion, Inferno, Comet Strike ("to the enemy"),
+  Wrestle, Magic Wand ("each turn"), Bomb, War Horn, Protective Amulet, Footsteps ("your creatures") and Dark
+  Scroll. Rarity, pack themes and deck legality are unchanged.
+
 ## Unreleased: progression and saved data
 
 Progression rules are written down in `PROGRESSION.md` and covered by `tests/progression.test.mjs`, which

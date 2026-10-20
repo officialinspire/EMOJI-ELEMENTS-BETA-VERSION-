@@ -1,4 +1,4 @@
-// Shared helpers for the browser rules suites (tests/rules.test.mjs, tests/combat.test.mjs).
+// Shared helpers for the browser rules suites (tests/rules.test.mjs, combat, progression and effects).
 // Determinism: Math.random is replaced by a seeded PRNG before index.js loads, and Playwright's fake
 // clock drives every setTimeout/requestAnimationFrame, so AI turns run instantly and identically.
 
@@ -60,6 +60,7 @@ function pageInit(seed) {
                 if (spec[key] !== undefined) gameState[key] = spec[key];
             }
             if (spec.playerMana) gameState.playerMana = { ...spec.playerMana };
+            if (spec.enemyMana) gameState.enemyMana = { ...spec.enemyMana };
             updateUI({ immediate: true });
             updateDeckCounters();
             return gameState.playerHand.map(c => c.id);

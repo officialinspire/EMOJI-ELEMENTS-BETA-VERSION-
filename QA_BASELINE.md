@@ -54,6 +54,10 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 | **Total** (exit 0, ~2 min) | 21 | **202** | **0** | **2**: D6 and D11 still reproduce. D1–D5, D7–D10, D12 are fixed (D3 moved to the rules suite) |
 
 More suites:
+- **Spell and artifact effects:** `node --test tests/effects.test.mjs` (`npm run effects`). 169 tests, ~2 min.
+  Every instant and artifact is cast once by the player and once by the AI on a mirrored board, and the exact
+  result is checked. Further tests cover upkeep timing, mana artifacts, "until end of turn", Deep Freeze,
+  leaving the battlefield, hexproof, empty zones and lethal effects. The rules are in [EFFECTS.md](EFFECTS.md).
 - **Progression and saved data:** `node --test tests/progression.test.mjs` (`npm run progression`). 27 tests,
   ~1.5 min. They load **real saves from the previous build** (`tests/fixtures/saves/`: existing, pre-dual,
   partial, future-version, renamed-card, corrupt, legacy-stats) and check that the collection and credits survive,
@@ -175,15 +179,16 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 | D12 | ✅ fixed | ~~Pack reveal swipe skipped cards.~~ One swipe now advances one card. | `index.js` `moveSwipe` | T |
 | D13 | ✅ fixed | ~~Shop packs were titled "🎁 Victory Pack".~~ They are now titled "🛒 <Theme> Pack". | `index.js` | T |
 | D14 | ✅ fixed | ~~No loss for drawing from an empty deck.~~ New house rule: drawing from an empty deck loses (RULES.md R6.1). | `index.js` `drawCard` | T |
-| D15 | P3 | `flash` (9 creatures) and `unblockable` (Otter Scout, Surf) have no rules effect. | combat/play code | C |
+| D15 | P3 | `flash` (9 creatures) has no rules effect. (`unblockable` was fixed in the combat pass.) | combat/play code | C |
 | D16 | P3 | Esc on the VICTORY overlay closes it and leaves the finished board with no result UI (exit via ☰). | `index.js:6362-6367` | C |
 | D17 | ✅ fixed | ~~Shop packs were never counted in `stats.packsOpened`.~~ Every pack now counts when it is added to the collection. | `index.js` `purchasePack` | T |
 | D18 | P3 | `inferRarity` never returns `uncommon`, so the pack "uncommon" slot draws `rare` cards and the uncommon glow is unused. | `index.js:1124-1149` | C |
 | D19 | P3 | Duplicate card names: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact. | card DB | C |
 | D20 | ✅ fixed | ~~The DEFEAT screen did not show the +10 credits.~~ It now shows "💳 +10 Credits". | `index.html`, `index.js` | T |
+| D21 | ✅ fixed | ~~Spell and artifact effects disagreed with their text~~: Earthquake/Avalanche hit only enemy creatures, Anger was permanent, Deep Freeze didn't freeze, Thought Steal skipped its draw on an empty enemy hand, a lethal Drain Life skipped its life gain, buffs survived bounce and death, and the AI never used mana artifacts. See EFFECTS.md §3. | `index.js` `resolveSpell` and AI turn | T |
 
 **Design gaps to settle before a redesign (not counted as defects):** the player cannot choose blockers
-(everything is auto-blocked, always); spells have no targeting; the player always goes first; easy and
+(everything is auto-blocked, always); spells have no targeting (random legal targets, EFFECTS.md E2); the player always goes first; easy and
 medium AI make only one non-land play per turn.
 
 ---
