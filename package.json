@@ -1,0 +1,14 @@
+{
+  "name": "emoji-elements",
+  "private": true,
+  "description": "EMOJI ELEMENTS browser card battler. The game itself has no build step or runtime dependencies; this file only pins the smoke-test tooling.",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "smoke": "node tests/smoke.mjs",
+    "smoke:desktop": "node tests/smoke.mjs --project=desktop",
+    "smoke:mobile": "node tests/smoke.mjs --project=mobile"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
