@@ -47,12 +47,16 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 
 | Project | Scenarios | PASS | FAIL | XFAIL |
 |---|---|---|---|---|
-| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 98 | 0 | 12 |
+| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 100 | 0 | 8 |
 | mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 90 | 0 | 6 |
-| **Total** (exit 0, ~2 min) | 21 | **188** | **0** | **18**: D1 and D3–D12 still reproduce; D2 is fixed and now a regular check |
+| **Total** (exit 0, ~2 min) | 21 | **190** | **0** | **14**: D1 and D6–D12 still reproduce; D2–D5 are fixed (D3 moved to the rules suite) |
 
-The card catalog has its own browser-free check: `node tests/card-audit.mjs` (`npm test`, also run in CI by
-`.github/workflows/card-catalog.yml`). See [CARD_AUDIT.md](CARD_AUDIT.md).
+Two more suites:
+- **Turn and resource rules:** `node --test tests/rules.test.mjs` (`npm run rules`). 30 tests, ~1.5 min, all
+  passing. They use a seeded `Math.random`, Playwright's fake clock and card fixtures. The rules are defined
+  in [RULES.md](RULES.md).
+- **Card catalog:** `node tests/card-audit.mjs` (`npm test`, also run in CI by
+  `.github/workflows/card-catalog.yml`), browser-free. See [CARD_AUDIT.md](CARD_AUDIT.md).
 
 **Runner notes**
 - The old report said Chromium crashed with SIGSEGV at launch. **That does not reproduce:** Chromium launches
@@ -68,17 +72,17 @@ The card catalog has its own browser-free check: `node tests/card-audit.mjs` (`n
 | Area | Actual behaviour (`index.js`) |
 |---|---|
 | Setup | Each player has 20 life and a 7-card hand. The player always goes first and skips the draw on turn 1. The AI draws every turn. |
-| Mulligan | One mulligan to 6 cards, allowed only before the player's first End Turn. |
+| Mulligan | One mulligan to 6 cards, on your first turn, only before your first action (no land played or tapped, no card cast). See RULES.md R2.1. |
 | Player deck | Built from the saved meta deck chosen by the selected colours (`FIRE`, `FIRE_WATER`…). It falls back to a random `generateDeck()` if that deck is missing, empty or invalid. Mono decks: 20 lands + 40 non-lands. Dual decks: 11 + 11 lands + 38 non-lands. |
-| AI deck | Random each match. 50% mono / 50% dual, colours drawn from `Object.keys(ELEMENTS)`, **which includes `colorless` (D3)**. Creature count is random (18–24), spells 7–13, artifacts fill the rest. |
-| Mana | Tap a land for 1 mana of its colour. Dual or Rainbow lands open a colour picker. The pool empties at end of turn. Shortfalls in coloured mana can be paid from colourless mana, but colourless costs accept any colour. A tapped land can be clicked again to untap it (and refund the mana if still unspent; D4). Mana artifacts are clicked to add colourless mana. |
+| AI deck | Random each match: 50% mono / 50% dual, colours drawn from the five real colours (the `colorless` pick, D3, is fixed). Creature count is random (18–24), spells 7–13, artifacts fill the rest. |
+| Mana | Tap a land for 1 mana of its colour. Dual or Rainbow lands open a colour picker. The pool empties at end of turn. Shortfalls in coloured mana can be paid from colourless mana, but colourless costs accept any colour. A tapped land can be clicked again to undo it, but only while its mana is unspent (the mana is refunded). Mana artifacts are clicked to add colourless mana. |
 | Lands | One land per turn. Lands on the board are drawn as stacks (click taps one; ⚡ / right-click / long-press taps all). |
 | Creatures | Summoning sickness unless the creature has haste. `defender` creatures cannot attack. |
 | Combat | Press ATTACK, select attackers, then CONFIRM, once per turn. **Both sides block automatically:** each attacker is blocked by the highest-toughness legal blocker if one exists (2 blockers for menace). Implemented keywords: flying/reach, first strike, double strike, deathtouch, trample, lifelink, vigilance, menace, haste, defender, hexproof (against spells only). `flash` and `unblockable` do nothing (D15). Damage clears at end of turn. |
 | Spells | Instants resolve on cast with no player-chosen targets. Damage spells hit the opponent's face (or all enemy creatures for AoE). destroy, tap, bounce and buff pick **random** targets. Revive returns the top graveyard card of **any** type (D7). |
 | Artifacts | `buff`, `buff_defense`, `aoe` and `draw_on_play` resolve once, then go to the graveyard. `draw`, `heal` and `damage` artifacts trigger at their owner's upkeep. `mana` artifacts are tapped manually. |
 | AI turn | Untap, draw, upkeep, play a land, then tap **all** its lands. Easy and medium make one non-land play per turn; hard makes 2 and may cast instants. Attacks: easy picks each creature with 70% chance; medium picks the best-scored 60%; hard attacks with everything. |
-| End of match | Life ≤ 0 (checked on every life change). **No loss for drawing from an empty deck** (D14). The player's loss is checked first. |
+| End of match | Life ≤ 0 (checked on every life change). Drawing from an empty deck also loses (RULES.md R6.1). The player's loss is checked first. |
 | Rewards | **Win:** +25 credits and **one free pack every time** (`WIN_FREE_PACK_CHANCE` is unused), with the theme weighted at random. **Loss:** +10 credits, no pack. |
 
 ## 4. UI flows
@@ -147,9 +151,9 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 |---|---|---|---|---|
 | D1 | **P0** | **Every win soft-locks.** The MATCH REWARDS "OPEN BOOSTER" button ignores mouse and touch, because `.overlay-btn {pointer-events:none}` is re-enabled only for the victory and lose overlays. This came in with `4cdcb72`. Rewards are already saved; the only ways past it are keyboard Tab+Enter or reloading. | `styles.css:2453-2462` | T |
 | D2 | ✅ fixed | ~~**Deck Builder cannot save any real deck.**~~ Fixed in the card-catalog pass: basic lands are exempt from the copy limit; land totals are still capped. Validation applies the 2-copy limit to basic lands, while starters run 20–22 copies ("Volcanic Peak exceeds max copies (2)"). The + button also refuses a 3rd land. This breaks the loop of opening packs to improve decks. | `index.js:1254-1257, 1296-1299, 3109` | T |
-| D3 | **P0** | **About 25% of matches give the AI a broken deck.** Its colour pool includes `colorless`, which has no basic land. This creates 11–20 typeless `{id}` placeholder "lands"; a mono-colourless AI can never produce mana. | `index.js:3949-3958, 3675-3688` | T |
-| D4 | P1 | **Repeatable mana.** Clicking a tapped land untaps it even when its mana was already spent (nothing is refunded), and it can then be tapped again. A fully tapped stack untaps one land per click. | `index.js:4279-4290, 5940-5945` | T |
-| D5 | P1 | **The player's creatures untap at the end of the player's own turn,** so attackers are always free to block on the AI turn, while the AI's attackers stay tapped. This makes vigilance meaningless for the player and makes combat asymmetric. | `index.js:5123-5129` | T |
+| D3 | ✅ fixed | ~~About 25% of matches gave the AI a broken deck (`colorless` colour, typeless placeholder cards).~~ The AI's colours now come from the five real colours. Covered by `tests/rules.test.mjs` (40 seeded matches). | `index.js` `startGame` | T |
+| D4 | ✅ fixed | ~~Repeatable mana: a tapped land untapped after its mana was spent.~~ A land now untaps only to refund unspent mana (RULES.md R4.4). | `index.js` `tapLand` | T |
+| D5 | ✅ fixed | ~~The player's creatures untapped at the end of the player's own turn.~~ Permanents now untap at the start of their controller's turn, so the player's attackers can't block on the AI turn (RULES.md R5.3). | `index.js` `endTurn` | T |
 | D6 | P1 | **Touch: long-pressing a hand card to read it also plays it** when the finger lifts. Land stacks already guard against this. | `index.js:5822-5847` | T |
 | D7 | P2 | Revive returns the top graveyard card of any type (an instant, artifact or land can land on the battlefield). | `index.js:4692-4708` | T |
 | D8 | P2 | `QA_MODE = true` ships to players: a debug line ("stage=reveal progress=100% …") shows in the pack overlay, "QA:" text appears in the Deck Builder status, and `[QA]` console noise. | `index.js:8, 2231-2246, 3086` | T, S |
@@ -158,7 +162,7 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 | D11 | P2 | If the intro mp4 can't be decoded, the menu waits 15 s unless the player taps. `play()` stays pending, so the "paused" watchdog never fires, and `<source>` errors miss the `<video>` error listener. | `index.js:647-653, 715` | T |
 | D12 | P2 | Pack reveal swipe advances one card per ~55 px of finger travel, so a normal 150 px swipe skips a card and a long one skips several. | `index.js:2570-2585` | T |
 | D13 | P3 | The pack overlay is titled "🎁 Victory Pack" even for shop purchases. | `index.html:81` | S |
-| D14 | P3 | There is no loss from drawing on an empty deck (the draw silently does nothing), so long games can stall. | `index.js:4001-4007` | C |
+| D14 | ✅ fixed | ~~No loss for drawing from an empty deck.~~ New house rule: drawing from an empty deck loses (RULES.md R6.1). | `index.js` `drawCard` | T |
 | D15 | P3 | `flash` (9 creatures) and `unblockable` (Otter Scout, Surf) have no rules effect. | combat/play code | C |
 | D16 | P3 | Esc on the VICTORY overlay closes it and leaves the finished board with no result UI (exit via ☰). | `index.js:6362-6367` | C |
 | D17 | P3 | `stats.packsOpened` counts win packs when awarded (not when opened); shop packs are never counted. | `index.js:2633, 2977-3028` | C |

@@ -15,15 +15,13 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 
 ## Gameplay Overview
 
-- Start at **20 life** vs AI at 20.
-- Draw 7-card opening hands.
-- On your turn, play cards from hand if you can pay mana costs.
-- You can play **one land per turn**.
-- Use **Attack** to enter combat and confirm attackers.
-- End turn, let AI play, repeat until life reaches 0.
-- Match ends when:
-  - your life <= 0 → loss
-  - enemy life <= 0 → win
+- Start at **20 life** vs AI at 20, with 7-card opening hands. You go first and skip your first draw.
+- One mulligan (to 6 cards), only before you play or tap anything.
+- Each turn: draw, untap, then play cards you can pay for. **One land per turn**; unused mana is lost at end of turn.
+- Use **Attack** to select attackers and confirm, once per turn. New creatures need a turn before attacking unless they have haste.
+- Attackers stay tapped until your next turn (so they can't block) unless they have vigilance. Blocking is automatic for both sides.
+- Match ends when a player reaches 0 life **or must draw from an empty deck**; if both happen in the same check, it counts as a loss.
+- Full, test-backed turn and mana rules: [RULES.md](RULES.md) (`npm run rules`).
 
 ## Progression & Collection
 

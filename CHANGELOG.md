@@ -1,5 +1,19 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: turn and resource rules
+
+Rules are now written down in `RULES.md` and covered by `tests/rules.test.mjs`.
+- Mulligan: once, only before your first action (no land played or tapped, no card cast).
+- A tapped land can be untapped only while its mana is unspent, so one land can no longer give unlimited mana.
+- Permanents untap at the start of their controller's turn: your attackers stay tapped (and can't block)
+  through the AI's turn, just like the AI's attackers on yours. Vigilance now matters.
+- Drawing from an empty deck loses the match.
+- No game actions after a match ends (artifact mana and mulligan were still possible).
+- Leaving a match mid-AI-turn no longer lets that AI turn act on your next match.
+- The AI no longer gets "colorless" decks full of blank cards.
+- Dual-land colour choices made after the turn ends are ignored; quickly tapping a second dual land no
+  longer hides its colour dialog.
+
 ## Version 2.0 - Major Update
 
 ### Features Added

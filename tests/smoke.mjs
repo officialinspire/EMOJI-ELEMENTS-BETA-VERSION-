@@ -16,14 +16,10 @@
 //   XPASS known defect no longer reproduces; update QA_BASELINE.md
 // Screenshots and smoke-results.json are written to test-results/ (gitignored).
 
-import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'test-results');
 const META_KEY = 'emoji_elements_meta_v1';
 
@@ -31,17 +27,6 @@ const args = Object.fromEntries(process.argv.slice(2).map(arg => {
     const [key, value] = arg.replace(/^--/, '').split('=');
     return [key, value ?? true];
 }));
-
-function loadPlaywright() {
-    const require = createRequire(import.meta.url);
-    try {
-        return require('playwright');
-    } catch (_) {
-        // Fall back to a globally installed copy (npm i -g playwright).
-        const globalRoot = execSync('npm root -g', { encoding: 'utf8' }).trim();
-        return require(path.join(globalRoot, 'playwright'));
-    }
-}
 
 const { chromium, devices } = loadPlaywright();
 
@@ -55,34 +40,6 @@ const PROJECTS = {
         contextOptions: { ...devices['Pixel 7'] }
     }
 };
-
-// ---------------------------------------------------------------- static server
-
-const MIME = {
-    '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
-    '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
-    '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4'
-};
-
-function startServer() {
-    const server = http.createServer((req, res) => {
-        const urlPath = decodeURIComponent(req.url.split('?')[0]);
-        const filePath = path.join(ROOT, urlPath === '/' ? 'index.html' : urlPath);
-        if (!filePath.startsWith(ROOT)) {
-            res.writeHead(403);
-            return res.end();
-        }
-        fs.readFile(filePath, (err, data) => {
-            if (err) {
-                res.writeHead(404);
-                return res.end();
-            }
-            res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
-            res.end(data);
-        });
-    });
-    return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
-}
 
 // ---------------------------------------------------------------- result tracking
 
@@ -615,17 +572,9 @@ scenario('corrupt-save-recovery', async ({ page, t, url }) => {
 scenario('known-defect-probes', async ({ page, t, url }) => {
     await boot(page, false, url);
 
-    // D3: the AI picks deck colours from Object.keys(ELEMENTS), which includes 'colorless'.
-    const ai = await page.evaluate(() => {
-        const deck = generateDeck(['water', 'colorless']);
-        return { pool: Object.keys(ELEMENTS), typeless: deck.filter(card => !card.type).length, size: deck.length };
-    });
-    t.knownDefect('D3', 'AI element pool excludes colorless', !ai.pool.includes('colorless'), `pool=${ai.pool.join(',')}`);
-    t.knownDefect('D3', 'AI deck with colorless has no typeless placeholder cards', ai.typeless === 0,
-        `${ai.typeless}/${ai.size} cards have no type/name`);
-
+    // D3 (AI dealt a "colorless" colour) is fixed and covered by tests/rules.test.mjs.
     await startMatch(page, false);
-    // D4: untapping a land after its mana was spent should not be possible (or should not grant mana again).
+    // Was D4: untapping a land after its mana was spent gave unlimited mana (RULES.md R4.4).
     const exploit = await page.evaluate(() => {
         const land = { ...window.__CARD_BY_ID['lands-volcanic-peak'], id: 0.4242, tapped: false };
         gameState.playerBoard.push(land);
@@ -635,9 +584,9 @@ scenario('known-defect-probes', async ({ page, t, url }) => {
         tapLand(land.id);                              // tap again
         return gameState.playerMana.fire || 0;
     });
-    t.knownDefect('D4', 'a land cannot produce mana twice per turn', exploit === 0, `extra fire mana=${exploit}`);
+    t.check('a land cannot produce mana twice per turn', exploit === 0, `extra fire mana=${exploit}`);
 
-    // D5: player creatures should stay tapped after attacking (only vigilance avoids tapping).
+    // Was D5: player creatures untapped at the end of the player's own turn (RULES.md R5.3).
     const untap = await page.evaluate(() => {
         const bear = { ...window.__ALL_CARDS.find(c => c.type === 'creature' && !c.abilities?.includes('vigilance')), id: 0.777, tapped: true, summoningSick: false, damage: 0 };
         gameState.playerBoard.push(bear);
@@ -645,7 +594,7 @@ scenario('known-defect-probes', async ({ page, t, url }) => {
         endTurn();
         return gameState.playerBoard.find(c => c.id === 0.777).tapped;
     });
-    t.knownDefect('D5', 'attacking creature stays tapped during the enemy turn', untap === true, 'untapped by endTurn()');
+    t.check('attacking creature stays tapped during the enemy turn', untap === true, 'untapped by endTurn()');
     await waitForPlayerTurn(page);
 
     // D7: revive should only return creatures.

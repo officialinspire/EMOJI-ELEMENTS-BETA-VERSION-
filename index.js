@@ -419,6 +419,8 @@
         previousEnemyLife: 20,
         landsPlayedThisTurn: 0,  // Track lands played to enforce one land per turn rule
         hasAttackedThisTurn: false,  // VIGILANCE FIX: Prevent multiple attacks per turn
+        playerDeckedOut: false,  // Set when a player has to draw from an empty deck (RULES.md R6.1)
+        enemyDeckedOut: false,
         matchFinalized: false
     };
 
@@ -735,6 +737,8 @@
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
     let isStartingGame = false;
+    // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
+    let matchSerial = 0;
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -3335,6 +3339,7 @@
     }
 
     function returnToMainMenu() {
+        matchSerial++; // abandon any AI turn still scheduled for the match being left
         stopSFX('gameplayMusic');
         stopSFX('gameVictory');
         stopSFX('gameLose');
@@ -3824,9 +3829,15 @@
 
     // Start Game
     // Mulligan function
+    // One mulligan, on your first turn, before your first action (RULES.md R2.1).
+    function canMulligan() {
+        return !gameState.matchFinalized && !mulliganUsed && !playerFirstTurnCompleted &&
+            gameState.turn === 'player' && gameState.playerBoard.length === 0 && gameState.playerGraveyard.length === 0;
+    }
+
     function mulligan() {
-        if (mulliganUsed || playerFirstTurnCompleted) {
-            showGameLog('⚠️ You can only mulligan once at the start!', false);
+        if (!canMulligan()) {
+            showGameLog('⚠️ You can only mulligan once, before your first action!', false);
             return;
         }
 
@@ -3860,6 +3871,9 @@
     }
 
     function performMulligan() {
+        if (!canMulligan()) {
+            return;
+        }
         playSFX('select');
 
         // Return hand to deck
@@ -3941,8 +3955,11 @@
         gameState.previousEnemyLife = 20;
         gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
         gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
+        gameState.playerDeckedOut = false;
+        gameState.enemyDeckedOut = false;
         gameState.matchFinalized = false;
         pendingMatchResultOverlay = null;
+        matchSerial++;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -3952,7 +3969,7 @@
         }
 
         // AI picks random elements
-        const elementKeys = Object.keys(ELEMENTS);
+        const elementKeys = Object.keys(ELEMENTS).filter(element => element !== 'colorless');
         const aiRequiredCount = Math.random() < 0.5 ? 1 : 2;
         const aiElements = [];
         while (aiElements.length < aiRequiredCount) {
@@ -4004,12 +4021,18 @@
     }
 
     // Draw Card
+    // Drawing from an empty deck loses the match (RULES.md R6.1).
     function drawCard(player) {
-        if (player === 'player' && gameState.playerDeck.length > 0) {
-            gameState.playerHand.push(gameState.playerDeck.pop());
-        } else if (player === 'enemy' && gameState.enemyDeck.length > 0) {
-            gameState.enemyHand.push(gameState.enemyDeck.pop());
+        const isPlayer = player === 'player';
+        const deck = isPlayer ? gameState.playerDeck : gameState.enemyDeck;
+        if (deck.length === 0) {
+            if (gameState.matchFinalized) return;
+            gameState[isPlayer ? 'playerDeckedOut' : 'enemyDeckedOut'] = true;
+            showGameLog(isPlayer ? '📭 Your deck is empty: you cannot draw!' : '📭 Enemy deck is empty!', !isPlayer);
+            checkGameOver();
+            return;
         }
+        (isPlayer ? gameState.playerHand : gameState.enemyHand).push(deck.pop());
     }
 
     // Play Card
@@ -4207,7 +4230,7 @@
             btn.title = element;
             btn.addEventListener('click', function() {
                 modal.classList.remove('show');
-                setTimeout(() => { modal.style.display = 'none'; }, 250);
+                setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
                 callback(element);
             });
             optionsContainer.appendChild(btn);
@@ -4219,7 +4242,7 @@
         cancelBtn.textContent = '✕ Cancel';
         cancelBtn.addEventListener('click', function() {
             modal.classList.remove('show');
-            setTimeout(() => { modal.style.display = 'none'; }, 250);
+            setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
         });
         optionsContainer.appendChild(cancelBtn);
 
@@ -4282,16 +4305,18 @@
         const isDualLand = card.elements && card.elements.length > 1;
         const storedElement = card.selectedElement; // Track which element was chosen for dual lands
 
-        // If tapped, UNTAP it and refund mana
+        // A tapped land can be untapped only to give back its unspent mana (RULES.md R4.4)
         if (card.tapped) {
-            card.tapped = false;
             const elementToRefund = isDualLand ? storedElement : card.element;
-            if (elementToRefund && gameState.playerMana[elementToRefund] > 0) {
-                gameState.playerMana[elementToRefund]--;
-                playSFX('untap');
-                showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
-                updateUI();
+            if (!elementToRefund || !(gameState.playerMana[elementToRefund] > 0)) {
+                showGameLog(`⚠️ ${card.name}'s mana is already spent`, false);
+                return;
             }
+            card.tapped = false;
+            gameState.playerMana[elementToRefund]--;
+            playSFX('untap');
+            showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
+            updateUI();
             return;
         }
 
@@ -4301,6 +4326,11 @@
         if (isDualLand) {
             // DUAL LAND: Show mana choice modal instead of prompt
             showManaChoiceModal(card, function(chosenElement) {
+                // The choice may arrive after the turn ended or the match finished (RULES.md R4.5)
+                if (gameState.matchFinalized || gameState.turn !== 'player' || gameState.phase === 'enemy' ||
+                    card.tapped || !gameState.playerBoard.includes(card)) {
+                    return;
+                }
                 card.selectedElement = chosenElement;
                 card.tapped = true;
                 gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
@@ -4377,6 +4407,10 @@
     }
 
     function activateArtifact(cardId) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
             return;
@@ -5126,13 +5160,7 @@
         // Show end turn message
         showGameLog('✅ You end your turn', false);
 
-        // Untap all player permanents
-        gameState.playerBoard.forEach(card => {
-            card.tapped = false;
-            if (card.type === 'creature') {
-                card.summoningSick = false;
-            }
-        });
+        // Permanents stay tapped until the start of your next turn (RULES.md R5.3)
 
         // Reset mana
         gameState.playerMana = {};
@@ -5153,9 +5181,10 @@
 
         updateUI();
 
-        // AI turn
+        // AI turn (skipped if this match was left in the meantime)
+        const serial = matchSerial;
         setTimeout(() => {
-            aiTurn();
+            if (serial === matchSerial) aiTurn();
         }, 1500);
     }
 
@@ -5279,10 +5308,14 @@
             return 0;
         };
 
+        // Delayed steps below stop if the match ends or is left mid-turn (RULES.md R7.4)
+        const serial = matchSerial;
+        const turnIsStale = () => gameState.matchFinalized || serial !== matchSerial;
+
         // Emergency failsafe: ensure player turn starts even if something goes wrong
         const emergencyTurnStart = setTimeout(() => {
             console.warn('Emergency turn transition triggered');
-            if (gameState.turn === 'enemy') {
+            if (serial === matchSerial && gameState.turn === 'enemy') {
                 startPlayerTurn();
             }
         }, 12000); // 12 seconds maximum for AI turn
@@ -5305,7 +5338,7 @@
             processUpkeepEffects(false);
 
             setTimeout(() => {
-            if (gameState.matchFinalized) return;
+            if (turnIsStale()) return;
             // Play lands
             const landInHand = gameState.enemyHand.find(c => c.type === 'land');
             if (landInHand) {
@@ -5320,7 +5353,7 @@
             }
 
             setTimeout(() => {
-                if (gameState.matchFinalized) return;
+                if (turnIsStale()) return;
                 // Tap lands for mana
                 let manaTapped = false;
                 gameState.enemyBoard.forEach(card => {
@@ -5348,7 +5381,7 @@
                 }
 
                 setTimeout(() => {
-                    if (gameState.matchFinalized) return;
+                    if (turnIsStale()) return;
                     const applyOldMainPhaseBehavior = () => {
                         const playableCreatures = gameState.enemyHand
                             .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
@@ -5511,7 +5544,7 @@
                     }
 
                         setTimeout(() => {
-                            if (gameState.matchFinalized) return;
+                            if (turnIsStale()) return;
                             const fallbackAttackers = gameState.enemyBoard.filter(c =>
                                 c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
                             );
@@ -5534,7 +5567,7 @@
                             checkGameOver();
 
                             setTimeout(() => {
-                                if (gameState.matchFinalized) return;
+                                if (turnIsStale()) return;
                                 clearTimeout(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
                             }, 1500);
@@ -5547,7 +5580,7 @@
             clearTimeout(emergencyTurnStart);
             // Ensure turn transitions back to player even on error
             setTimeout(() => {
-                startPlayerTurn();
+                if (serial === matchSerial) startPlayerTurn();
             }, 1000);
         }
     }
@@ -5750,10 +5783,11 @@
     }
 
     // Check Game Over
+    // The player's loss is checked first, so a simultaneous loss counts against the player (RULES.md R7.2).
     function checkGameOver() {
-        if (gameState.playerLife <= 0) {
+        if (gameState.playerLife <= 0 || gameState.playerDeckedOut) {
             finalizeMatch('loss');
-        } else if (gameState.enemyLife <= 0) {
+        } else if (gameState.enemyLife <= 0 || gameState.enemyDeckedOut) {
             finalizeMatch('win');
         }
     }
@@ -6214,7 +6248,13 @@
         // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
         const endTurnBtn = document.getElementById('endTurnBtn');
+        const mulliganBtn = document.getElementById('mulliganBtn');
         const isPlayerTurn = gameState.turn === 'player' && gameState.phase !== 'enemy';
+
+        if (mulliganBtn) {
+            mulliganBtn.disabled = !canMulligan();
+            mulliganBtn.style.opacity = mulliganBtn.disabled ? '0.5' : '1';
+        }
 
         if (attackBtn) {
             const shouldDisableAttack = !isPlayerTurn || isProcessingAction;

@@ -26,13 +26,13 @@
 🆕 NEW FEATURES ADDED:
    • 🔄 Mulligan button (redraw starting hand once)
    • 🎴 Deck counters (shows cards remaining)
-   • 🔓 Tap/Untap lands (click tapped land to untap)
+   • 🔓 Undo a land tap (click it again while its mana is unspent)
    • 📚 Land stacking (cleaner battlefield)
 
 🎮 CONTROLS:
    • Click cards to play
    • Click lands to tap for mana
-   • Click tapped lands to untap
+   • Click a tapped land to undo it (only while its mana is unspent)
    • 🔄 Mulligan once at game start
    • ⚔️ Attack button for combat
    • Right-click for card details
@@ -45,11 +45,14 @@
 
 📖 GAME RULES:
    • Start with 20 life, reduce opponent to 0
-   • Draw 7 cards, mulligan to 6 if needed
+   • Draw 7 cards; mulligan to 6 once, before your first action
    • Play 1 land per turn
    • Tap lands for mana to play cards
    • Attack with creatures
-   • AI auto-blocks
+   • Blocking is automatic for both sides
+   • Attackers stay tapped until your next turn (unless Vigilance)
+   • Drawing from an empty deck loses
+   • Full rules: RULES.md
 
 🔧 TECHNICAL:
    • Pure vanilla JavaScript

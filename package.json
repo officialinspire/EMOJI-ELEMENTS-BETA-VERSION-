@@ -1,7 +1,7 @@
 {
   "name": "emoji-elements",
   "private": true,
-  "description": "EMOJI ELEMENTS browser card battler. The game has no build step or runtime dependencies; this file holds test scripts (card catalog check needs only Node; smoke tests need Playwright).",
+  "description": "EMOJI ELEMENTS browser card battler. The game has no build step or runtime dependencies; this file holds test scripts (card catalog check needs only Node; rules and smoke tests need Playwright).",
   "scripts": {
     "test": "node tests/card-audit.mjs",
     "cards": "node tests/card-audit.mjs",
@@ -9,7 +9,8 @@
     "serve": "python3 -m http.server 8000",
     "smoke": "node tests/smoke.mjs",
     "smoke:desktop": "node tests/smoke.mjs --project=desktop",
-    "smoke:mobile": "node tests/smoke.mjs --project=mobile"
+    "smoke:mobile": "node tests/smoke.mjs --project=mobile",
+    "rules": "node --test tests/rules.test.mjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"
