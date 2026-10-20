@@ -2452,6 +2452,12 @@
             }
         }
 
+        // The entry that opened the screen we just left, else NEW GAME
+        const returnButton = menuReturnTarget && document.querySelector(`#mainMenu [data-menu-target="${menuReturnTarget}"]`);
+        if (returnButton && returnButton.offsetParent !== null) {
+            return returnButton;
+        }
+
         const mainMenuButton = document.querySelector('#mainMenu .menu-btn');
         if (mainMenuButton && mainMenuButton.offsetParent !== null) {
             return mainMenuButton;
@@ -3229,6 +3235,8 @@
         playSFX('menuOpen');
         setStartMenuScreen('elementSelectionScreen');
         resetElementSelection();
+        restoreSavedDeckSelection();
+        syncDifficultyUI();
     }
 
     function setHowToPlayPage(n) {
@@ -3639,8 +3647,14 @@
         focusSafeElement();
     }
 
+    // The menu screen that was open last, so BACK/Esc can return focus to the entry that opened it
+    let menuReturnTarget = null;
+    let currentMenuScreen = 'mainMenu';
+
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
         const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
+        if (activeScreenId === 'mainMenu' && currentMenuScreen !== 'mainMenu') menuReturnTarget = currentMenuScreen;
+        currentMenuScreen = activeScreenId;
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;
@@ -3651,9 +3665,37 @@
                 element.style.display = 'none';
             }
         });
-        // Scroll modal content to top when switching screens
+        // Scroll modal content to top when switching screens; data-screen lets the panel size itself per screen
         const modalContent = document.querySelector('.modal-content');
-        if (modalContent) modalContent.scrollTop = 0;
+        if (modalContent) {
+            modalContent.scrollTop = 0;
+            modalContent.dataset.screen = activeScreenId;
+        }
+        if (activeScreenId === 'mainMenu') {
+            updateMenuStatus();
+        } else {
+            // Move focus to the new screen's heading so keyboard and screen-reader users start there
+            document.getElementById(activeScreenId)?.querySelector('.modal-subtitle[tabindex="-1"]')?.focus({ preventScroll: true });
+        }
+    }
+
+    // Credits, collection progress and record on the main menu, from the saved profile
+    function updateMenuStatus() {
+        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const owned = Object.entries(gameMeta?.collection || {}).filter(([cardId, count]) => __CARD_BY_ID[cardId] && count > 0).length;
+        const total = Object.keys(__CARD_BY_ID).length;
+        const creditsEl = document.getElementById('menuCredits');
+        const collectionEl = document.getElementById('menuCollection');
+        const meterEl = document.getElementById('menuCollectionMeter');
+        const recordEl = document.getElementById('menuRecord');
+        if (creditsEl) creditsEl.textContent = credits;
+        if (collectionEl) collectionEl.textContent = `${owned} / ${total}`;
+        if (meterEl) meterEl.style.width = `${total ? Math.round((owned / total) * 100) : 0}%`;
+        if (recordEl) {
+            const wins = Math.max(0, Number(gameStats.wins) || 0);
+            const losses = Math.max(0, Number(gameStats.losses) || 0);
+            recordEl.textContent = wins + losses > 0 ? `${wins} won · ${losses} lost` : 'No battles yet';
+        }
     }
 
     function initializeStartMenuState() {
@@ -3665,6 +3707,9 @@
     function getRequiredElementCount() {
         return gameState.deckMode === 'single' ? 1 : 2;
     }
+
+    const ELEMENT_LABELS = { fire: 'Fire', water: 'Water', earth: 'Earth', swamp: 'Swamp', light: 'Light' };
+    const elementLabel = element => `${ELEMENTS[element]?.emoji || ''} ${ELEMENT_LABELS[element] || element}`.trim();
 
     function updateStartButtonState() {
         const startBtn = document.getElementById('startBtn');
@@ -3678,6 +3723,117 @@
             startBtn.disabled = true;
             startBtn.textContent = required === 1 ? 'Select 1 Element' : 'Select 2 Elements';
         }
+        updateElementPickHint();
+        renderDeckSummary();
+    }
+
+    // Deck-type and element buttons follow gameState (selected class, aria-pressed, "full" state)
+    function syncElementSelectionUI() {
+        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.deckMode === gameState.deckMode);
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === gameState.deckMode));
+        });
+
+        document.querySelectorAll('.element-btn').forEach(btn => {
+            const selected = gameState.selectedElements.includes(btn.dataset.element);
+            btn.classList.toggle('selected', selected);
+            btn.setAttribute('aria-pressed', String(selected));
+        });
+
+        const selector = document.getElementById('elementSelector');
+        if (selector) {
+            // Two-colour deck with both picked: the others are dimmed until one is removed
+            const full = gameState.deckMode === 'dual' && gameState.selectedElements.length >= 2;
+            selector.classList.toggle('is-full', full);
+        }
+
+        updateStartButtonState();
+    }
+
+    function updateElementPickHint() {
+        const hint = document.getElementById('elementPickHint');
+        if (!hint) return;
+        const picked = gameState.selectedElements.map(e => ELEMENT_LABELS[e]);
+        if (gameState.deckMode === 'single') {
+            hint.textContent = picked.length ? `${picked[0]} deck · tap another element to switch` : 'Choose 1 element';
+        } else if (picked.length === 0) {
+            hint.textContent = 'Choose 2 elements';
+        } else if (picked.length === 1) {
+            hint.textContent = `${picked[0]} chosen · choose 1 more`;
+        } else {
+            hint.textContent = `${picked.join(' + ')} · tap a chosen element to change it`;
+        }
+    }
+
+    // What the saved deck for these elements holds: the deck START BATTLE will use (createPlayerDeck)
+    function getDeckSummary(deckKey) {
+        const deck = gameMeta?.decks?.[deckKey];
+        const cardIds = Array.isArray(deck?.cardIds) ? deck.cardIds : [];
+        if (!isMetaRuntimeEnabled() || cardIds.length === 0 || !cardIds.every(id => __CARD_BY_ID[id])) return null;
+        const cards = cardIds.map(id => __CARD_BY_ID[id]);
+        const counts = { land: 0, creature: 0, instant: 0, artifact: 0 };
+        cards.forEach(card => { counts[card.type] = (counts[card.type] || 0) + 1; });
+        const manaValue = card => Object.values(card.cost || {}).reduce((sum, n) => sum + n, 0);
+        const nonLands = cards.filter(card => card.type !== 'land');
+        const averageCost = nonLands.length ? nonLands.reduce((sum, card) => sum + manaValue(card), 0) / nonLands.length : 0;
+        const rarityRank = { legendary: 3, epic: 2, rare: 1 };
+        const seen = new Set();
+        const keyCards = nonLands
+            .filter(card => !seen.has(card.__id) && seen.add(card.__id))
+            .sort((a, b) => (rarityRank[b.__rarity] || 0) - (rarityRank[a.__rarity] || 0) || manaValue(b) - manaValue(a) || a.name.localeCompare(b.name))
+            .slice(0, 3);
+        const starter = Array.isArray(deck.starterCardIds) ? deck.starterCardIds : [];
+        const customized = starter.length > 0 && !sameCardMultiset(cardIds, starter);
+        return { size: cards.length, counts, averageCost, keyCards, customized };
+    }
+
+    function renderDeckSummary() {
+        const container = document.getElementById('deckSummary');
+        if (!container) return;
+        const required = getRequiredElementCount();
+        const picked = gameState.selectedElements;
+        container.classList.toggle('is-empty', picked.length !== required);
+        if (picked.length !== required) {
+            const missing = required - picked.length;
+            container.innerHTML = `<p class="deck-summary-placeholder">Choose ${missing} ${picked.length ? 'more ' : ''}element${missing === 1 ? '' : 's'} to see the deck you'll play.</p>`;
+            return;
+        }
+
+        const deckKey = getDeckKeyFromElements(picked);
+        const colors = getDeckColorsFromKey(deckKey);
+        const accents = colors.map(color => `<span class="deck-summary-element" data-element="${color}">${elementLabel(color)}</span>`).join('<span class="deck-summary-plus" aria-hidden="true">+</span>');
+        const summary = getDeckSummary(deckKey);
+        if (!summary) {
+            container.innerHTML = `<div class="deck-summary-head"><span class="deck-summary-name">${accents}</span></div>
+                <p class="deck-summary-placeholder">No saved deck for these elements, so a ${STANDARD_DECK_SIZE}-card deck will be built for this match.</p>`;
+            return;
+        }
+
+        const plural = (n, word) => `<li><strong>${n}</strong> ${n === 1 ? word : `${word}s`}</li>`;
+        const keyCards = summary.keyCards.map(card => `<span class="deck-summary-card">${card.emoji} ${card.name}</span>`).join('');
+        container.innerHTML = `
+            <div class="deck-summary-head">
+                <span class="deck-summary-name">${accents}</span>
+                <span class="deck-summary-tag">${summary.customized ? 'Customized' : 'Starter list'}</span>
+            </div>
+            <ul class="deck-summary-counts">
+                ${plural(summary.size, 'card')}${plural(summary.counts.land, 'land')}${plural(summary.counts.creature, 'creature')}${plural(summary.counts.instant, 'instant')}${plural(summary.counts.artifact, 'artifact')}
+            </ul>
+            <p class="deck-summary-line">Average cost of non-land cards: <strong>${summary.averageCost.toFixed(1)}</strong></p>
+            ${keyCards ? `<div class="deck-summary-line deck-summary-keys"><span>Rarest cards:</span> ${keyCards}</div>` : ''}
+            <p class="deck-summary-note">Your saved deck for these elements. Change it in Deck Builder.</p>`;
+    }
+
+    // NEW GAME starts from the deck you last took into battle (gameMeta.selectedDeckKey, saved by startGame)
+    function restoreSavedDeckSelection() {
+        if (!isMetaRuntimeEnabled()) return;
+        const deckKey = gameMeta?.selectedDeckKey;
+        if (!deckKey || !gameMeta?.decks?.[deckKey]) return;
+        const colors = getDeckColorsFromKey(deckKey);
+        if (colors.length < 1 || colors.length > 2) return;
+        gameState.deckMode = colors.length === 1 ? 'single' : 'dual';
+        gameState.selectedElements = [...colors];
+        syncElementSelectionUI();
     }
 
     function setDeckMode(mode) {
@@ -3692,35 +3848,13 @@
         playSFX('select');
         gameState.deckMode = mode;
         gameState.selectedElements = [];
-
-        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.deckMode === mode);
-            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === mode));
-        });
-
-        document.querySelectorAll('.element-btn').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.setAttribute('aria-pressed', 'false');
-        });
-
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     function resetElementSelection() {
         gameState.selectedElements = [];
         gameState.deckMode = 'dual';
-
-        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.deckMode === 'dual');
-            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === 'dual'));
-        });
-
-        document.querySelectorAll('.element-btn').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.setAttribute('aria-pressed', 'false');
-        });
-
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     function returnToMainMenu() {
@@ -3857,13 +3991,31 @@
         });
     }
 
-    function selectDifficulty(difficulty) {
-        playSFX('select');
-        gameState.difficulty = difficulty;
+    // Battle setup's explanation of each level. Keep in step with AI_PROFILES (and AI.md §3).
+    const DIFFICULTY_INFO = {
+        easy: 'Plays 1 card a turn, never casts instants, and attacks with about 70% of its ready creatures at random.',
+        medium: 'Plays up to 2 cards a turn and casts instants. Spots lethal damage and avoids attacks that would lose a creature for nothing.',
+        hard: 'Plays as many cards as its mana allows. Plays like Medium, and keeps blockers home when your board could kill it next turn.'
+    };
+    const DIFFICULTY_COMMON = 'Every level plays by the same rules as you, with a legal 60-card deck in 1 or 2 random elements.';
+
+    function syncDifficultyUI() {
+        const difficulty = DIFFICULTY_INFO[gameState.difficulty] ? gameState.difficulty : 'easy';
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.difficulty === difficulty);
             btn.setAttribute('aria-pressed', String(btn.dataset.difficulty === difficulty));
         });
+        const info = document.getElementById('difficultyInfo');
+        if (info) {
+            const name = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+            info.innerHTML = `<strong>${name}:</strong> ${DIFFICULTY_INFO[difficulty]} <span class="difficulty-info-common">${DIFFICULTY_COMMON}</span>`;
+        }
+    }
+
+    function selectDifficulty(difficulty) {
+        playSFX('select');
+        gameState.difficulty = difficulty;
+        syncDifficultyUI();
     }
 
     // Card Detail Popup
@@ -4061,19 +4213,19 @@
         }
 
         playSFX('select');
-        const btn = document.querySelector(`[data-element="${element}"]`);
+        const btn = document.querySelector(`.element-btn[data-element="${element}"]`);
         if (!btn) return;
 
         if (gameState.selectedElements.includes(element)) {
             gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
-            btn.classList.remove('selected');
         } else if (gameState.selectedElements.length < getRequiredElementCount()) {
             gameState.selectedElements.push(element);
-            btn.classList.add('selected');
+        } else if (gameState.deckMode === 'single') {
+            // A single-colour deck has one element, so picking another switches to it
+            gameState.selectedElements = [element];
         }
-        btn.setAttribute('aria-pressed', String(btn.classList.contains('selected')));
 
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     // Deck Generation with improved shuffling
@@ -6991,6 +7143,15 @@
             if (startModal?.classList.contains('modal-visible') && binderScreen?.style.display === 'block') {
                 e.preventDefault();
                 hideBinder();
+                return;
+            }
+
+            // Battle setup, How to Play and Stats go back to the menu too
+            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen']
+                .find(id => document.getElementById(id)?.style.display === 'block');
+            if (startModal?.classList.contains('modal-visible') && backScreen) {
+                e.preventDefault();
+                backToMenu();
                 return;
             }
         }

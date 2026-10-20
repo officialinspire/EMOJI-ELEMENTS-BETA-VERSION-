@@ -36,7 +36,8 @@ Full, test-backed rules: [PROGRESSION.md](PROGRESSION.md) (`npm run progression`
 - A new profile starts with **100 credits** and the **starter collection**: the cards of the five mono starter
   decks (153 different cards, 300 copies).
 - Opening a pack adds its cards to your collection; duplicates stack (`x3` in the Binder).
-- **Binder / Collection** (main menu) lists every owned card with its count, sorted by name.
+- **Collection** (main menu) lists every owned card with its count, sorted by name. The main menu shows your
+  credits and how many of the 268 cards you have collected.
 - Rarity is inferred from each card: `common`, `rare`, `epic`, `legendary`. No card is currently `uncommon`.
 
 ## Decks & Deck Builder
@@ -50,7 +51,9 @@ There are 15 standard decks, each starting as a 60-card starter list:
 
 - Starter lists only use cards the starter collection owns, so every starter deck is legal on a new profile.
 - Starting a match with the chosen colour(s) plays that saved deck exactly, and it becomes the selected deck.
-  The Deck Builder opens on the selected deck.
+  The Deck Builder opens on the selected deck, and NEW GAME starts with it already picked.
+- Battle setup shows a summary of the saved deck for the chosen colour(s) before you start: card-type counts,
+  average cost, its rarest cards, and whether it is still the starter list.
 
 Saving a deck requires all of these:
 
@@ -167,6 +170,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run rules` / `combat` / `effects` / `progression` / `ai` | Rules, combat, every card effect, saves and progression, AI |
 | `npm run smoke` | Desktop and mobile smoke flows |
 | `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
+| `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
 
@@ -176,7 +180,7 @@ QA mode (debug logs and `window.__qa*` helpers) is off for players. Add `?qa=1` 
 
 - Improve pack telemetry + duplicate-protection tuning.
 - Real targeting for spells, and choosing blockers (see the open choices in RULES.md, EFFECTS.md and AI.md).
-- Continue mobile UX polish for battle + menus.
+- Continue mobile UX polish for battle screens.
 
 ## Credits
 

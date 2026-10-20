@@ -168,3 +168,51 @@ screen reader and no H.264.
 | R7 | Tablet with a keyboard, and iPad landscape (1024×768+) | Keyboard play end to end. The ≥768 px layout on a short landscape tablet. |
 | R8 | Manual contrast review | Gold text on gradient panels, red P/T badges, disabled MULLIGAN. axe can't measure text over gradients. |
 | R9 | Orientation change mid-match, split screen | Layout switches with no lost state. |
+
+## 7. Main menu and battle setup refresh
+
+A focused visual and UX pass on the main menu and battle setup. It keeps the dark arcane purple-and-gold look,
+the vanilla HTML/CSS/JS structure, and every existing id, `data-*` attribute, `onclick` route and handler. The
+match screen, in-game dialogs and rules are unchanged.
+
+### What changed
+
+| # | Before | After |
+|---|---|---|
+| M1 | Six identical gold buttons. Nothing marked NEW GAME as the main action. | NEW GAME is one large gold tile with a line of supporting text. The other five entries are violet tiles in a grid, each with an icon, a label and a short description. |
+| M2 | Labels "BINDER / COLLECTION" and "GAME STATS". No hint of what each screen does. | New Game, Deck Builder, Collection, Pack Shop, How to Play, Stats, each with a one-line description. Stats shows your win/loss record. |
+| M3 | Credits only showed inside the Pack Shop. Collection size only showed inside the Binder. | A status row shows credits, and collection progress as "owned / 268" with a meter. Both come from the saved profile (`updateMenuStatus`). |
+| M4 | Setup order was deck type, "Select elements" (heading with nothing under it), difficulty, then the elements. | Four numbered steps: 1 Deck type, 2 Elements, 3 AI difficulty, 4 Your deck. |
+| M5 | Element buttons were emoji only. Their names were in `aria-label` and invisible. Selection was a pink glow and a scale-up. | Each element shows its name in its own colour. A ✓ badge marks a pick (no reliance on colour alone). A live hint says how many picks are left, and unpicked elements dim when a two-colour deck is full. In a single-colour deck, tapping another element switches to it. |
+| M6 | No explanation of the difficulties. | The selected level is explained from `DIFFICULTY_INFO`, which matches `AI_PROFILES` and AI.md §3. One shared line says every level plays by your rules with a legal 60-card deck in 1 or 2 random elements. |
+| M7 | Nothing showed which deck you were about to play. | A summary of the saved deck for those colours: card counts by type, average cost of non-land cards, its rarest cards, and "Starter list" or "Customized". It is computed from `gameMeta.decks[key]`, the same deck `createPlayerDeck` will use. |
+| M8 | NEW GAME always reset to "Two Colors" with nothing picked. The last deck was saved (`gameMeta.selectedDeckKey`) but never shown. | NEW GAME, PLAY AGAIN and TRY AGAIN start with the saved deck picked, also after a reload. |
+| M9 | Short landscape (863×360): the desktop sizes applied, and only two entries showed without scrolling. The setup needed a long scroll. | Compact logo, entries in a 3 + 2 grid, setup in two columns. NEW GAME and START BATTLE are on screen without scrolling. |
+| M10 | The desktop title was clipped at the right edge (the panel overflowed by 5 px). | The panel is wider (600 px; 760–940 px for setup and Deck Builder) and the title is sized to fit. |
+| M11 | Esc did nothing on setup, How to Play and Stats. After BACK, focus always went to NEW GAME. | Esc returns from every menu screen. Focus returns to the entry that opened the screen, and each screen's heading is focused when it opens. |
+| M12 | The footer link was 37 px tall. The How to Play pages could scroll but not take focus (axe `scrollable-region-focusable`). | 44 px link. The pages are focusable regions. |
+
+Design system, in the "MENU REFRESH" block at the end of `styles.css`, scoped to `#startModal`:
+- **Spacing:** steps of 4, 8, 12, 16 and 24 px (`--space-*`); radii of 8, 12 and 16 px.
+- **Type:** Uncial Antiqua for the logo only, Cinzel for headings and labels, Inter for supporting text.
+- **Buttons:** primary (gold fill: NEW GAME and START BATTLE), secondary (violet tile with a gold hairline), back
+  (ghost) and danger (the two resets).
+- **Element accents:** `--el`, `--el-soft` and `--el-glow`, set per `[data-element]`.
+- **Decoration:** two local SVGs (`menu-sigil.svg`, a five-node arcane circle, 1 KB; `menu-divider.svg`, a gold
+  filigree rule, 1 KB), used as CSS masks and backgrounds.
+
+### Evidence
+
+`tests/menu-audit.mjs` (`npm run menu`, also in CI) runs on a fresh profile at desktop 1366×768 (mouse and
+keyboard), narrow phone 360×740, short landscape 863×360 and tablet 712×1138 (touch). It checks:
+- layout and touch target size;
+- text size;
+- hierarchy and labels;
+- that the status values match `gameMeta`;
+- setup: element names, the ✓ marker, difficulty text against the AI settings, and deck summary numbers against
+  the saved deck;
+- saved-deck restore, including after a reload;
+- routing and keyboard;
+- axe (contrast included) on every menu screen.
+
+The same final version of the audit was run on `main` before the change and on this branch after it:

@@ -3675,3 +3675,954 @@ html {
         scroll-behavior: auto !important;
     }
 }
+
+/* =====================================================================================================
+   MENU REFRESH: main menu and battle setup. Everything is scoped to #startModal, so the match screen and
+   in-game dialogs keep their look. Type scale: Uncial Antiqua for the logo, Cinzel for headings and button
+   labels, Inter for supporting text. Spacing uses the --space-* steps; element colours use --el-*.
+   ===================================================================================================== */
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --font-display: 'Uncial Antiqua', cursive;
+    --font-heading: 'Cinzel', serif;
+    --font-body: 'Inter', sans-serif;
+    --panel-tile: linear-gradient(150deg, rgba(62, 40, 106, 0.78) 0%, rgba(30, 18, 52, 0.9) 100%);
+    --panel-inset: rgba(9, 6, 17, 0.5);
+    --gold-line: rgba(242, 207, 114, 0.42);
+    --text-dim: rgba(234, 223, 184, 0.86);
+    --gold-fill: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 50%, var(--gold-1) 100%);
+    --ink: #2a1a0a;
+}
+
+#startModal [data-element="fire"] { --el: #ff6a3d; --el-soft: rgba(255, 106, 61, 0.16); --el-glow: rgba(255, 106, 61, 0.5); }
+#startModal [data-element="water"] { --el: #45b0ff; --el-soft: rgba(69, 176, 255, 0.16); --el-glow: rgba(69, 176, 255, 0.5); }
+#startModal [data-element="earth"] { --el: #62d46f; --el-soft: rgba(98, 212, 111, 0.16); --el-glow: rgba(98, 212, 111, 0.45); }
+#startModal [data-element="swamp"] { --el: #b383ff; --el-soft: rgba(179, 131, 255, 0.18); --el-glow: rgba(179, 131, 255, 0.5); }
+#startModal [data-element="light"] { --el: #ffd84a; --el-soft: rgba(255, 216, 74, 0.15); --el-glow: rgba(255, 216, 74, 0.45); }
+
+/* ---- Panel */
+#startModal .modal-content {
+    position: relative;
+    isolation: isolate;
+    max-width: 600px;
+    padding: var(--space-5);
+    border-color: var(--gold-line);
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(138, 125, 255, 0.16) 0%, transparent 55%),
+        linear-gradient(160deg, rgba(36, 21, 62, 0.97) 0%, rgba(20, 12, 36, 0.98) 100%);
+}
+
+/* Faint arcane circle behind the logo */
+#startModal .modal-content::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: -24px;
+    left: 50%;
+    width: 280px;
+    height: 280px;
+    transform: translateX(-50%);
+    background: var(--gold-1);
+    -webkit-mask: url('menu-sigil.svg') center / contain no-repeat;
+    mask: url('menu-sigil.svg') center / contain no-repeat;
+    opacity: 0.07;
+    pointer-events: none;
+}
+
+#startModal .modal-content[data-screen="elementSelectionScreen"],
+#startModal .modal-content[data-screen="deckBuilderScreen"] {
+    max-width: 760px;
+}
+
+#startModal .modal-title {
+    margin-bottom: var(--space-2);
+    font-size: clamp(18px, 5vw, 30px);
+}
+
+#startModal .modal-intro {
+    margin: 0 0 var(--space-4);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+#startModal .modal-intro::after,
+#startModal .modal-subtitle::after {
+    content: '';
+    display: block;
+    height: 12px;
+    margin: var(--space-2) auto 0;
+    max-width: 220px;
+    background: url('menu-divider.svg') center / contain no-repeat;
+}
+
+/* Sub-screens keep the logo but drop the tagline, so their content starts higher */
+#startModal .modal-content:not([data-screen="mainMenu"]) .modal-intro {
+    display: none;
+}
+
+#startModal .modal-content:not([data-screen="mainMenu"]) .modal-title {
+    font-size: clamp(16px, 4vw, 22px);
+}
+
+#startModal .modal-subtitle {
+    margin: 0 0 var(--space-4);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+    line-height: 1.3;
+}
+
+#startModal .modal-subtitle[tabindex="-1"]:focus {
+    outline: none;
+}
+
+/* ---- Buttons: primary (gold), secondary (violet tile), back (ghost), danger */
+#startModal .menu-btn {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    min-height: 44px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+#startModal .menu-btn:not(.menu-primary):not(.menu-danger):not(.menu-back):not(.shop-pack-btn) {
+    background: var(--panel-tile);
+    border: 1px solid var(--gold-line);
+    color: var(--gold-2);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 241, 186, 0.08);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+}
+
+#startModal .menu-btn:focus-visible,
+#startModal .deck-mode-btn:focus-visible,
+#startModal .difficulty-btn:focus-visible,
+#startModal .element-btn:focus-visible,
+#startModal .setup-start:focus-visible {
+    outline: 3px solid var(--gold-2);
+    outline-offset: 3px;
+}
+
+@media (hover: hover) {
+    #startModal .menu-btn:not(.menu-primary):not(.menu-danger):not(.menu-back):not(.shop-pack-btn):hover {
+        border-color: var(--gold-1);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 16px rgba(242, 207, 114, 0.22);
+    }
+}
+
+#startModal .menu-back {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-4);
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid rgba(242, 207, 114, 0.32);
+    color: var(--gold-2);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    box-shadow: none;
+}
+
+#startModal .menu-back:hover {
+    transform: none;
+    background: rgba(242, 207, 114, 0.08);
+    box-shadow: none;
+}
+
+#startModal .menu-danger {
+    background: linear-gradient(135deg, #a3172e 0%, #5a0612 100%);
+    border: 1px solid rgba(255, 140, 140, 0.55);
+    color: #fff;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+#startModal .stats-danger-zone {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px dashed rgba(242, 207, 114, 0.25);
+}
+
+/* ---- Main menu */
+#startModal .menu-buttons {
+    gap: var(--space-3);
+    margin: 0;
+}
+
+#startModal .menu-status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+#startModal .menu-status-chip {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 6px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    background: var(--panel-inset);
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+#startModal .menu-status-chip strong {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--gold-1);
+}
+
+#startModal .menu-status-icon {
+    font-size: 16px;
+}
+
+#startModal .menu-status-meter {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 4px;
+    height: 3px;
+    border-radius: 3px;
+    background: rgba(242, 207, 114, 0.16);
+}
+
+#startModal .menu-status-meter span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--gold-1));
+}
+
+#startModal .menu-tile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: 10px 14px;
+    text-align: left;
+    text-transform: none;
+}
+
+#startModal .menu-tile-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(242, 207, 114, 0.35);
+    background: radial-gradient(circle at 35% 30%, rgba(183, 175, 255, 0.25), rgba(9, 6, 17, 0.6));
+    font-size: 20px;
+}
+
+#startModal .menu-tile-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+#startModal .menu-tile-label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+#startModal .menu-tile-desc {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 12.5px;
+    letter-spacing: 0;
+    line-height: 1.35;
+    color: var(--text-dim);
+}
+
+/* NEW GAME: the one gold, full-width, larger entry */
+#startModal .menu-primary {
+    position: relative;
+    overflow: hidden;
+    min-height: 84px;
+    padding: 14px 18px;
+    background: var(--gold-fill);
+    border: 2px solid #8b7355;
+    color: var(--ink);
+    box-shadow: 0 8px 26px rgba(242, 207, 114, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#startModal .menu-primary::after {
+    content: '';
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    width: 112px;
+    height: 112px;
+    transform: translateY(-50%);
+    background: rgba(90, 50, 10, 0.28);
+    -webkit-mask: url('menu-sigil.svg') center / contain no-repeat;
+    mask: url('menu-sigil.svg') center / contain no-repeat;
+    pointer-events: none;
+}
+
+#startModal .menu-primary .menu-tile-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 26px;
+    border-color: rgba(42, 26, 10, 0.45);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5), rgba(139, 115, 85, 0.35));
+}
+
+#startModal .menu-primary .menu-tile-label {
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+}
+
+#startModal .menu-primary .menu-tile-desc {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #4a2e0c;
+}
+
+#startModal .menu-primary:hover {
+    box-shadow: 0 10px 30px rgba(242, 207, 114, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#startModal .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+/* Odd tile out spans the row instead of leaving a hole */
+#startModal .menu-grid .menu-tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
+#startModal .modal-footer-credit {
+    margin-top: var(--space-4);
+}
+
+#startModal .modal-footer-credit a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 10px;
+}
+
+/* ---- Battle setup */
+#startModal .setup-layout {
+    display: grid;
+    gap: var(--space-4);
+    text-align: left;
+}
+
+#startModal .setup-choices,
+#startModal .setup-summary {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+    min-width: 0;
+}
+
+#startModal .setup-step {
+    margin: 0;
+}
+
+#startModal .setup-step-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+#startModal .setup-step-num {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-line);
+    background: var(--panel-inset);
+    font-family: var(--font-body);
+    font-size: 12px;
+    letter-spacing: 0;
+    color: var(--gold-2);
+}
+
+#startModal .deck-mode-selector,
+#startModal .difficulty-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+}
+
+#startModal .difficulty-selector {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#startModal .deck-mode-btn,
+#startModal .difficulty-btn {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-tile);
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    box-shadow: none;
+}
+
+#startModal .deck-mode-btn.selected,
+#startModal .difficulty-btn.selected {
+    background: var(--gold-fill);
+    border-color: #8b7355;
+    color: var(--ink);
+    box-shadow: 0 0 16px rgba(242, 207, 114, 0.35);
+}
+
+#startModal .deck-mode-btn.selected::before,
+#startModal .difficulty-btn.selected::before {
+    content: '✓ ';
+}
+
+#startModal .element-pick-hint {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--accent-soft);
+}
+
+#startModal .element-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+}
+
+#startModal .element-selector .element-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    max-width: none;
+    min-width: 0;
+    min-height: 82px;
+    padding: 10px 4px 8px;
+    border: 2px solid rgba(242, 207, 114, 0.28);
+    border-radius: var(--radius-md);
+    background: linear-gradient(170deg, var(--el-soft) 0%, rgba(14, 9, 26, 0.85) 75%);
+    box-shadow: inset 0 -3px 0 var(--el-soft);
+    font-size: inherit;
+    transform: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+}
+
+#startModal .element-btn-emoji {
+    font-size: 30px;
+    line-height: 1;
+}
+
+#startModal .element-btn-name {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-main);
+}
+
+@media (hover: hover) {
+    #startModal .element-selector .element-btn:hover {
+        transform: none;
+        border-color: var(--el);
+    }
+}
+
+#startModal .element-selector .element-btn.selected {
+    transform: none;
+    border-color: var(--el);
+    background: linear-gradient(170deg, var(--el-glow) 0%, rgba(14, 9, 26, 0.75) 85%);
+    box-shadow: 0 0 0 1px var(--el), 0 0 20px var(--el-glow);
+}
+
+/* The ✓ marks the choice without relying on colour */
+#startModal .element-selector .element-btn.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--gold-1);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+}
+
+#startModal .element-selector.is-full .element-btn:not(.selected) {
+    opacity: 0.45;
+}
+
+#startModal .difficulty-info {
+    margin: var(--space-2) 0 0;
+    padding: 10px 12px;
+    border-left: 3px solid var(--gold-1);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+#startModal .difficulty-info strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .difficulty-info-common {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary {
+    min-height: 120px;
+    padding: 14px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-tile);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+#startModal .deck-summary.is-empty {
+    display: grid;
+    place-items: center;
+    border-style: dashed;
+    background: var(--panel-inset);
+}
+
+#startModal .deck-summary-placeholder {
+    margin: 0;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+#startModal .deck-summary-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 17px;
+}
+
+#startModal .deck-summary-element {
+    color: var(--el);
+}
+
+#startModal .deck-summary-plus {
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-tag {
+    padding: 3px 9px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-2);
+}
+
+#startModal .deck-summary-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+}
+
+#startModal .deck-summary-counts li {
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-counts strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .deck-summary-line {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-line strong {
+    color: var(--gold-1);
+}
+
+#startModal .deck-summary-keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+#startModal .deck-summary-card {
+    padding: 3px 8px;
+    border: 1px solid rgba(183, 175, 255, 0.35);
+    border-radius: 999px;
+    color: var(--text-main);
+}
+
+#startModal .deck-summary-note {
+    margin: var(--space-2) 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+#startModal .setup-start {
+    width: 100%;
+    min-height: 56px;
+    padding: 12px 16px;
+    border: 2px solid #8b7355;
+    border-radius: var(--radius-md);
+    background: var(--gold-fill);
+    color: var(--ink);
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    text-shadow: none;
+    box-shadow: 0 8px 26px rgba(242, 207, 114, 0.35);
+}
+
+#startModal .setup-start:disabled {
+    opacity: 1;
+    filter: none;
+    background: var(--panel-inset);
+    border: 1px dashed var(--gold-line);
+    color: var(--text-dim);
+    box-shadow: none;
+    font-size: 15px;
+}
+
+#startModal .setup-summary .menu-back {
+    margin-top: 0;
+}
+
+/* ---- Other menu screens: matching chips and panels */
+#startModal .shop-credits-badge,
+#startModal .binder-summary-badge {
+    border: 1px solid var(--gold-line);
+    background: var(--panel-inset);
+    color: var(--gold-2);
+    font-family: var(--font-body);
+    font-size: 13px;
+}
+
+#startModal .stats-display {
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-inset);
+}
+
+#startModal .stat-row {
+    font-size: 15px;
+    color: var(--text-main);
+}
+
+#startModal .stat-label {
+    color: var(--gold-1);
+}
+
+#startModal .howto-page:focus-visible {
+    outline: 2px solid var(--gold-1);
+    outline-offset: 2px;
+}
+
+/* ---- Narrow phones: one column of entries, compact element tiles */
+@media (max-width: 519px) {
+    #startModal .modal-content {
+        padding: var(--space-4);
+    }
+
+    #startModal .menu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #startModal .menu-tile {
+        padding: 8px 12px;
+    }
+
+    #startModal .menu-primary {
+        min-height: 92px;
+    }
+
+    #startModal .menu-status-long {
+        display: none;
+    }
+
+    #startModal .menu-status-chip {
+        padding-bottom: 9px;
+    }
+
+    #startModal .deck-mode-btn,
+    #startModal .difficulty-btn {
+        padding: 6px 4px;
+        font-size: 13px;
+        letter-spacing: 0;
+    }
+
+    #startModal .element-selector .element-btn {
+        padding-top: 14px;
+    }
+
+    #startModal .element-selector .element-btn.selected::after {
+        top: 2px;
+        right: 2px;
+        width: 16px;
+        height: 16px;
+        font-size: 11px;
+    }
+
+    #startModal .menu-primary .menu-tile-label {
+        font-size: 20px;
+    }
+
+    #startModal .menu-status-chip {
+        padding: 6px 8px;
+        font-size: 12px;
+        gap: 6px;
+    }
+
+    #startModal .element-selector {
+        gap: 6px;
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 72px;
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 26px;
+    }
+
+    #startModal .element-btn-name {
+        font-size: 11px;
+        letter-spacing: 0.02em;
+    }
+}
+
+/* ---- Wide screens: battle setup in two columns (choices | deck and START) */
+@media (min-width: 900px) and (min-height: 501px) {
+    #startModal .modal-content[data-screen="elementSelectionScreen"] {
+        max-width: 940px;
+    }
+
+    #startModal .setup-layout {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        gap: var(--space-5);
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 34px;
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 92px;
+    }
+}
+
+/* ---- Short landscape (phones on their side): compact logo, entries in three columns, setup in two */
+@media (orientation: landscape) and (max-height: 500px) {
+    #startModal.modal {
+        padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+
+    #startModal .modal-content {
+        max-width: min(860px, 100%);
+        max-height: calc(100dvh - 16px);
+        padding: var(--space-3) var(--space-4);
+    }
+
+    #startModal .modal-content::before {
+        width: 200px;
+        height: 200px;
+    }
+
+    #startModal .modal-content[data-screen] .modal-title {
+        margin-bottom: var(--space-2);
+        font-size: 20px;
+    }
+
+    #startModal .modal-intro {
+        display: none;
+    }
+
+    #startModal .menu-buttons {
+        gap: var(--space-2);
+    }
+
+    #startModal .menu-status-chip {
+        min-height: 36px;
+    }
+
+    #startModal .menu-primary {
+        min-height: 60px;
+        padding: 8px 16px;
+    }
+
+    #startModal .menu-primary .menu-tile-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 22px;
+    }
+
+    #startModal .menu-primary .menu-tile-label {
+        font-size: 19px;
+    }
+
+    /* Five entries: three on the first row, two wider ones on the second */
+    #startModal .menu-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    #startModal .menu-grid .menu-tile {
+        grid-column: span 2;
+    }
+
+    #startModal .menu-grid .menu-tile:nth-child(n + 4),
+    #startModal .menu-grid .menu-tile:last-child:nth-child(odd) {
+        grid-column: span 3;
+    }
+
+    /* Sub-screens: the screen heading replaces the logo, so the content fits the short screen */
+    #startModal .modal-content:not([data-screen="mainMenu"]) .modal-title,
+    #startModal .modal-content:not([data-screen="mainMenu"])::before,
+    #startModal .modal-subtitle::after,
+    #startModal .deck-summary-note,
+    #startModal .deck-summary-keys {
+        display: none;
+    }
+
+    #startModal .menu-tile {
+        padding: 6px 10px;
+        gap: var(--space-2);
+    }
+
+    #startModal .menu-tile-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 17px;
+    }
+
+    #startModal .menu-tile-desc {
+        font-size: 12px;
+    }
+
+    #startModal .modal-subtitle {
+        margin-bottom: var(--space-2);
+        font-size: 16px;
+    }
+
+    #startModal .modal-subtitle::after {
+        margin-top: var(--space-1);
+    }
+
+    #startModal .setup-layout {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        gap: var(--space-4);
+    }
+
+    #startModal .setup-choices,
+    #startModal .setup-summary {
+        gap: var(--space-3);
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 64px;
+        padding: 6px 2px;
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 24px;
+    }
+
+    #startModal .difficulty-info {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    #startModal .deck-summary {
+        min-height: 0;
+        padding: 10px 12px;
+    }
+
+    #startModal .setup-start {
+        min-height: 48px;
+        font-size: 16px;
+    }
+}

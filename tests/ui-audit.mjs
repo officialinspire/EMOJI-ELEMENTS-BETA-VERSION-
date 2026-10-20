@@ -344,6 +344,7 @@ async function auditProfile(browser, url, profile) {
     await scene(ctx, '01-menu', { essentials: ['#mainMenu button'], scrollable: true });
 
     await tapOrClick(page, touch, page.locator('#mainMenu button', { hasText: 'NEW GAME' }));
+    await tapOrClick(page, touch, '.deck-mode-btn[data-deck-mode="dual"]'); // NEW GAME restores the saved deck
     await tapOrClick(page, touch, '.element-btn[data-element="fire"]');
     await scene(ctx, '02-new-game', { essentials: ['.deck-mode-btn', '.difficulty-btn', '.element-btn', '#startBtn'], scrollable: true });
     await page.evaluate(() => backToMenu());

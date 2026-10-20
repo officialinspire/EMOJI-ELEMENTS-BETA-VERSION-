@@ -18,10 +18,15 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run the UI audit
         run: node tests/ui-audit.mjs --label=ci
+      - name: Run the menu and battle setup audit
+        if: always()
+        run: node tests/menu-audit.mjs --label=ci
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-audit-screenshots
-          path: test-results/ui/ci/
+          path: |
+            test-results/ui/ci/
+            test-results/menu/ci/
           retention-days: 14

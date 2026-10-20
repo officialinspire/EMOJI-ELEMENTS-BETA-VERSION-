@@ -1,5 +1,35 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: menu and battle setup refresh
+
+For players:
+- **A clearer main menu.**
+  - NEW GAME is the one large gold button.
+  - Deck Builder, Collection, Pack Shop, How to Play and Stats each have a readable label and a short line saying
+    what they do.
+  - The menu shows your credits, how many of the 268 cards you have collected, and your win/loss record.
+- **Battle setup in four steps:** deck type, elements, AI difficulty, and your deck.
+  - Element buttons show their names (Fire, Water, Earth, Swamp, Light) in their own colours. A ✓ marks each
+    pick, and a hint says how many are left.
+  - Each difficulty explains what the AI does (it matches the AI's actual settings).
+  - Before you start, a summary shows the saved deck you're about to play: card counts by type, average cost,
+    its rarest cards, and whether it is still the starter list.
+  - NEW GAME starts with the deck you last played already picked, also after a reload. In a single-colour deck,
+    tapping another element switches to it.
+- **Fits every screen:** two columns on wide screens, one column on narrow phones, and a compact layout for
+  phones on their side, where NEW GAME and START BATTLE fit without scrolling.
+- **Keyboard:**
+  - Esc returns to the menu from every menu screen.
+  - Focus goes back to the button that opened the screen, and each screen's heading is focused when it opens.
+
+Under the hood:
+- `index.html`, `styles.css` (a scoped "MENU REFRESH" block) and `index.js` (`updateMenuStatus`,
+  `syncElementSelectionUI`, `renderDeckSummary`, `restoreSavedDeckSelection`, `syncDifficultyUI`).
+- Two small local SVGs for decoration: `menu-sigil.svg` and `menu-divider.svg`.
+- Every existing id, `data-*` attribute, route and handler is kept. The rules and the match screen are unchanged.
+- New `tests/menu-audit.mjs` (`npm run menu`, also run in CI). Smoke and release tests now use the new labels
+  (Collection, Stats). See [UI.md](UI.md) §7.
+
 ## Unreleased: release candidate (player summary)
 
 What's new for players since the last public build:

@@ -329,8 +329,8 @@ async function playthrough(browser, url, project, { existingSave }) {
     const mutedAfterReload = await page.evaluate(() => isMuted && document.getElementById('muteBtn').textContent === '🔇');
     check(label, 'save', 'reload keeps credits, collection, wins/losses, packs opened and mute', reloaded.credits === lost.credits && reloaded.collection === afterBuy.collection && reloaded.wins === lost.wins && reloaded.losses === lost.losses && reloaded.packsOpened === afterBuy.packsOpened && mutedAfterReload, JSON.stringify({ reloaded, mutedAfterReload }));
 
-    // ---- resets (through GAME STATS and the confirm dialog)
-    await press(page, touch, menuButton(page, 'GAME STATS'));
+    // ---- resets (through STATS and the confirm dialog)
+    await press(page, touch, menuButton(page, 'STATS'));
     await press(page, touch, page.locator('#statsScreen .menu-btn', { hasText: 'RESET STATS' }));
     await page.waitForTimeout(300);
     if (await page.evaluate(() => document.getElementById('gameConfirmModal').classList.contains('show'))) await press(page, touch, '#gameConfirmYesBtn');
