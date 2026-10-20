@@ -4,11 +4,17 @@ Baseline taken 2026-10-20 against `main` @ `4b0cd49` (after PR #116). This repla
 It records what the code **actually does**, so planned changes can be checked against it. It does not
 propose a redesign.
 
-**Status: 🟡 Amber.** The win soft-lock (D1) and the Deck Builder save bug (D2) are **fixed**, as is a
-data-loss bug: a save with a missing or different `version`, or corrupt JSON, was replaced by a new profile with
-no copy kept (now repaired and backed up, [PROGRESSION.md](PROGRESSION.md) §7). The full loop works: menus, shop,
-pack opening, wins, losses, persistence, deck saving and the turn loop. Open: touch long-press plays the card
-(D6) and the intro fallback delay (D11).
+**Status: 🟢 Green in automation.** Every known defect found by the suites is fixed. That includes:
+- the win soft-lock (D1);
+- the Deck Builder save bug (D2);
+- a data-loss bug: a save with a missing or different `version`, or corrupt JSON, was replaced by a new profile
+  with no copy kept. It is now repaired and backed up ([PROGRESSION.md](PROGRESSION.md) §7);
+- touch long-press playing the card (D6);
+- the slow intro fallback (D11);
+- an unplayable phone-landscape layout ([UI.md](UI.md)).
+
+The full loop works on phone, tablet and desktop sizes. What's left needs real devices and browsers other than
+Chromium (§9, UI.md §6) and design decisions (PROGRESSION.md §8, EFFECTS.md §4).
 
 ---
 
@@ -49,11 +55,26 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 
 | Project | Scenarios | PASS | FAIL | XFAIL |
 |---|---|---|---|---|
-| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 107 | 0 | 1 |
-| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 95 | 0 | 1 |
-| **Total** (exit 0, ~2 min) | 21 | **202** | **0** | **2**: D6 and D11 still reproduce. D1–D5, D7–D10, D12 are fixed (D3 moved to the rules suite) |
+| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 108 | 0 | 0 |
+| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 96 | 0 | 0 |
+| **Total** (exit 0, ~2 min) | 21 | **204** | **0** | **0**: D1–D12 are all fixed (D3 moved to the rules suite) |
 
 More suites:
+- **Phone, tablet and desktop interaction:** `node tests/ui-audit.mjs` (`npm run ui`), ~5 min. Four profiles:
+  - 360×740 Android portrait;
+  - 863×360 phone landscape;
+  - 712×1138 tablet;
+  - 1366×768 desktop.
+
+  It also runs reduced-motion and mobile-autoplay passes. It walks every screen and checks:
+  - overflow and clipping;
+  - touch-target sizes and double activation;
+  - long-press and gestures;
+  - keyboard focus and Esc;
+  - axe-core accessibility;
+  - motion and audio.
+
+  Before: 193 of 463 checks failed. After: 469 of 469 pass. See [UI.md](UI.md).
 - **Spell and artifact effects:** `node --test tests/effects.test.mjs` (`npm run effects`). 169 tests, ~2 min.
   Every instant and artifact is cast once by the player and once by the AI on a mirrored board, and the exact
   result is checked. Further tests cover upkeep timing, mana artifacts, "until end of turn", Deep Freeze,
@@ -170,17 +191,17 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 | D3 | ✅ fixed | ~~About 25% of matches gave the AI a broken deck (`colorless` colour, typeless placeholder cards).~~ The AI's colours now come from the five real colours. Covered by `tests/rules.test.mjs` (40 seeded matches). | `index.js` `startGame` | T |
 | D4 | ✅ fixed | ~~Repeatable mana: a tapped land untapped after its mana was spent.~~ A land now untaps only to refund unspent mana (RULES.md R4.4). | `index.js` `tapLand` | T |
 | D5 | ✅ fixed | ~~The player's creatures untapped at the end of the player's own turn.~~ Permanents now untap at the start of their controller's turn, so the player's attackers can't block on the AI turn (RULES.md R5.3). | `index.js` `endTurn` | T |
-| D6 | P1 | **Touch: long-pressing a hand card to read it also plays it** when the finger lifts. Land stacks already guard against this. | `index.js:5822-5847` | T |
+| D6 | ✅ fixed | ~~Touch: long-pressing a hand card to read it also played it.~~ All cards now share one press handler: a long-press only inspects (UI.md). | `index.js` `bindCardPress` | T |
 | D7 | ✅ fixed | ~~Revive returned the top graveyard card of any type.~~ It now returns the most recent creature (RULES.md C10). | `index.js` | T |
 | D8 | ✅ fixed (player-facing) | ~~QA debug text shown to players.~~ The pack-overlay debug line now appears only with `window.__qaShowPackDebug = true`, and the Deck Builder status no longer says "QA:". `QA_MODE` and its console logging remain. | `index.js` | T |
 | D9 | ✅ fixed | ~~RESET PROGRESS left the in-memory stats.~~ It now resets the stats, their legacy mirror and the Stats screen (PROGRESSION.md P5.2). | `index.js` `resetMetaProgress` | T |
 | D10 | ✅ fixed | ~~The FIRE_SWAMP starter list included Web Trap, which nobody owns, so the deck shrank to 59 cards.~~ Dual starters are now built only from owned cards (Curse replaces Web Trap); untouched saved FIRE_SWAMP decks are migrated (PROGRESSION.md §7). | `index.js` `createInitialMeta`, `validateMeta` | T |
-| D11 | P2 | If the intro mp4 can't be decoded, the menu waits 15 s unless the player taps. `play()` stays pending, so the "paused" watchdog never fires, and `<source>` errors miss the `<video>` error listener. | `index.js:647-653, 715` | T |
+| D11 | ✅ fixed | ~~If the intro mp4 couldn't be decoded, the menu waited 15 s.~~ The 3 s watchdog now checks playback progress, and `<source>` errors are caught. | `index.js` intro | T |
 | D12 | ✅ fixed | ~~Pack reveal swipe skipped cards.~~ One swipe now advances one card. | `index.js` `moveSwipe` | T |
 | D13 | ✅ fixed | ~~Shop packs were titled "🎁 Victory Pack".~~ They are now titled "🛒 <Theme> Pack". | `index.js` | T |
 | D14 | ✅ fixed | ~~No loss for drawing from an empty deck.~~ New house rule: drawing from an empty deck loses (RULES.md R6.1). | `index.js` `drawCard` | T |
 | D15 | P3 | `flash` (9 creatures) has no rules effect. (`unblockable` was fixed in the combat pass.) | combat/play code | C |
-| D16 | P3 | Esc on the VICTORY overlay closes it and leaves the finished board with no result UI (exit via ☰). | `index.js:6362-6367` | C |
+| D16 | ✅ fixed | ~~Esc on the VICTORY overlay closed it and stranded the finished board.~~ Esc now leaves the result screens alone (UI.md). | `index.js` keyboard | T |
 | D17 | ✅ fixed | ~~Shop packs were never counted in `stats.packsOpened`.~~ Every pack now counts when it is added to the collection. | `index.js` `purchasePack` | T |
 | D18 | P3 | `inferRarity` never returns `uncommon`, so the pack "uncommon" slot draws `rare` cards and the uncommon glow is unused. | `index.js:1124-1149` | C |
 | D19 | P3 | Duplicate card names: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact. | card DB | C |
@@ -221,8 +242,8 @@ Run these on real hardware. Each row starts from a fresh profile (clear site dat
 | M1 | Chrome desktop (Win/Mac) | Click to start, watch the intro to the end | Intro plays with sound, then the menu with music | Not run |
 | M2 | Firefox desktop | Smoke flows from §4: start, play 2 turns, shop pack, deck builder | Same as Chromium; no console errors | Not run |
 | M3 | Safari macOS | Same as M2, plus mute toggle | Audio starts only after the click | Not run |
-| M4 | iOS Safari (iPhone) | Tap to start; intro; tap a land; long-press a card; rip a pack by swipe; win → OPEN BOOSTER | Touch works; expect **D6** | Not run |
-| M5 | Android Chrome | Same as M4, plus haptics on long-press | Vibration fires; expect **D6** | Not run |
+| M4 | iOS Safari (iPhone) | Tap to start; intro; tap a land; long-press a card; rip a pack by swipe; win → OPEN BOOSTER | Touch works; long-press inspects without playing | Not run |
+| M5 | Android Chrome | Same as M4, plus haptics on long-press | Vibration fires; long-press inspects without playing | Not run |
 | M6 | Samsung Internet | Same as M4 | Same as M5 | Not run |
 | M7 | Any mobile, landscape | Start a match, rotate | END TURN and the hand stay reachable | Not run |
 | M8 | Any | Open `index.html` via `file://` | Boots and saves progress (README says this mostly works) | Not run |
@@ -231,9 +252,8 @@ Run these on real hardware. Each row starts from a fresh profile (clear site dat
 
 ## 10. Next recommended fix
 
-**D6** (touch long-press also plays the card): guard the hand card's touchend the same way land stacks
-already do. It is the last P1. Then **D11** (intro fallback waits 15 s when the video can't play).
-After each fix, run `node tests/smoke.mjs`: the matching XFAIL should turn into XPASS. Then convert it to a
-plain `check` and mark the row fixed.
-
-The economy questions in [PROGRESSION.md](PROGRESSION.md) §8 need a design decision, not a bug fix.
+Run the device-only checks in [UI.md](UI.md) §6 on a real iPhone (Safari) and Android phone. WebKit, Firefox and
+real touch hardware were not available here. Then the design decisions:
+- the economy ([PROGRESSION.md](PROGRESSION.md) §8);
+- spell targeting and equipment ([EFFECTS.md](EFFECTS.md) §4);
+- Flash (RULES.md C15).

@@ -78,23 +78,35 @@ Saving a deck requires all of these:
 
 ## Controls & UX
 
-### Desktop
+Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: see [UI.md](UI.md)
+(`npm run ui`).
 
-- Mouse/touch click cards to play.
-- Click lands to tap for mana.
-- Keyboard shortcuts during active player turn:
-  - `Space` / `E`: End Turn
-  - `A`: Attack / Confirm
-  - `M`: Mulligan (when available)
-  - `Esc`: pause or close overlays/contextually
+### Every device
 
-### Mobile
+- **Tap or click** a hand card to play it, a land stack to tap one land, an artifact to use it, and (after
+  ATTACK) a creature to select it. Tapping any other card, or an enemy card, shows its details.
+- **Long-press or right-click** a card for its details; on a land stack it taps all its untapped lands.
+- After combat, a message lists who blocked whom and what died. 💔 shows damage taken this turn; a dashed
+  border marks a creature that can't attack until next turn.
 
-- Touch interactions supported across gameplay cards/board.
-- Pack opening supports:
-  - **drag/swipe to rip open sealed pack**
-  - **horizontal swipe to browse revealed cards**
-- Intro and menu interactions are touch-aware (`touchend` handlers).
+### Keyboard
+
+- `Tab` to a card, `Enter` to play or use it, `I` for its details.
+- During your turn: `Space` / `E` end turn, `A` attack / confirm, `M` mulligan (when available).
+- `Esc` closes the open window (card details, graveyard, confirmations, pack), resumes from pause, or pauses.
+- Dialogs keep keyboard focus inside them and return it when they close.
+
+### Touch
+
+- Pack opening: drag/swipe to rip the sealed pack, then swipe sideways (one card per swipe) to browse.
+- Swiping across the hand or battlefield scrolls it without playing anything or scrolling the page.
+- Pinch-zoom is allowed; double-tap zoom is not.
+
+### Motion and sound
+
+- With the system's **reduce motion** setting, the intro animation, screen shake, particles and looping glows
+  are off.
+- No sound plays before the first tap or click (browser autoplay rules). The mute choice is remembered.
 
 ## How To Run
 

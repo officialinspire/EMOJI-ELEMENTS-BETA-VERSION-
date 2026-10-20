@@ -1,5 +1,48 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: phone, tablet and desktop interaction
+
+Checked by `tests/ui-audit.mjs` on Android portrait, phone landscape, tablet and desktop sizes, with
+before/after screenshots in `docs/ui-evidence/` (see `UI.md`). Game rules are unchanged.
+- **Phone landscape is playable.** Your battlefield and life total used to be hidden under the hand. The
+  controls now sit in a side column, and card details and the pack screen fit the short screen.
+- **Long-press inspects without playing.** A long-press used to also play the card, or select it as an
+  attacker. Every card now has one press handler for tap, long-press, right-click and keyboard, so a touch
+  never acts twice.
+- **Blocks are shown.** After combat a message lists who blocked whom and what died. 💔 shows damage taken
+  this turn, and a dashed border marks a creature that can't attack yet.
+- **Tapping a card that has no action shows its details**, including enemy cards. The details used to be
+  hover-only on desktop.
+- **Phone layout:**
+  - The header phase label no longer clips.
+  - END TURN sits with MULLIGAN and GRAVEYARD, with ATTACK full width below (END TURN used to sit alone on a
+    third row).
+  - Tablets get bigger cards.
+  - Tapped cards no longer cover their neighbours.
+  - Menu and start titles no longer clip.
+- **Touch targets:** close buttons, tabs, the pause and mute buttons, difficulty buttons and the deck picker
+  are now at least 44 px.
+- **Text size:** keyword badges went from 9 px to 11 px.
+- **Keyboard:**
+  - Esc closes the top window (card details, graveyard, confirmations, pack) or resumes from pause.
+  - Focus moves into dialogs, stays there, and comes back when they close.
+  - Cards are reachable with Tab: Enter plays or uses a card, and I shows its details.
+  - Space on a button you reached with Tab presses that button. After a mouse click, Space still ends the
+    turn.
+  - Ctrl+A no longer starts an attack.
+  - Esc no longer strands the victory screen.
+- **Accessibility:**
+  - Dialogs are announced as dialogs.
+  - Icon buttons have names.
+  - Selected and mute states are announced.
+  - The game log is read out.
+  - Pinch-zoom is allowed (double-tap zoom is still off).
+  - axe-core finds no violations on any screen (it found 116 before).
+- **Reduced motion:** the intro animation, screen shake, particles, sparkles and looping glows (the legendary
+  halo kept spinning) are now off.
+- **Autoplay:** if the intro video can't play, the menu now appears after 3 s instead of 15 s. Nothing plays
+  before the first tap.
+
 ## Unreleased: spell and artifact effects
 
 Every instant and artifact effect is written down in `EFFECTS.md` and covered by `tests/effects.test.mjs`:

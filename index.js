@@ -129,6 +129,7 @@
         if (muteBtn) {
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
             muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
+            muteBtn.setAttribute('aria-pressed', String(isMuted));
         }
     }
 
@@ -187,6 +188,110 @@
         if (tooltip) tooltip.classList.remove('show');
     }
 
+    // One input path for every card on touch, mouse and keyboard (UI.md):
+    //   tap / click / Enter / Space  → onTap
+    //   long-press / right-click / I → onLongPress (inspect, or "tap all" on a land stack)
+    // A long-press never also triggers onTap, a touch never fires twice (touch end + synthetic click),
+    // and dragging a finger to scroll a row does nothing.
+    const LONG_PRESS_MS = 400;
+
+    // Input modality. Space/Enter press a focused card or button only when the player got there with Tab;
+    // after a click or tap, Space and Enter keep their shortcut meaning (Space = END TURN), as before.
+    let lastInputWasPointer = true;
+    document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Tab') lastInputWasPointer = false; }, true);
+
+    function bindCardPress(el, { onTap, onLongPress, label }) {
+        let timer = null;
+        let start = null;
+        let longPressed = false;
+
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        if (label) el.setAttribute('aria-label', label);
+
+        const cancel = () => {
+            clearTimeout(timer);
+            start = null;
+        };
+
+        el.addEventListener('pointerdown', (e) => {
+            longPressed = false;
+            if (e.pointerType === 'mouse') return;
+            start = { x: e.clientX, y: e.clientY };
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                if (!start) return;
+                longPressed = true;
+                start = null;
+                if (navigator.vibrate) navigator.vibrate(50);
+                onLongPress?.();
+            }, LONG_PRESS_MS);
+        });
+        el.addEventListener('pointermove', (e) => {
+            if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancel();
+        });
+        el.addEventListener('pointerup', cancel);
+        el.addEventListener('pointercancel', cancel);
+        el.addEventListener('pointerleave', cancel);
+        el.addEventListener('click', (e) => {
+            if (longPressed) {
+                longPressed = false;
+                e.preventDefault();
+                return;
+            }
+            onTap?.();
+        });
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (longPressed) return; // the long-press already acted
+            onLongPress?.();
+        });
+        el.addEventListener('keydown', (e) => {
+            // Only when the card was reached with the keyboard: after a mouse click, Space stays END TURN.
+            if ((e.key === 'Enter' || e.key === ' ') && !lastInputWasPointer) {
+                e.preventDefault();
+                e.stopPropagation();
+                onTap?.();
+            } else if (e.key === 'i' || e.key === 'I' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                e.preventDefault();
+                e.stopPropagation();
+                onLongPress?.();
+            }
+        });
+    }
+
+    // Screen-reader / keyboard name for a card on screen.
+    function describeCardForA11y(card, zone) {
+        const parts = [card.name];
+        if (card.type === 'creature') parts.push(`${card.power}/${card.toughness}${card.damage ? `, ${card.damage} damage` : ''}`);
+        else parts.push(card.type === 'instant' ? 'instant' : card.type);
+        if (zone === 'hand' && card.cost && Object.keys(card.cost).length) {
+            parts.push(`costs ${Object.entries(card.cost).map(([el, n]) => `${n} ${el}`).join(' and ')}`);
+        }
+        if (card.tapped) parts.push('tapped');
+        if (card.summoningSick && card.type === 'creature' && zone === 'board') parts.push('summoning sick');
+        return parts.join(', ');
+    }
+
+    // updateUI rebuilds the card rows; keep keyboard focus on the same slot so keyboard play can continue.
+    function captureRowFocus() {
+        const active = document.activeElement;
+        const row = active?.closest?.('#playerHand, #playerBoard, #enemyBoard');
+        if (!row) return null;
+        const item = [...row.children].find(child => child === active || child.contains(active));
+        return { rowId: row.id, index: [...row.children].indexOf(item) };
+    }
+
+    function restoreRowFocus(saved) {
+        if (!saved) return;
+        const row = document.getElementById(saved.rowId);
+        const items = row ? [...row.children] : [];
+        const target = items[Math.min(Math.max(saved.index, 0), items.length - 1)] ||
+            document.getElementById('endTurnBtn');
+        target?.focus({ preventScroll: true });
+    }
+
     function attachDesktopTooltip(target, card) {
         if (!target || !card || isMobile) return;
 
@@ -220,7 +325,14 @@
         }
     }
 
+    // prefers-reduced-motion: no shaking, particles or sparkles (styles.css stops CSS animation).
+    const reducedMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    function prefersReducedMotion() {
+        return !!reducedMotionQuery?.matches;
+    }
+
     function screenShake(intensity = 'med') {
+        if (prefersReducedMotion()) return;
         const el = document.body || document.querySelector('.game-container');
         if (!el) return;
 
@@ -639,6 +751,12 @@
             clickToStart.style.opacity = '0';
             clickToStart.style.pointerEvents = 'none';
 
+            // Reduced motion: no intro animation. The tap still unlocks audio for the menu music.
+            if (prefersReducedMotion()) {
+                skipIntro();
+                return;
+            }
+
             introContainer.classList.remove('hidden');
             introContainer.style.display = 'flex';
 
@@ -647,7 +765,9 @@
 
             // Fallback in case video playback never starts on slower mobile browsers
             introStartWatchdogId = setTimeout(() => {
-                const playbackStillBlocked = introVideo.paused && introVideo.currentTime === 0;
+                // No progress after 3 s. (A play() that never settles leaves `paused` false, so checking it
+                // made the menu wait for the 15 s limit when the video can't be decoded: QA D11.)
+                const playbackStillBlocked = introVideo.currentTime === 0;
                 if (startupState === 'starting-intro' && playbackStillBlocked) {
                     console.warn('Intro video did not start correctly; showing menu fallback.');
                     skipIntro();
@@ -714,6 +834,13 @@
 
         // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
+        // A <source> that fails to load reports the error on itself, not on the <video>.
+        introVideo.querySelectorAll('source').forEach(source => source.addEventListener('error', () => {
+            if (startupState === 'starting-intro' || startupState === 'playing-intro') {
+                console.warn('Intro video source failed; showing menu fallback.');
+                skipIntro();
+            }
+        }));
         introVideo.addEventListener('error', () => {
             console.warn('Intro video failed to load; showing menu fallback.');
             skipIntro();
@@ -2947,6 +3074,7 @@
     }
 
     function createParticles(x, y, color, count = 20) {
+        if (prefersReducedMotion()) return;
         // Apply mobile optimization
         const adjustedCount = Math.floor(count * particleMultiplier);
 
@@ -2985,11 +3113,30 @@
     animateParticles(0);
 
     // Game Log System
-    function showGameLog(message, isEnemy = false, isScifi = false) {
+    // One message at a time. A message shown with `hold` (combat reports) stays up for that long; messages
+    // that arrive meanwhile wait and then show in order (the latest 3), so a report is never wiped at once.
+    let gameLogHoldUntil = 0;
+    let gameLogQueue = [];
+    let gameLogFlushTimer = null;
+    let gameLogHideTimer = null;
+
+    function showGameLog(message, isEnemy = false, isScifi = false, { hold = 0 } = {}) {
+        const now = Date.now();
+        if (!hold && now < gameLogHoldUntil) {
+            gameLogQueue = [...gameLogQueue, { message, isEnemy, isScifi }].slice(-3);
+            clearTimeout(gameLogFlushTimer);
+            gameLogFlushTimer = setTimeout(flushGameLog, gameLogHoldUntil - now);
+            return;
+        }
+        if (hold) {
+            gameLogQueue = [];
+            gameLogHoldUntil = now + hold;
+        }
+
         const log = document.getElementById('gameLog');
         log.textContent = message;
         log.className = 'game-log show';
-        
+
         if (isEnemy) {
             log.classList.add('enemy');
         }
@@ -2997,13 +3144,39 @@
             log.classList.add('scifi');
         }
 
-        setTimeout(() => {
+        clearTimeout(gameLogHideTimer);
+        gameLogHideTimer = setTimeout(() => {
             log.classList.remove('show');
-        }, 2000);
+        }, hold || 2000);
+    }
+
+    function flushGameLog() {
+        const next = gameLogQueue.shift();
+        if (!next) return;
+        gameLogHoldUntil = 0;
+        showGameLog(next.message, next.isEnemy, next.isScifi);
+        if (gameLogQueue.length) {
+            gameLogHoldUntil = Date.now() + 900;
+            gameLogFlushTimer = setTimeout(flushGameLog, 900);
+        }
+    }
+
+    // After combat: who blocked whom and what died, in one message (blocks are automatic, so this is the
+    // only place the player sees them).
+    function reportCombat(pairs, attackerSide) {
+        if (!pairs.length) return;
+        const alive = card => [...gameState.playerBoard, ...gameState.enemyBoard].some(c => c.id === card.id);
+        const label = card => `${card.emoji} ${card.name}${alive(card) ? '' : ' 💀'}`;
+        const yours = attackerSide === 'player';
+        const lines = pairs.map(({ attacker, blockers }) => blockers.length
+            ? `${label(attacker)} ⛔ blocked by ${blockers.map(label).join(' + ')}`
+            : `${label(attacker)} ➜ unblocked (${attacker.power || 0})`);
+        showGameLog(`${yours ? '⚔️ Your attack' : '🛡️ Enemy attack'}: ${lines.join(' · ')}`, !yours, false, { hold: 3500 });
     }
 
     // Visual Effects Functions
     function createSparkles(x, y, count = 15) {
+        if (prefersReducedMotion()) return;
         const sparkleEmojis = ['✨', '💫', '⭐', '🌟', '💖'];
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
@@ -3019,6 +3192,7 @@
     }
 
     function createTrampleEffect(x, y) {
+        if (prefersReducedMotion()) return;
         const trampleEmojis = ['💥', '⚡', '💢', '💨'];
         for (let i = 0; i < 5; i++) {
             setTimeout(() => {
@@ -3034,6 +3208,7 @@
     }
 
     function shakeScreen() {
+        if (prefersReducedMotion()) return;
         const gameContainer = document.getElementById('gameContainer');
         gameContainer.classList.add('shake-board');
         setTimeout(() => {
@@ -3167,7 +3342,11 @@
                 <div class="binder-row-count">x${count}</div>
             `;
             row.title = getCardTooltipText(card);
-            row.addEventListener('click', () => showCardDetail(card));
+            bindCardPress(row, {
+                label: row.textContent.trim().replace(/\s+/g, ' '),
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
             listEl.appendChild(row);
         });
     }
@@ -3320,7 +3499,7 @@
             const atLimit = inDeck >= getDeckBuilderCopyLimit(card);
             const row = document.createElement('div');
             row.className = 'deck-builder-row';
-            row.innerHTML = `<button type="button">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
+            row.innerHTML = `<button type="button" aria-label="Add ${card.name}">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
             const btn = row.querySelector('button');
             btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
             btn.addEventListener('click', () => {
@@ -3354,7 +3533,7 @@
                 const card = __CARD_BY_ID[cardId];
                 const row = document.createElement('div');
                 row.className = 'deck-builder-row';
-                row.innerHTML = `<button type="button">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
+                row.innerHTML = `<button type="button" aria-label="Remove ${card.name}">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
                 row.querySelector('button').addEventListener('click', () => {
                     const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
                     if (idx >= 0) {
@@ -3515,10 +3694,12 @@
 
         document.querySelectorAll('.deck-mode-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.deckMode === mode);
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === mode));
         });
 
         document.querySelectorAll('.element-btn').forEach(btn => {
             btn.classList.remove('selected');
+            btn.setAttribute('aria-pressed', 'false');
         });
 
         updateStartButtonState();
@@ -3530,10 +3711,12 @@
 
         document.querySelectorAll('.deck-mode-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.deckMode === 'dual');
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === 'dual'));
         });
 
         document.querySelectorAll('.element-btn').forEach(btn => {
             btn.classList.remove('selected');
+            btn.setAttribute('aria-pressed', 'false');
         });
 
         updateStartButtonState();
@@ -3677,9 +3860,9 @@
         playSFX('select');
         gameState.difficulty = difficulty;
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
-            btn.classList.remove('selected');
+            btn.classList.toggle('selected', btn.dataset.difficulty === difficulty);
+            btn.setAttribute('aria-pressed', String(btn.dataset.difficulty === difficulty));
         });
-        document.querySelector(`[data-difficulty="${difficulty}"]`).classList.add('selected');
     }
 
     // Card Detail Popup
@@ -3844,7 +4027,11 @@
                 <span class="graveyard-card-name">${card.name}</span>
                 <span class="graveyard-card-type">${card.cardType}</span>
             `;
-            cardRow.onclick = () => showCardDetail(card);
+            bindCardPress(cardRow, {
+                label: `${card.name}, ${card.cardType}`,
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
             graveyardList.appendChild(cardRow);
         });
     }
@@ -3883,6 +4070,7 @@
             gameState.selectedElements.push(element);
             btn.classList.add('selected');
         }
+        btn.setAttribute('aria-pressed', String(btn.classList.contains('selected')));
 
         updateStartButtonState();
     }
@@ -5208,9 +5396,17 @@
 
         // AI declares blockers
         aiDeclareBlockers();
+        const combatPairs = gameState.attackers
+            .map(id => gameState.playerBoard.find(c => c.id === id))
+            .filter(Boolean)
+            .map(attacker => ({
+                attacker,
+                blockers: (gameState.blockers[attacker.id] || []).map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean)
+            }));
 
         // Resolve combat
         resolveCombat();
+        reportCombat(combatPairs, 'player');
 
         attackPhase = false;
         gameState.phase = 'main';
@@ -5937,6 +6133,10 @@
         if (Object.keys(playerBlockers).length > 0) {
             playSFX('block');
         }
+        const combatPairs = attackingCreatures.map(attacker => ({
+            attacker,
+            blockers: (playerBlockers[attacker.id] || []).map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean)
+        }));
 
         attackingCreatures.forEach(attacker => {
             if (!hasAbility(attacker, 'vigilance')) {
@@ -5958,6 +6158,7 @@
         });
 
         checkStateBasedActions();
+        reportCombat(combatPairs, 'enemy');
     }
 
     // Helper functions for lifepoint changes with sound and animation
@@ -6105,6 +6306,7 @@
         updateManaDisplay('enemyMana', gameState.enemyMana);
 
         // Update player hand
+        const savedRowFocus = captureRowFocus();
         const handEl = document.getElementById('playerHand');
         handEl.innerHTML = '';
         gameState.playerHand.forEach(card => {
@@ -6126,44 +6328,12 @@
                 cardEl.classList.add('unplayable');
             }
             
-            // Click to play
-            cardEl.onclick = () => playCard(card.id);
-            
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let longPressTimer;
-            let touchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                touchMoved = false;
-                // IMPROVED: Faster long-press response (350ms instead of 500ms)
-                longPressTimer = setTimeout(() => {
-                    if (!touchMoved) {
-                        // Add haptic feedback on mobile devices
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50); // Short vibration for feedback
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                touchMoved = true;
-                clearTimeout(longPressTimer);
-            };
-
-            cardEl.ontouchend = (e) => {
-                clearTimeout(longPressTimer);
-                if (!touchMoved) {
-                    e.preventDefault();
-                    playCard(card.id);
-                }
-            };
+            // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
+            bindCardPress(cardEl, {
+                label: describeCardForA11y(card, 'hand'),
+                onTap: () => playCard(card.id),
+                onLongPress: () => showCardDetail(card)
+            });
 
             handEl.appendChild(cardEl);
         });
@@ -6237,12 +6407,14 @@
                 stackCard.appendChild(totalEl);
             }
 
-            // "Tap all" button (shown on hover / long-press)
+            // "Tap all" button: a mouse shortcut shown on hover or focus. Long-press, right-click and I do the same.
             if (untappedCount > 1) {
                 const tapAllBtn = document.createElement('div');
                 tapAllBtn.className = 'land-stack-tap-all';
                 tapAllBtn.textContent = '⚡';
                 tapAllBtn.title = 'Tap all untapped';
+                tapAllBtn.setAttribute('aria-hidden', 'true');
+                tapAllBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
                 tapAllBtn.onclick = (e) => {
                     e.stopPropagation();
                     tapAllLandsOfType(element);
@@ -6250,80 +6422,22 @@
                 stackCard.appendChild(tapAllBtn);
             }
 
-            // Click to tap one untapped land
-            stackCard.onclick = () => {
-                const untappedLand = stack.find(c => !c.tapped);
-                if (untappedLand) {
-                    tapLand(untappedLand.id);
-                } else {
-                    // All tapped - untap the last tapped one
-                    const tappedLand = stack.find(c => c.tapped);
-                    if (tappedLand) {
-                        tapLand(tappedLand.id);
-                    }
-                }
-            };
-
-            // Right-click to tap ALL untapped lands of this type
-            stackCard.oncontextmenu = (e) => {
-                e.preventDefault();
-                if (untappedCount > 0) {
-                    tapAllLandsOfType(element);
-                } else {
-                    showCardDetail(representativeCard);
-                }
-            };
-
-            // Long-press: show tap-all indicator, then tap all on release
-            let landStackLongPressTimer;
-            let landStackTouchMoved = false;
-            let landStackLongPressed = false;
-
-            stackCard.ontouchstart = (e) => {
-                landStackTouchMoved = false;
-                landStackLongPressed = false;
-                landStackLongPressTimer = setTimeout(() => {
-                    if (!landStackTouchMoved) {
-                        landStackLongPressed = true;
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        if (untappedCount > 1) {
-                            tapAllLandsOfType(element);
-                        } else {
-                            showCardDetail(representativeCard);
-                        }
-                    }
-                }, 350);
-            };
-
-            stackCard.ontouchmove = () => {
-                landStackTouchMoved = true;
-                clearTimeout(landStackLongPressTimer);
-                stackCard.classList.remove('show-tap-all');
-            };
-
-            stackCard.ontouchend = (e) => {
-                clearTimeout(landStackLongPressTimer);
-                stackCard.classList.remove('show-tap-all');
-                if (landStackLongPressed) {
-                    e.preventDefault();
-                    return;
-                }
-
-                if (!landStackTouchMoved) {
-                    e.preventDefault();
-                    const untappedLand = stack.find(c => !c.tapped);
-                    if (untappedLand) {
-                        tapLand(untappedLand.id);
+            // Tap: tap one untapped land (or undo the last one). Long-press, right-click or I: tap them all,
+            // or show details when there is only one left.
+            bindCardPress(stackCard, {
+                label: `${representativeCard.name}: ${untappedCount} of ${total} untapped. Press to tap one; long-press or I to tap all.`,
+                onTap: () => {
+                    const land = stack.find(c => !c.tapped) || stack.find(c => c.tapped);
+                    if (land) tapLand(land.id);
+                },
+                onLongPress: () => {
+                    if (untappedCount > 1) {
+                        tapAllLandsOfType(element);
                     } else {
-                        const tappedLand = stack.find(c => c.tapped);
-                        if (tappedLand) {
-                            tapLand(tappedLand.id);
-                        }
+                        showCardDetail(representativeCard);
                     }
                 }
-            };
+            });
 
             boardEl.appendChild(stackCard);
         });
@@ -6333,53 +6447,24 @@
             const cardEl = createCardElement(card, true);
             attachDesktopTooltip(cardEl, card);
             
-            if (card.type === 'creature' && attackPhase) {
-                cardEl.onclick = () => selectAttacker(card.id);
-                if (gameState.attackers.includes(card.id)) {
-                    cardEl.classList.add('attacking');
-                }
-            } else if (card.type === 'artifact' && !attackPhase) {
-                cardEl.onclick = () => activateArtifact(card.id);
+            if (card.type === 'creature' && attackPhase && gameState.attackers.includes(card.id)) {
+                cardEl.classList.add('attacking');
             }
 
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let boardLongPressTimer;
-            let boardTouchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                boardTouchMoved = false;
-                boardLongPressTimer = setTimeout(() => {
-                    if (!boardTouchMoved) {
-                        // Haptic feedback for mobile
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                boardTouchMoved = true;
-                clearTimeout(boardLongPressTimer);
-            };
-
-            cardEl.ontouchend = (e) => {
-                clearTimeout(boardLongPressTimer);
-                if (!boardTouchMoved) {
-                    e.preventDefault();
-                    if (card.type === 'creature' && attackPhase) {
-                        selectAttacker(card.id);
-                    } else if (card.type === 'artifact' && !attackPhase) {
-                        activateArtifact(card.id);
-                    }
-                }
-            };
+            // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
+            // Long-press, right-click or I always shows details.
+            let boardAction = () => showCardDetail(card);
+            if (card.type === 'creature' && attackPhase) {
+                boardAction = () => selectAttacker(card.id);
+            } else if (card.type === 'artifact' && !attackPhase) {
+                boardAction = () => activateArtifact(card.id);
+            }
+            bindCardPress(cardEl, {
+                label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
+                    ? (gameState.attackers.includes(card.id) ? ', attacking' : ', press to attack') : ''),
+                onTap: boardAction,
+                onLongPress: () => showCardDetail(card)
+            });
 
             boardEl.appendChild(cardEl);
         });
@@ -6452,35 +6537,12 @@
                 stackCard.appendChild(totalEl);
             }
 
-            // Long-press to view card detail (display only, no tap interaction)
-            stackCard.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(representativeCard);
-            };
-
-            let enemyLandStackLPTimer;
-            let enemyLandStackTouchMoved = false;
-
-            stackCard.ontouchstart = () => {
-                enemyLandStackTouchMoved = false;
-                enemyLandStackLPTimer = setTimeout(() => {
-                    if (!enemyLandStackTouchMoved) {
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(representativeCard);
-                    }
-                }, 350);
-            };
-
-            stackCard.ontouchmove = () => {
-                enemyLandStackTouchMoved = true;
-                clearTimeout(enemyLandStackLPTimer);
-            };
-
-            stackCard.ontouchend = () => {
-                clearTimeout(enemyLandStackLPTimer);
-            };
+            // Enemy cards: any press shows details.
+            bindCardPress(stackCard, {
+                label: `Enemy ${representativeCard.name}: ${total - tappedCount} of ${total} untapped`,
+                onTap: () => showCardDetail(representativeCard),
+                onLongPress: () => showCardDetail(representativeCard)
+            });
 
             enemyBoardEl.appendChild(stackCard);
         });
@@ -6490,39 +6552,16 @@
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
 
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let enemyBoardLongPressTimer;
-            let enemyBoardTouchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                enemyBoardTouchMoved = false;
-                enemyBoardLongPressTimer = setTimeout(() => {
-                    if (!enemyBoardTouchMoved) {
-                        // Haptic feedback for mobile
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                enemyBoardTouchMoved = true;
-                clearTimeout(enemyBoardLongPressTimer);
-            };
-
-            cardEl.ontouchend = () => {
-                clearTimeout(enemyBoardLongPressTimer);
-            };
+            bindCardPress(cardEl, {
+                label: `Enemy ${describeCardForA11y(card, 'board')}`,
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
 
             enemyBoardEl.appendChild(cardEl);
         });
+
+        restoreRowFocus(savedRowFocus);
 
         // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
@@ -6615,6 +6654,10 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
+        if (onBoard && !isEnemy && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste')) {
+            cardEl.classList.add('summoning-sick');
+            cardEl.title = 'Summoning sick: can attack next turn';
+        }
         // Emoji - centered
         const emojiEl = document.createElement('div');
         emojiEl.textContent = card.emoji;
@@ -6643,6 +6686,14 @@
             powerEl.className = 'card-power';
             powerEl.textContent = `${card.power}/${card.toughness}`;
             cardEl.appendChild(powerEl);
+
+            // Damage marked this turn (it wears off between turns)
+            if (onBoard && card.damage > 0) {
+                const damageEl = document.createElement('div');
+                damageEl.className = 'card-damage';
+                damageEl.textContent = `💔${card.damage}`;
+                cardEl.appendChild(damageEl);
+            }
 
             // Abilities
             if (card.abilities && card.abilities.length > 0) {
@@ -6674,21 +6725,88 @@
         }, 100); // Debounce resize for better performance
     });
 
-    // DESKTOP ENHANCEMENT: Keyboard shortcuts for better desktop experience
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const packOverlay = document.getElementById('packOpeningOverlay');
-            if (packOverlay?.classList.contains('show')) {
-                e.preventDefault();
-                closePackOpeningOverlay();
-                return;
-            }
+    // Dialogs, topmost first. Esc closes the top one; Tab stays inside it; focus moves into a dialog when
+    // it opens and returns to where it was when it closes (UI.md).
+    const GAME_DIALOGS = [
+        { id: 'gameConfirmModal', close: () => document.getElementById('gameConfirmNoBtn')?.click() },
+        { id: 'mulliganConfirmModal', close: () => document.getElementById('mulliganNoBtn')?.click() },
+        { id: 'manaChoiceModal', close: () => document.querySelector('#manaChoiceModal .cancel-btn')?.click() },
+        { id: 'cardDetailPopup', close: () => hideCardDetail() },
+        { id: 'packOpeningOverlay', close: () => closePackOpeningOverlay() },
+        { id: 'matchRewardOverlay', close: null },   // the only way on is OPEN BOOSTER
+        { id: 'victoryOverlay', close: null },       // PLAY AGAIN or MAIN MENU (Esc used to strand the board)
+        { id: 'loseOverlay', close: null },
+        { id: 'graveyardModal', close: () => hideGraveyard() },
+        { id: 'pauseModal', close: () => resumeGame() }
+    ];
 
-            const victoryOverlay = document.getElementById('victoryOverlay');
-            if (victoryOverlay?.classList.contains('show')) {
+    function isDialogOpen(el) {
+        return !!el && el.classList.contains('show') && getComputedStyle(el).display !== 'none';
+    }
+
+    function getOpenGameDialog() {
+        return GAME_DIALOGS.find(d => isDialogOpen(document.getElementById(d.id))) || null;
+    }
+
+    function getFocusable(container) {
+        return [...container.querySelectorAll('button, [href], select, input, textarea, [tabindex]:not([tabindex="-1"])')]
+            .filter(el => !el.disabled && el.getAttribute('aria-hidden') !== 'true' && el.getClientRects().length > 0 &&
+                getComputedStyle(el).visibility !== 'hidden');
+    }
+
+    const dialogReturnFocus = new Map();
+    GAME_DIALOGS.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (!el || typeof MutationObserver === 'undefined') return;
+        let wasOpen = isDialogOpen(el);
+        new MutationObserver(() => {
+            const open = isDialogOpen(el);
+            if (open === wasOpen) return;
+            wasOpen = open;
+            if (open) {
+                // A message toast would sit on top of the dialog
+                document.getElementById('gameLog')?.classList.remove('show');
+                const active = document.activeElement;
+                if (active && active !== document.body && !el.contains(active)) dialogReturnFocus.set(id, active);
+                // After the opening animation frame, so the dialog is laid out.
+                setTimeout(() => {
+                    if (!isDialogOpen(el) || el.contains(document.activeElement)) return;
+                    const first = getFocusable(el)[0];
+                    if (first) first.focus({ preventScroll: true });
+                    else { el.tabIndex = -1; el.focus({ preventScroll: true }); }
+                }, 50);
+            } else {
+                const back = dialogReturnFocus.get(id);
+                dialogReturnFocus.delete(id);
+                if (el.contains(document.activeElement) || document.activeElement === document.body) {
+                    if (getOpenGameDialog()) return; // another dialog took over; it manages focus
+                    if (back && back.isConnected && back.getClientRects().length) back.focus({ preventScroll: true });
+                    else focusSafeElement();
+                }
+            }
+        }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+    });
+
+    // Keyboard shortcuts during a match: Space/E end turn, A attack, M mulligan, Esc pause.
+    document.addEventListener('keydown', (e) => {
+        // Tab stays inside the open dialog.
+        if (e.key === 'Tab') {
+            const open = getOpenGameDialog();
+            if (!open) return;
+            const dialog = document.getElementById(open.id);
+            const items = getFocusable(dialog);
+            if (!items.length) { e.preventDefault(); return; }
+            const index = items.indexOf(document.activeElement);
+            if (e.shiftKey && (index <= 0)) { e.preventDefault(); items[items.length - 1].focus(); }
+            else if (!e.shiftKey && (index === -1 || index === items.length - 1)) { e.preventDefault(); items[0].focus(); }
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            const open = getOpenGameDialog();
+            if (open) {
                 e.preventDefault();
-                victoryOverlay.classList.remove('show');
-                focusSafeElement();
+                if (open.close) open.close();
                 return;
             }
 
@@ -6727,11 +6845,21 @@
             return;
         }
 
-        // Prevent shortcuts if a modal is open
-        const pauseModal = document.getElementById('pauseModal');
-        const cardDetailPopup = document.getElementById('cardDetailPopup');
-        const graveyardModal = document.getElementById('graveyardModal');
-        if (pauseModal.classList.contains('show') || cardDetailPopup.classList.contains('show') || graveyardModal.classList.contains('show')) {
+        // Not while a dialog is open, with a modifier held (Ctrl+A is select-all), or when Space/Enter is
+        // meant for the focused button or card.
+        if (getOpenGameDialog() || e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+        // A control reached with Tab gets its own Space/Enter. After a mouse click or tap the shortcuts still
+        // work, as before.
+        const focusedControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"]');
+        if (focusedControl && !lastInputWasPointer && (e.key === ' ' || e.key === 'Enter')) {
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            pauseGame();
             return;
         }
 
@@ -6764,11 +6892,6 @@
                 if (mulliganBtn && !mulliganBtn.disabled) {
                     mulliganBtn.click();
                 }
-                break;
-
-            case 'escape': // ESC = Pause game
-                e.preventDefault();
-                pauseGame();
                 break;
         }
     });

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a0f20">
@@ -51,15 +51,15 @@
     <canvas id="particles"></canvas>
 
     <!-- Game Log -->
-    <div id="gameLog" class="game-log"></div>
+    <div id="gameLog" class="game-log" role="status" aria-live="polite"></div>
 
     <!-- Victory/Lose Overlays -->
-    <div id="victoryOverlay" class="victory-overlay">
+    <div id="victoryOverlay" class="victory-overlay" role="dialog" aria-modal="true" aria-label="Victory">
         <div class="victory-text">🏆 VICTORY! 🏆</div>
         <button class="menu-btn overlay-btn" onclick="playAgain()">🔄 PLAY AGAIN</button>
         <button class="menu-btn overlay-btn" onclick="returnToMainMenu()" style="background: linear-gradient(135deg, #4169e1 0%, #6495ed 100%); color: #fff; border-color: #1a3a7a;">🏠 MAIN MENU</button>
     </div>
-    <div id="loseOverlay" class="lose-overlay">
+    <div id="loseOverlay" class="lose-overlay" role="dialog" aria-modal="true" aria-label="Defeat">
         <div class="lose-text">💀 DEFEAT! 💀</div>
         <div class="match-reward-line lose-reward-line" id="lossRewardLine"></div>
         <button class="menu-btn overlay-btn" onclick="playAgain()">🔄 TRY AGAIN</button>
@@ -67,7 +67,7 @@
     </div>
 
 
-    <div id="matchRewardOverlay" class="match-reward-overlay">
+    <div id="matchRewardOverlay" class="match-reward-overlay" role="dialog" aria-modal="true" aria-label="Match rewards">
         <div class="match-reward-panel">
             <div class="match-reward-title">🎉 MATCH REWARDS 🎉</div>
             <div class="match-reward-line">💳 Credits Earned: <strong id="rewardCreditsAmount">+0</strong></div>
@@ -76,11 +76,11 @@
         </div>
     </div>
 
-    <div id="packOpeningOverlay" class="pack-opening-overlay" data-lock-scroll="true">
+    <div id="packOpeningOverlay" class="pack-opening-overlay" data-lock-scroll="true" role="dialog" aria-modal="true" aria-labelledby="packOpeningTitle">
         <div class="pack-opening-panel">
             <div class="pack-opening-header">
-                <div class="pack-opening-title">🎁 Victory Pack</div>
-                <button class="pack-close-btn" id="packCloseBtn">✕</button>
+                <div class="pack-opening-title" id="packOpeningTitle">🎁 Victory Pack</div>
+                <button class="pack-close-btn" id="packCloseBtn" aria-label="Close pack">✕</button>
             </div>
 
             <div id="packSealedStage" class="pack-stage pack-stage-active">
@@ -113,15 +113,15 @@
     </div>
 
     <!-- Card Detail Popup -->
-    <div id="cardDetailPopup" class="card-detail-popup">
-        <div class="close-detail" onclick="hideCardDetail()">✕</div>
+    <div id="cardDetailPopup" class="card-detail-popup" role="dialog" aria-modal="true" aria-labelledby="detailName">
+        <button type="button" class="close-detail" onclick="hideCardDetail()" aria-label="Close card details">✕</button>
         <div class="card-detail-emoji" id="detailEmoji"></div>
         <div class="card-detail-name" id="detailName"></div>
         <div id="detailContent"></div>
     </div>
 
     <!-- Mana Choice Modal (for dual lands) -->
-    <div id="manaChoiceModal" class="mana-choice-modal">
+    <div id="manaChoiceModal" class="mana-choice-modal" role="dialog" aria-modal="true" aria-label="Choose mana colour">
         <div class="mana-choice-content">
             <div class="mana-choice-title">Choose Mana Color</div>
             <div class="mana-choice-options" id="manaChoiceOptions"></div>
@@ -129,7 +129,7 @@
     </div>
 
     <!-- Mulligan Confirm Modal -->
-    <div id="mulliganConfirmModal" class="game-confirm-modal">
+    <div id="mulliganConfirmModal" class="game-confirm-modal" role="dialog" aria-modal="true" aria-label="Mulligan">
         <div class="game-confirm-content">
             <div class="game-confirm-title">🔄 MULLIGAN?</div>
             <div class="game-confirm-text">Put all cards back and draw 6 new cards?</div>
@@ -141,7 +141,7 @@
     </div>
 
     <!-- Generic Confirm Modal (for quit, reset, etc.) -->
-    <div id="gameConfirmModal" class="game-confirm-modal">
+    <div id="gameConfirmModal" class="game-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="gameConfirmTitle">
         <div class="game-confirm-content">
             <div class="game-confirm-title" id="gameConfirmTitle"></div>
             <div class="game-confirm-text" id="gameConfirmText"></div>
@@ -153,7 +153,7 @@
     </div>
 
     <!-- Pause Modal -->
-    <div id="pauseModal" class="pause-modal">
+    <div id="pauseModal" class="pause-modal" role="dialog" aria-modal="true" aria-label="Game paused">
         <div class="pause-content">
             <div class="pause-title">⏸️ GAME PAUSED</div>
             <div class="pause-buttons">
@@ -164,11 +164,11 @@
     </div>
 
     <!-- Graveyard Modal -->
-    <div id="graveyardModal" class="graveyard-modal">
+    <div id="graveyardModal" class="graveyard-modal" role="dialog" aria-modal="true" aria-label="Graveyard">
         <div class="graveyard-content">
             <div class="graveyard-header">
                 <div class="graveyard-title">⚰️ GRAVEYARD</div>
-                <button class="graveyard-close" onclick="hideGraveyard()">✕</button>
+                <button class="graveyard-close" onclick="hideGraveyard()" aria-label="Close graveyard">✕</button>
             </div>
             <div class="graveyard-tabs">
                 <button class="graveyard-tab active" id="playerGraveyardTab" onclick="renderGraveyard('player')">🧙 YOUR CARDS</button>
@@ -180,7 +180,7 @@
 
     <div id="startModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <div class="modal-title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            <div class="modal-title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
             <div class="modal-intro">
                 <div class="beta-badge">V2 BETA</div>
                 <div>Build a single-color or two-color deck and conquer the arena.</div>
@@ -221,25 +221,25 @@
             <div id="elementSelectionScreen" style="display: none;">
                 <div class="modal-subtitle">Choose your deck type:</div>
                 <div class="deck-mode-selector">
-                    <button type="button" class="deck-mode-btn" data-deck-mode="single" onclick="setDeckMode('single')">Single Color</button>
-                    <button type="button" class="deck-mode-btn selected" data-deck-mode="dual" onclick="setDeckMode('dual')">Two Colors</button>
+                    <button type="button" class="deck-mode-btn" aria-pressed="false" data-deck-mode="single" onclick="setDeckMode('single')">Single Color</button>
+                    <button type="button" class="deck-mode-btn selected" aria-pressed="true" data-deck-mode="dual" onclick="setDeckMode('dual')">Two Colors</button>
                 </div>
 
                 <div class="modal-subtitle">Select elements for your deck:</div>
                 
                 <div class="modal-subtitle" style="margin-top: 20px;">AI Difficulty:</div>
                 <div class="difficulty-selector">
-                    <button type="button" class="difficulty-btn selected" data-difficulty="easy" onclick="selectDifficulty('easy')">Easy</button>
-                    <button type="button" class="difficulty-btn" data-difficulty="medium" onclick="selectDifficulty('medium')">Medium</button>
-                    <button type="button" class="difficulty-btn" data-difficulty="hard" onclick="selectDifficulty('hard')">Hard</button>
+                    <button type="button" class="difficulty-btn selected" aria-pressed="true" data-difficulty="easy" onclick="selectDifficulty('easy')">Easy</button>
+                    <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="medium" onclick="selectDifficulty('medium')">Medium</button>
+                    <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="hard" onclick="selectDifficulty('hard')">Hard</button>
                 </div>
 
                 <div class="element-selector">
-                    <button type="button" class="element-btn" data-element="fire" onclick="selectElement('fire')">🔥</button>
-                    <button type="button" class="element-btn" data-element="water" onclick="selectElement('water')">💧</button>
-                    <button type="button" class="element-btn" data-element="earth" onclick="selectElement('earth')">🌍</button>
-                    <button type="button" class="element-btn" data-element="swamp" onclick="selectElement('swamp')">💀</button>
-                    <button type="button" class="element-btn" data-element="light" onclick="selectElement('light')">☀️</button>
+                    <button type="button" class="element-btn" data-element="fire" aria-label="Fire" aria-pressed="false" onclick="selectElement('fire')">🔥</button>
+                    <button type="button" class="element-btn" data-element="water" aria-label="Water" aria-pressed="false" onclick="selectElement('water')">💧</button>
+                    <button type="button" class="element-btn" data-element="earth" aria-label="Earth" aria-pressed="false" onclick="selectElement('earth')">🌍</button>
+                    <button type="button" class="element-btn" data-element="swamp" aria-label="Swamp" aria-pressed="false" onclick="selectElement('swamp')">💀</button>
+                    <button type="button" class="element-btn" data-element="light" aria-label="Light" aria-pressed="false" onclick="selectElement('light')">☀️</button>
                 </div>
                 <button class="btn" id="startBtn" onclick="startGame()" disabled>⚔️ START BATTLE ⚔️</button>
                 <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK</button>
@@ -285,7 +285,12 @@
                         <ul id="howToPlayKeywords"></ul>
 
                         <h3>📱 Controls</h3>
-                        <p>Click cards to play them, tap lands for mana, select attackers in combat phase! Right-click or long-press to see card details.</p>
+                        <ul>
+                            <li><strong>Tap or click</strong> a hand card to play it, a land stack to tap one land, an artifact to use it, and (after ATTACK) a creature to select it. Tapping any other card, or an enemy card, shows its details.</li>
+                            <li><strong>Long-press or right-click</strong> a card to see its details. On a land stack it taps all its untapped lands.</li>
+                            <li>After combat, a message shows who blocked whom. 💔 marks damage taken this turn; a dashed border means the creature can't attack until next turn.</li>
+                            <li><strong>Keyboard:</strong> Tab to a card, Enter to play or use it, I for details. Space or E ends the turn, A attacks, M mulligans, Esc closes a window or pauses.</li>
+                        </ul>
                     </div>
 
                     <div class="howto-page" data-page="2" style="display:none;">
@@ -340,16 +345,16 @@
                 <div class="deck-builder-subtitle">Build from your collection. Win packs. Upgrade your standard decks.</div>
                 <div class="deck-builder-controls">
                     <label for="deckBuilderDeckKey">Deck:</label>
-                    <select id="deckBuilderDeckKey"></select>
+                    <select id="deckBuilderDeckKey" aria-label="Deck to edit"></select>
                 </div>
                 <div class="deck-builder-columns">
                     <div class="deck-builder-column">
                         <div class="deck-builder-column-title">Eligible Owned Cards</div>
-                        <div class="deck-builder-list" id="deckBuilderPool"></div>
+                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Eligible owned cards"></div>
                     </div>
                     <div class="deck-builder-column">
                         <div class="deck-builder-column-title">Deck List</div>
-                        <div class="deck-builder-list" id="deckBuilderDeck"></div>
+                        <div class="deck-builder-list" id="deckBuilderDeck" tabindex="0" role="region" aria-label="Deck list"></div>
                     </div>
                 </div>
                 <div class="deck-builder-footer">
@@ -386,11 +391,11 @@
 
     <div class="game-container" id="gameContainer" style="display: none;">
         <div class="header">
-            <button class="menu-icon-btn" onclick="pauseGame()">☰</button>
-            <div class="title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            <button class="menu-icon-btn" onclick="pauseGame()" aria-label="Pause menu (Esc)">☰</button>
+            <div class="title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
             <div class="header-right">
-                <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound">🔊</button>
-                <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
+                <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound" aria-label="Mute sound" aria-pressed="false">🔊</button>
+                <div class="phase-indicator" id="phaseIndicator" aria-live="polite">MAIN PHASE</div>
             </div>
         </div>
 

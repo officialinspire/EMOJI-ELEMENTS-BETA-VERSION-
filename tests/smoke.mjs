@@ -236,8 +236,8 @@ scenario('boot-and-menu', async ({ page, touch, t, url, project }) => {
 });
 
 scenario('intro-fallback', async ({ page, t, url }) => {
-    // D11: if the mp4 cannot be decoded (no H.264, e.g. Playwright Chromium / some Linux builds),
-    // the 3 s watchdog does not fire because play() stays pending; the menu only appears at 15 s.
+    // Was D11: if the mp4 cannot be decoded (no H.264, e.g. Playwright Chromium / some Linux builds),
+    // the 3 s watchdog did not fire because play() stays pending; the menu only appeared at 15 s.
     await page.goto(url);
     const h264 = await page.evaluate(() => document.getElementById('introVideo').canPlayType('video/mp4; codecs="avc1.42E01E"'));
     if (h264) {
@@ -246,7 +246,7 @@ scenario('intro-fallback', async ({ page, t, url }) => {
     }
     await page.click('#clickToStart');
     await page.waitForTimeout(4500);
-    t.knownDefect('D11', 'menu appears within ~4 s when intro video cannot play',
+    t.check('menu appears within ~4 s when intro video cannot play',
         await page.evaluate(() => document.getElementById('startModal').classList.contains('modal-visible')),
         'menu still hidden at 4.5 s (waits for 15 s max-duration timer)');
 }, { projects: ['desktop'] });
@@ -635,7 +635,7 @@ scenario('mobile-touch', async ({ page, touch, t, url, project }) => {
     const handCards = await page.locator('#playerHand .card').count();
     t.check('7 hand cards rendered', handCards === 7, `got ${handCards}`);
 
-    // D6: long-press shows card details; it should not also play the card on release.
+    // Was D6: a long-press showed the card details and then also played the card on release.
     await ensureLandsInHand(page, 1);
     // The hand scrolls sideways on a phone; bring the land on screen first, as a player would.
     const landCard = page.locator('#playerHand .card.land').first();
@@ -646,7 +646,7 @@ scenario('mobile-touch', async ({ page, touch, t, url, project }) => {
     const detail = await page.evaluate(() => document.getElementById('cardDetailPopup').classList.contains('show'));
     const played = await page.evaluate(() => gameState.playerBoard.some(c => c.type === 'land'));
     t.check('long-press opens card detail', detail);
-    t.knownDefect('D6', 'long-press to inspect does not play the card', !played, 'land was played on release');
+    t.check('long-press to inspect does not play the card', !played, 'land was played on release');
     await page.evaluate(() => hideCardDetail());
     await page.screenshot({ path: path.join(OUT_DIR, `${project}-match-touch.png`) });
 }, { projects: ['mobile'] });
