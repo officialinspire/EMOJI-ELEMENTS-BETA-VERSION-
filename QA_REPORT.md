@@ -1,7 +1,7 @@
 # EMOJI ELEMENTS: Release QA Report
 
 **Build under test:** branch `claude/compassionate-albattani-aabox6`. It carries the eight QA passes (listed below)
-plus the release-QA commit that adds this report. `main` (`4b0cd49`) is unchanged: nothing has been merged or
+plus the release-QA commit `ea286e4`. `main` (`4b0cd49`) is unchanged: nothing has been merged or
 deployed.
 
 **Verdict:**
@@ -24,7 +24,7 @@ Legend: ✅ pass · ❌ fail · ⛔ blocked (couldn't be run here).
 | 2 | Rules, combat, effects, progression and AI suites | ✅ 337 / 337 | `node --test tests/{rules,combat,progression,effects,ai}.test.mjs` |
 | 3 | Smoke flows, desktop 1280×800 and Pixel 7 (touch) | ✅ 204 pass, 0 fail, 0 known defects | `npm run smoke` |
 | 4 | Layout, touch, keyboard and accessibility at 360×740, 863×360, 712×1138 and 1366×768, plus reduced motion and autoplay | ✅ 469 / 469 | `npm run ui`; axe-core: 0 violations on 17 screens × 4 sizes ([UI.md](UI.md)) |
-| 5 | Fresh-profile playthrough through the real UI: desktop (mouse) and mobile (touch) | ✅ | `npm run release`: 23 checks each |
+| 5 | Fresh-profile playthrough through the real UI: desktop (mouse) and mobile (touch) | ✅ | `npm run release`: 97 / 97 (23 checks in each of 4 playthroughs, plus 5 long-match checks) |
 | 6 | Existing-save playthrough (a save from the previous release): desktop and mobile | ✅ | Credits, stats and collection kept; the one-time FIRE_SWAMP starter migration keeps the exact old save as a backup; a reload writes no new backup |
 | 7 | A win and a loss | ✅ | Win: an attack through the UI, then rewards (+25, +1 win). Loss: END TURN, then the AI's attack (+10, +1 loss). Both on desktop and mobile. |
 | 8 | Each deck identity | ✅ 15 / 15 × 4 playthroughs | Started through NEW GAME. Each plays exactly its saved 60-card deck, on colour. |
@@ -41,7 +41,7 @@ Legend: ✅ pass · ❌ fail · ⛔ blocked (couldn't be run here).
 | 19 | Duplicate actions | ✅ | Pressing CONFIRM, OPEN BOOSTER, a shop pack or END TURN twice acts once. Tap/long-press never fires twice (UI audit). |
 | 20 | Accessibility | ✅ automated · ⛔ screen readers | axe-core 0 violations; full keyboard play; dialogs trap and restore focus; names and states announced. VoiceOver/TalkBack not available. |
 | 21 | Responsive layout | ✅ emulated · ⛔ real devices | 4 sizes, no overflow or clipping; phone landscape playable |
-| 22 | Long-match performance | ✅ | 50 turns, 80 permanents in play. Heap after GC 1.6 → 1.7 MB; DOM 440 nodes; no lingering effects; ~44 ms script + layout per late turn. Listeners grow with board size (≈ 4 per permanent), not per turn. |
+| 22 | Long-match performance | ✅ | 50 turns, 64–80 permanents in play (varies by run). Heap after GC 1.5 → 1.7 MB; DOM ≤ 456 nodes; no lingering effects; 28–44 ms script + layout per late turn. Listeners grow with board size (≈ 4 per permanent), not per turn. |
 | 23 | QA-only behaviour off in production | ✅ | `QA_MODE` is off unless `?qa=1`. Production console has no `[QA]` lines and `window` has no `__qa*` helpers (checked in every playthrough). The smoke suite keeps them with `?qa=1`. |
 | 24 | Docs reconciled with the shipped game | ✅ | README, QUICK-START, CHANGELOG and this report (§5) |
 | 25 | AI: rule parity, stalls, loops | ✅ | 45-match sanity sample: 0 violations, 0 errors, 0 stalls. Measured 360-match sample in [AI.md](AI.md). |
@@ -103,7 +103,7 @@ Legend: ✅ pass · ❌ fail · ⛔ blocked (couldn't be run here).
 | `e593295` | Spell and artifact effects, effects suite |
 | `0025386` | Phone/tablet/desktop interaction, UI audit with before/after evidence |
 | `4d67aa3` | AI rule parity and decisions, seeded AI simulation |
-| release-QA commit | QA mode off in production, failsafe and intro fixes, favicon, release playthroughs (`tests/release.mjs`), this report, docs |
+| `ea286e4` | Release QA: QA mode off in production, failsafe and intro fixes, favicon, release playthroughs (`tests/release.mjs`), this report, docs |
 
 No pull request has been opened for this branch. The repository's previous PRs (#112–#116) are closed.
 
