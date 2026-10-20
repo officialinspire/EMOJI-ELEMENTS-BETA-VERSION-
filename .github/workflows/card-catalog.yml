@@ -1,0 +1,16 @@
+name: Card catalog
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  card-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate card catalog and manifest
+        run: node tests/card-audit.mjs

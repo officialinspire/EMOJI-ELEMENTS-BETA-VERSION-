@@ -348,14 +348,26 @@ scenario('deck-builder', async ({ page, touch, t, url }) => {
     await act(page, touch, rowFor('#deckBuilderPool'));
     t.check('re-adding a card → 60/60', (await page.textContent('#deckBuilderStatus')).includes('60/60'));
 
-    // D2: saving an untouched starter deck must succeed.
+    // Saving an untouched starter deck must succeed (was D2: basic lands hit the 2-copy limit).
     await act(page, touch, '#deckBuilderScreen button:has-text("RESET TO STARTER")');
     await act(page, touch, '#deckBuilderScreen button:has-text("SAVE DECK")');
     const afterSave = await page.textContent('#deckBuilderStatus');
-    t.knownDefect('D2', 'unmodified FIRE starter deck can be saved',
-        !/exceeds max copies/.test(afterSave), afterSave.slice(0, 160));
+    t.check('unmodified FIRE starter deck saves', !/exceeds|must contain/i.test(afterSave), afterSave.slice(0, 160));
     const validation = await page.evaluate(() => validateDeckBuild('FIRE', gameMeta.decks.FIRE.starterCardIds, gameMeta));
-    t.knownDefect('D2', 'validateDeckBuild accepts FIRE starter list', validation.ok, validation.errors.join(' | '));
+    t.check('validateDeckBuild accepts FIRE starter list', validation.ok, validation.errors.join(' | '));
+    const saved = (await readMeta(page)).decks.FIRE.cardIds.length;
+    t.check('saved FIRE deck persisted with 60 cards', saved === 60, `saved ${saved}`);
+
+    // Special lands: Rainbow ("any color") must be offered to a FIRE deck; colorless Crystal Wasteland is not
+    // deck-legal (pending design decision), so it must not be offered only to fail on save.
+    await page.evaluate(() => {
+        gameMeta.collection['lands-rainbow'] = 1;          // test setup, not a player grant
+        gameMeta.collection['lands-crystal-wasteland'] = 1;
+        initializeDeckBuilder();
+    });
+    const poolNames = await page.$$eval('#deckBuilderPool .deck-builder-name', els => els.map(el => el.textContent));
+    t.check('owned Rainbow is offered for FIRE deck', poolNames.includes('🌈 Rainbow'));
+    t.check('colorless Crystal Wasteland is not offered', !poolNames.some(name => name.includes('Crystal Wasteland')));
 
     await act(page, touch, '#deckBuilderScreen button:has-text("DECK BUILDER GUIDE")');
     t.check('guide overlay opens', await isShown(page, 'deckBuilderGuideOverlay'));

@@ -4,8 +4,9 @@ Baseline taken 2026-10-20 against `main` @ `4b0cd49` (after PR #116). This repla
 It records what the code **actually does**, so planned changes can be checked against it. It does not
 propose a redesign.
 
-**Status: 🔴 Red.** Every match victory soft-locks on the reward screen (D1), and the Deck Builder
-cannot save any deck (D2). Menus, the shop, pack opening, losses, persistence and the turn loop work.
+**Status: 🔴 Red.** Every match victory soft-locks on the reward screen (D1). D2 (Deck Builder could not save
+any deck) is **fixed** by the card-catalog pass; see [CARD_AUDIT.md](CARD_AUDIT.md). Menus, the shop, pack opening,
+losses, persistence, deck saving and the turn loop work.
 
 ---
 
@@ -46,9 +47,12 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 
 | Project | Scenarios | PASS | FAIL | XFAIL |
 |---|---|---|---|---|
-| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 93 | 0 | 14 |
-| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 85 | 0 | 8 |
-| **Total** (exit 0, ~2 min; identical on 2 consecutive runs) | 21 | **178** | **0** | **22**: every defect from D1 to D12 reproduced |
+| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 98 | 0 | 12 |
+| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 90 | 0 | 6 |
+| **Total** (exit 0, ~2 min) | 21 | **188** | **0** | **18**: D1 and D3–D12 still reproduce; D2 is fixed and now a regular check |
+
+The card catalog has its own browser-free check: `node tests/card-audit.mjs` (`npm test`, also run in CI by
+`.github/workflows/card-catalog.yml`). See [CARD_AUDIT.md](CARD_AUDIT.md).
 
 **Runner notes**
 - The old report said Chromium crashed with SIGSEGV at launch. **That does not reproduce:** Chromium launches
@@ -97,7 +101,7 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 7. **Pack Shop:** credits badge; Fantasy, SciFi, Tech, Alien and Robot cost 60, Lands costs 40.
    An insufficient balance shows an inline message.
 8. **Deck Builder:** pick one of 15 deck keys → "Eligible Owned Cards" (+) and "Deck List" (−) → RESET TO
-   STARTER · GUIDE · SAVE DECK. Save requires the exact starter size and passes validation (D2 blocks it).
+   STARTER · GUIDE · SAVE DECK. Save requires the exact starter size and passes validation.
 9. **Binder:** owned cards with counts; click one for details.
 10. **Stats:** W/L/total/win rate · RESET STATS · RESET PROGRESS (wipes meta, D9).
 
@@ -112,7 +116,7 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
   They are stable only as long as names and categories stay the same, so renaming a card orphans saved copies.
 - **Rarity** is inferred by a heuristic (`inferRarity`) from keywords, stats, abilities and effects.
   Result: 204 common, 41 rare, 14 epic, 9 legendary, and **no uncommon** (D18). Legendary cards are limited
-  to 1 copy, others to 2 (in the builder; see D2).
+  to 1 copy, others to 2; basic lands are limited only by the land caps.
 - **Pack theme** is taken from the `theme` field (Fantasy, Science Fiction, Nature, City) and then from
   name/description keywords. Pools under 16 cards get padded with neutral cards.
 - **Starter collection:** the cards of the 5 mono starter decks (153 unique cards, no legendaries).
@@ -142,7 +146,7 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 | ID | Pri | Defect | Where | Ev. |
 |---|---|---|---|---|
 | D1 | **P0** | **Every win soft-locks.** The MATCH REWARDS "OPEN BOOSTER" button ignores mouse and touch, because `.overlay-btn {pointer-events:none}` is re-enabled only for the victory and lose overlays. This came in with `4cdcb72`. Rewards are already saved; the only ways past it are keyboard Tab+Enter or reloading. | `styles.css:2453-2462` | T |
-| D2 | **P0** | **Deck Builder cannot save any real deck.** Validation applies the 2-copy limit to basic lands, while starters run 20–22 copies ("Volcanic Peak exceeds max copies (2)"). The + button also refuses a 3rd land. This breaks the loop of opening packs to improve decks. | `index.js:1254-1257, 1296-1299, 3109` | T |
+| D2 | ✅ fixed | ~~**Deck Builder cannot save any real deck.**~~ Fixed in the card-catalog pass: basic lands are exempt from the copy limit; land totals are still capped. Validation applies the 2-copy limit to basic lands, while starters run 20–22 copies ("Volcanic Peak exceeds max copies (2)"). The + button also refuses a 3rd land. This breaks the loop of opening packs to improve decks. | `index.js:1254-1257, 1296-1299, 3109` | T |
 | D3 | **P0** | **About 25% of matches give the AI a broken deck.** Its colour pool includes `colorless`, which has no basic land. This creates 11–20 typeless `{id}` placeholder "lands"; a mono-colourless AI can never produce mana. | `index.js:3949-3958, 3675-3688` | T |
 | D4 | P1 | **Repeatable mana.** Clicking a tapped land untaps it even when its mana was already spent (nothing is refunded), and it can then be tapped again. A fully tapped stack untaps one land per click. | `index.js:4279-4290, 5940-5945` | T |
 | D5 | P1 | **The player's creatures untap at the end of the player's own turn,** so attackers are always free to block on the AI turn, while the AI's attackers stay tapped. This makes vigilance meaningless for the player and makes combat asymmetric. | `index.js:5123-5129` | T |
@@ -177,12 +181,12 @@ medium AI make only one non-land play per turn.
 | README | Five dual keys listed | Ten dual keys (every pair). |
 | README | Five rarity tiers including `uncommon` | Four are produced; there is no `uncommon` (D18). |
 | README | "Binder screen optional / not guaranteed"; roadmap: add binder, wire battle setup to `selectedDeckKey` | Both already exist. |
-| README | Copy limit: 2 for non-legendary | Also enforced on basic lands in the builder (D2); the starter generator exempts lands. |
+| README | Copy limit: 2 for non-legendary | Correct for non-lands. Basic lands are now limited only by the land caps (D2 fix); special lands have 2. |
 | QUICK-START | "Based on original emoji-elements.html", "FIXES.md", "No intro video", "150+ cards", "No audio files needed" | The live build is `index.js`; `FIXES.md` does not exist; there is a click-to-start screen and intro video; there are 268 cards; the audio files are used. |
 | QUICK-START | "Click tapped lands to untap" | True, but this is the D4 exploit path. |
 | CHANGELOG | Stops at "v2.0": 85+ creatures, deck building as a "next step", gameplay music "ready to integrate" | 190 creatures; the deck builder, shop, binder, meta save and gameplay music all shipped without changelog entries. |
 | CHANGELOG / How To Play | Flash ("instant speed"), unblockable | Not implemented (D15). |
-| QA_REPORT (old) | Browser automation blocked by a Chromium SIGSEGV; every feature "✅ Implemented" | Automation works; D1 and D2 break the win and deck-builder features. |
+| QA_REPORT (old) | Browser automation blocked by a Chromium SIGSEGV; every feature "✅ Implemented" | Automation works; D1 breaks the win flow (D2, deck saving, is now fixed). |
 
 ---
 
@@ -205,10 +209,8 @@ Run these on real hardware. Each row starts from a fresh profile (clear site dat
 
 ## 10. Next recommended fix
 
-**D1, then D2.** Each is a one- or two-line change with the largest player-facing impact:
+**D1.** D2 was fixed in the card-catalog pass. D1 is a one-selector change with the largest player-facing impact:
 - **D1:** add `.match-reward-overlay.show .overlay-btn` to the `pointer-events: auto` rule in `styles.css`.
-- **D2:** skip the copy limit for `type === 'land'` in `getDeckBuilderCopyLimit` / `validateDeckBuild`.
-  Land totals are already capped separately.
 
 Then **D3:** remove `colorless` from the AI's colour pool in `startGame`. After each fix, run
 `node tests/smoke.mjs`: the matching XFAIL should turn into XPASS. Then convert it to a plain `check` and

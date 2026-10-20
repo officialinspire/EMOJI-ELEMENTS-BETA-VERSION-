@@ -778,11 +778,11 @@
     const CARD_DATABASE = {
         // LANDS (Mana generators)
         lands: {
-            fire: { emoji: '🔥', type: 'land', cardType: 'Land', element: 'fire', name: 'Volcanic Peak', theme: 'Nature' },
-            water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', theme: 'Nature' },
-            earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', theme: 'Nature' },
-            swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', theme: 'Fantasy' },
-            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' },
+            fire: { emoji: '🔥', type: 'land', cardType: 'Land', element: 'fire', name: 'Volcanic Peak', desc: 'Tap for Fire mana', theme: 'Nature' },
+            water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', desc: 'Tap for Water mana', theme: 'Nature' },
+            earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', desc: 'Tap for Earth mana', theme: 'Nature' },
+            swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', desc: 'Tap for Swamp mana', theme: 'Fantasy' },
+            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', desc: 'Tap for Light mana', theme: 'Fantasy' },
             wasteland: { emoji: '🏜️', type: 'land', cardType: 'Land', element: 'colorless', name: 'Crystal Wasteland', desc: 'Tap for colorless mana', theme: 'Science Fiction' },
             distant_planet: { emoji: '🪐', type: 'land', cardType: 'Land - Dual', elements: ['light', 'swamp'], name: 'Distant Planet', desc: 'Tap for Light or Swamp mana', theme: 'Science Fiction' },
             rainbow: { emoji: '🌈', type: 'land', cardType: 'Land - Universal', elements: ['fire', 'water', 'earth', 'swamp', 'light'], name: 'Rainbow', desc: 'Tap for any color mana', theme: 'Nature' }
@@ -1253,6 +1253,8 @@
 
     function getDeckBuilderCopyLimit(card) {
         if (!card) return 0;
+        // Basic lands are limited by the deck's land caps (getDeckLandCaps), not by copy count.
+        if (card.type === 'land' && card.element && card.element !== 'colorless') return Number.POSITIVE_INFINITY;
         return card.__rarity === 'legendary' ? 1 : 2;
     }
 
@@ -1576,6 +1578,10 @@
 
     function isCardEligibleForDeck(card, deckColors) {
         if (!card || !Array.isArray(deckColors) || deckColors.length === 0) return false;
+        if (card.type === 'land') {
+            // Same rule validateDeckBuild applies on save: the land must produce at least one deck colour.
+            return inferLandElements(card).some(element => deckColors.includes(element));
+        }
         const cardElements = inferCardElements(card);
         return cardElements.every(element => element === 'colorless' || deckColors.includes(element));
     }
