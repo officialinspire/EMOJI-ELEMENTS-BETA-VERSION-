@@ -179,7 +179,7 @@ More suites:
 
 Reset paths: Stats → RESET PROGRESS (meta and stats, after a backup) · `__qaResetMeta()` (confirm + reload) ·
 `localStorage.removeItem('emoji_elements_meta_v1')`.
-QA helpers on `window`: `__qaDumpMeta`, `__qaResetMeta`, `__qaNavSmoke`, `__qaBuyPack(theme)`,
+QA helpers on `window` (only with `?qa=1`): `__qaDumpMeta`, `__qaResetMeta`, `__qaNavSmoke`, `__qaBuyPack(theme)`,
 `__qaDeckBuilderSmoke(key)` (**note:** this overwrites the saved deck), `__qaPerfBurst`.
 
 ---
@@ -198,7 +198,7 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 | D5 | ✅ fixed | ~~The player's creatures untapped at the end of the player's own turn.~~ Permanents now untap at the start of their controller's turn, so the player's attackers can't block on the AI turn (RULES.md R5.3). | `index.js` `endTurn` | T |
 | D6 | ✅ fixed | ~~Touch: long-pressing a hand card to read it also played it.~~ All cards now share one press handler: a long-press only inspects (UI.md). | `index.js` `bindCardPress` | T |
 | D7 | ✅ fixed | ~~Revive returned the top graveyard card of any type.~~ It now returns the most recent creature (RULES.md C10). | `index.js` | T |
-| D8 | ✅ fixed (player-facing) | ~~QA debug text shown to players.~~ The pack-overlay debug line now appears only with `window.__qaShowPackDebug = true`, and the Deck Builder status no longer says "QA:". `QA_MODE` and its console logging remain. | `index.js` | T |
+| D8 | ✅ fixed | ~~QA debug text and `[QA]` console output shipped to players.~~ QA mode is now off unless the URL has `?qa=1` (or `localStorage.emojiElementsQA = '1'`). Players get no `[QA]` logs, no error echoing, and no `window.__qa*` helpers; `tests/smoke.mjs` turns QA mode on. | `index.js` `QA_MODE` | T |
 | D9 | ✅ fixed | ~~RESET PROGRESS left the in-memory stats.~~ It now resets the stats, their legacy mirror and the Stats screen (PROGRESSION.md P5.2). | `index.js` `resetMetaProgress` | T |
 | D10 | ✅ fixed | ~~The FIRE_SWAMP starter list included Web Trap, which nobody owns, so the deck shrank to 59 cards.~~ Dual starters are now built only from owned cards (Curse replaces Web Trap); untouched saved FIRE_SWAMP decks are migrated (PROGRESSION.md §7). | `index.js` `createInitialMeta`, `validateMeta` | T |
 | D11 | ✅ fixed | ~~If the intro mp4 couldn't be decoded, the menu waited 15 s.~~ The 3 s watchdog now checks playback progress, and `<source>` errors are caught. | `index.js` intro | T |

@@ -1,11 +1,13 @@
-    // QA Checklist:
-    // - Start match, play, end turn
-    // - Win -> pack awarded + pack opening works
-    // - Binder opens/closes
-    // - Deck builder save -> next match uses saved deck
-    // - Corrupt localStorage -> game still starts using fallback deck
-
-    const QA_MODE = true;
+    // QA tooling is off for players. Add ?qa=1 to the URL (or set localStorage emojiElementsQA = '1') to turn
+    // on the [QA] console logs, error echoing, DOM/perf checks and the window.__qa* helpers that
+    // tests/smoke.mjs uses (QA_REPORT.md). Automated suites live in tests/.
+    const QA_MODE = (() => {
+        try {
+            return new URLSearchParams(window.location.search).has('qa') || localStorage.getItem('emojiElementsQA') === '1';
+        } catch (_) {
+            return false;
+        }
+    })();
     const QA_DEBUG = QA_MODE;
 
     window.__QA_FORCE_META_OFF = false;
@@ -99,7 +101,7 @@
                 audioSystem[soundName].loop = loop;
                 const playPromise = audioSystem[soundName].play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(e => console.log('Audio play failed:', e));
+                    playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
                 }
             } catch (e) {
                 console.log('Audio error:', e);
@@ -785,6 +787,8 @@
                 playPromise.then(() => {
                     markIntroAsPlaying();
                 }).catch((e) => {
+                    // Skipped meanwhile (the tap that skips the intro interrupts play()): don't restart it.
+                    if (introSkipped || startupState === 'menu' || startupState === 'skipping-intro') return;
                     console.warn('Video play failed with audio. Retrying muted:', e);
                     introVideo.muted = true;
                     const mutedPlayPromise = introVideo.play();
@@ -878,7 +882,7 @@
 
         // Set failsafe timer to auto-unlock after duration
         processingActionTimer = setTimeout(() => {
-            console.log('⚠️ Failsafe: Auto-unlocking processing action');
+            if (QA_MODE) console.log('⚠️ Failsafe: Auto-unlocking processing action');
             isProcessingAction = false;
             updateUI();
         }, duration);
@@ -2062,6 +2066,7 @@
         };
     }
 
+    if (QA_MODE) {
     window.__qaNavSmoke = function() {
         const qaPrefix = '[QA][NavSmoke]';
         const isElementVisible = (id) => {
@@ -2263,6 +2268,7 @@
             results
         };
     };
+    }
 
     const PACK_THEMES = [
         { key: 'fantasy', label: 'Fantasy', weight: 24 },
@@ -2972,17 +2978,15 @@
 
             const lastPack = gameMeta?.lastPack || { themeKey, cardIds, openedAt };
             const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
-            console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
-
             if (QA_DEBUG) {
+                console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
                 console.log(`[QA] finalizeMatch result=WIN awardedPack=${awardedFreePack} theme=${themeKey || 'none'}`);
+                console.log('🏆 Match reward granted:', {
+                    creditsAwarded: BASE_WIN_CREDITS,
+                    freePackAwarded: true,
+                    lastPack: gameMeta.lastPack
+                });
             }
-
-            console.log('🏆 Match reward granted:', {
-                creditsAwarded: BASE_WIN_CREDITS,
-                freePackAwarded: true,
-                lastPack: gameMeta.lastPack
-            });
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
@@ -3015,13 +3019,10 @@
 
         const lastPack = null;
         const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
-        console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
-
         if (QA_DEBUG) {
+            console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
             console.log('[QA] finalizeMatch result=LOSS awardedPack=false');
         }
-
-        console.log('💀 Match recorded as loss.');
 
         stopSFX('gameplayMusic');
         playSFX('gameLose');
@@ -5947,14 +5948,19 @@
 
         // Delayed steps below stop if the match ends or is left mid-turn (RULES.md R7.4)
         const serial = matchSerial;
-        const turnIsStale = () => gameState.matchFinalized || serial !== matchSerial;
+        let emergencyTurnStart = null;
+        // A stale turn also cancels the failsafe below (it used to fire 12 s after every AI win).
+        const turnIsStale = () => {
+            const stale = gameState.matchFinalized || serial !== matchSerial;
+            if (stale) clearTimeout(emergencyTurnStart);
+            return stale;
+        };
 
         // Emergency failsafe: ensure player turn starts even if something goes wrong
-        const emergencyTurnStart = setTimeout(() => {
+        emergencyTurnStart = setTimeout(() => {
+            if (gameState.matchFinalized || serial !== matchSerial || gameState.turn !== 'enemy') return;
             console.warn('Emergency turn transition triggered');
-            if (serial === matchSerial && gameState.turn === 'enemy') {
-                startPlayerTurn();
-            }
+            startPlayerTurn();
         }, 12000); // 12 seconds maximum for AI turn
 
         try {

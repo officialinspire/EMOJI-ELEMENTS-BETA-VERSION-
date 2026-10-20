@@ -656,7 +656,8 @@ scenario('mobile-touch', async ({ page, touch, t, url, project }) => {
 async function main() {
     fs.mkdirSync(OUT_DIR, { recursive: true });
     const server = await startServer();
-    const url = `http://127.0.0.1:${server.address().port}/`;
+    // ?qa=1 turns on the game's QA helpers (window.__qaNavSmoke etc.); players never get them.
+    const url = `http://127.0.0.1:${server.address().port}/?qa=1`;
     const projectNames = args.project ? String(args.project).split(',') : Object.keys(PROJECTS);
     const only = args.only ? String(args.only).split(',') : null;
     const turns = Number(args.turns) || 3;

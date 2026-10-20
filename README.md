@@ -23,11 +23,11 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 - Match ends when a player reaches 0 life **or must draw from an empty deck**; if both happen in the same check, it counts as a loss.
 - Full, test-backed turn and mana rules: [RULES.md](RULES.md) (`npm run rules`).
 - Every spell and artifact effect, with timing and target rules: [EFFECTS.md](EFFECTS.md) (`npm run effects`).
+  Where a card says "target", the game picks a random legal creature (damage goes to your opponent); card
+  details show each card's exact **Rules** line.
 - AI difficulty levels (Easy, Medium, Hard). All three play by the same rules and deck limits as you; they differ
   in how many cards they play a turn, whether they cast instants and see lethal, and how carefully they attack:
   [AI.md](AI.md) (`npm run ai`, `npm run ai:sim`).
-  Where a card says "target", the game picks a random legal creature (damage goes to your opponent); card
-  details show each card's exact **Rules** line.
 
 ## Progression & Collection
 
@@ -148,7 +148,7 @@ Reset options:
 
 - **Stats screen → 🔄 RESET STATS** clears wins and losses only.
 - **Stats screen → 🧹 RESET PROGRESS** starts a new profile; the old one is kept in the backups.
-- QA/dev helper: `window.__qaResetMeta()` (confirm, clear, reload).
+- QA/dev helper: open the game with `?qa=1` (QA mode), then `window.__qaResetMeta()` (confirm, clear, reload).
 - Manual hard reset in the console:
 
 ```js
@@ -157,10 +157,25 @@ localStorage.removeItem('emojiElementsStats'); // otherwise the old wins/losses 
 location.reload();
 ```
 
+## Testing
+
+Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright install chromium`):
+
+| Command | What it covers |
+|---|---|
+| `npm test` | Card catalog and manifest check (no browser) |
+| `npm run rules` / `combat` / `effects` / `progression` / `ai` | Rules, combat, every card effect, saves and progression, AI |
+| `npm run smoke` | Desktop and mobile smoke flows |
+| `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
+| `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
+| `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
+
+QA mode (debug logs and `window.__qa*` helpers) is off for players. Add `?qa=1` to the URL to turn it on.
+
 ## Roadmap (Beta)
 
 - Improve pack telemetry + duplicate-protection tuning.
-- Add more dual deck templates across all color pairings.
+- Real targeting for spells, and choosing blockers (see the open choices in RULES.md, EFFECTS.md and AI.md).
 - Continue mobile UX polish for battle + menus.
 
 ## Credits

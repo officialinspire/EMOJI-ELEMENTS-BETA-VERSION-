@@ -1,5 +1,37 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: release candidate (player summary)
+
+What's new for players since the last public build:
+- **Wins work again:** the OPEN BOOSTER button after a win can be clicked and tapped (wins used to get stuck
+  there). Every win gives +25 credits and a booster pack; a loss gives +10.
+- **Your progress is safe:** older or damaged saves are repaired instead of wiped, and a backup is kept. RESET
+  PROGRESS also keeps a backup.
+- **Fairer, clearer rules:**
+  - Mana can't be reused by untapping lands.
+  - Attackers stay tapped through the enemy turn.
+  - Drawing from an empty deck loses.
+  - Double Strike, Unblockable and granted Haste now work.
+  - Every spell and artifact does what its card says, and card details show a Rules line.
+- **A smarter, honest AI:** Easy, Medium and Hard now feel different. All three follow your rules and deck
+  limits, and the AI's turns are quicker.
+- **Phone, tablet and desktop:**
+  - Landscape phones are playable.
+  - A long-press shows a card without playing it.
+  - After combat you see who blocked whom.
+  - Bigger touch targets.
+  - Full keyboard play.
+  - Reduced-motion support.
+- **Deck Builder** saves real decks, and all 15 starter decks are legal.
+
+Release QA fixes (this pass, `QA_REPORT.md`):
+- QA mode is off for players: no `[QA]` console output and no `window.__qa*` helpers unless the URL has `?qa=1`.
+- An AI turn that ended the match no longer leaves its 12 s failsafe timer running.
+- Skipping the intro no longer restarts the video silently in the background.
+- Added a favicon link, so browsers stop requesting a missing `/favicon.ico`.
+- README, QUICK-START and QA_REPORT now describe the shipped game. For example, QUICK-START used to say "no intro
+  video", "no audio files needed" and "150+ cards".
+
 ## Unreleased: AI audit
 
 The AI is checked by `tests/ai.test.mjs` and measured by `tests/ai-sim.mjs` (360 seeded matches: every starter
