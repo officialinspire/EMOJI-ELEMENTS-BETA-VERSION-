@@ -1,5 +1,28 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: progression and saved data
+
+Progression rules are written down in `PROGRESSION.md` and covered by `tests/progression.test.mjs`, which
+loads real saves from the previous build.
+- **No more lost progress.** A save with a missing or different `version`, or one that was only partly
+  readable, used to be replaced by a brand-new profile, losing the collection and credits. It is now
+  repaired: everything valid is kept. Corrupt saves, repairs and RESET PROGRESS first copy the old save
+  into `emoji_elements_meta_backups` (last 3 kept).
+- Starter decks are built only from cards you own, so all 15 are legal. FIRE_SWAMP used to include Web
+  Trap, which nobody owns, and shrank to 59 cards after a reload; untouched saved FIRE_SWAMP decks are
+  updated, edited decks are left alone.
+- Saves from before dual decks existed now get the ten dual decks, built from cards you own. No cards are
+  granted.
+- Stats from the old single-file build are carried over when a profile is first created.
+- The OPEN BOOSTER button after a win can be clicked and tapped again (every win used to get stuck there).
+- Shop packs count toward "packs opened" and are titled "<Theme> Pack" instead of "Victory Pack".
+- The defeat screen shows the +10 credits earned.
+- RESET PROGRESS also clears the win/loss stats; the old numbers used to come back after the next match.
+- One swipe in the pack reveal shows one card (it used to skip cards).
+- QA debug text no longer shows in the pack overlay or Deck Builder.
+- A warning appears when progress can't be saved (storage full or blocked).
+- Deck size stays 60 even if a save lost its starter list (it used to drop to 30).
+
 ## Unreleased: combat rules
 
 Combat house rules are written down in `RULES.md` §8 and covered by `tests/combat.test.mjs`. Every

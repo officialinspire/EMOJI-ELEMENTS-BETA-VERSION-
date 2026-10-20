@@ -1379,10 +1379,53 @@
             localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
         } catch (error) {
             console.warn('Meta save failed. Continuing without persisting meta.', error);
+            showGameLog('⚠️ Progress could not be saved: browser storage is full or blocked.', true);
         }
     }
 
-    function buildStarterDeckFromColors(deckKey, colors) {
+    const META_BACKUP_KEY = 'emoji_elements_meta_backups';
+    const META_BACKUP_LIMIT = 3;
+
+    // Keeps the exact stored text of a profile before the game rewrites it (PROGRESSION.md §7).
+    function backupMetaRaw(raw, reason) {
+        if (!raw) return;
+        try {
+            const previous = JSON.parse(localStorage.getItem(META_BACKUP_KEY) || '[]');
+            const backups = Array.isArray(previous) ? previous : [];
+            backups.push({ savedAt: new Date().toISOString(), reason, raw });
+            localStorage.setItem(META_BACKUP_KEY, JSON.stringify(backups.slice(-META_BACKUP_LIMIT)));
+        } catch (error) {
+            console.warn('Could not back up the previous save.', error);
+        }
+    }
+
+    // Wins/losses from the pre-meta build's emojiElementsStats, for a brand-new profile (PROGRESSION.md P7.4).
+    function importLegacyStats(meta) {
+        try {
+            const legacy = JSON.parse(localStorage.getItem('emojiElementsStats') || 'null');
+            if (!legacy || typeof legacy !== 'object') return;
+            meta.stats.wins = readStoredNumber(legacy.wins) ?? 0;
+            meta.stats.losses = readStoredNumber(legacy.losses) ?? 0;
+        } catch (_) {
+            // unreadable legacy stats: start from zero
+        }
+    }
+
+    // A number that may have been stored as text; null when it isn't a finite number.
+    function readStoredNumber(value) {
+        const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+        return typeof number === 'number' && Number.isFinite(number) ? Math.max(0, Math.floor(number)) : null;
+    }
+
+    function sameCardMultiset(a, b) {
+        if (a.length !== b.length) return false;
+        const counts = {};
+        a.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+        return b.every(id => (counts[id] = (counts[id] || 0) - 1) >= 0);
+    }
+
+    // ownedCounts (optional) limits each card to the copies the starter collection owns.
+    function buildStarterDeckFromColors(deckKey, colors, ownedCounts = null) {
         const landCaps = getDeckLandCaps(colors);
         const LAND_COUNT = landCaps.maxLands;
         const NON_LAND_COUNT = Math.max(0, STANDARD_DECK_SIZE - LAND_COUNT);
@@ -1405,7 +1448,7 @@
         function addCardById(cardId, amount = 1) {
             const card = __CARD_BY_ID[cardId];
             if (!card) return;
-            const limit = getDeckCardCopyLimit(card);
+            const limit = Math.min(getDeckCardCopyLimit(card), ownedCounts ? (ownedCounts[cardId] || 0) : Number.POSITIVE_INFINITY);
             const current = cardCounts[cardId] || 0;
             const room = Math.max(0, limit - current);
             const toAdd = Math.min(room, amount);
@@ -1515,19 +1558,17 @@
     function createInitialMeta() {
         const decks = {};
         const collection = {};
-        const starterDeckKeys = [...STARTER_MONO_DECK_KEYS, ...STARTER_DUAL_DECK_KEYS];
-
-        starterDeckKeys.forEach(deckKey => {
-            const colors = getDeckColorsFromKey(deckKey);
-            if (colors.length === 0) return;
-            const starterDeck = buildStarterDeckFromColors(deckKey, colors);
+        STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+            const starterDeck = buildStarterDeckFromColors(deckKey, getDeckColorsFromKey(deckKey));
             decks[deckKey] = starterDeck;
+            starterDeck.cardIds.forEach(cardId => {
+                collection[cardId] = (collection[cardId] || 0) + 1;
+            });
+        });
 
-            if (STARTER_MONO_DECK_KEYS.includes(deckKey)) {
-                starterDeck.cardIds.forEach(cardId => {
-                    collection[cardId] = (collection[cardId] || 0) + 1;
-                });
-            }
+        // Dual starters only use cards the mono starters already gave you, so every starter deck is owned.
+        STARTER_DUAL_DECK_KEYS.forEach(deckKey => {
+            decks[deckKey] = buildStarterDeckFromColors(deckKey, getDeckColorsFromKey(deckKey), collection);
         });
 
         return {
@@ -1567,7 +1608,7 @@
         if (Array.isArray(deck?.starterCardIds) && deck.starterCardIds.length > 0) {
             return deck.starterCardIds.length;
         }
-        return 30;
+        return STANDARD_DECK_SIZE;
     }
 
     function inferCardElements(card) {
@@ -1624,16 +1665,20 @@
                 decks: {},
                 selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
                 stats: {
-                    wins: Number.isFinite(loaded?.stats?.wins) ? loaded.stats.wins : 0,
-                    losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
-                    packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
+                    wins: readStoredNumber(loaded?.stats?.wins) ?? 0,
+                    losses: readStoredNumber(loaded?.stats?.losses) ?? 0,
+                    packsOpened: readStoredNumber(loaded?.stats?.packsOpened) ?? 0
                 },
                 wallet: {
-                    credits: Number.isFinite(loaded?.wallet?.credits)
-                        ? Math.max(0, Math.floor(loaded.wallet.credits))
-                        : STARTER_CREDITS
+                    credits: readStoredNumber(loaded?.wallet?.credits) ?? STARTER_CREDITS
                 },
-                lastPack: loaded.lastPack ?? null
+                lastPack: Array.isArray(loaded.lastPack?.cardIds)
+                    ? {
+                        themeKey: typeof loaded.lastPack.themeKey === 'string' ? loaded.lastPack.themeKey : null,
+                        cardIds: loaded.lastPack.cardIds.filter(id => __CARD_BY_ID[id]),
+                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null
+                    }
+                    : null
             };
 
             Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
@@ -1644,27 +1689,41 @@
                 }
             });
 
+            const seededMeta = createInitialMeta();
+            const standardDeckKeys = [...STARTER_MONO_DECK_KEYS, ...STARTER_DUAL_DECK_KEYS];
+
             Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
                 const colors = Array.isArray(deckData?.colors)
                     ? deckData.colors.filter(color => ELEMENTS[color])
                     : getDeckColorsFromKey(deckKey);
                 if (colors.length === 0) return;
-                const cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], repaired.collection);
+                const savedStarter = Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [];
+                const currentStarter = seededMeta.decks[deckKey]?.starterCardIds;
+                let cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], repaired.collection);
+
+                // A deck nobody edited (still its old starter list) follows the current starter list.
+                if (currentStarter && savedStarter.length > 0 && !sameCardMultiset(savedStarter, currentStarter) &&
+                    sameCardMultiset(cardIds, clampDeckCardIdsToOwned(savedStarter, repaired.collection))) {
+                    cardIds = clampDeckCardIdsToOwned(currentStarter, repaired.collection);
+                }
 
                 repaired.decks[deckKey] = {
                     deckKey,
                     colors,
-                    starterCardIds: Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [],
+                    // Standard decks always carry the current starter list (the RESET TO STARTER target).
+                    starterCardIds: currentStarter ? [...currentStarter] : savedStarter,
                     cardIds
                 };
             });
 
-            const seededMeta = createInitialMeta();
-            STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+            standardDeckKeys.forEach(deckKey => {
                 if (!repaired.decks[deckKey]) {
-                    repaired.decks[deckKey] = seededMeta.decks[deckKey];
+                    const seeded = seededMeta.decks[deckKey];
+                    repaired.decks[deckKey] = { ...seeded, colors: [...seeded.colors], starterCardIds: [...seeded.starterCardIds], cardIds: [...seeded.cardIds] };
                 }
+            });
 
+            STARTER_MONO_DECK_KEYS.forEach(deckKey => {
                 if (!shouldSeedStarter) return;
 
                 const requiredCounts = {};
@@ -1678,6 +1737,11 @@
                         repaired.collection[cardId] = needed;
                     }
                 });
+            });
+
+            // Decks only hold owned copies; no cards are granted to an existing profile.
+            Object.values(repaired.decks).forEach(deck => {
+                deck.cardIds = clampDeckCardIdsToOwned(deck.cardIds, repaired.collection);
             });
 
             if (!repaired.decks[repaired.selectedDeckKey]) {
@@ -1705,21 +1769,46 @@
         }
     }
 
-    function metaEnsureInitialized() {
+    function metaEnsureInitialized({ importLegacy = true } = {}) {
         if (!isMetaRuntimeEnabled()) {
             return createInitialMeta();
         }
 
-        const loaded = metaLoad();
-        if (!loaded || loaded.version !== 1) {
+        let raw = null;
+        try {
+            raw = localStorage.getItem(META_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Could not read the saved profile.', error);
+        }
+
+        if (!raw) {
+            const seeded = createInitialMeta();
+            if (importLegacy) importLegacyStats(seeded);
+            metaSave(seeded);
+            return seeded;
+        }
+
+        let parsed = null;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (_) {
+            parsed = null;
+        }
+
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            // Unreadable: keep its text, then start a new profile.
+            backupMetaRaw(raw, 'corrupt');
             const seeded = createInitialMeta();
             metaSave(seeded);
             return seeded;
         }
 
-        const meta = validateMeta(loaded);
-
-        metaSave(meta);
+        // Any readable profile is repaired, never replaced (PROGRESSION.md §7).
+        const meta = validateMeta(parsed);
+        if (JSON.stringify(meta) !== raw) {
+            backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version');
+            metaSave(meta);
+        }
         return meta;
     }
 
@@ -1765,6 +1854,7 @@
             if (!confirmed) return false;
             try {
                 localStorage.removeItem(META_STORAGE_KEY);
+                localStorage.removeItem('emojiElementsStats');
             } catch (error) {
                 console.warn('QA reset failed to clear meta storage key.', error);
             }
@@ -2239,7 +2329,7 @@
 
         if (!overlay) {
             pendingMatchResultOverlay = 'win';
-            openPackOpeningOverlayFromMeta();
+            openPackOpeningOverlayFromMeta('win');
             return;
         }
 
@@ -2258,14 +2348,14 @@
         const overlay = document.getElementById('matchRewardOverlay');
         overlay?.classList.remove('show');
         pendingMatchResultOverlay = 'win';
-        openPackOpeningOverlayFromMeta();
+        openPackOpeningOverlayFromMeta('win');
     }
 
     function updatePackOpeningDebug() {
         const debugEl = document.getElementById('packQaDebug');
         if (!debugEl) return;
 
-        if (!QA_MODE) {
+        if (!QA_MODE || !window.__qaShowPackDebug) {
             debugEl.textContent = '';
             debugEl.style.display = 'none';
             return;
@@ -2472,7 +2562,7 @@
         }
     }
 
-    function openPackOpeningOverlayFromMeta() {
+    function openPackOpeningOverlayFromMeta(source = 'win') {
         try {
             const overlay = document.getElementById('packOpeningOverlay');
             if (packOpeningState.active || overlay?.classList.contains('show')) {
@@ -2508,6 +2598,9 @@
             const instruction = document.getElementById('packInstruction');
             const progress = document.getElementById('packProgressFill');
             const tearLine = document.getElementById('packTearLine');
+            const title = overlay.querySelector('.pack-opening-title');
+            const themeLabel = PACK_THEMES.find(theme => theme.key === gameMeta?.lastPack?.themeKey)?.label;
+            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : '🎁 Victory Pack';
 
             sealedStage.classList.add('pack-stage-active');
             revealStage.classList.remove('pack-stage-active');
@@ -2614,6 +2707,7 @@
             }
 
             setTimeout(() => revealCurrentPackCard(), 180);
+            swiping = false; // one card per swipe; lift and swipe again for the next
             swipeStartX = clientX;
         };
 
@@ -2732,6 +2826,8 @@
 
         stopSFX('gameplayMusic');
         playSFX('gameLose');
+        const lossReward = document.getElementById('lossRewardLine');
+        if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
         showMatchResultOverlay('loss');
     }
 
@@ -3051,6 +3147,7 @@
                 gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
             });
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
+            gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
             try {
                 metaSave(gameMeta);
@@ -3060,7 +3157,7 @@
 
             setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
             updatePackShopCreditsBadge();
-            openPackOpeningOverlayFromMeta();
+            openPackOpeningOverlayFromMeta('shop');
             return { ok: true, themeKey: normalizedTheme, cardIds, cost };
         } catch (error) {
             console.warn('Pack Shop purchase flow failed but UI remains usable.', error);
@@ -3125,8 +3222,8 @@
             status.textContent = `${baseMessage} | ${deckBuilderState.validationErrors.join(' ')}`;
             return;
         }
-        if (QA_DEBUG && deckBuilderState.debugWarning) {
-            status.textContent = `${baseMessage} | QA: ${deckBuilderState.debugWarning}`;
+        if (deckBuilderState.debugWarning) {
+            status.textContent = `${baseMessage} | ${deckBuilderState.debugWarning}`;
             return;
         }
         status.textContent = baseMessage;
@@ -3156,17 +3253,17 @@
             btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
             btn.addEventListener('click', () => {
                 if (owned <= 0) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
                     renderDeckBuilder();
                     return;
                 }
                 if (remaining <= 0) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
                     renderDeckBuilder();
                     return;
                 }
                 if (atLimit) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
                     renderDeckBuilder();
                     return;
                 }
@@ -3476,17 +3573,21 @@
     function resetMetaProgress() {
         showConfirmModal('🧹 RESET PROGRESS?', 'This clears collection/decks/packs progress. Continue?', function() {
             try {
+                backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset');
                 localStorage.removeItem(META_STORAGE_KEY);
             } catch (error) {
                 console.warn('Failed to clear meta save key. Proceeding with in-memory reset fallback.', error);
             }
 
             try {
-                gameMeta = metaEnsureInitialized();
+                gameMeta = metaEnsureInitialized({ importLegacy: false });
             } catch (error) {
                 console.warn('Meta reset hook failed. Falling back to starter meta in memory.', error);
                 gameMeta = createInitialMeta();
             }
+            gameStats = { wins: 0, losses: 0, total: 0 };
+            saveStats();
+            updateStatsDisplay();
 
             deckBuilderState = {
                 deckKey: null,

@@ -33,8 +33,6 @@ const KNOWN_ISSUES = {
         'creatures-grey-alien'
     ],
     'not-deck-legal': ['lands-crystal-wasteland'],
-    'starter-card-not-owned': ['spells-web-trap'],
-    'starter-deck-shrinks-on-reload': ['FIRE_SWAMP'],
     'basic-land-not-common': ['lands-ancient-grove']
 };
 
@@ -129,7 +127,7 @@ const GAME_DECLARATIONS = [
     'DUAL_DECK_MAX_LANDS_PER_COLOR', 'DUAL_DECK_MAX_LANDS_TOTAL', 'getDeckLandCaps', 'inferLandElements',
     'getDeckColorsFromKey', 'getDeckKeyFromElements', 'getDeckCardCopyLimit', 'getDeckBuilderCopyLimit',
     'validateDeckBuild', 'buildStarterDeckFromColors', 'createInitialMeta', 'clampDeckCardIdsToOwned',
-    'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'validateMeta', 'PACK_THEMES',
+    'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'readStoredNumber', 'sameCardMultiset', 'validateMeta', 'PACK_THEMES',
     'PACK_SHOP_COSTS', 'PACK_THEME_KEYS', 'THEME_KEYWORDS', 'inferTheme', 'getThemePool', 'generatePack',
     'shuffleDeck', 'generateDeck'
 ];

@@ -1,4 +1,4 @@
-name: Rules and combat
+name: Rules, combat and progression
 
 on:
   push:
@@ -16,5 +16,5 @@ jobs:
         run: npm install
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run rules and combat tests
-        run: node --test tests/rules.test.mjs tests/combat.test.mjs
+      - name: Run rules, combat and progression tests
+        run: node --test tests/rules.test.mjs tests/combat.test.mjs tests/progression.test.mjs

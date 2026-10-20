@@ -4,9 +4,11 @@ Baseline taken 2026-10-20 against `main` @ `4b0cd49` (after PR #116). This repla
 It records what the code **actually does**, so planned changes can be checked against it. It does not
 propose a redesign.
 
-**Status: 🔴 Red.** Every match victory soft-locks on the reward screen (D1). D2 (Deck Builder could not save
-any deck) is **fixed** by the card-catalog pass; see [CARD_AUDIT.md](CARD_AUDIT.md). Menus, the shop, pack opening,
-losses, persistence, deck saving and the turn loop work.
+**Status: 🟡 Amber.** The win soft-lock (D1) and the Deck Builder save bug (D2) are **fixed**, as is a
+data-loss bug: a save with a missing or different `version`, or corrupt JSON, was replaced by a new profile with
+no copy kept (now repaired and backed up, [PROGRESSION.md](PROGRESSION.md) §7). The full loop works: menus, shop,
+pack opening, wins, losses, persistence, deck saving and the turn loop. Open: touch long-press plays the card
+(D6) and the intro fallback delay (D11).
 
 ---
 
@@ -47,11 +49,16 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 
 | Project | Scenarios | PASS | FAIL | XFAIL |
 |---|---|---|---|---|
-| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 101 | 0 | 7 |
-| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 90 | 0 | 6 |
-| **Total** (exit 0, ~2 min) | 21 | **191** | **0** | **13**: D1, D6 and D8–D12 still reproduce; D2–D5 and D7 are fixed (D3 moved to the rules suite) |
+| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 107 | 0 | 1 |
+| mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 95 | 0 | 1 |
+| **Total** (exit 0, ~2 min) | 21 | **202** | **0** | **2**: D6 and D11 still reproduce. D1–D5, D7–D10, D12 are fixed (D3 moved to the rules suite) |
 
-Two more suites:
+More suites:
+- **Progression and saved data:** `node --test tests/progression.test.mjs` (`npm run progression`). 27 tests,
+  ~1.5 min. They load **real saves from the previous build** (`tests/fixtures/saves/`: existing, pre-dual,
+  partial, future-version, renamed-card, corrupt, legacy-stats) and check that the collection and credits survive,
+  every saved deck is legal and playable, packs/credits/rewards/resets behave, and backups are kept. The rules
+  are in [PROGRESSION.md](PROGRESSION.md).
 - **Combat:** `node --test tests/combat.test.mjs` (`npm run combat`). 78 tests, ~2.5 min. A 31-row scenario table
   is run with the player attacking and with the AI attacking, plus eligibility, keyword, graveyard and UI-text
   tests. The rules are in [RULES.md](RULES.md) §8.
@@ -100,17 +107,18 @@ Two more suites:
    and mana pool, hand. Buttons: MULLIGAN · GRAVEYARD (player/enemy tabs) · ATTACK→CONFIRM · END TURN.
    Keys: Space/E end turn, A attack, M mulligan, Esc pause. Right-click (desktop) or long-press (touch) shows
    card details.
-5. **Win:** MATCH REWARDS (+25 credits, 1 pack) → **OPEN BOOSTER (broken for pointer/touch, D1)** → pack
-   overlay → ✕ → VICTORY (Play Again / Main Menu).
-   **Loss:** DEFEAT (Try Again / Main Menu). The +10 credits are not shown (D20).
+5. **Win:** MATCH REWARDS (+25 credits, 1 pack) → OPEN BOOSTER → pack overlay ("Victory Pack") → ✕ →
+   VICTORY (Play Again / Main Menu).
+   **Loss:** DEFEAT, showing "+10 Credits" (Try Again / Main Menu).
 6. **Pack overlay** (win or shop): drag/swipe across the sealed pack to rip it → card 1 of 5 auto-reveals →
-   PREV/NEXT or swipe (D12) → ✕ back to the previous screen.
+   PREV/NEXT or swipe (one card per swipe) → ✕ back to the previous screen. Shop packs are titled
+   "<Theme> Pack".
 7. **Pack Shop:** credits badge; Fantasy, SciFi, Tech, Alien and Robot cost 60, Lands costs 40.
    An insufficient balance shows an inline message.
 8. **Deck Builder:** pick one of 15 deck keys → "Eligible Owned Cards" (+) and "Deck List" (−) → RESET TO
    STARTER · GUIDE · SAVE DECK. Save requires the exact starter size and passes validation.
 9. **Binder:** owned cards with counts; click one for details.
-10. **Stats:** W/L/total/win rate · RESET STATS · RESET PROGRESS (wipes meta, D9).
+10. **Stats:** W/L/total/win rate · RESET STATS · RESET PROGRESS (new profile; the old one is kept as a backup).
 
 ## 5. Card source
 
@@ -127,18 +135,19 @@ Two more suites:
 - **Pack theme** is taken from the `theme` field (Fantasy, Science Fiction, Nature, City) and then from
   name/description keywords. Pools under 16 cards get padded with neutral cards.
 - **Starter collection:** the cards of the 5 mono starter decks (153 unique cards, no legendaries).
-  Dual decks are generated as well, but their two-colour cards are not added to the collection (D10).
+  Dual starter decks are built only from those owned cards, so all 15 are legal on a fresh profile (D10 fix).
 
 ## 6. Saved data (`localStorage`)
 
 | Key | Written by | Shape / notes |
 |---|---|---|
-| `emoji_elements_meta_v1` | live game | `{version:1, initialized, collection:{cardId:count}, decks:{KEY:{deckKey, colors, starterCardIds, cardIds}}, selectedDeckKey, stats:{wins, losses, packsOpened}, wallet:{credits}, lastPack:{themeKey, cardIds, openedAt}\|null}`. On every load it is re-validated: unknown IDs are dropped, deck lists are clamped to owned copies, and a missing mono deck is re-seeded. Corrupt JSON gets a fresh starter meta (verified). |
-| `emojiElementsStats` | live game **and** legacy file | `{wins, losses, total}`. The live game mirrors it on every save and reads it only if the meta is missing. |
+| `emoji_elements_meta_v1` | live game | `{version:1, initialized, collection:{cardId:count}, decks:{KEY:{deckKey, colors, starterCardIds, cardIds}}, selectedDeckKey, stats:{wins, losses, packsOpened}, wallet:{credits}, lastPack:{themeKey, cardIds, openedAt}\|null}`. On every load it is repaired, never replaced: unknown IDs are dropped, deck lists are clamped to owned copies, missing standard decks are added from owned cards. Corrupt JSON gets a fresh profile after the old text is backed up. See [PROGRESSION.md](PROGRESSION.md) §7. |
+| `emoji_elements_meta_backups` | live game | Up to 3 `{savedAt, reason, raw}` copies of the profile text, taken before any repair, reset or corrupt-save replacement. |
+| `emojiElementsStats` | live game **and** legacy file | `{wins, losses, total}`. The live game mirrors it on every save and imports its wins/losses only when no meta exists. |
 | `emojiElementsMuted` | live game | `"true"`/`"false"` |
 | `emojiElementsProgress` | legacy file only | `{coins, boosterPacks}` |
 
-Reset paths: Stats → RESET PROGRESS (meta only) · `__qaResetMeta()` (confirm + reload) ·
+Reset paths: Stats → RESET PROGRESS (meta and stats, after a backup) · `__qaResetMeta()` (confirm + reload) ·
 `localStorage.removeItem('emoji_elements_meta_v1')`.
 QA helpers on `window`: `__qaDumpMeta`, `__qaResetMeta`, `__qaNavSmoke`, `__qaBuyPack(theme)`,
 `__qaDeckBuilderSmoke(key)` (**note:** this overwrites the saved deck), `__qaPerfBurst`.
@@ -152,26 +161,26 @@ Evidence: **T** = reproduced by `tests/smoke.mjs` (XFAIL). **S** = seen in a tes
 
 | ID | Pri | Defect | Where | Ev. |
 |---|---|---|---|---|
-| D1 | **P0** | **Every win soft-locks.** The MATCH REWARDS "OPEN BOOSTER" button ignores mouse and touch, because `.overlay-btn {pointer-events:none}` is re-enabled only for the victory and lose overlays. This came in with `4cdcb72`. Rewards are already saved; the only ways past it are keyboard Tab+Enter or reloading. | `styles.css:2453-2462` | T |
+| D1 | ✅ fixed | ~~**Every win soft-locks.** The MATCH REWARDS "OPEN BOOSTER" button ignored mouse and touch.~~ Its button is now included in the `pointer-events: auto` rule. | `styles.css` | T |
 | D2 | ✅ fixed | ~~**Deck Builder cannot save any real deck.**~~ Fixed in the card-catalog pass: basic lands are exempt from the copy limit; land totals are still capped. Validation applies the 2-copy limit to basic lands, while starters run 20–22 copies ("Volcanic Peak exceeds max copies (2)"). The + button also refuses a 3rd land. This breaks the loop of opening packs to improve decks. | `index.js:1254-1257, 1296-1299, 3109` | T |
 | D3 | ✅ fixed | ~~About 25% of matches gave the AI a broken deck (`colorless` colour, typeless placeholder cards).~~ The AI's colours now come from the five real colours. Covered by `tests/rules.test.mjs` (40 seeded matches). | `index.js` `startGame` | T |
 | D4 | ✅ fixed | ~~Repeatable mana: a tapped land untapped after its mana was spent.~~ A land now untaps only to refund unspent mana (RULES.md R4.4). | `index.js` `tapLand` | T |
 | D5 | ✅ fixed | ~~The player's creatures untapped at the end of the player's own turn.~~ Permanents now untap at the start of their controller's turn, so the player's attackers can't block on the AI turn (RULES.md R5.3). | `index.js` `endTurn` | T |
 | D6 | P1 | **Touch: long-pressing a hand card to read it also plays it** when the finger lifts. Land stacks already guard against this. | `index.js:5822-5847` | T |
-| D7 | P2 | Revive returns the top graveyard card of any type (an instant, artifact or land can land on the battlefield). | `index.js:4692-4708` | T |
-| D8 | P2 | `QA_MODE = true` ships to players: a debug line ("stage=reveal progress=100% …") shows in the pack overlay, "QA:" text appears in the Deck Builder status, and `[QA]` console noise. | `index.js:8, 2231-2246, 3086` | T, S |
-| D9 | P2 | RESET PROGRESS leaves the in-memory stats. The Stats screen keeps the old numbers, and the next match writes the old wins/losses back into the meta. | `index.js:3433-3458, 485-497` | T |
-| D10 | P2 | The FIRE_SWAMP starter list includes Web Trap, which nobody owns. After the first reload the deck is clamped to 59 cards, matches use the 59-card deck, and it can never be saved. | `index.js:1494-1501, 1619` | T |
+| D7 | ✅ fixed | ~~Revive returned the top graveyard card of any type.~~ It now returns the most recent creature (RULES.md C10). | `index.js` | T |
+| D8 | ✅ fixed (player-facing) | ~~QA debug text shown to players.~~ The pack-overlay debug line now appears only with `window.__qaShowPackDebug = true`, and the Deck Builder status no longer says "QA:". `QA_MODE` and its console logging remain. | `index.js` | T |
+| D9 | ✅ fixed | ~~RESET PROGRESS left the in-memory stats.~~ It now resets the stats, their legacy mirror and the Stats screen (PROGRESSION.md P5.2). | `index.js` `resetMetaProgress` | T |
+| D10 | ✅ fixed | ~~The FIRE_SWAMP starter list included Web Trap, which nobody owns, so the deck shrank to 59 cards.~~ Dual starters are now built only from owned cards (Curse replaces Web Trap); untouched saved FIRE_SWAMP decks are migrated (PROGRESSION.md §7). | `index.js` `createInitialMeta`, `validateMeta` | T |
 | D11 | P2 | If the intro mp4 can't be decoded, the menu waits 15 s unless the player taps. `play()` stays pending, so the "paused" watchdog never fires, and `<source>` errors miss the `<video>` error listener. | `index.js:647-653, 715` | T |
-| D12 | P2 | Pack reveal swipe advances one card per ~55 px of finger travel, so a normal 150 px swipe skips a card and a long one skips several. | `index.js:2570-2585` | T |
-| D13 | P3 | The pack overlay is titled "🎁 Victory Pack" even for shop purchases. | `index.html:81` | S |
+| D12 | ✅ fixed | ~~Pack reveal swipe skipped cards.~~ One swipe now advances one card. | `index.js` `moveSwipe` | T |
+| D13 | ✅ fixed | ~~Shop packs were titled "🎁 Victory Pack".~~ They are now titled "🛒 <Theme> Pack". | `index.js` | T |
 | D14 | ✅ fixed | ~~No loss for drawing from an empty deck.~~ New house rule: drawing from an empty deck loses (RULES.md R6.1). | `index.js` `drawCard` | T |
 | D15 | P3 | `flash` (9 creatures) and `unblockable` (Otter Scout, Surf) have no rules effect. | combat/play code | C |
 | D16 | P3 | Esc on the VICTORY overlay closes it and leaves the finished board with no result UI (exit via ☰). | `index.js:6362-6367` | C |
-| D17 | P3 | `stats.packsOpened` counts win packs when awarded (not when opened); shop packs are never counted. | `index.js:2633, 2977-3028` | C |
+| D17 | ✅ fixed | ~~Shop packs were never counted in `stats.packsOpened`.~~ Every pack now counts when it is added to the collection. | `index.js` `purchasePack` | T |
 | D18 | P3 | `inferRarity` never returns `uncommon`, so the pack "uncommon" slot draws `rare` cards and the uncommon glow is unused. | `index.js:1124-1149` | C |
 | D19 | P3 | Duplicate card names: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact. | card DB | C |
-| D20 | P3 | The DEFEAT screen does not show the +10 credits earned. | `index.html:62-66` | C |
+| D20 | ✅ fixed | ~~The DEFEAT screen did not show the +10 credits.~~ It now shows "💳 +10 Credits". | `index.html`, `index.js` | T |
 
 **Design gaps to settle before a redesign (not counted as defects):** the player cannot choose blockers
 (everything is auto-blocked, always); spells have no targeting; the player always goes first; easy and
@@ -193,7 +202,8 @@ medium AI make only one non-land play per turn.
 | QUICK-START | "Click tapped lands to untap" | True, but this is the D4 exploit path. |
 | CHANGELOG | Stops at "v2.0": 85+ creatures, deck building as a "next step", gameplay music "ready to integrate" | 190 creatures; the deck builder, shop, binder, meta save and gameplay music all shipped without changelog entries. |
 | CHANGELOG / How To Play | Flash ("instant speed"), unblockable | Not implemented (D15). |
-| QA_REPORT (old) | Browser automation blocked by a Chromium SIGSEGV; every feature "✅ Implemented" | Automation works; D1 breaks the win flow (D2, deck saving, is now fixed). |
+| QA_REPORT (old) | Browser automation blocked by a Chromium SIGSEGV; every feature "✅ Implemented" | Automation works. The win flow (D1) and deck saving (D2) were broken; both are now fixed. |
+| README (old) | 15% chance of a free pack per win; 60-card starters next to a 2-copy limit | Every win gives a pack. Basic lands are exempt from the copy limit (land caps apply). README now matches; see PROGRESSION.md. |
 
 ---
 
@@ -206,19 +216,19 @@ Run these on real hardware. Each row starts from a fresh profile (clear site dat
 | M1 | Chrome desktop (Win/Mac) | Click to start, watch the intro to the end | Intro plays with sound, then the menu with music | Not run |
 | M2 | Firefox desktop | Smoke flows from §4: start, play 2 turns, shop pack, deck builder | Same as Chromium; no console errors | Not run |
 | M3 | Safari macOS | Same as M2, plus mute toggle | Audio starts only after the click | Not run |
-| M4 | iOS Safari (iPhone) | Tap to start; intro; tap a land; long-press a card; rip a pack by swipe; win → OPEN BOOSTER | Touch works; expect **D1, D6, D12** | Not run |
-| M5 | Android Chrome | Same as M4, plus haptics on long-press | Vibration fires; expect **D1, D6, D12** | Not run |
+| M4 | iOS Safari (iPhone) | Tap to start; intro; tap a land; long-press a card; rip a pack by swipe; win → OPEN BOOSTER | Touch works; expect **D6** | Not run |
+| M5 | Android Chrome | Same as M4, plus haptics on long-press | Vibration fires; expect **D6** | Not run |
 | M6 | Samsung Internet | Same as M4 | Same as M5 | Not run |
 | M7 | Any mobile, landscape | Start a match, rotate | END TURN and the hand stay reachable | Not run |
 | M8 | Any | Open `index.html` via `file://` | Boots and saves progress (README says this mostly works) | Not run |
 | M9 | Android/iOS | Add to Home Screen (manifest) | Standalone launch with icon | Not run |
-| M10 | Any | Play a full natural match to a win, all difficulties | Finishes; expect **D1** at rewards | Not run |
+| M10 | Any | Play a full natural match to a win, all difficulties | Finishes; OPEN BOOSTER works | Not run |
 
 ## 10. Next recommended fix
 
-**D1.** D2 was fixed in the card-catalog pass. D1 is a one-selector change with the largest player-facing impact:
-- **D1:** add `.match-reward-overlay.show .overlay-btn` to the `pointer-events: auto` rule in `styles.css`.
+**D6** (touch long-press also plays the card): guard the hand card's touchend the same way land stacks
+already do. It is the last P1. Then **D11** (intro fallback waits 15 s when the video can't play).
+After each fix, run `node tests/smoke.mjs`: the matching XFAIL should turn into XPASS. Then convert it to a
+plain `check` and mark the row fixed.
 
-Then **D3:** remove `colorless` from the AI's colour pool in `startGame`. After each fix, run
-`node tests/smoke.mjs`: the matching XFAIL should turn into XPASS. Then convert it to a plain `check` and
-delete the row above.
+The economy questions in [PROGRESSION.md](PROGRESSION.md) §8 need a design decision, not a bug fix.

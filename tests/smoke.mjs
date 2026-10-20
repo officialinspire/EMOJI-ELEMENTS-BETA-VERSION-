@@ -188,7 +188,7 @@ async function openPackInOverlay(page, touch, t) {
         const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
         await touchDrag(page, { x: center.x + 75, y: center.y }, { x: center.x - 75, y: center.y }, 8);
         const counter = await page.textContent('#packCardCounter');
-        t.knownDefect('D12', 'one 150px swipe advances exactly one card', counter === `Card 2 of ${total}`, counter);
+        t.check('one 150px swipe advances exactly one card', counter === `Card 2 of ${total}`, counter);
         names.push(await page.textContent('#packCardName'));
     }
     while (!(await page.locator('#packNextBtn').isDisabled())) {
@@ -342,11 +342,11 @@ scenario('dual-deck-persistence', async ({ page, touch, t, url }) => {
     const shrunk = Object.entries(after.decks)
         .filter(([, deck]) => deck.cardIds.length !== deck.starterCardIds.length)
         .map(([key, deck]) => `${key}:${deck.cardIds.length}`);
-    t.knownDefect('D10', 'dual starter decks keep 60 cards after a reload', shrunk.length === 0, shrunk.join(' '));
-    // FIRE_SWAMP's starter list includes Web Trap (fire+swamp), which no mono starter grants.
+    t.check('dual starter decks keep 60 cards after a reload', shrunk.length === 0, shrunk.join(' '));
+    // Was D10: FIRE_SWAMP's starter included Web Trap, which no starter grants (PROGRESSION.md P1.2).
     await startMatch(page, touch, { mode: 'dual', elements: ['fire', 'swamp'] });
     const size = await page.evaluate(() => gameState.playerDeck.length + gameState.playerHand.length);
-    t.knownDefect('D10', 'FIRE_SWAMP match starts with a 60-card deck', size === 60, `deck+hand=${size}`);
+    t.check('FIRE_SWAMP match starts with a 60-card deck', size === 60, `deck+hand=${size}`);
 }, { projects: ['desktop'] });
 
 scenario('pack-shop', async ({ page, touch, t, url, project }) => {
@@ -357,7 +357,7 @@ scenario('pack-shop', async ({ page, touch, t, url, project }) => {
     await act(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
     await openPackInOverlay(page, touch, t);
     await page.screenshot({ path: path.join(OUT_DIR, `${project}-pack-reveal.png`) });
-    t.knownDefect('D8', 'no QA debug text in player-facing pack overlay',
+    t.check('no QA debug text in player-facing pack overlay',
         !(await isShown(page, 'packQaDebug')), await page.textContent('#packQaDebug'));
     await act(page, touch, '#packCloseBtn');
     t.check('pack overlay closes back to shop', !(await isShown(page, 'packOpeningOverlay')) && await isShown(page, 'packShopScreen'));
@@ -511,8 +511,8 @@ scenario('win-flow', async ({ page, touch, t, url, project }) => {
     }
     await page.waitForTimeout(400);
     const opened = await page.evaluate(() => document.getElementById('packOpeningOverlay').classList.contains('show'));
-    t.knownDefect('D1', `${touch ? 'tapping' : 'clicking'} OPEN BOOSTER opens the pack`, opened,
-        '.overlay-btn has pointer-events:none outside victory/lose overlays; win soft-locks');
+    t.check(`${touch ? 'tapping' : 'clicking'} OPEN BOOSTER opens the pack`, opened,
+        'OPEN BOOSTER did not respond (was D1: .overlay-btn pointer-events)');
     if (!opened && touch) {
         await openBooster.dispatchEvent('click'); // D1 workaround: no pointer path exists on touch
     } else if (!opened) {
@@ -608,7 +608,7 @@ scenario('known-defect-probes', async ({ page, t, url }) => {
 }, { projects: ['desktop'] });
 
 scenario('reset-progress', async ({ page, t, url }) => {
-    // D9: RESET PROGRESS clears meta but keeps in-memory stats; next match writes old totals back.
+    // Was D9: RESET PROGRESS kept in-memory stats, and the next match wrote old totals back (PROGRESSION.md P5.2).
     await boot(page, false, url);
     await startMatch(page, false);
     await page.evaluate(() => changeEnemyLife(-gameState.enemyLife));
@@ -618,13 +618,13 @@ scenario('reset-progress', async ({ page, t, url }) => {
     await page.click('#gameConfirmYesBtn');
     await page.waitForTimeout(300);
     t.check('reset restores 100 credits', (await readMeta(page)).wallet.credits === 100);
-    t.knownDefect('D9', 'stats screen shows 0 wins after RESET PROGRESS',
+    t.check('stats screen shows 0 wins after RESET PROGRESS',
         (await page.textContent('#gamesWon')) === '0', `shows ${await page.textContent('#gamesWon')}`);
     await page.click('#statsScreen button:has-text("BACK TO MENU")');
     await startMatch(page, false);
     await page.evaluate(() => changePlayerLife(-gameState.playerLife));
     const stats = (await readMeta(page)).stats;
-    t.knownDefect('D9', 'a loss after reset records 0 wins / 1 loss', stats.wins === 0 && stats.losses === 1, JSON.stringify(stats));
+    t.check('a loss after reset records 0 wins / 1 loss', stats.wins === 0 && stats.losses === 1, JSON.stringify(stats));
 }, { projects: ['desktop'] });
 
 scenario('mobile-touch', async ({ page, touch, t, url, project }) => {
@@ -637,7 +637,10 @@ scenario('mobile-touch', async ({ page, touch, t, url, project }) => {
 
     // D6: long-press shows card details; it should not also play the card on release.
     await ensureLandsInHand(page, 1);
-    const box = await page.locator('#playerHand .card.land').first().boundingBox();
+    // The hand scrolls sideways on a phone; bring the land on screen first, as a player would.
+    const landCard = page.locator('#playerHand .card.land').first();
+    await landCard.scrollIntoViewIfNeeded();
+    const box = await landCard.boundingBox();
     await longPress(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
     await page.waitForTimeout(300);
     const detail = await page.evaluate(() => document.getElementById('cardDetailPopup').classList.contains('show'));

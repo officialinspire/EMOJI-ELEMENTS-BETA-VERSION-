@@ -72,9 +72,22 @@ function pageInit(seed) {
 
 // A fresh browser context (fresh save) with the seeded RNG and fake clock. Returns the page plus a
 // close() that also asserts the page raised no errors.
-export async function openGamePage({ seed = 1 } = {}) {
+// storage: { key: string | null } is written to localStorage before index.js first runs (null removes the
+// key), as if a returning player's browser already held that saved data. Later reloads keep whatever the
+// game itself stored.
+export async function openGamePage({ seed = 1, storage = null } = {}) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
+    if (storage) {
+        await page.addInitScript(items => {
+            if (sessionStorage.getItem('__fixturesLoaded')) return;
+            for (const [key, value] of Object.entries(items)) {
+                if (value === null) localStorage.removeItem(key);
+                else localStorage.setItem(key, value);
+            }
+            sessionStorage.setItem('__fixturesLoaded', '1');
+        }, storage);
+    }
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('dialog', dialog => { errors.push(`dialog: ${dialog.message()}`); dialog.dismiss(); });

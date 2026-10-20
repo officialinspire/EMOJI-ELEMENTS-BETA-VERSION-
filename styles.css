@@ -2457,7 +2457,8 @@ body.no-scroll {
 }
 
 .victory-overlay.show .overlay-btn,
-.lose-overlay.show .overlay-btn {
+.lose-overlay.show .overlay-btn,
+.match-reward-overlay.show .overlay-btn {
     pointer-events: auto;
 }
 

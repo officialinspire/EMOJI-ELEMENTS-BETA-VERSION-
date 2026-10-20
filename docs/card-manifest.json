@@ -9810,7 +9810,8 @@
       "availability": {
         "starterCollectionCopies": 1,
         "starterDecks": [
-          "SWAMP"
+          "SWAMP",
+          "FIRE_SWAMP"
         ],
         "packThemes": [
           "fantasy"
@@ -10526,9 +10527,7 @@
       "deckBuilderCopyLimit": 2,
       "availability": {
         "starterCollectionCopies": 0,
-        "starterDecks": [
-          "FIRE_SWAMP"
-        ],
+        "starterDecks": [],
         "packThemes": [
           "tech",
           "alien",

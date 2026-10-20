@@ -21,7 +21,7 @@
    ✅ Full Magic: The Gathering mechanics
    ✅ 3 AI difficulty levels
    ✅ Mobile optimized
-   ✅ Stats tracking
+   ✅ Stats, credits, card collection and decks saved in your browser
 
 🆕 NEW FEATURES ADDED:
    • 🔄 Mulligan button (redraw starting hand once)
@@ -54,11 +54,19 @@
    • Drawing from an empty deck loses
    • Full rules: RULES.md
 
+💳 PROGRESSION:
+   • New profile: 100 credits, 5 starter decks' worth of cards, 15 ready decks
+   • Win: +25 credits and a free booster pack. Loss: +10 credits
+   • Pack Shop: 60 credits a pack (Lands pack 40)
+   • Decks: exactly 60 cards, max 2 copies (1 legendary); basic lands
+     are limited only by the land caps (20 mono, 11 per colour dual)
+   • Full rules: PROGRESSION.md
+
 🔧 TECHNICAL:
    • Pure vanilla JavaScript
    • No dependencies
    • No build process
-   • localStorage for stats
+   • localStorage for progress (damaged saves are repaired and backed up)
    • 100% client-side
 
 ═══════════════════════════════════════════════════════════════════
