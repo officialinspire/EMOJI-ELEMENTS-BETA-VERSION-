@@ -150,6 +150,9 @@ describe('combat table: the AI attacks, the player blocks', () => {
     before(async () => {
         session = await openGamePage({ seed: 6 });
         await startMatch(session.page);
+        // These rows test combat resolution, not AI judgement: the AI declares every eligible attacker
+        // (its real choice would skip the losing attacks; that is tested in tests/ai.test.mjs).
+        await session.page.evaluate(() => { window.chooseEnemyAttackers = eligible => eligible; });
     });
     after(() => session.close());
 
@@ -157,7 +160,7 @@ describe('combat table: the AI attacks, the player blocks', () => {
         test(row.name, { timeout: 30000 }, async () => {
             const { page } = session;
             await setup(page, {
-                difficulty: 'hard', // hard AI attacks with every eligible creature
+                difficulty: 'hard',
                 enemyBoard: row.attackers, playerBoard: row.blockers, enemyHand: [],
                 enemyDeck: Array(5).fill('creatures-ancient-dragon'),
                 playerGraveyard: [], enemyGraveyard: [], playerLife: 20, enemyLife: 20

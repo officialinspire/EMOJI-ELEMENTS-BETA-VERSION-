@@ -1,5 +1,30 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: AI audit
+
+The AI is checked by `tests/ai.test.mjs` and measured by `tests/ai-sim.mjs` (360 seeded matches: every starter
+deck × every difficulty against a fixed reference bot). See `AI.md`.
+- **Rule parity:** no illegal land, mana, timing, tapping, attack or block was found before or after, and no
+  crash, stall or loop. One gap is fixed: **AI decks now follow the deck-building copy limits** (2 copies, 1
+  legendary). Before, 315 of 360 sampled AI decks broke them.
+- **Difficulty ladder** (`AI_PROFILES`), all on the same rules:
+  - **Easy:** 1 card a turn, no instants, random attacks.
+  - **Medium:** 2 cards a turn, instants, sees lethal, careful attacks.
+  - **Hard:** as many cards as its mana allows, and also keeps blockers home when your board could kill it.
+  - Against the reference bot this is now 50% / 62% / 70%. It was 46% / 45% / 58%, with easy and medium
+    indistinguishable.
+- **Better decisions:**
+  - Lands are chosen for the colours the hand needs, and multi-colour lands are tapped for the colour that
+    casts a card.
+  - No wasted cards: buffs with no creature, removal with no target, draws that would empty its deck.
+  - Medium and hard:
+    - cast lethal burn;
+    - go all-in when the attack is lethal, ordering attackers to beat the automatic blocks;
+    - stop throwing creatures into losing blocks.
+  - Medium and hard missed lethal attacks went from 29 to 0, and lethal burn left in hand from 19 to 0.
+- **Pacing:** steps where the AI does nothing no longer wait 1.5 s each. The average AI turn is 5.4 s (was
+  7.05 s); an idle one takes ~3.9 s (was 8.5 s).
+
 ## Unreleased: phone, tablet and desktop interaction
 
 Checked by `tests/ui-audit.mjs` on Android portrait, phone landscape, tablet and desktop sizes, with

@@ -4126,12 +4126,20 @@
         const spellTarget = 7 + Math.floor(Math.random() * 7); // 7-13
         const artifactTarget = Math.max(0, NON_LAND_COUNT - creatureTarget - spellTarget);
 
+        // Generated decks (the AI's) follow the same copy limits as a player's deck: at most 2 of a card and
+        // 1 of a legendary (AI.md §2). They used to pick with replacement, so most AI decks broke the limits.
+        const copies = {};
+        const canAdd = card => (copies[card.__id] || 0) < getDeckCardCopyLimit(card);
+        function addCard(card) {
+            copies[card.__id] = (copies[card.__id] || 0) + 1;
+            deck.push({ ...card, id: Math.random() });
+        }
+
         function addCardsFromPool(pool, count) {
             for (let i = 0; i < count; i++) {
-                if (pool.length > 0) {
-                    const card = pool[Math.floor(Math.random() * pool.length)];
-                    deck.push({ ...card, id: Math.random() });
-                }
+                const open = pool.filter(canAdd);
+                if (open.length === 0) return;
+                addCard(open[Math.floor(Math.random() * open.length)]);
             }
         }
 
@@ -4139,10 +4147,10 @@
         addCardsFromPool(spells, spellTarget);
         addCardsFromPool(artifacts, artifactTarget);
 
-        const fallbackPool = [...creatures, ...spells, ...artifacts];
+        let fallbackPool = [...creatures, ...spells, ...artifacts].filter(canAdd);
         while (deck.length < LAND_COUNT + NON_LAND_COUNT && fallbackPool.length > 0) {
-            const card = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
-            deck.push({ ...card, id: Math.random() });
+            addCard(fallbackPool[Math.floor(Math.random() * fallbackPool.length)]);
+            fallbackPool = fallbackPool.filter(canAdd);
         }
 
         shuffleDeck(deck, 6);
@@ -5779,10 +5787,155 @@
 
     // The AI holds a two-sided sweeper (Earthquake, Avalanche) unless it kills more of your creatures than
     // of its own.
+    // AI difficulty profiles (AI.md §3). Every level plays by exactly the same rules and deck rules as you;
+    // they differ only in how many cards they play a turn and how carefully they choose.
+    const AI_PROFILES = {
+        easy: { maxPlays: 1, castsInstants: false, seesLethal: false, attacks: 'random', keepsBlockers: false },
+        medium: { maxPlays: 2, castsInstants: true, seesLethal: true, attacks: 'careful', keepsBlockers: false },
+        hard: { maxPlays: Infinity, castsInstants: true, seesLethal: true, attacks: 'careful', keepsBlockers: true }
+    };
+
+    function getAiProfile() {
+        return AI_PROFILES[gameState.difficulty] || AI_PROFILES.easy;
+    }
+
+    const aiManaValue = card => Object.values(card.cost || {}).reduce((sum, n) => sum + n, 0);
+    const aiCreatures = board => board.filter(c => c.type === 'creature');
+
+    // Would this card do anything right now? Uses the same targeting rules as resolveSpell (EFFECTS.md E2),
+    // so the AI never wastes a card on nothing, and never draws itself out of cards (RULES.md R6.1).
     function aiWantsToCast(card) {
-        if (!(card.effect === 'damage' && card.target === 'all')) return true;
-        const kills = board => board.filter(c => c.type === 'creature' && (c.damage || 0) + card.value >= c.toughness).length;
-        return kills(gameState.playerBoard) > kills(gameState.enemyBoard);
+        const targetable = aiCreatures(gameState.playerBoard).filter(c => !c.abilities?.includes('hexproof'));
+        const drawsWouldDeckOut = n => gameState.enemyDeck.length <= n;
+        switch (card.effect) {
+            case 'damage':
+                if (card.target !== 'all') return true;
+                {
+                    // Two-sided sweepers only when they kill more of your creatures than its own
+                    const kills = board => board.filter(c => c.type === 'creature' && (c.damage || 0) + card.value >= c.toughness).length;
+                    return kills(gameState.playerBoard) > kills(gameState.enemyBoard);
+                }
+            case 'buff':
+            case 'buff_defense':
+                return aiCreatures(gameState.enemyBoard).length > 0;
+            case 'destroy':
+            case 'bounce':
+                return targetable.length > 0;
+            case 'tap':
+                return card.skipUntap ? targetable.length > 0 : targetable.some(c => !c.tapped);
+            case 'revive':
+                return gameState.enemyGraveyard.some(c => c.type === 'creature');
+            case 'discard':
+                return gameState.playerHand.length > 0;
+            case 'aoe':
+                return aiCreatures(gameState.playerBoard).length > 0;
+            case 'draw':
+                // An upkeep draw artifact draws every turn; an instant draws once.
+                return !drawsWouldDeckOut(card.type === 'artifact' ? 3 : (card.value || 1));
+            case 'draw_on_play':
+            case 'discard_draw':
+                return !drawsWouldDeckOut(card.value || 1);
+            case 'heal_draw':
+                return !drawsWouldDeckOut(card.drawCards || 1);
+            default:
+                return true;
+        }
+    }
+
+    // Land drop: first the land that lets the most cards be cast this turn, then the colour the hand needs
+    // most (a colour it can't make yet counts extra).
+    function aiChooseLand() {
+        const lands = gameState.enemyHand.filter(c => c.type === 'land');
+        if (lands.length <= 1) return lands[0] || null;
+        const colorsOf = land => land.elements?.length ? land.elements : (land.element ? [land.element] : []);
+        const onBoard = new Set(gameState.enemyBoard.filter(c => c.type === 'land').flatMap(colorsOf));
+        const spells = gameState.enemyHand.filter(c => c.type !== 'land');
+        const basePool = {};
+        gameState.enemyBoard.forEach(c => {
+            if (c.type === 'land' && colorsOf(c).length === 1) basePool[colorsOf(c)[0]] = (basePool[colorsOf(c)[0]] || 0) + 1;
+            if (c.type === 'artifact' && c.effect === 'mana') basePool.colorless = (basePool.colorless || 0) + (c.value || 1);
+        });
+        const castableNow = land => Math.max(...colorsOf(land).map(el => {
+            const pool = { ...basePool, [el]: (basePool[el] || 0) + 1 };
+            return spells.filter(c => canPayCost(c.cost, pool)).length;
+        }), 0);
+        const need = {};
+        spells.forEach(card => {
+            Object.keys(card.cost || {}).filter(el => el !== 'colorless').forEach(el => { need[el] = (need[el] || 0) + 1; });
+        });
+        const needScore = land => Math.max(0, ...colorsOf(land).map(el => (need[el] || 0) + (need[el] && !onBoard.has(el) ? 5 : 0)));
+        const score = land => castableNow(land) * 100 + needScore(land);
+        return lands.reduce((best, land) => (score(land) > score(best) ? land : best), lands[0]);
+    }
+
+    // Tap every mana source, as before; a land that makes several colours picks the colour that lets the
+    // most cards in hand be cast (it used to always pick its first colour).
+    function aiTapManaSources() {
+        let tapped = false;
+        const flexible = [];
+        gameState.enemyBoard.forEach(card => {
+            if (card.tapped) return;
+            if (card.type === 'land') {
+                if (card.elements?.length > 1) { flexible.push(card); return; }
+                const element = card.element || card.elements?.[0];
+                if (!element) return;
+                card.tapped = true;
+                gameState.enemyMana[element] = (gameState.enemyMana[element] || 0) + 1;
+                tapped = true;
+            } else if (card.type === 'artifact' && card.effect === 'mana') {
+                // Mana artifacts, as for the player (activateArtifact)
+                card.tapped = true;
+                gameState.enemyMana.colorless = (gameState.enemyMana.colorless || 0) + (card.value || 1);
+                tapped = true;
+            }
+        });
+        const castableWith = pool => gameState.enemyHand.filter(c => c.type !== 'land' && canPayCost(c.cost, pool)).length;
+        flexible.forEach(land => {
+            const best = land.elements.reduce((choice, element) => {
+                const pool = { ...gameState.enemyMana, [element]: (gameState.enemyMana[element] || 0) + 1 };
+                const value = castableWith(pool);
+                return value > choice.value ? { element, value } : choice;
+            }, { element: land.elements[0], value: -1 });
+            land.tapped = true;
+            gameState.enemyMana[best.element] = (gameState.enemyMana[best.element] || 0) + 1;
+            tapped = true;
+        });
+        return tapped;
+    }
+
+    // How much the AI wants to play a card now. Higher mana value breaks ties so the mana gets used.
+    function scoreAiPlay(card) {
+        const playerCreatures = aiCreatures(gameState.playerBoard);
+        const strongest = playerCreatures.reduce((max, c) => Math.max(max, (c.power || 0) + (c.toughness || 0)), 0);
+        let score = 0;
+        if (card.type === 'creature') {
+            score = (card.power || 0) + (card.toughness || 0) + (card.abilities?.length || 0);
+        } else if (card.effect === 'damage' && card.target !== 'all') {
+            score = (card.value || 0) + (card.value >= gameState.playerLife ? 100 : 0);
+        } else if (['destroy', 'bounce'].includes(card.effect) || (card.effect === 'damage' && card.target === 'all') || card.effect === 'aoe') {
+            score = 4 + strongest;
+        } else if (['buff', 'buff_defense'].includes(card.effect)) {
+            score = 2 + (card.value || 0) * (card.targetAll ? aiCreatures(gameState.enemyBoard).length : 1);
+        } else if (card.type === 'artifact') {
+            score = 4;
+        } else {
+            score = 2 + (card.value || 0);
+        }
+        return score + aiManaValue(card) * 0.5;
+    }
+
+    // The next card the AI plays this turn, or null.
+    function aiChooseNextPlay(profile) {
+        const candidates = gameState.enemyHand.filter(card =>
+            (card.type === 'creature' || card.type === 'artifact' || (card.type === 'instant' && profile.castsInstants)) &&
+            canPayCost(card.cost, gameState.enemyMana) && aiWantsToCast(card));
+        if (!candidates.length) return null;
+        // Lethal burn first (medium and hard)
+        if (profile.seesLethal) {
+            const lethal = candidates.find(c => c.type === 'instant' && c.effect === 'damage' && c.target !== 'all' && c.value >= gameState.playerLife);
+            if (lethal) return lethal;
+        }
+        return candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
     }
 
     // AI Turn
@@ -5791,34 +5944,6 @@
             releaseProcessingLock();
             return;
         }
-
-        const scoreAiPlay = (card) => {
-            const playerCreatures = gameState.playerBoard.filter(c => c.type === 'creature');
-            const enemyCreatures = gameState.enemyBoard.filter(c => c.type === 'creature');
-            const strongestPlayerPower = playerCreatures.reduce((maxPower, creature) => Math.max(maxPower, creature.power || 0), 0);
-            const boardDelta = enemyCreatures.length - playerCreatures.length;
-
-            if (card.type === 'creature') {
-                return (card.power || 0) + (card.toughness || 0);
-            }
-
-            if (card.type === 'instant') {
-                const isRemovalOrDamage = ['damage', 'destroy', 'aoe'].includes(card.effect) ||
-                    /damage|destroy|bolt|blast|fire|burn/i.test(card.name || '');
-                return isRemovalOrDamage
-                    ? 6 + strongestPlayerPower
-                    : 2 + (card.value || 0);
-            }
-
-            if (card.type === 'artifact') {
-                const isDrawOrBuff = ['draw_on_play', 'buff', 'buff_defense'].includes(card.effect);
-                return isDrawOrBuff
-                    ? 4 + Math.max(0, -boardDelta)
-                    : 1;
-            }
-
-            return 0;
-        };
 
         // Delayed steps below stop if the match ends or is left mid-turn (RULES.md R7.4)
         const serial = matchSerial;
@@ -5847,7 +5972,7 @@
             setTimeout(() => {
             if (turnIsStale()) return;
             // Play lands
-            const landInHand = gameState.enemyHand.find(c => c.type === 'land');
+            const landInHand = aiChooseLand();
             if (landInHand) {
                 gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== landInHand.id);
                 gameState.enemyBoard.push({...landInHand, tapped: false});
@@ -5861,31 +5986,8 @@
 
             setTimeout(() => {
                 if (turnIsStale()) return;
-                // Tap lands for mana
-                let manaTapped = false;
-                gameState.enemyBoard.forEach(card => {
-                    if (card.type === 'land' && !card.tapped) {
-                        card.tapped = true;
-                        // DUAL LAND SUPPORT: Handle lands with multiple elements
-                        if (card.elements && Array.isArray(card.elements) && card.elements.length > 0) {
-                            // For dual lands, AI chooses the first element (can be made smarter later)
-                            const chosenElement = card.elements[0];
-                            if (chosenElement) {
-                                gameState.enemyMana[chosenElement] = (gameState.enemyMana[chosenElement] || 0) + 1;
-                                manaTapped = true;
-                            }
-                        } else if (card.element) {
-                            // Regular single-color land
-                            gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
-                            manaTapped = true;
-                        }
-                    } else if (card.type === 'artifact' && card.effect === 'mana' && !card.tapped) {
-                        // Mana artifacts, as for the player (activateArtifact)
-                        card.tapped = true;
-                        gameState.enemyMana.colorless = (gameState.enemyMana.colorless || 0) + (card.value || 1);
-                        manaTapped = true;
-                    }
-                });
+                // Tap lands and mana artifacts for mana
+                const manaTapped = aiTapManaSources();
 
                 if (manaTapped) {
                     showGameLog('⚡ Enemy taps lands for mana', true);
@@ -5984,19 +6086,16 @@
                         }
                     };
 
+                    // Steps that did nothing don't make you wait (AI.md §5)
+                    let mainPhaseActed = true;
                     try {
-                        const maxPlays = gameState.difficulty === 'hard' ? 2 : 1;
+                        const profile = getAiProfile();
                         const playedEnemyCardIds = [];
                         let playsMade = 0;
 
-                        while (playsMade < maxPlays && !gameState.matchFinalized) {
-                            const candidates = gameState.enemyHand.filter(card => {
-                                const isAllowedType = card.type === 'creature' || card.type === 'artifact' || card.type === 'instant';
-                                const allowInstants = gameState.difficulty === 'hard' || card.type !== 'instant';
-                                return isAllowedType && allowInstants && canPayCost(card.cost, gameState.enemyMana) && aiWantsToCast(card);
-                            });
-
-                            const best = candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
+                        // Bounded: every play removes a card from a finite hand.
+                        while (playsMade < profile.maxPlays && !gameState.matchFinalized) {
+                            const best = aiChooseNextPlay(profile);
                             if (!best || !canPayCost(best.cost, gameState.enemyMana)) {
                                 break;
                             }
@@ -6009,6 +6108,7 @@
                             playsMade++;
                         }
 
+                        mainPhaseActed = playsMade > 0;
                         if (playsMade > 0) {
                             updateUI();
                             playedEnemyCardIds.forEach(playedId => {
@@ -6048,10 +6148,10 @@
                                 if (turnIsStale()) return;
                                 clearTimeout(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
-                            }, 1500);
-                        }, 1500);
-                    }, 1500);
-                }, 1500);
+                            }, attackingCreatures.length ? 1500 : 500); // pacing: AI.md §5
+                        }, mainPhaseActed ? 1500 : 300);
+                    }, manaTapped ? 1000 : 300);
+                }, landInHand ? 1500 : 300);
             }, 1000);
         } catch (error) {
             console.error('Error during AI turn:', error);
@@ -6069,54 +6169,103 @@
         return assignAutoBlockers(enemyAttackers, availableBlockers);
     }
 
+    // Attack choice (AI.md §3). Easy attacks at random. Medium and hard look at the block each attacker will
+    // meet (blocking is automatic for both sides, RULES.md R5.4), take lethal when it is there, and skip
+    // attacks that lose a creature for nothing. Hard also keeps blockers home when your board could kill it.
+    const aiCardValue = card => Math.max(aiManaValue(card), ((card.power || 0) + (card.toughness || 0)) / 2);
+
+    // One attacker against its blockers, by the combat rules (first strike, deathtouch, double strike).
+    function aiBlockOutcome(attacker, blockers) {
+        const strikesFirst = c => hasAbility(c, 'first_strike') || hasAbility(c, 'double_strike');
+        const lethalTo = (source, target) => hasAbility(source, 'deathtouch') && (source.power || 0) > 0
+            ? 1 : Math.max(0, (target.toughness || 0) - (target.damage || 0));
+        let damage = (attacker.power || 0) * (hasAbility(attacker, 'double_strike') ? 2 : 1);
+        const killed = [];
+        [...blockers].sort((a, b) => b.toughness - a.toughness).forEach(b => {
+            const need = lethalTo(attacker, b);
+            if (damage >= need && need > 0) { killed.push(b); damage -= need; }
+        });
+        const attackerFirst = strikesFirst(attacker) && !blockers.some(strikesFirst);
+        const hitters = attackerFirst ? blockers.filter(b => !killed.includes(b)) : blockers;
+        const incoming = hitters.reduce((sum, b) => sum + (b.power || 0), 0);
+        const attackerDies = hitters.some(b => hasAbility(b, 'deathtouch') && (b.power || 0) > 0) ||
+            incoming >= (attacker.toughness || 0) - (attacker.damage || 0);
+        // A blocker with first strike that kills the attacker first takes no damage.
+        const blockersFirst = blockers.some(strikesFirst) && !strikesFirst(attacker);
+        const reallyKilled = blockersFirst && attackerDies ? [] : killed;
+        return { attackerDies, killedValue: reallyKilled.reduce((sum, b) => sum + aiCardValue(b), 0) };
+    }
+
+    // Damage that reaches the player if these creatures attack into the automatic blocks.
+    function aiAttackDamage(attackers, blockers) {
+        const blocks = assignAutoBlockers(attackers, blockers);
+        return attackers.reduce((sum, a) => {
+            const hits = hasAbility(a, 'double_strike') ? 2 : 1;
+            const assigned = (blocks[a.id] || []).map(id => blockers.find(b => b.id === id)).filter(Boolean);
+            if (!assigned.length) return sum + (a.power || 0) * hits;
+            if (!hasAbility(a, 'trample')) return sum;
+            const absorb = assigned.reduce((t, b) => t + (hasAbility(a, 'deathtouch') ? 1 : Math.max(0, b.toughness - (b.damage || 0))), 0);
+            return sum + Math.max(0, (a.power || 0) * hits - absorb);
+        }, 0);
+    }
+
     function chooseEnemyAttackers(eligibleAttackers, difficulty) {
         if (!Array.isArray(eligibleAttackers) || eligibleAttackers.length === 0) {
             return [];
         }
 
-        if (difficulty === 'easy') {
+        const profile = AI_PROFILES[difficulty] || AI_PROFILES.easy;
+        if (profile.attacks === 'random') {
             return eligibleAttackers.filter(() => Math.random() > 0.3);
         }
 
-        const potentialBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
-        const scoredAttackers = eligibleAttackers.map(attacker => {
-            let score = 0;
-            const power = attacker.power || 0;
-            const toughness = attacker.toughness || 0;
+        const blockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
+        const ordered = aiBestAttackOrder(eligibleAttackers, blockers);
 
-            if (power >= 2) {
-                score += 2;
-            }
+        // Game-ending attack: everything goes if the damage that gets through is lethal.
+        if (aiAttackDamage(ordered, blockers) >= gameState.playerLife) {
+            return ordered;
+        }
 
-            potentialBlockers.forEach(blocker => {
-                const blockerPower = blocker.power || 0;
-                const blockerToughness = blocker.toughness || 0;
-                const blockerDamage = blocker.damage || 0;
-                const blockerRemainingHealth = Math.max(0, blockerToughness - blockerDamage);
-
-                // Prefer attacks that can survive and trade up into likely blockers.
-                if (power >= blockerToughness && toughness > blockerPower) {
-                    score += 4;
-                }
-
-                // Prefer finishing off damaged blockers that are close to dying.
-                if (blockerDamage > 0 && blockerRemainingHealth > 0 && power >= blockerRemainingHealth) {
-                    score += 3;
-                }
+        // Drop attackers that would die without taking something worth as much; re-check, because blocks
+        // move to the next attacker when one stays home.
+        let chosen = ordered;
+        for (let pass = 0; pass < 4; pass++) {
+            const blocks = assignAutoBlockers(chosen, blockers);
+            const keep = chosen.filter(a => {
+                const assigned = (blocks[a.id] || []).map(id => blockers.find(b => b.id === id)).filter(Boolean);
+                if (!assigned.length) return true;
+                const outcome = aiBlockOutcome(a, assigned);
+                return !outcome.attackerDies || outcome.killedValue >= aiCardValue(a);
             });
+            if (keep.length === chosen.length) break;
+            chosen = keep;
+        }
 
-            return {attacker, score};
-        });
+        // Hard: if your creatures could deal lethal next turn, keep enough blockers home.
+        if (profile.keepsBlockers) {
+            const yourAttackers = aiCreatures(gameState.playerBoard).filter(c => !hasAbility(c, 'defender'));
+            const threat = yourAttackers.reduce((sum, c) => sum + (c.power || 0) * (hasAbility(c, 'double_strike') ? 2 : 1), 0);
+            if (threat >= gameState.enemyLife) {
+                const homeBlockers = () => aiCreatures(gameState.enemyBoard)
+                    .filter(c => !c.tapped && (!chosen.includes(c) || hasAbility(c, 'vigilance'))).length;
+                const sendable = chosen.filter(c => !hasAbility(c, 'vigilance')).sort((a, b) => b.toughness - a.toughness);
+                while (homeBlockers() < yourAttackers.length && sendable.length) {
+                    const stay = sendable.shift();
+                    chosen = chosen.filter(c => c !== stay);
+                }
+            }
+        }
 
-        scoredAttackers.sort((a, b) => b.score - a.score);
+        return aiBestAttackOrder(chosen, blockers);
+    }
 
-        const attackCount = difficulty === 'hard'
-            ? eligibleAttackers.length
-            : Math.max(1, Math.ceil(eligibleAttackers.length * 0.6));
-
-        return scoredAttackers
-            .slice(0, attackCount)
-            .map(({attacker}) => attacker);
+    // Blocks go toughest-blocker-first to attackers in the order they are declared (for both sides), so the
+    // order decides which attacker gets blocked. Pick the order that lets the most damage through.
+    function aiBestAttackOrder(attackers, blockers) {
+        const byPower = [...attackers].sort((a, b) => (b.power || 0) - (a.power || 0));
+        const orders = [byPower, [...byPower].reverse(), [...attackers]];
+        return orders.reduce((best, order) => (aiAttackDamage(order, blockers) > aiAttackDamage(best, blockers) ? order : best), orders[0]);
     }
 
     function resolveEnemyAttackPhase(attackingCreatures) {

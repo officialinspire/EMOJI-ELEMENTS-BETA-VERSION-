@@ -12,6 +12,9 @@ that differ from, or aren't covered by, the trading-card games this one is model
   - The AI's deck is generated from one or two of the five colours: Fire, Water, Earth, Swamp or Light.
     **Changed:** before this pass, "colorless" could be picked as an AI colour, which filled about 1 in 4 AI
     decks with 11–20 blank placeholder cards.
+  - The AI's deck follows the same deck-building limits as yours: at most 2 copies of a card, 1 of a
+    legendary. **Changed:** AI decks were drawn with replacement, and 315 of 360 sampled decks broke the
+    limits ([AI.md](AI.md) §2).
 - **R1.2** The player always takes the first turn and **skips the draw on that first turn**. The AI draws on
   every one of its turns, including its first.
 
@@ -38,7 +41,8 @@ that differ from, or aren't covered by, the trading-card games this one is model
      then CONFIRM. Cards can still be played after combat.
   6. END TURN: unused mana is lost, and "until end of turn" bonuses (Anger) end on both sides.
 - **R3.2 AI turn:** untap, draw, upkeep, play at most one land, tap all its lands and mana artifacts, play
-  cards, attack. Its "until end of turn" bonuses end when your turn starts.
+  cards, attack. Its "until end of turn" bonuses end when your turn starts. How it chooses at each difficulty is
+  in [AI.md](AI.md); every difficulty follows these rules.
 - **R3.3 Timing:** you can only play cards, tap lands, use artifacts, attack or end the turn **during your
   own turn**. There is no instant-speed play (see `flash` in the card audit). You can't end your turn while
   attackers are being declared; confirm or cancel the attack first.

@@ -60,6 +60,11 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 | **Total** (exit 0, ~2 min) | 21 | **204** | **0** | **0**: D1–D12 are all fixed (D3 moved to the rules suite) |
 
 More suites:
+- **AI:** `node --test tests/ai.test.mjs` (`npm run ai`), 33 tests, ~2.5 min:
+  - targeted rule-parity and decision scenarios;
+  - a seeded simulation of all 15 starter decks × 3 difficulties.
+
+  The measured sample is `node tests/ai-sim.mjs` (`npm run ai:sim`, 360 matches, ~6 min). See [AI.md](AI.md).
 - **Phone, tablet and desktop interaction:** `node tests/ui-audit.mjs` (`npm run ui`), ~5 min. Four profiles:
   - 360×740 Android portrait;
   - 863×360 phone landscape;

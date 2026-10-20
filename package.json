@@ -14,7 +14,9 @@
     "combat": "node --test tests/combat.test.mjs",
     "progression": "node --test tests/progression.test.mjs",
     "effects": "node --test tests/effects.test.mjs",
-    "ui": "node tests/ui-audit.mjs"
+    "ui": "node tests/ui-audit.mjs",
+    "ai": "node --test tests/ai.test.mjs",
+    "ai:sim": "node tests/ai-sim.mjs"
   },
   "devDependencies": {
     "axe-core": "4.10.3",
