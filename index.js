@@ -1,11 +1,13 @@
-    // QA Checklist:
-    // - Start match, play, end turn
-    // - Win -> pack awarded + pack opening works
-    // - Binder opens/closes
-    // - Deck builder save -> next match uses saved deck
-    // - Corrupt localStorage -> game still starts using fallback deck
-
-    const QA_MODE = true;
+    // QA tooling is off for players. Add ?qa=1 to the URL (or set localStorage emojiElementsQA = '1') to turn
+    // on the [QA] console logs, error echoing, DOM/perf checks and the window.__qa* helpers that
+    // tests/smoke.mjs uses (QA_REPORT.md). Automated suites live in tests/.
+    const QA_MODE = (() => {
+        try {
+            return new URLSearchParams(window.location.search).has('qa') || localStorage.getItem('emojiElementsQA') === '1';
+        } catch (_) {
+            return false;
+        }
+    })();
     const QA_DEBUG = QA_MODE;
 
     window.__QA_FORCE_META_OFF = false;
@@ -99,7 +101,7 @@
                 audioSystem[soundName].loop = loop;
                 const playPromise = audioSystem[soundName].play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(e => console.log('Audio play failed:', e));
+                    playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
                 }
             } catch (e) {
                 console.log('Audio error:', e);
@@ -129,6 +131,7 @@
         if (muteBtn) {
             muteBtn.textContent = isMuted ? '🔇' : '🔊';
             muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
+            muteBtn.setAttribute('aria-pressed', String(isMuted));
         }
     }
 
@@ -187,6 +190,110 @@
         if (tooltip) tooltip.classList.remove('show');
     }
 
+    // One input path for every card on touch, mouse and keyboard (UI.md):
+    //   tap / click / Enter / Space  → onTap
+    //   long-press / right-click / I → onLongPress (inspect, or "tap all" on a land stack)
+    // A long-press never also triggers onTap, a touch never fires twice (touch end + synthetic click),
+    // and dragging a finger to scroll a row does nothing.
+    const LONG_PRESS_MS = 400;
+
+    // Input modality. Space/Enter press a focused card or button only when the player got there with Tab;
+    // after a click or tap, Space and Enter keep their shortcut meaning (Space = END TURN), as before.
+    let lastInputWasPointer = true;
+    document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Tab') lastInputWasPointer = false; }, true);
+
+    function bindCardPress(el, { onTap, onLongPress, label }) {
+        let timer = null;
+        let start = null;
+        let longPressed = false;
+
+        el.tabIndex = 0;
+        el.setAttribute('role', 'button');
+        if (label) el.setAttribute('aria-label', label);
+
+        const cancel = () => {
+            clearTimeout(timer);
+            start = null;
+        };
+
+        el.addEventListener('pointerdown', (e) => {
+            longPressed = false;
+            if (e.pointerType === 'mouse') return;
+            start = { x: e.clientX, y: e.clientY };
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                if (!start) return;
+                longPressed = true;
+                start = null;
+                if (navigator.vibrate) navigator.vibrate(50);
+                onLongPress?.();
+            }, LONG_PRESS_MS);
+        });
+        el.addEventListener('pointermove', (e) => {
+            if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancel();
+        });
+        el.addEventListener('pointerup', cancel);
+        el.addEventListener('pointercancel', cancel);
+        el.addEventListener('pointerleave', cancel);
+        el.addEventListener('click', (e) => {
+            if (longPressed) {
+                longPressed = false;
+                e.preventDefault();
+                return;
+            }
+            onTap?.();
+        });
+        el.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (longPressed) return; // the long-press already acted
+            onLongPress?.();
+        });
+        el.addEventListener('keydown', (e) => {
+            // Only when the card was reached with the keyboard: after a mouse click, Space stays END TURN.
+            if ((e.key === 'Enter' || e.key === ' ') && !lastInputWasPointer) {
+                e.preventDefault();
+                e.stopPropagation();
+                onTap?.();
+            } else if (e.key === 'i' || e.key === 'I' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                e.preventDefault();
+                e.stopPropagation();
+                onLongPress?.();
+            }
+        });
+    }
+
+    // Screen-reader / keyboard name for a card on screen.
+    function describeCardForA11y(card, zone) {
+        const parts = [card.name];
+        if (card.type === 'creature') parts.push(`${card.power}/${card.toughness}${card.damage ? `, ${card.damage} damage` : ''}`);
+        else parts.push(card.type === 'instant' ? 'instant' : card.type);
+        if (zone === 'hand' && card.cost && Object.keys(card.cost).length) {
+            parts.push(`costs ${Object.entries(card.cost).map(([el, n]) => `${n} ${el}`).join(' and ')}`);
+        }
+        if (card.tapped) parts.push('tapped');
+        if (card.summoningSick && card.type === 'creature' && zone === 'board') parts.push('summoning sick');
+        return parts.join(', ');
+    }
+
+    // updateUI rebuilds the card rows; keep keyboard focus on the same slot so keyboard play can continue.
+    function captureRowFocus() {
+        const active = document.activeElement;
+        const row = active?.closest?.('#playerHand, #playerBoard, #enemyBoard');
+        if (!row) return null;
+        const item = [...row.children].find(child => child === active || child.contains(active));
+        return { rowId: row.id, index: [...row.children].indexOf(item) };
+    }
+
+    function restoreRowFocus(saved) {
+        if (!saved) return;
+        const row = document.getElementById(saved.rowId);
+        const items = row ? [...row.children] : [];
+        const target = items[Math.min(Math.max(saved.index, 0), items.length - 1)] ||
+            document.getElementById('endTurnBtn');
+        target?.focus({ preventScroll: true });
+    }
+
     function attachDesktopTooltip(target, card) {
         if (!target || !card || isMobile) return;
 
@@ -220,7 +327,14 @@
         }
     }
 
+    // prefers-reduced-motion: no shaking, particles or sparkles (styles.css stops CSS animation).
+    const reducedMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    function prefersReducedMotion() {
+        return !!reducedMotionQuery?.matches;
+    }
+
     function screenShake(intensity = 'med') {
+        if (prefersReducedMotion()) return;
         const el = document.body || document.querySelector('.game-container');
         if (!el) return;
 
@@ -419,6 +533,8 @@
         previousEnemyLife: 20,
         landsPlayedThisTurn: 0,  // Track lands played to enforce one land per turn rule
         hasAttackedThisTurn: false,  // VIGILANCE FIX: Prevent multiple attacks per turn
+        playerDeckedOut: false,  // Set when a player has to draw from an empty deck (RULES.md R6.1)
+        enemyDeckedOut: false,
         matchFinalized: false
     };
 
@@ -637,6 +753,12 @@
             clickToStart.style.opacity = '0';
             clickToStart.style.pointerEvents = 'none';
 
+            // Reduced motion: no intro animation. The tap still unlocks audio for the menu music.
+            if (prefersReducedMotion()) {
+                skipIntro();
+                return;
+            }
+
             introContainer.classList.remove('hidden');
             introContainer.style.display = 'flex';
 
@@ -645,7 +767,9 @@
 
             // Fallback in case video playback never starts on slower mobile browsers
             introStartWatchdogId = setTimeout(() => {
-                const playbackStillBlocked = introVideo.paused && introVideo.currentTime === 0;
+                // No progress after 3 s. (A play() that never settles leaves `paused` false, so checking it
+                // made the menu wait for the 15 s limit when the video can't be decoded: QA D11.)
+                const playbackStillBlocked = introVideo.currentTime === 0;
                 if (startupState === 'starting-intro' && playbackStillBlocked) {
                     console.warn('Intro video did not start correctly; showing menu fallback.');
                     skipIntro();
@@ -663,6 +787,8 @@
                 playPromise.then(() => {
                     markIntroAsPlaying();
                 }).catch((e) => {
+                    // Skipped meanwhile (the tap that skips the intro interrupts play()): don't restart it.
+                    if (introSkipped || startupState === 'menu' || startupState === 'skipping-intro') return;
                     console.warn('Video play failed with audio. Retrying muted:', e);
                     introVideo.muted = true;
                     const mutedPlayPromise = introVideo.play();
@@ -712,6 +838,13 @@
 
         // When video ends, seamlessly transition to start menu
         introVideo.addEventListener('ended', skipIntro);
+        // A <source> that fails to load reports the error on itself, not on the <video>.
+        introVideo.querySelectorAll('source').forEach(source => source.addEventListener('error', () => {
+            if (startupState === 'starting-intro' || startupState === 'playing-intro') {
+                console.warn('Intro video source failed; showing menu fallback.');
+                skipIntro();
+            }
+        }));
         introVideo.addEventListener('error', () => {
             console.warn('Intro video failed to load; showing menu fallback.');
             skipIntro();
@@ -735,6 +868,8 @@
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
     let isStartingGame = false;
+    // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
+    let matchSerial = 0;
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -747,7 +882,7 @@
 
         // Set failsafe timer to auto-unlock after duration
         processingActionTimer = setTimeout(() => {
-            console.log('⚠️ Failsafe: Auto-unlocking processing action');
+            if (QA_MODE) console.log('⚠️ Failsafe: Auto-unlocking processing action');
             isProcessingAction = false;
             updateUI();
         }, duration);
@@ -764,6 +899,101 @@
         updateUI();
     }
 
+    // Keyword rules: the one source for card details, board badges and How To Play (RULES.md §8).
+    const KEYWORD_RULES = {
+        flying: { label: 'Flying', badge: '🪽', text: 'Can only be blocked by creatures with Flying or Reach.' },
+        reach: { label: 'Reach', badge: '🏹', text: 'Can block creatures with Flying.' },
+        trample: { label: 'Trample', badge: '🐾', text: 'Damage beyond what its blockers need to die goes to the defending player.' },
+        lifelink: { label: 'Lifelink', badge: '💖', text: 'Damage it deals also gains its controller that much life.' },
+        haste: { label: 'Haste', badge: '⚡', text: 'Can attack the turn it arrives.' },
+        vigilance: { label: 'Vigilance', badge: '👁️', text: "Doesn't tap when attacking, so it can still block." },
+        defender: { label: 'Defender', badge: '🧱', text: "Can't attack, but can block." },
+        deathtouch: { label: 'Deathtouch', badge: '☠️', text: 'Any damage it deals to a creature destroys it.' },
+        first_strike: { label: 'First Strike', badge: '1️⃣', text: 'Deals combat damage before creatures without First Strike.' },
+        double_strike: { label: 'Double Strike', badge: '2️⃣', text: 'Deals combat damage twice: once early, once with normal damage.' },
+        hexproof: { label: 'Hexproof', badge: '🔰', text: "Your opponent's destroy, tap and bounce effects can't choose it." },
+        menace: { label: 'Menace', badge: '😈', text: 'Can only be blocked by two or more creatures.' },
+        unblockable: { label: 'Unblockable', badge: '👻', text: "Can't be blocked." },
+        flash: { label: 'Flash', badge: '💨', text: 'No effect yet: this version has no instant-speed play.' }
+    };
+
+    function describeKeyword(ability) {
+        const rule = KEYWORD_RULES[ability];
+        return rule ? `${rule.label}: ${rule.text}` : ability;
+    }
+
+    // Token creatures made by token spells (tokenType). `default` is for a token spell without a type.
+    const TOKEN_TYPES = {
+        spirit: { name: 'Spirit Token', emoji: '👻', power: 1, toughness: 1, abilities: ['flying'] },
+        soldier: { name: 'Soldier Token', emoji: '🗡️', power: 1, toughness: 1, abilities: [] },
+        beast: { name: 'Beast Token', emoji: '🐻', power: 2, toughness: 2, abilities: [] },
+        default: { name: 'Token', emoji: '🪙', power: 1, toughness: 1, abilities: [] }
+    };
+
+    // Rules text for instants and artifacts: exactly what the engine does (EFFECTS.md). Card details show
+    // it under the card's own text.
+    function describeEffect(card) {
+        const v = card.value;
+        const isArtifact = card.type === 'artifact';
+        const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+        const eachTurn = text => `At the start of each of your turns, ${text}.`;
+        const usedUp = isArtifact ? ' The artifact is then used up.' : '';
+        const keywordLabels = abilities => (abilities || []).map(a => KEYWORD_RULES[a]?.label || a);
+
+        switch (card.effect) {
+            case 'damage':
+                if (isArtifact) return eachTurn(`it deals ${v} damage to your opponent`);
+                if (card.target === 'all') return `Deals ${v} damage to every creature, yours too.`;
+                return `Deals ${v} damage to your opponent.`;
+            case 'heal':
+                return isArtifact ? eachTurn(`you gain ${v} life`) : `You gain ${v} life.`;
+            case 'heal_draw':
+                return `You gain ${v} life and draw ${plural(card.drawCards || 1, 'card')}.`;
+            case 'draw':
+                return isArtifact ? eachTurn(`you draw ${plural(v, 'extra card')}`) : `Draw ${plural(v, 'card')}.`;
+            case 'draw_on_play':
+                return `When played, draw ${plural(v || 1, 'card')}.${usedUp}`;
+            case 'drain':
+                return `Your opponent loses ${v} life and you gain ${v}.`;
+            case 'destroy':
+                return 'Destroys a random enemy creature without Hexproof.';
+            case 'buff':
+            case 'buff_defense': {
+                const power = card.effect === 'buff' ? v : 0;
+                const toughness = card.effect === 'buff_defense' || card.buffType !== 'power' ? v : 0;
+                const parts = [];
+                if (v > 0) parts.push(`+${power}/+${toughness}`);
+                parts.push(...keywordLabels(card.grantAbilities));
+                const who = card.targetAll ? 'Each creature you control gets' : 'A random creature you control gets';
+                const duration = card.untilEndOfTurn ? ' until end of turn' : ' while it stays on the battlefield';
+                return `${who} ${parts.join(' and ')}${duration}.${usedUp}`;
+            }
+            case 'tap':
+                return card.skipUntap
+                    ? "Taps a random enemy creature without Hexproof (an untapped one if there is one). It doesn't untap during its controller's next untap."
+                    : 'Taps a random untapped enemy creature without Hexproof.';
+            case 'bounce':
+                return "Returns up to 2 random enemy creatures without Hexproof to their owner's hand.";
+            case 'revive':
+                return 'Returns the most recent creature in your graveyard to the battlefield. It can attack next turn (or now, with Haste).';
+            case 'aoe':
+                return `Deals ${v} damage to each enemy creature.${usedUp}`;
+            case 'mana':
+                return `Once per turn, click it to add ${v} ${ELEMENTS.colorless.emoji} colourless mana.`;
+            case 'token': {
+                const token = TOKEN_TYPES[card.tokenType] || TOKEN_TYPES.default;
+                const keywords = keywordLabels(token.abilities);
+                return `Creates ${plural(v || 1, token.name)} (${token.power}/${token.toughness}${keywords.length ? ' ' + keywords.join(', ') : ''}).`;
+            }
+            case 'discard':
+                return `Your opponent discards ${plural(v || 1, 'random card')}.`;
+            case 'discard_draw':
+                return `Your opponent discards ${plural(v || 1, 'random card')}, and you draw ${plural(v || 1, 'card')} either way.`;
+            default:
+                return card.desc || '';
+        }
+    }
+
     // Mana System
     const ELEMENTS = {
         fire: { emoji: '🔥', color: '#ff4444' },
@@ -778,11 +1008,11 @@
     const CARD_DATABASE = {
         // LANDS (Mana generators)
         lands: {
-            fire: { emoji: '🔥', type: 'land', cardType: 'Land', element: 'fire', name: 'Volcanic Peak', theme: 'Nature' },
-            water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', theme: 'Nature' },
-            earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', theme: 'Nature' },
-            swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', theme: 'Fantasy' },
-            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', theme: 'Fantasy' },
+            fire: { emoji: '🔥', type: 'land', cardType: 'Land', element: 'fire', name: 'Volcanic Peak', desc: 'Tap for Fire mana', theme: 'Nature' },
+            water: { emoji: '💧', type: 'land', cardType: 'Land', element: 'water', name: 'Mystic Springs', desc: 'Tap for Water mana', theme: 'Nature' },
+            earth: { emoji: '🌍', type: 'land', cardType: 'Land', element: 'earth', name: 'Ancient Grove', desc: 'Tap for Earth mana', theme: 'Nature' },
+            swamp: { emoji: '💀', type: 'land', cardType: 'Land', element: 'swamp', name: 'Cursed Bog', desc: 'Tap for Swamp mana', theme: 'Fantasy' },
+            light: { emoji: '☀️', type: 'land', cardType: 'Land', element: 'light', name: 'Sacred Temple', desc: 'Tap for Light mana', theme: 'Fantasy' },
             wasteland: { emoji: '🏜️', type: 'land', cardType: 'Land', element: 'colorless', name: 'Crystal Wasteland', desc: 'Tap for colorless mana', theme: 'Science Fiction' },
             distant_planet: { emoji: '🪐', type: 'land', cardType: 'Land - Dual', elements: ['light', 'swamp'], name: 'Distant Planet', desc: 'Tap for Light or Swamp mana', theme: 'Science Fiction' },
             rainbow: { emoji: '🌈', type: 'land', cardType: 'Land - Universal', elements: ['fire', 'water', 'earth', 'swamp', 'light'], name: 'Rainbow', desc: 'Tap for any color mana', theme: 'Nature' }
@@ -1004,12 +1234,12 @@
         // SPELLS - GREATLY EXPANDED
         spells: {
             // Fire Spells
-            fireball: { emoji: '💥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to target', theme: 'Fantasy' },
-            explosion: { emoji: '🎆', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to target', theme: 'Fantasy' },
-            inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to target', theme: 'Fantasy' },
+            fireball: { emoji: '💥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 3 }, effect: 'damage', value: 3, name: 'Fireball', desc: 'Deal 3 damage to the enemy', theme: 'Fantasy' },
+            explosion: { emoji: '🎆', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 4 }, effect: 'damage', value: 4, name: 'Explosion', desc: 'Deal 4 damage to the enemy', theme: 'Fantasy' },
+            inferno: { emoji: '🔥', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 5 }, effect: 'damage', value: 5, name: 'Inferno', desc: 'Deal 5 damage to the enemy', theme: 'Fantasy' },
             meteor: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 6 }, effect: 'damage', value: 6, name: 'Meteor Strike', desc: 'Devastating impact', theme: 'Nature' },
             flame: { emoji: '🕯️', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 1 }, effect: 'damage', value: 1, name: 'Flame Jet', desc: 'Quick burn', theme: 'Fantasy' },
-            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, buffType: 'power', name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
+            anger: { emoji: '🤬', type: 'instant', cardType: 'Instant/Spell', cost: { fire: 2 }, effect: 'buff', value: 3, buffType: 'power', untilEndOfTurn: true, name: 'Anger', desc: '+3/+0 to creature until end of turn', theme: 'City' },
 
             // Water Spells
             freeze: { emoji: '❄️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'tap', name: 'Freeze', desc: 'Tap target creature', theme: 'Nature' },
@@ -1017,7 +1247,7 @@
             bubble: { emoji: '🫧', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'buff_defense', value: 3, name: 'Bubble Shield', desc: '+0/+3 to creature', theme: 'Fantasy' },
             rain: { emoji: '🌧️', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'heal', value: 2, name: 'Healing Rain', desc: 'Restore 2 life', theme: 'Nature' },
             whirlpool: { emoji: '🌀', type: 'instant', cardType: 'Instant/Spell', cost: { water: 4 }, effect: 'destroy', name: 'Whirlpool', desc: 'Destroy target creature', theme: 'Nature' },
-            deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
+            deep_freeze: { emoji: '🥶', type: 'instant', cardType: 'Instant/Spell', cost: { water: 3 }, effect: 'tap', skipUntap: true, name: 'Deep Freeze', desc: 'Tap target creature, it doesn\'t untap', theme: 'Fantasy' },
             surf: { emoji: '🏄', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff', value: 2, grantAbilities: ['unblockable'], name: 'Surf', desc: 'Creature gets +2/+2 and unblockable', theme: 'City' },
             coral: { emoji: '🪸', type: 'instant', cardType: 'Instant/Spell', cost: { water: 2 }, effect: 'buff_defense', value: 2, name: 'Coral Shield', desc: '+0/+2 to creature', theme: 'Nature' },
 
@@ -1027,7 +1257,7 @@
             roots: { emoji: '🌿', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff_defense', value: 2, name: 'Tangling Roots', desc: '+0/+2 to creature', theme: 'Nature' },
             avalanche: { emoji: '🏔️', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 5 }, effect: 'damage', value: 3, target: 'all', name: 'Avalanche', desc: 'Deal 3 to all creatures', theme: 'Nature' },
             harvest: { emoji: '🌾', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 2 }, effect: 'draw', value: 2, name: 'Harvest', desc: 'Draw 2 cards', theme: 'Nature' },
-            wrestle: { emoji: '🤼', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'destroy', name: 'Wrestle', desc: 'Destroy target creature in combat', theme: 'City' },
+            wrestle: { emoji: '🤼', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 3 }, effect: 'destroy', name: 'Wrestle', desc: 'Destroy target creature', theme: 'City' },
             shroom: { emoji: '🍄', type: 'instant', cardType: 'Instant/Spell', cost: { earth: 1 }, effect: 'buff', value: 1, name: 'Mushroom Power', desc: '+1/+1 to creature', theme: 'Nature' },
 
             // Swamp Spells
@@ -1054,7 +1284,7 @@
 
             // Mixed Color Spells
             web: { emoji: '🕸️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 1, fire: 1 }, effect: 'tap', name: 'Web Trap', desc: 'Tap target creature', theme: 'Nature' },
-            comet: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3, fire: 2 }, effect: 'damage', value: 5, name: 'Comet Strike', desc: 'Deal 5 damage to target', theme: 'Science Fiction' },
+            comet: { emoji: '☄️', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 3, fire: 2 }, effect: 'damage', value: 5, name: 'Comet Strike', desc: 'Deal 5 damage to the enemy', theme: 'Science Fiction' },
 
             // Discard Spells
             mind_rot: { emoji: '🧠', type: 'instant', cardType: 'Instant/Spell', cost: { swamp: 2 }, effect: 'discard', value: 2, name: 'Mind Rot', desc: 'Enemy discards 2 cards', theme: 'Fantasy' },
@@ -1067,21 +1297,21 @@
             shield: { emoji: '🛡️', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff_defense', value: 2, name: 'Earth Shield', desc: 'Equipped creature gets +0/+2', theme: 'Fantasy' },
             crown: { emoji: '👑', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'draw', value: 1, name: 'Crown of Power', desc: 'Draw extra card each turn', theme: 'Fantasy' },
             gem: { emoji: '💎', type: 'artifact', cardType: 'Artifact', cost: { water: 2 }, effect: 'mana', value: 1, name: 'Mana Gem', desc: 'Generate extra mana', theme: 'Fantasy' },
-            bomb: { emoji: '💣', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to all enemies', theme: 'City' },
+            bomb: { emoji: '💣', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'aoe', value: 2, name: 'Bomb', desc: 'Deal 2 to each enemy creature', theme: 'City' },
             chalice: { emoji: '🏆', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'heal', value: 1, name: 'Holy Chalice', desc: 'Gain 1 life each turn', theme: 'Fantasy' },
-            scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw extra card', theme: 'Fantasy' },
+            scroll: { emoji: '📜', type: 'artifact', cardType: 'Artifact', cost: { swamp: 2 }, effect: 'draw', value: 1, name: 'Dark Scroll', desc: 'Draw an extra card each turn', theme: 'Fantasy' },
             orb: { emoji: '🔮', type: 'artifact', cardType: 'Artifact', cost: { swamp: 3 }, effect: 'damage', value: 1, name: 'Cursed Orb', desc: 'Deal 1 to enemy each turn', theme: 'Fantasy' },
-            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, buffType: 'power', targetAll: true, name: 'War Horn', desc: 'All creatures get +1/+0', theme: 'City' },
-            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, targetAll: true, name: 'Protective Amulet', desc: 'All creatures get +0/+1', theme: 'Fantasy' },
+            horn: { emoji: '📯', type: 'artifact', cardType: 'Artifact', cost: { earth: 2 }, effect: 'buff', value: 1, buffType: 'power', targetAll: true, name: 'War Horn', desc: 'Your creatures get +1/+0', theme: 'City' },
+            amulet: { emoji: '🪬', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'buff_defense', value: 1, targetAll: true, name: 'Protective Amulet', desc: 'Your creatures get +0/+1', theme: 'Fantasy' },
             ring: { emoji: '💍', type: 'artifact', cardType: 'Artifact', cost: { fire: 1, water: 1 }, effect: 'mana', value: 1, name: 'Magic Ring', desc: 'Boost mana production', theme: 'Fantasy' },
             armor: { emoji: '🦺', type: 'artifact', cardType: 'Artifact', cost: { earth: 3 }, effect: 'buff_defense', value: 3, name: 'Heavy Armor', desc: '+0/+3 to equipped', theme: 'City' },
             axe: { emoji: '🪓', type: 'artifact', cardType: 'Artifact', cost: { fire: 3 }, effect: 'buff', value: 3, buffType: 'power', name: 'Battle Axe', desc: '+3/+0 to equipped', theme: 'Fantasy' },
             bow: { emoji: '🏹', type: 'artifact', cardType: 'Artifact', cost: { earth: 2, light: 1 }, effect: 'buff', value: 2, buffType: 'power', grantAbilities: ['flying'], name: 'Elven Bow', desc: '+2/+0 and flying', theme: 'Fantasy' },
-            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage when activated', theme: 'Fantasy' },
+            wand: { emoji: '🪄', type: 'artifact', cardType: 'Artifact', cost: { light: 2 }, effect: 'damage', value: 2, name: 'Magic Wand', desc: 'Deal 2 damage to the enemy each turn', theme: 'Fantasy' },
             halo: { emoji: '😇', type: 'artifact', cardType: 'Artifact', cost: { light: 3 }, effect: 'buff', value: 1, targetAll: true, grantAbilities: ['lifelink'], name: 'Halo', desc: 'All your creatures get +1/+1 and lifelink', theme: 'Fantasy' },
             dna_artifact: { emoji: '🧬', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'draw_on_play', value: 1, name: 'DNA Sequence', desc: 'Draw a card when played', theme: 'Science Fiction' },
             fingerprint: { emoji: '🫴', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'mana', value: 1, name: 'Fingerprint Scanner', desc: 'Add 1 colorless mana', theme: 'Science Fiction' },
-            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Creatures get haste', theme: 'Science Fiction' },
+            footsteps: { emoji: '👣', type: 'artifact', cardType: 'Artifact', cost: {}, effect: 'buff', value: 0, targetAll: true, grantAbilities: ['haste'], name: 'Footsteps', desc: 'Your creatures get haste', theme: 'Science Fiction' },
             prism_core: { emoji: '🔋', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'mana', value: 1, name: 'Prism Core', desc: 'Adds 1 colorless mana', theme: 'Science Fiction' },
             gravity_boots: { emoji: '🥾', type: 'artifact', cardType: 'Artifact', cost: { colorless: 2 }, effect: 'buff', value: 1, buffType: 'power', grantAbilities: ['haste'], name: 'Gravity Boots', desc: '+1/+0 and haste', theme: 'Science Fiction' },
             chrono_watch: { emoji: '⌚', type: 'artifact', cardType: 'Artifact', cost: { colorless: 3 }, effect: 'draw', value: 1, name: 'Chrono Watch', desc: 'Draw an extra card each upkeep', theme: 'Science Fiction' },
@@ -1253,6 +1483,8 @@
 
     function getDeckBuilderCopyLimit(card) {
         if (!card) return 0;
+        // Basic lands are limited by the deck's land caps (getDeckLandCaps), not by copy count.
+        if (card.type === 'land' && card.element && card.element !== 'colorless') return Number.POSITIVE_INFINITY;
         return card.__rarity === 'legendary' ? 1 : 2;
     }
 
@@ -1350,10 +1582,53 @@
             localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
         } catch (error) {
             console.warn('Meta save failed. Continuing without persisting meta.', error);
+            showGameLog('⚠️ Progress could not be saved: browser storage is full or blocked.', true);
         }
     }
 
-    function buildStarterDeckFromColors(deckKey, colors) {
+    const META_BACKUP_KEY = 'emoji_elements_meta_backups';
+    const META_BACKUP_LIMIT = 3;
+
+    // Keeps the exact stored text of a profile before the game rewrites it (PROGRESSION.md §7).
+    function backupMetaRaw(raw, reason) {
+        if (!raw) return;
+        try {
+            const previous = JSON.parse(localStorage.getItem(META_BACKUP_KEY) || '[]');
+            const backups = Array.isArray(previous) ? previous : [];
+            backups.push({ savedAt: new Date().toISOString(), reason, raw });
+            localStorage.setItem(META_BACKUP_KEY, JSON.stringify(backups.slice(-META_BACKUP_LIMIT)));
+        } catch (error) {
+            console.warn('Could not back up the previous save.', error);
+        }
+    }
+
+    // Wins/losses from the pre-meta build's emojiElementsStats, for a brand-new profile (PROGRESSION.md P7.4).
+    function importLegacyStats(meta) {
+        try {
+            const legacy = JSON.parse(localStorage.getItem('emojiElementsStats') || 'null');
+            if (!legacy || typeof legacy !== 'object') return;
+            meta.stats.wins = readStoredNumber(legacy.wins) ?? 0;
+            meta.stats.losses = readStoredNumber(legacy.losses) ?? 0;
+        } catch (_) {
+            // unreadable legacy stats: start from zero
+        }
+    }
+
+    // A number that may have been stored as text; null when it isn't a finite number.
+    function readStoredNumber(value) {
+        const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+        return typeof number === 'number' && Number.isFinite(number) ? Math.max(0, Math.floor(number)) : null;
+    }
+
+    function sameCardMultiset(a, b) {
+        if (a.length !== b.length) return false;
+        const counts = {};
+        a.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+        return b.every(id => (counts[id] = (counts[id] || 0) - 1) >= 0);
+    }
+
+    // ownedCounts (optional) limits each card to the copies the starter collection owns.
+    function buildStarterDeckFromColors(deckKey, colors, ownedCounts = null) {
         const landCaps = getDeckLandCaps(colors);
         const LAND_COUNT = landCaps.maxLands;
         const NON_LAND_COUNT = Math.max(0, STANDARD_DECK_SIZE - LAND_COUNT);
@@ -1376,7 +1651,7 @@
         function addCardById(cardId, amount = 1) {
             const card = __CARD_BY_ID[cardId];
             if (!card) return;
-            const limit = getDeckCardCopyLimit(card);
+            const limit = Math.min(getDeckCardCopyLimit(card), ownedCounts ? (ownedCounts[cardId] || 0) : Number.POSITIVE_INFINITY);
             const current = cardCounts[cardId] || 0;
             const room = Math.max(0, limit - current);
             const toAdd = Math.min(room, amount);
@@ -1486,19 +1761,17 @@
     function createInitialMeta() {
         const decks = {};
         const collection = {};
-        const starterDeckKeys = [...STARTER_MONO_DECK_KEYS, ...STARTER_DUAL_DECK_KEYS];
-
-        starterDeckKeys.forEach(deckKey => {
-            const colors = getDeckColorsFromKey(deckKey);
-            if (colors.length === 0) return;
-            const starterDeck = buildStarterDeckFromColors(deckKey, colors);
+        STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+            const starterDeck = buildStarterDeckFromColors(deckKey, getDeckColorsFromKey(deckKey));
             decks[deckKey] = starterDeck;
+            starterDeck.cardIds.forEach(cardId => {
+                collection[cardId] = (collection[cardId] || 0) + 1;
+            });
+        });
 
-            if (STARTER_MONO_DECK_KEYS.includes(deckKey)) {
-                starterDeck.cardIds.forEach(cardId => {
-                    collection[cardId] = (collection[cardId] || 0) + 1;
-                });
-            }
+        // Dual starters only use cards the mono starters already gave you, so every starter deck is owned.
+        STARTER_DUAL_DECK_KEYS.forEach(deckKey => {
+            decks[deckKey] = buildStarterDeckFromColors(deckKey, getDeckColorsFromKey(deckKey), collection);
         });
 
         return {
@@ -1538,7 +1811,7 @@
         if (Array.isArray(deck?.starterCardIds) && deck.starterCardIds.length > 0) {
             return deck.starterCardIds.length;
         }
-        return 30;
+        return STANDARD_DECK_SIZE;
     }
 
     function inferCardElements(card) {
@@ -1576,6 +1849,10 @@
 
     function isCardEligibleForDeck(card, deckColors) {
         if (!card || !Array.isArray(deckColors) || deckColors.length === 0) return false;
+        if (card.type === 'land') {
+            // Same rule validateDeckBuild applies on save: the land must produce at least one deck colour.
+            return inferLandElements(card).some(element => deckColors.includes(element));
+        }
         const cardElements = inferCardElements(card);
         return cardElements.every(element => element === 'colorless' || deckColors.includes(element));
     }
@@ -1591,16 +1868,20 @@
                 decks: {},
                 selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
                 stats: {
-                    wins: Number.isFinite(loaded?.stats?.wins) ? loaded.stats.wins : 0,
-                    losses: Number.isFinite(loaded?.stats?.losses) ? loaded.stats.losses : 0,
-                    packsOpened: Number.isFinite(loaded?.stats?.packsOpened) ? loaded.stats.packsOpened : 0
+                    wins: readStoredNumber(loaded?.stats?.wins) ?? 0,
+                    losses: readStoredNumber(loaded?.stats?.losses) ?? 0,
+                    packsOpened: readStoredNumber(loaded?.stats?.packsOpened) ?? 0
                 },
                 wallet: {
-                    credits: Number.isFinite(loaded?.wallet?.credits)
-                        ? Math.max(0, Math.floor(loaded.wallet.credits))
-                        : STARTER_CREDITS
+                    credits: readStoredNumber(loaded?.wallet?.credits) ?? STARTER_CREDITS
                 },
-                lastPack: loaded.lastPack ?? null
+                lastPack: Array.isArray(loaded.lastPack?.cardIds)
+                    ? {
+                        themeKey: typeof loaded.lastPack.themeKey === 'string' ? loaded.lastPack.themeKey : null,
+                        cardIds: loaded.lastPack.cardIds.filter(id => __CARD_BY_ID[id]),
+                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null
+                    }
+                    : null
             };
 
             Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
@@ -1611,27 +1892,41 @@
                 }
             });
 
+            const seededMeta = createInitialMeta();
+            const standardDeckKeys = [...STARTER_MONO_DECK_KEYS, ...STARTER_DUAL_DECK_KEYS];
+
             Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
                 const colors = Array.isArray(deckData?.colors)
                     ? deckData.colors.filter(color => ELEMENTS[color])
                     : getDeckColorsFromKey(deckKey);
                 if (colors.length === 0) return;
-                const cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], repaired.collection);
+                const savedStarter = Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [];
+                const currentStarter = seededMeta.decks[deckKey]?.starterCardIds;
+                let cardIds = clampDeckCardIdsToOwned(deckData?.cardIds || [], repaired.collection);
+
+                // A deck nobody edited (still its old starter list) follows the current starter list.
+                if (currentStarter && savedStarter.length > 0 && !sameCardMultiset(savedStarter, currentStarter) &&
+                    sameCardMultiset(cardIds, clampDeckCardIdsToOwned(savedStarter, repaired.collection))) {
+                    cardIds = clampDeckCardIdsToOwned(currentStarter, repaired.collection);
+                }
 
                 repaired.decks[deckKey] = {
                     deckKey,
                     colors,
-                    starterCardIds: Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [],
+                    // Standard decks always carry the current starter list (the RESET TO STARTER target).
+                    starterCardIds: currentStarter ? [...currentStarter] : savedStarter,
                     cardIds
                 };
             });
 
-            const seededMeta = createInitialMeta();
-            STARTER_MONO_DECK_KEYS.forEach(deckKey => {
+            standardDeckKeys.forEach(deckKey => {
                 if (!repaired.decks[deckKey]) {
-                    repaired.decks[deckKey] = seededMeta.decks[deckKey];
+                    const seeded = seededMeta.decks[deckKey];
+                    repaired.decks[deckKey] = { ...seeded, colors: [...seeded.colors], starterCardIds: [...seeded.starterCardIds], cardIds: [...seeded.cardIds] };
                 }
+            });
 
+            STARTER_MONO_DECK_KEYS.forEach(deckKey => {
                 if (!shouldSeedStarter) return;
 
                 const requiredCounts = {};
@@ -1645,6 +1940,11 @@
                         repaired.collection[cardId] = needed;
                     }
                 });
+            });
+
+            // Decks only hold owned copies; no cards are granted to an existing profile.
+            Object.values(repaired.decks).forEach(deck => {
+                deck.cardIds = clampDeckCardIdsToOwned(deck.cardIds, repaired.collection);
             });
 
             if (!repaired.decks[repaired.selectedDeckKey]) {
@@ -1672,21 +1972,46 @@
         }
     }
 
-    function metaEnsureInitialized() {
+    function metaEnsureInitialized({ importLegacy = true } = {}) {
         if (!isMetaRuntimeEnabled()) {
             return createInitialMeta();
         }
 
-        const loaded = metaLoad();
-        if (!loaded || loaded.version !== 1) {
+        let raw = null;
+        try {
+            raw = localStorage.getItem(META_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Could not read the saved profile.', error);
+        }
+
+        if (!raw) {
+            const seeded = createInitialMeta();
+            if (importLegacy) importLegacyStats(seeded);
+            metaSave(seeded);
+            return seeded;
+        }
+
+        let parsed = null;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (_) {
+            parsed = null;
+        }
+
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            // Unreadable: keep its text, then start a new profile.
+            backupMetaRaw(raw, 'corrupt');
             const seeded = createInitialMeta();
             metaSave(seeded);
             return seeded;
         }
 
-        const meta = validateMeta(loaded);
-
-        metaSave(meta);
+        // Any readable profile is repaired, never replaced (PROGRESSION.md §7).
+        const meta = validateMeta(parsed);
+        if (JSON.stringify(meta) !== raw) {
+            backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version');
+            metaSave(meta);
+        }
         return meta;
     }
 
@@ -1732,6 +2057,7 @@
             if (!confirmed) return false;
             try {
                 localStorage.removeItem(META_STORAGE_KEY);
+                localStorage.removeItem('emojiElementsStats');
             } catch (error) {
                 console.warn('QA reset failed to clear meta storage key.', error);
             }
@@ -1740,6 +2066,7 @@
         };
     }
 
+    if (QA_MODE) {
     window.__qaNavSmoke = function() {
         const qaPrefix = '[QA][NavSmoke]';
         const isElementVisible = (id) => {
@@ -1941,6 +2268,7 @@
             results
         };
     };
+    }
 
     const PACK_THEMES = [
         { key: 'fantasy', label: 'Fantasy', weight: 24 },
@@ -2206,7 +2534,7 @@
 
         if (!overlay) {
             pendingMatchResultOverlay = 'win';
-            openPackOpeningOverlayFromMeta();
+            openPackOpeningOverlayFromMeta('win');
             return;
         }
 
@@ -2225,14 +2553,14 @@
         const overlay = document.getElementById('matchRewardOverlay');
         overlay?.classList.remove('show');
         pendingMatchResultOverlay = 'win';
-        openPackOpeningOverlayFromMeta();
+        openPackOpeningOverlayFromMeta('win');
     }
 
     function updatePackOpeningDebug() {
         const debugEl = document.getElementById('packQaDebug');
         if (!debugEl) return;
 
-        if (!QA_MODE) {
+        if (!QA_MODE || !window.__qaShowPackDebug) {
             debugEl.textContent = '';
             debugEl.style.display = 'none';
             return;
@@ -2439,7 +2767,7 @@
         }
     }
 
-    function openPackOpeningOverlayFromMeta() {
+    function openPackOpeningOverlayFromMeta(source = 'win') {
         try {
             const overlay = document.getElementById('packOpeningOverlay');
             if (packOpeningState.active || overlay?.classList.contains('show')) {
@@ -2475,6 +2803,9 @@
             const instruction = document.getElementById('packInstruction');
             const progress = document.getElementById('packProgressFill');
             const tearLine = document.getElementById('packTearLine');
+            const title = overlay.querySelector('.pack-opening-title');
+            const themeLabel = PACK_THEMES.find(theme => theme.key === gameMeta?.lastPack?.themeKey)?.label;
+            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : '🎁 Victory Pack';
 
             sealedStage.classList.add('pack-stage-active');
             revealStage.classList.remove('pack-stage-active');
@@ -2581,6 +2912,7 @@
             }
 
             setTimeout(() => revealCurrentPackCard(), 180);
+            swiping = false; // one card per swipe; lift and swipe again for the next
             swipeStartX = clientX;
         };
 
@@ -2646,17 +2978,15 @@
 
             const lastPack = gameMeta?.lastPack || { themeKey, cardIds, openedAt };
             const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
-            console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
-
             if (QA_DEBUG) {
+                console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
                 console.log(`[QA] finalizeMatch result=WIN awardedPack=${awardedFreePack} theme=${themeKey || 'none'}`);
+                console.log('🏆 Match reward granted:', {
+                    creditsAwarded: BASE_WIN_CREDITS,
+                    freePackAwarded: true,
+                    lastPack: gameMeta.lastPack
+                });
             }
-
-            console.log('🏆 Match reward granted:', {
-                creditsAwarded: BASE_WIN_CREDITS,
-                freePackAwarded: true,
-                lastPack: gameMeta.lastPack
-            });
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
@@ -2689,16 +3019,15 @@
 
         const lastPack = null;
         const credits = Number.isFinite(gameMeta?.wallet?.credits) ? gameMeta.wallet.credits : null;
-        console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
-
         if (QA_DEBUG) {
+            console.log('[QA] finalizeMatch', normalizedResult, 'awardedPack=', Boolean(lastPack), 'credits=', credits);
             console.log('[QA] finalizeMatch result=LOSS awardedPack=false');
         }
 
-        console.log('💀 Match recorded as loss.');
-
         stopSFX('gameplayMusic');
         playSFX('gameLose');
+        const lossReward = document.getElementById('lossRewardLine');
+        if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
         showMatchResultOverlay('loss');
     }
 
@@ -2746,6 +3075,7 @@
     }
 
     function createParticles(x, y, color, count = 20) {
+        if (prefersReducedMotion()) return;
         // Apply mobile optimization
         const adjustedCount = Math.floor(count * particleMultiplier);
 
@@ -2784,11 +3114,30 @@
     animateParticles(0);
 
     // Game Log System
-    function showGameLog(message, isEnemy = false, isScifi = false) {
+    // One message at a time. A message shown with `hold` (combat reports) stays up for that long; messages
+    // that arrive meanwhile wait and then show in order (the latest 3), so a report is never wiped at once.
+    let gameLogHoldUntil = 0;
+    let gameLogQueue = [];
+    let gameLogFlushTimer = null;
+    let gameLogHideTimer = null;
+
+    function showGameLog(message, isEnemy = false, isScifi = false, { hold = 0 } = {}) {
+        const now = Date.now();
+        if (!hold && now < gameLogHoldUntil) {
+            gameLogQueue = [...gameLogQueue, { message, isEnemy, isScifi }].slice(-3);
+            clearTimeout(gameLogFlushTimer);
+            gameLogFlushTimer = setTimeout(flushGameLog, gameLogHoldUntil - now);
+            return;
+        }
+        if (hold) {
+            gameLogQueue = [];
+            gameLogHoldUntil = now + hold;
+        }
+
         const log = document.getElementById('gameLog');
         log.textContent = message;
         log.className = 'game-log show';
-        
+
         if (isEnemy) {
             log.classList.add('enemy');
         }
@@ -2796,13 +3145,39 @@
             log.classList.add('scifi');
         }
 
-        setTimeout(() => {
+        clearTimeout(gameLogHideTimer);
+        gameLogHideTimer = setTimeout(() => {
             log.classList.remove('show');
-        }, 2000);
+        }, hold || 2000);
+    }
+
+    function flushGameLog() {
+        const next = gameLogQueue.shift();
+        if (!next) return;
+        gameLogHoldUntil = 0;
+        showGameLog(next.message, next.isEnemy, next.isScifi);
+        if (gameLogQueue.length) {
+            gameLogHoldUntil = Date.now() + 900;
+            gameLogFlushTimer = setTimeout(flushGameLog, 900);
+        }
+    }
+
+    // After combat: who blocked whom and what died, in one message (blocks are automatic, so this is the
+    // only place the player sees them).
+    function reportCombat(pairs, attackerSide) {
+        if (!pairs.length) return;
+        const alive = card => [...gameState.playerBoard, ...gameState.enemyBoard].some(c => c.id === card.id);
+        const label = card => `${card.emoji} ${card.name}${alive(card) ? '' : ' 💀'}`;
+        const yours = attackerSide === 'player';
+        const lines = pairs.map(({ attacker, blockers }) => blockers.length
+            ? `${label(attacker)} ⛔ blocked by ${blockers.map(label).join(' + ')}`
+            : `${label(attacker)} ➜ unblocked (${attacker.power || 0})`);
+        showGameLog(`${yours ? '⚔️ Your attack' : '🛡️ Enemy attack'}: ${lines.join(' · ')}`, !yours, false, { hold: 3500 });
     }
 
     // Visual Effects Functions
     function createSparkles(x, y, count = 15) {
+        if (prefersReducedMotion()) return;
         const sparkleEmojis = ['✨', '💫', '⭐', '🌟', '💖'];
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
@@ -2818,6 +3193,7 @@
     }
 
     function createTrampleEffect(x, y) {
+        if (prefersReducedMotion()) return;
         const trampleEmojis = ['💥', '⚡', '💢', '💨'];
         for (let i = 0; i < 5; i++) {
             setTimeout(() => {
@@ -2833,6 +3209,7 @@
     }
 
     function shakeScreen() {
+        if (prefersReducedMotion()) return;
         const gameContainer = document.getElementById('gameContainer');
         gameContainer.classList.add('shake-board');
         setTimeout(() => {
@@ -2868,8 +3245,17 @@
         }
     }
 
+    function renderKeywordGuide() {
+        const list = document.getElementById('howToPlayKeywords');
+        if (!list) return;
+        list.innerHTML = Object.values(KEYWORD_RULES)
+            .map(rule => `<li>${rule.badge} <strong>${rule.label}</strong> - ${rule.text}</li>`)
+            .join('');
+    }
+
     function showHowToPlay() {
         playSFX('menuOpen');
+        renderKeywordGuide();
         setStartMenuScreen('howToPlayScreen');
         setHowToPlayPage(1);
     }
@@ -2957,7 +3343,11 @@
                 <div class="binder-row-count">x${count}</div>
             `;
             row.title = getCardTooltipText(card);
-            row.addEventListener('click', () => showCardDetail(card));
+            bindCardPress(row, {
+                label: row.textContent.trim().replace(/\s+/g, ' '),
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
             listEl.appendChild(row);
         });
     }
@@ -3009,6 +3399,7 @@
                 gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
             });
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
+            gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
             try {
                 metaSave(gameMeta);
@@ -3018,7 +3409,7 @@
 
             setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
             updatePackShopCreditsBadge();
-            openPackOpeningOverlayFromMeta();
+            openPackOpeningOverlayFromMeta('shop');
             return { ok: true, themeKey: normalizedTheme, cardIds, cost };
         } catch (error) {
             console.warn('Pack Shop purchase flow failed but UI remains usable.', error);
@@ -3083,8 +3474,8 @@
             status.textContent = `${baseMessage} | ${deckBuilderState.validationErrors.join(' ')}`;
             return;
         }
-        if (QA_DEBUG && deckBuilderState.debugWarning) {
-            status.textContent = `${baseMessage} | QA: ${deckBuilderState.debugWarning}`;
+        if (deckBuilderState.debugWarning) {
+            status.textContent = `${baseMessage} | ${deckBuilderState.debugWarning}`;
             return;
         }
         status.textContent = baseMessage;
@@ -3109,22 +3500,22 @@
             const atLimit = inDeck >= getDeckBuilderCopyLimit(card);
             const row = document.createElement('div');
             row.className = 'deck-builder-row';
-            row.innerHTML = `<button type="button">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
+            row.innerHTML = `<button type="button" aria-label="Add ${card.name}">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
             const btn = row.querySelector('button');
             btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
             btn.addEventListener('click', () => {
                 if (owned <= 0) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
                     renderDeckBuilder();
                     return;
                 }
                 if (remaining <= 0) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
                     renderDeckBuilder();
                     return;
                 }
                 if (atLimit) {
-                    if (QA_DEBUG) deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
+                    deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
                     renderDeckBuilder();
                     return;
                 }
@@ -3143,7 +3534,7 @@
                 const card = __CARD_BY_ID[cardId];
                 const row = document.createElement('div');
                 row.className = 'deck-builder-row';
-                row.innerHTML = `<button type="button">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
+                row.innerHTML = `<button type="button" aria-label="Remove ${card.name}">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
                 row.querySelector('button').addEventListener('click', () => {
                     const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
                     if (idx >= 0) {
@@ -3304,10 +3695,12 @@
 
         document.querySelectorAll('.deck-mode-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.deckMode === mode);
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === mode));
         });
 
         document.querySelectorAll('.element-btn').forEach(btn => {
             btn.classList.remove('selected');
+            btn.setAttribute('aria-pressed', 'false');
         });
 
         updateStartButtonState();
@@ -3319,16 +3712,19 @@
 
         document.querySelectorAll('.deck-mode-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.deckMode === 'dual');
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === 'dual'));
         });
 
         document.querySelectorAll('.element-btn').forEach(btn => {
             btn.classList.remove('selected');
+            btn.setAttribute('aria-pressed', 'false');
         });
 
         updateStartButtonState();
     }
 
     function returnToMainMenu() {
+        matchSerial++; // abandon any AI turn still scheduled for the match being left
         stopSFX('gameplayMusic');
         stopSFX('gameVictory');
         stopSFX('gameLose');
@@ -3433,17 +3829,21 @@
     function resetMetaProgress() {
         showConfirmModal('🧹 RESET PROGRESS?', 'This clears collection/decks/packs progress. Continue?', function() {
             try {
+                backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset');
                 localStorage.removeItem(META_STORAGE_KEY);
             } catch (error) {
                 console.warn('Failed to clear meta save key. Proceeding with in-memory reset fallback.', error);
             }
 
             try {
-                gameMeta = metaEnsureInitialized();
+                gameMeta = metaEnsureInitialized({ importLegacy: false });
             } catch (error) {
                 console.warn('Meta reset hook failed. Falling back to starter meta in memory.', error);
                 gameMeta = createInitialMeta();
             }
+            gameStats = { wins: 0, losses: 0, total: 0 };
+            saveStats();
+            updateStatsDisplay();
 
             deckBuilderState = {
                 deckKey: null,
@@ -3461,9 +3861,9 @@
         playSFX('select');
         gameState.difficulty = difficulty;
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
-            btn.classList.remove('selected');
+            btn.classList.toggle('selected', btn.dataset.difficulty === difficulty);
+            btn.setAttribute('aria-pressed', String(btn.dataset.difficulty === difficulty));
         });
-        document.querySelector(`[data-difficulty="${difficulty}"]`).classList.add('selected');
     }
 
     // Card Detail Popup
@@ -3507,8 +3907,8 @@
                 .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
                 .join(', ');
             
-            const abilitiesStr = card.abilities && card.abilities.length > 0 
-                ? card.abilities.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')
+            const abilitiesStr = card.abilities && card.abilities.length > 0
+                ? card.abilities.map(a => `<div class="card-detail-keyword">${describeKeyword(a)}</div>`).join('')
                 : 'None';
 
             html = `
@@ -3548,6 +3948,9 @@
                     <div class="card-detail-info">
                         <span class="card-detail-label">Effect:</span> ${card.desc || 'Magical effect'}
                     </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
+                    </div>
                 </div>
             `;
         } else if (card.type === 'artifact') {
@@ -3565,6 +3968,9 @@
                     </div>
                     <div class="card-detail-info">
                         <span class="card-detail-label">Effect:</span> ${card.desc || 'Powerful artifact'}
+                    </div>
+                    <div class="card-detail-info">
+                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
                     </div>
                 </div>
             `;
@@ -3622,7 +4028,11 @@
                 <span class="graveyard-card-name">${card.name}</span>
                 <span class="graveyard-card-type">${card.cardType}</span>
             `;
-            cardRow.onclick = () => showCardDetail(card);
+            bindCardPress(cardRow, {
+                label: `${card.name}, ${card.cardType}`,
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
             graveyardList.appendChild(cardRow);
         });
     }
@@ -3661,6 +4071,7 @@
             gameState.selectedElements.push(element);
             btn.classList.add('selected');
         }
+        btn.setAttribute('aria-pressed', String(btn.classList.contains('selected')));
 
         updateStartButtonState();
     }
@@ -3716,12 +4127,20 @@
         const spellTarget = 7 + Math.floor(Math.random() * 7); // 7-13
         const artifactTarget = Math.max(0, NON_LAND_COUNT - creatureTarget - spellTarget);
 
+        // Generated decks (the AI's) follow the same copy limits as a player's deck: at most 2 of a card and
+        // 1 of a legendary (AI.md §2). They used to pick with replacement, so most AI decks broke the limits.
+        const copies = {};
+        const canAdd = card => (copies[card.__id] || 0) < getDeckCardCopyLimit(card);
+        function addCard(card) {
+            copies[card.__id] = (copies[card.__id] || 0) + 1;
+            deck.push({ ...card, id: Math.random() });
+        }
+
         function addCardsFromPool(pool, count) {
             for (let i = 0; i < count; i++) {
-                if (pool.length > 0) {
-                    const card = pool[Math.floor(Math.random() * pool.length)];
-                    deck.push({ ...card, id: Math.random() });
-                }
+                const open = pool.filter(canAdd);
+                if (open.length === 0) return;
+                addCard(open[Math.floor(Math.random() * open.length)]);
             }
         }
 
@@ -3729,10 +4148,10 @@
         addCardsFromPool(spells, spellTarget);
         addCardsFromPool(artifacts, artifactTarget);
 
-        const fallbackPool = [...creatures, ...spells, ...artifacts];
+        let fallbackPool = [...creatures, ...spells, ...artifacts].filter(canAdd);
         while (deck.length < LAND_COUNT + NON_LAND_COUNT && fallbackPool.length > 0) {
-            const card = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
-            deck.push({ ...card, id: Math.random() });
+            addCard(fallbackPool[Math.floor(Math.random() * fallbackPool.length)]);
+            fallbackPool = fallbackPool.filter(canAdd);
         }
 
         shuffleDeck(deck, 6);
@@ -3818,9 +4237,15 @@
 
     // Start Game
     // Mulligan function
+    // One mulligan, on your first turn, before your first action (RULES.md R2.1).
+    function canMulligan() {
+        return !gameState.matchFinalized && !mulliganUsed && !playerFirstTurnCompleted &&
+            gameState.turn === 'player' && gameState.playerBoard.length === 0 && gameState.playerGraveyard.length === 0;
+    }
+
     function mulligan() {
-        if (mulliganUsed || playerFirstTurnCompleted) {
-            showGameLog('⚠️ You can only mulligan once at the start!', false);
+        if (!canMulligan()) {
+            showGameLog('⚠️ You can only mulligan once, before your first action!', false);
             return;
         }
 
@@ -3854,6 +4279,9 @@
     }
 
     function performMulligan() {
+        if (!canMulligan()) {
+            return;
+        }
         playSFX('select');
 
         // Return hand to deck
@@ -3935,8 +4363,11 @@
         gameState.previousEnemyLife = 20;
         gameState.landsPlayedThisTurn = 0;  // CRITICAL: Reset land counter
         gameState.hasAttackedThisTurn = false;  // Reset attack flag for new game
+        gameState.playerDeckedOut = false;
+        gameState.enemyDeckedOut = false;
         gameState.matchFinalized = false;
         pendingMatchResultOverlay = null;
+        matchSerial++;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -3946,7 +4377,7 @@
         }
 
         // AI picks random elements
-        const elementKeys = Object.keys(ELEMENTS);
+        const elementKeys = Object.keys(ELEMENTS).filter(element => element !== 'colorless');
         const aiRequiredCount = Math.random() < 0.5 ? 1 : 2;
         const aiElements = [];
         while (aiElements.length < aiRequiredCount) {
@@ -3998,12 +4429,18 @@
     }
 
     // Draw Card
+    // Drawing from an empty deck loses the match (RULES.md R6.1).
     function drawCard(player) {
-        if (player === 'player' && gameState.playerDeck.length > 0) {
-            gameState.playerHand.push(gameState.playerDeck.pop());
-        } else if (player === 'enemy' && gameState.enemyDeck.length > 0) {
-            gameState.enemyHand.push(gameState.enemyDeck.pop());
+        const isPlayer = player === 'player';
+        const deck = isPlayer ? gameState.playerDeck : gameState.enemyDeck;
+        if (deck.length === 0) {
+            if (gameState.matchFinalized) return;
+            gameState[isPlayer ? 'playerDeckedOut' : 'enemyDeckedOut'] = true;
+            showGameLog(isPlayer ? '📭 Your deck is empty: you cannot draw!' : '📭 Enemy deck is empty!', !isPlayer);
+            checkGameOver();
+            return;
         }
+        (isPlayer ? gameState.playerHand : gameState.enemyHand).push(deck.pop());
     }
 
     // Play Card
@@ -4084,21 +4521,11 @@
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
 
             // Trigger artifact effects that should happen immediately when played
-            if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(card.effect)) {
-                resolveSpell(artifactOnBoard, 'player');
-                checkStateBasedActions();
-
-                if (isOneShotArtifactEffect(card.effect)) {
-                    sendBoardCardToGraveyard(artifactOnBoard.id, 'player');
-                }
-            }
+            resolveArtifactOnPlay(artifactOnBoard, 'player');
         } else if (card.type === 'instant') {
             playSFX('summonInstant');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
-            resolveSpell(card, 'player');
-            moveCardToGraveyard(card, 'player');
-            // Check for dead creatures after spell resolves
-            checkStateBasedActions();
+            castInstant(card, 'player');
         }
 
         // Particles
@@ -4201,7 +4628,7 @@
             btn.title = element;
             btn.addEventListener('click', function() {
                 modal.classList.remove('show');
-                setTimeout(() => { modal.style.display = 'none'; }, 250);
+                setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
                 callback(element);
             });
             optionsContainer.appendChild(btn);
@@ -4213,7 +4640,7 @@
         cancelBtn.textContent = '✕ Cancel';
         cancelBtn.addEventListener('click', function() {
             modal.classList.remove('show');
-            setTimeout(() => { modal.style.display = 'none'; }, 250);
+            setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
         });
         optionsContainer.appendChild(cancelBtn);
 
@@ -4276,16 +4703,18 @@
         const isDualLand = card.elements && card.elements.length > 1;
         const storedElement = card.selectedElement; // Track which element was chosen for dual lands
 
-        // If tapped, UNTAP it and refund mana
+        // A tapped land can be untapped only to give back its unspent mana (RULES.md R4.4)
         if (card.tapped) {
-            card.tapped = false;
             const elementToRefund = isDualLand ? storedElement : card.element;
-            if (elementToRefund && gameState.playerMana[elementToRefund] > 0) {
-                gameState.playerMana[elementToRefund]--;
-                playSFX('untap');
-                showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
-                updateUI();
+            if (!elementToRefund || !(gameState.playerMana[elementToRefund] > 0)) {
+                showGameLog(`⚠️ ${card.name}'s mana is already spent`, false);
+                return;
             }
+            card.tapped = false;
+            gameState.playerMana[elementToRefund]--;
+            playSFX('untap');
+            showGameLog(`🔄 You untap ${card.name} (mana refunded)`, false);
+            updateUI();
             return;
         }
 
@@ -4295,6 +4724,11 @@
         if (isDualLand) {
             // DUAL LAND: Show mana choice modal instead of prompt
             showManaChoiceModal(card, function(chosenElement) {
+                // The choice may arrive after the turn ended or the match finished (RULES.md R4.5)
+                if (gameState.matchFinalized || gameState.turn !== 'player' || gameState.phase === 'enemy' ||
+                    card.tapped || !gameState.playerBoard.includes(card)) {
+                    return;
+                }
                 card.selectedElement = chosenElement;
                 card.tapped = true;
                 gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
@@ -4371,6 +4805,10 @@
     }
 
     function activateArtifact(cardId) {
+        if (gameState.matchFinalized) {
+            return;
+        }
+
         if (gameState.turn !== 'player' || gameState.phase === 'enemy') {
             showGameLog('⚠️ Wait for your turn!', false);
             return;
@@ -4398,15 +4836,71 @@
         updateUI();
     }
 
+    // A card that leaves the battlefield goes back to its printed self: stat bonuses, granted keywords,
+    // damage, Anger and Deep Freeze end with it (EFFECTS.md E3). Tokens keep their token stats.
+    function asPrintedCard(card) {
+        const copy = {...card, tapped: false, damage: 0};
+        delete copy.eotPower;
+        delete copy.frozen;
+        const printed = (card.__id && __CARD_BY_ID[card.__id]) || card.printed;
+        if (card.type === 'creature' && printed) {
+            copy.power = printed.power;
+            copy.toughness = printed.toughness;
+            copy.abilities = printed.abilities;
+        }
+        return copy;
+    }
+
     function moveCardToGraveyard(card, owner) {
         if (!card) return;
 
         const graveyard = owner === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
-        graveyard.push({...card, tapped: false, damage: 0});
+        graveyard.push(asPrintedCard(card));
     }
 
     function isOneShotArtifactEffect(effect) {
         return ['buff', 'buff_defense', 'aoe', 'draw_on_play', 'token', 'destroy', 'bounce', 'tap', 'discard', 'discard_draw'].includes(effect);
+    }
+
+    // Artifacts whose effect happens once, when played. They are then used up (EFFECTS.md E1).
+    const ON_PLAY_ARTIFACT_EFFECTS = ['buff', 'buff_defense', 'aoe', 'draw_on_play'];
+
+    // Shared by the player and the AI, so both sides resolve cards the same way.
+    function resolveArtifactOnPlay(artifactOnBoard, owner) {
+        if (!ON_PLAY_ARTIFACT_EFFECTS.includes(artifactOnBoard.effect)) return;
+        resolveSpell(artifactOnBoard, owner);
+        checkStateBasedActions();
+        if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
+            sendBoardCardToGraveyard(artifactOnBoard.id, owner);
+        }
+    }
+
+    function castInstant(card, caster) {
+        resolveSpell(card, caster);
+        moveCardToGraveyard(card, caster);
+        checkStateBasedActions();
+    }
+
+    // Untap step for one permanent. A Deep Frozen permanent skips one untap (EFFECTS.md E4).
+    function untapAtTurnStart(card) {
+        if (card.frozen) {
+            card.frozen = false;
+        } else {
+            card.tapped = false;
+        }
+        if (card.type === 'creature') {
+            card.summoningSick = false;
+        }
+    }
+
+    // "Until end of turn" bonuses (Anger) end when the turn ends, on both sides (EFFECTS.md E4).
+    function clearEndOfTurnEffects() {
+        [...gameState.playerBoard, ...gameState.enemyBoard].forEach(card => {
+            if (card.eotPower) {
+                card.power -= card.eotPower;
+                delete card.eotPower;
+            }
+        });
     }
 
     function sendBoardCardToGraveyard(cardId, owner) {
@@ -4476,9 +4970,8 @@
         switch(card.effect) {
             case 'damage':
                 if (card.target === 'all') {
-                    // Damage all creatures
-                    const board = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                    board.forEach(c => {
+                    // Every creature on both sides, the caster's too (EFFECTS.md)
+                    [...gameState.playerBoard, ...gameState.enemyBoard].forEach(c => {
                         if (c.type === 'creature') {
                             c.damage = (c.damage || 0) + card.value;
                         }
@@ -4553,15 +5046,16 @@
                 break;
 
             case 'drain':
+                // Gain first: a lethal drain still gains its life before the match ends.
                 if (isCasterPlayer) {
-                    changeEnemyLife(-card.value);
                     changePlayerLife(card.value);
+                    changeEnemyLife(-card.value);
                     const playerInfo = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rect = playerInfo.getBoundingClientRect();
                     createSparkles(rect.left + rect.width / 2, rect.top + rect.height / 2, 15);
                 } else {
-                    changePlayerLife(-card.value);
                     changeEnemyLife(card.value);
+                    changePlayerLife(-card.value);
                 }
                 showGameLog(`💉 Drain ${card.value} life`, !isCasterPlayer);
                 break;
@@ -4596,22 +5090,26 @@
                     buffTargets.forEach(target => {
                         if (card.value > 0) {
                             target.power = (target.power || 0) + card.value;
+                            if (card.untilEndOfTurn) {
+                                target.eotPower = (target.eotPower || 0) + card.value;
+                            }
                             if (!isPowerOnly) {
                                 target.toughness = (target.toughness || 0) + card.value;
                             }
                         }
                         if (card.grantAbilities) {
                             card.grantAbilities.forEach(ability => {
-                                if (!target.abilities) target.abilities = [];
-                                if (!target.abilities.includes(ability)) {
-                                    target.abilities.push(ability);
+                                // New array: abilities is shared with the card definition and every other copy.
+                                if (!target.abilities?.includes(ability)) {
+                                    target.abilities = [...(target.abilities || []), ability];
                                 }
                             });
                         }
                     });
                     // Build log message
                     const buffStr = card.value > 0 ? (isPowerOnly ? `+${card.value}/+0` : `+${card.value}/+${card.value}`) : '';
-                    const abilityStr = card.grantAbilities ? (buffStr ? ' and ' : '') + card.grantAbilities.join(', ') : '';
+                    const abilityStr = (card.grantAbilities ? (buffStr ? ' and ' : '') + card.grantAbilities.join(', ') : '') +
+                        (card.untilEndOfTurn ? ' until end of turn' : '');
                     if (card.targetAll) {
                         showGameLog(`✨ All creatures get ${buffStr}${abilityStr}!`, !isCasterPlayer);
                     } else {
@@ -4633,9 +5131,9 @@
                         target.toughness = (target.toughness || 0) + card.value;
                         if (card.grantAbilities) {
                             card.grantAbilities.forEach(ability => {
-                                if (!target.abilities) target.abilities = [];
-                                if (!target.abilities.includes(ability)) {
-                                    target.abilities.push(ability);
+                                // New array: abilities is shared with the card definition and every other copy.
+                                if (!target.abilities?.includes(ability)) {
+                                    target.abilities = [...(target.abilities || []), ability];
                                 }
                             });
                         }
@@ -4653,13 +5151,21 @@
                 break;
 
             case 'tap':
-                // Tap a random enemy creature
+                // Tap a random enemy creature. Deep Freeze (skipUntap) prefers an untapped one, else freezes a
+                // tapped one, and it skips its controller's next untap (EFFECTS.md E4).
                 const enemyBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
-                const untappedCreatures = enemyBoard.filter(c => c.type === 'creature' && !c.tapped && !c.abilities?.includes('hexproof'));
-                if (untappedCreatures.length > 0) {
-                    const target = untappedCreatures[Math.floor(Math.random() * untappedCreatures.length)];
+                const tappable = enemyBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
+                const untappedCreatures = tappable.filter(c => !c.tapped);
+                const tapPool = untappedCreatures.length > 0 || !card.skipUntap ? untappedCreatures : tappable;
+                if (tapPool.length > 0) {
+                    const target = tapPool[Math.floor(Math.random() * tapPool.length)];
                     target.tapped = true;
-                    showGameLog(`❄️ ${target.emoji} ${target.name} is tapped!`, !isCasterPlayer);
+                    if (card.skipUntap) {
+                        target.frozen = true;
+                    }
+                    showGameLog(card.skipUntap
+                        ? `🥶 ${target.emoji} ${target.name} is frozen: it won't untap next turn!`
+                        : `❄️ ${target.emoji} ${target.name} is tapped!`, !isCasterPlayer);
                 } else {
                     showGameLog(`No creatures to tap`, !isCasterPlayer);
                 }
@@ -4676,9 +5182,7 @@
                         const idx = Math.floor(Math.random() * bounceable.length);
                         const target = bounceable[idx];
                         bounceable.splice(idx, 1);
-                        target.tapped = false;
-                        target.damage = 0;
-                        enemyHand.push(target);
+                        enemyHand.push(asPrintedCard(target));
                         if (isCasterPlayer) {
                             gameState.enemyBoard = gameState.enemyBoard.filter(c => c.id !== target.id);
                         } else {
@@ -4693,8 +5197,9 @@
                 // Return a creature from graveyard to battlefield
                 const graveyard = isCasterPlayer ? gameState.playerGraveyard : gameState.enemyGraveyard;
                 const board = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
-                if (graveyard.length > 0) {
-                    const revived = graveyard.pop();
+                const reviveIndex = graveyard.map(c => c.type).lastIndexOf('creature');
+                if (reviveIndex >= 0) {
+                    const [revived] = graveyard.splice(reviveIndex, 1);
                     revived.damage = 0;
                     revived.tapped = false;
                     revived.id = Math.random(); // New ID
@@ -4724,51 +5229,35 @@
                 showGameLog(`💎 Mana artifact activated!`, !isCasterPlayer);
                 break;
 
-            case 'token':
-                // Create token creatures
+            case 'token': {
+                // Create token creatures (TOKEN_TYPES). Each token has its own keyword list.
                 const tokenBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const tokenCount = card.value || 1;
-
-                let tokenStats = { power: 1, toughness: 1, abilities: [] };
-                let tokenEmoji = '🪙';
-                let tokenName = 'Token';
-
-                if (card.tokenType === 'spirit') {
-                    tokenStats = { power: 1, toughness: 1, abilities: ['flying'] };
-                    tokenEmoji = '👻';
-                    tokenName = 'Spirit Token';
-                } else if (card.tokenType === 'soldier') {
-                    tokenStats = { power: 1, toughness: 1, abilities: [] };
-                    tokenEmoji = '🗡️';
-                    tokenName = 'Soldier Token';
-                } else if (card.tokenType === 'beast') {
-                    tokenStats = { power: 2, toughness: 2, abilities: [] };
-                    tokenEmoji = '🐻';
-                    tokenName = 'Beast Token';
-                }
+                const tokenType = TOKEN_TYPES[card.tokenType] || TOKEN_TYPES.default;
 
                 for (let i = 0; i < tokenCount; i++) {
-                    const token = {
+                    const printed = { power: tokenType.power, toughness: tokenType.toughness, abilities: [...tokenType.abilities] };
+                    tokenBoard.push({
                         id: Math.random(),
-                        emoji: tokenEmoji,
+                        emoji: tokenType.emoji,
                         type: 'creature',
                         cardType: 'Creature Token',
-                        name: tokenName,
-                        power: tokenStats.power,
-                        toughness: tokenStats.toughness,
-                        abilities: tokenStats.abilities,
+                        name: tokenType.name,
+                        ...printed,
+                        abilities: [...tokenType.abilities],
+                        printed,
                         cost: {},
                         tapped: false,
-                        summoningSick: !tokenStats.abilities.includes('haste'),
+                        summoningSick: !tokenType.abilities.includes('haste'),
                         damage: 0,
                         theme: 'Fantasy'
-                    };
-                    tokenBoard.push(token);
+                    });
                 }
 
-                showGameLog(`✨ Created ${tokenCount} ${tokenName}${tokenCount > 1 ? 's' : ''}!`, !isCasterPlayer);
+                showGameLog(`✨ Created ${tokenCount} ${tokenType.name}${tokenCount > 1 ? 's' : ''}!`, !isCasterPlayer);
                 createSparkles(window.innerWidth / 2, window.innerHeight / 2, 20);
                 break;
+            }
 
             case 'discard':
                 // Force opponent to discard cards
@@ -4786,9 +5275,9 @@
                 break;
 
             case 'discard_draw':
-                // Opponent discards, caster draws
+                // Opponent discards, caster draws. The draw happens even if they had nothing to discard.
                 const discardHand2 = isCasterPlayer ? gameState.enemyHand : gameState.playerHand;
-                const discardDrawCount = Math.min(card.value || 1, discardHand2.length);
+                const discardDrawCount = card.value || 1;
 
                 for (let i = 0; i < discardDrawCount; i++) {
                     if (discardHand2.length > 0) {
@@ -4836,9 +5325,7 @@
         }
 
         // Check if there are any untapped creatures that can attack
-        const availableAttackers = gameState.playerBoard.filter(c =>
-            c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
-        );
+        const availableAttackers = gameState.playerBoard.filter(canAttack);
 
         if (availableAttackers.length === 0) {
             showGameLog('⚠️ You have no creatures available to attack!', false);
@@ -4854,11 +5341,29 @@
         updateUI();
     }
 
+    // Why a creature can't attack right now, or null if it can (RULES.md C1).
+    function getAttackRestriction(card) {
+        if (!card || card.type !== 'creature') return 'is not a creature';
+        if (card.tapped) return 'is tapped';
+        if (hasAbility(card, 'defender')) return "is a Defender and can't attack";
+        if (card.summoningSick && !hasAbility(card, 'haste')) return 'has summoning sickness: it can attack next turn';
+        return null;
+    }
+
+    function canAttack(card) {
+        return getAttackRestriction(card) === null;
+    }
+
     function selectAttacker(cardId) {
         if (gameState.matchFinalized || !attackPhase) return;
-        
+
         const card = gameState.playerBoard.find(c => c.id === cardId);
-        if (!card || card.type !== 'creature' || card.tapped || card.summoningSick || card.abilities?.includes('defender')) return;
+        if (!card) return;
+        const restriction = getAttackRestriction(card);
+        if (restriction) {
+            showGameLog(`⚠️ ${card.name} ${restriction}`, false);
+            return;
+        }
 
         if (gameState.attackers.includes(cardId)) {
             gameState.attackers = gameState.attackers.filter(id => id !== cardId);
@@ -4900,9 +5405,17 @@
 
         // AI declares blockers
         aiDeclareBlockers();
+        const combatPairs = gameState.attackers
+            .map(id => gameState.playerBoard.find(c => c.id === id))
+            .filter(Boolean)
+            .map(attacker => ({
+                attacker,
+                blockers: (gameState.blockers[attacker.id] || []).map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean)
+            }));
 
         // Resolve combat
         resolveCombat();
+        reportCombat(combatPairs, 'player');
 
         attackPhase = false;
         gameState.phase = 'main';
@@ -4925,6 +5438,7 @@
 
     function canBlockAttacker(blocker, attacker) {
         if (!blocker || blocker.type !== 'creature' || blocker.tapped) return false;
+        if (hasAbility(attacker, 'unblockable')) return false;
         if (hasAbility(attacker, 'flying') && !hasAbility(blocker, 'flying') && !hasAbility(blocker, 'reach')) {
             return false;
         }
@@ -5044,6 +5558,26 @@
         // Trample and lifelink are processed within each combat damage step.
     }
 
+    // An unblocked attacker hits the defending player; Double Strike hits twice (RULES.md C4, C6).
+    function dealUnblockedDamage(attacker, isPlayerAttacking) {
+        const hits = hasAbility(attacker, 'double_strike') ? 2 : 1;
+        const power = attacker.power || 0;
+        for (let i = 0; i < hits; i++) {
+            if (isPlayerAttacking) {
+                changeEnemyLife(-power);
+            } else {
+                changePlayerLife(-power);
+            }
+            if (hasAbility(attacker, 'lifelink')) {
+                if (isPlayerAttacking) {
+                    changePlayerLife(power);
+                } else {
+                    changeEnemyLife(power);
+                }
+            }
+        }
+    }
+
     function aiDeclareBlockers() {
         const availableBlockers = gameState.enemyBoard.filter(c => c.type === 'creature' && !c.tapped);
         const attackingCreatures = gameState.attackers
@@ -5072,10 +5606,7 @@
             if (blockers.length > 0) {
                 applyDamage(attacker, blockers, true);
             } else {
-                changeEnemyLife(-(attacker.power || 0));
-                if (hasAbility(attacker, 'lifelink')) {
-                    changePlayerLife(attacker.power || 0);
-                }
+                dealUnblockedDamage(attacker, true);
             }
         });
 
@@ -5120,13 +5651,7 @@
         // Show end turn message
         showGameLog('✅ You end your turn', false);
 
-        // Untap all player permanents
-        gameState.playerBoard.forEach(card => {
-            card.tapped = false;
-            if (card.type === 'creature') {
-                card.summoningSick = false;
-            }
-        });
+        // Permanents stay tapped until the start of your next turn (RULES.md R5.3)
 
         // Reset mana
         gameState.playerMana = {};
@@ -5139,6 +5664,7 @@
 
         // Clear temporary combat damage at end of turn
         clearCombatDamage();
+        clearEndOfTurnEffects();
 
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
@@ -5147,9 +5673,10 @@
 
         updateUI();
 
-        // AI turn
+        // AI turn (skipped if this match was left in the meantime)
+        const serial = matchSerial;
         setTimeout(() => {
-            aiTurn();
+            if (serial === matchSerial) aiTurn();
         }, 1500);
     }
 
@@ -5218,24 +5745,198 @@
         processUpkeepEffects(true);
 
         // Untap and reset mana
-        gameState.playerBoard.forEach(card => {
-            card.tapped = false;
-            if (card.type === 'creature') {
-                card.summoningSick = false;
-            }
-        });
+        gameState.playerBoard.forEach(untapAtTurnStart);
         gameState.playerMana = {};
 
         // Reset land counter for new turn
         gameState.landsPlayedThisTurn = 0;
 
-        // Clear temporary combat damage from enemy turn combat
+        // Clear temporary combat damage and "until end of turn" bonuses from the enemy turn
         clearCombatDamage();
+        clearEndOfTurnEffects();
 
         updateUI();
 
         // Release processing lock - player can now take actions
         releaseProcessingLock();
+    }
+
+    // The AI plays a creature, artifact or instant from its hand, through the same resolution as the player.
+    // Returns the id of the permanent it put on the battlefield, if any.
+    function aiPlayCard(card) {
+        payCost(card.cost, gameState.enemyMana);
+        gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== card.id);
+
+        if (card.type === 'creature') {
+            gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
+            showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
+            return card.id;
+        }
+
+        if (card.type === 'artifact') {
+            const artifactOnBoard = {...card, tapped: false};
+            gameState.enemyBoard.push(artifactOnBoard);
+            showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
+            resolveArtifactOnPlay(artifactOnBoard, 'enemy');
+            return artifactOnBoard.id;
+        }
+
+        showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+        castInstant(card, 'enemy');
+        return null;
+    }
+
+    // The AI holds a two-sided sweeper (Earthquake, Avalanche) unless it kills more of your creatures than
+    // of its own.
+    // AI difficulty profiles (AI.md §3). Every level plays by exactly the same rules and deck rules as you;
+    // they differ only in how many cards they play a turn and how carefully they choose.
+    const AI_PROFILES = {
+        easy: { maxPlays: 1, castsInstants: false, seesLethal: false, attacks: 'random', keepsBlockers: false },
+        medium: { maxPlays: 2, castsInstants: true, seesLethal: true, attacks: 'careful', keepsBlockers: false },
+        hard: { maxPlays: Infinity, castsInstants: true, seesLethal: true, attacks: 'careful', keepsBlockers: true }
+    };
+
+    function getAiProfile() {
+        return AI_PROFILES[gameState.difficulty] || AI_PROFILES.easy;
+    }
+
+    const aiManaValue = card => Object.values(card.cost || {}).reduce((sum, n) => sum + n, 0);
+    const aiCreatures = board => board.filter(c => c.type === 'creature');
+
+    // Would this card do anything right now? Uses the same targeting rules as resolveSpell (EFFECTS.md E2),
+    // so the AI never wastes a card on nothing, and never draws itself out of cards (RULES.md R6.1).
+    function aiWantsToCast(card) {
+        const targetable = aiCreatures(gameState.playerBoard).filter(c => !c.abilities?.includes('hexproof'));
+        const drawsWouldDeckOut = n => gameState.enemyDeck.length <= n;
+        switch (card.effect) {
+            case 'damage':
+                if (card.target !== 'all') return true;
+                {
+                    // Two-sided sweepers only when they kill more of your creatures than its own
+                    const kills = board => board.filter(c => c.type === 'creature' && (c.damage || 0) + card.value >= c.toughness).length;
+                    return kills(gameState.playerBoard) > kills(gameState.enemyBoard);
+                }
+            case 'buff':
+            case 'buff_defense':
+                return aiCreatures(gameState.enemyBoard).length > 0;
+            case 'destroy':
+            case 'bounce':
+                return targetable.length > 0;
+            case 'tap':
+                return card.skipUntap ? targetable.length > 0 : targetable.some(c => !c.tapped);
+            case 'revive':
+                return gameState.enemyGraveyard.some(c => c.type === 'creature');
+            case 'discard':
+                return gameState.playerHand.length > 0;
+            case 'aoe':
+                return aiCreatures(gameState.playerBoard).length > 0;
+            case 'draw':
+                // An upkeep draw artifact draws every turn; an instant draws once.
+                return !drawsWouldDeckOut(card.type === 'artifact' ? 3 : (card.value || 1));
+            case 'draw_on_play':
+            case 'discard_draw':
+                return !drawsWouldDeckOut(card.value || 1);
+            case 'heal_draw':
+                return !drawsWouldDeckOut(card.drawCards || 1);
+            default:
+                return true;
+        }
+    }
+
+    // Land drop: first the land that lets the most cards be cast this turn, then the colour the hand needs
+    // most (a colour it can't make yet counts extra).
+    function aiChooseLand() {
+        const lands = gameState.enemyHand.filter(c => c.type === 'land');
+        if (lands.length <= 1) return lands[0] || null;
+        const colorsOf = land => land.elements?.length ? land.elements : (land.element ? [land.element] : []);
+        const onBoard = new Set(gameState.enemyBoard.filter(c => c.type === 'land').flatMap(colorsOf));
+        const spells = gameState.enemyHand.filter(c => c.type !== 'land');
+        const basePool = {};
+        gameState.enemyBoard.forEach(c => {
+            if (c.type === 'land' && colorsOf(c).length === 1) basePool[colorsOf(c)[0]] = (basePool[colorsOf(c)[0]] || 0) + 1;
+            if (c.type === 'artifact' && c.effect === 'mana') basePool.colorless = (basePool.colorless || 0) + (c.value || 1);
+        });
+        const castableNow = land => Math.max(...colorsOf(land).map(el => {
+            const pool = { ...basePool, [el]: (basePool[el] || 0) + 1 };
+            return spells.filter(c => canPayCost(c.cost, pool)).length;
+        }), 0);
+        const need = {};
+        spells.forEach(card => {
+            Object.keys(card.cost || {}).filter(el => el !== 'colorless').forEach(el => { need[el] = (need[el] || 0) + 1; });
+        });
+        const needScore = land => Math.max(0, ...colorsOf(land).map(el => (need[el] || 0) + (need[el] && !onBoard.has(el) ? 5 : 0)));
+        const score = land => castableNow(land) * 100 + needScore(land);
+        return lands.reduce((best, land) => (score(land) > score(best) ? land : best), lands[0]);
+    }
+
+    // Tap every mana source, as before; a land that makes several colours picks the colour that lets the
+    // most cards in hand be cast (it used to always pick its first colour).
+    function aiTapManaSources() {
+        let tapped = false;
+        const flexible = [];
+        gameState.enemyBoard.forEach(card => {
+            if (card.tapped) return;
+            if (card.type === 'land') {
+                if (card.elements?.length > 1) { flexible.push(card); return; }
+                const element = card.element || card.elements?.[0];
+                if (!element) return;
+                card.tapped = true;
+                gameState.enemyMana[element] = (gameState.enemyMana[element] || 0) + 1;
+                tapped = true;
+            } else if (card.type === 'artifact' && card.effect === 'mana') {
+                // Mana artifacts, as for the player (activateArtifact)
+                card.tapped = true;
+                gameState.enemyMana.colorless = (gameState.enemyMana.colorless || 0) + (card.value || 1);
+                tapped = true;
+            }
+        });
+        const castableWith = pool => gameState.enemyHand.filter(c => c.type !== 'land' && canPayCost(c.cost, pool)).length;
+        flexible.forEach(land => {
+            const best = land.elements.reduce((choice, element) => {
+                const pool = { ...gameState.enemyMana, [element]: (gameState.enemyMana[element] || 0) + 1 };
+                const value = castableWith(pool);
+                return value > choice.value ? { element, value } : choice;
+            }, { element: land.elements[0], value: -1 });
+            land.tapped = true;
+            gameState.enemyMana[best.element] = (gameState.enemyMana[best.element] || 0) + 1;
+            tapped = true;
+        });
+        return tapped;
+    }
+
+    // How much the AI wants to play a card now. Higher mana value breaks ties so the mana gets used.
+    function scoreAiPlay(card) {
+        const playerCreatures = aiCreatures(gameState.playerBoard);
+        const strongest = playerCreatures.reduce((max, c) => Math.max(max, (c.power || 0) + (c.toughness || 0)), 0);
+        let score = 0;
+        if (card.type === 'creature') {
+            score = (card.power || 0) + (card.toughness || 0) + (card.abilities?.length || 0);
+        } else if (card.effect === 'damage' && card.target !== 'all') {
+            score = (card.value || 0) + (card.value >= gameState.playerLife ? 100 : 0);
+        } else if (['destroy', 'bounce'].includes(card.effect) || (card.effect === 'damage' && card.target === 'all') || card.effect === 'aoe') {
+            score = 4 + strongest;
+        } else if (['buff', 'buff_defense'].includes(card.effect)) {
+            score = 2 + (card.value || 0) * (card.targetAll ? aiCreatures(gameState.enemyBoard).length : 1);
+        } else if (card.type === 'artifact') {
+            score = 4;
+        } else {
+            score = 2 + (card.value || 0);
+        }
+        return score + aiManaValue(card) * 0.5;
+    }
+
+    // The next card the AI plays this turn, or null.
+    function aiChooseNextPlay(profile) {
+        const candidates = gameState.enemyHand.filter(card =>
+            (card.type === 'creature' || card.type === 'artifact' || (card.type === 'instant' && profile.castsInstants)) &&
+            canPayCost(card.cost, gameState.enemyMana) && aiWantsToCast(card));
+        if (!candidates.length) return null;
+        // Lethal burn first (medium and hard)
+        if (profile.seesLethal) {
+            const lethal = candidates.find(c => c.type === 'instant' && c.effect === 'damage' && c.target !== 'all' && c.value >= gameState.playerLife);
+            if (lethal) return lethal;
+        }
+        return candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
     }
 
     // AI Turn
@@ -5245,50 +5946,26 @@
             return;
         }
 
-        const scoreAiPlay = (card) => {
-            const playerCreatures = gameState.playerBoard.filter(c => c.type === 'creature');
-            const enemyCreatures = gameState.enemyBoard.filter(c => c.type === 'creature');
-            const strongestPlayerPower = playerCreatures.reduce((maxPower, creature) => Math.max(maxPower, creature.power || 0), 0);
-            const boardDelta = enemyCreatures.length - playerCreatures.length;
-
-            if (card.type === 'creature') {
-                return (card.power || 0) + (card.toughness || 0);
-            }
-
-            if (card.type === 'instant') {
-                const isRemovalOrDamage = ['damage', 'destroy', 'aoe'].includes(card.effect) ||
-                    /damage|destroy|bolt|blast|fire|burn/i.test(card.name || '');
-                return isRemovalOrDamage
-                    ? 6 + strongestPlayerPower
-                    : 2 + (card.value || 0);
-            }
-
-            if (card.type === 'artifact') {
-                const isDrawOrBuff = ['draw_on_play', 'buff', 'buff_defense'].includes(card.effect);
-                return isDrawOrBuff
-                    ? 4 + Math.max(0, -boardDelta)
-                    : 1;
-            }
-
-            return 0;
+        // Delayed steps below stop if the match ends or is left mid-turn (RULES.md R7.4)
+        const serial = matchSerial;
+        let emergencyTurnStart = null;
+        // A stale turn also cancels the failsafe below (it used to fire 12 s after every AI win).
+        const turnIsStale = () => {
+            const stale = gameState.matchFinalized || serial !== matchSerial;
+            if (stale) clearTimeout(emergencyTurnStart);
+            return stale;
         };
 
         // Emergency failsafe: ensure player turn starts even if something goes wrong
-        const emergencyTurnStart = setTimeout(() => {
+        emergencyTurnStart = setTimeout(() => {
+            if (gameState.matchFinalized || serial !== matchSerial || gameState.turn !== 'enemy') return;
             console.warn('Emergency turn transition triggered');
-            if (gameState.turn === 'enemy') {
-                startPlayerTurn();
-            }
+            startPlayerTurn();
         }, 12000); // 12 seconds maximum for AI turn
 
         try {
             // Untap enemy permanents
-            gameState.enemyBoard.forEach(card => {
-                card.tapped = false;
-                if (card.type === 'creature') {
-                    card.summoningSick = false;
-                }
-            });
+            gameState.enemyBoard.forEach(untapAtTurnStart);
             gameState.enemyMana = {};
 
             // Draw card
@@ -5299,9 +5976,9 @@
             processUpkeepEffects(false);
 
             setTimeout(() => {
-            if (gameState.matchFinalized) return;
+            if (turnIsStale()) return;
             // Play lands
-            const landInHand = gameState.enemyHand.find(c => c.type === 'land');
+            const landInHand = aiChooseLand();
             if (landInHand) {
                 gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== landInHand.id);
                 gameState.enemyBoard.push({...landInHand, tapped: false});
@@ -5314,27 +5991,9 @@
             }
 
             setTimeout(() => {
-                if (gameState.matchFinalized) return;
-                // Tap lands for mana
-                let manaTapped = false;
-                gameState.enemyBoard.forEach(card => {
-                    if (card.type === 'land' && !card.tapped) {
-                        card.tapped = true;
-                        // DUAL LAND SUPPORT: Handle lands with multiple elements
-                        if (card.elements && Array.isArray(card.elements) && card.elements.length > 0) {
-                            // For dual lands, AI chooses the first element (can be made smarter later)
-                            const chosenElement = card.elements[0];
-                            if (chosenElement) {
-                                gameState.enemyMana[chosenElement] = (gameState.enemyMana[chosenElement] || 0) + 1;
-                                manaTapped = true;
-                            }
-                        } else if (card.element) {
-                            // Regular single-color land
-                            gameState.enemyMana[card.element] = (gameState.enemyMana[card.element] || 0) + 1;
-                            manaTapped = true;
-                        }
-                    }
-                });
+                if (turnIsStale()) return;
+                // Tap lands and mana artifacts for mana
+                const manaTapped = aiTapManaSources();
 
                 if (manaTapped) {
                     showGameLog('⚡ Enemy taps lands for mana', true);
@@ -5342,7 +6001,7 @@
                 }
 
                 setTimeout(() => {
-                    if (gameState.matchFinalized) return;
+                    if (turnIsStale()) return;
                     const applyOldMainPhaseBehavior = () => {
                         const playableCreatures = gameState.enemyHand
                             .filter(c => c.type === 'creature' && canPayCost(c.cost, gameState.enemyMana))
@@ -5395,14 +6054,7 @@
                                 playedEnemyArtifactIds.push(artifactOnBoard.id);
                                 showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
 
-                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifact.effect)) {
-                                    resolveSpell(artifactOnBoard, 'enemy');
-                                    checkStateBasedActions();
-
-                                    if (isOneShotArtifactEffect(artifact.effect)) {
-                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
-                                    }
-                                }
+                                resolveArtifactOnPlay(artifactOnBoard, 'enemy');
 
                                 artifactPlayed = true;
                             }
@@ -5420,7 +6072,7 @@
 
                         if (gameState.difficulty === 'hard') {
                             const playableSpells = gameState.enemyHand
-                                .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana));
+                                .filter(c => c.type === 'instant' && canPayCost(c.cost, gameState.enemyMana) && aiWantsToCast(c));
 
                             let spellPlayed = false;
                             playableSpells.forEach(spell => {
@@ -5428,9 +6080,7 @@
                                     payCost(spell.cost, gameState.enemyMana);
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
-                                    resolveSpell(spell, 'enemy');
-                                    moveCardToGraveyard(spell, 'enemy');
-                                    checkStateBasedActions();
+                                    castInstant(spell, 'enemy');
                                     spellPlayed = true;
                                 }
                             });
@@ -5442,54 +6092,29 @@
                         }
                     };
 
+                    // Steps that did nothing don't make you wait (AI.md §5)
+                    let mainPhaseActed = true;
                     try {
-                        const maxPlays = gameState.difficulty === 'hard' ? 2 : 1;
+                        const profile = getAiProfile();
                         const playedEnemyCardIds = [];
                         let playsMade = 0;
 
-                        while (playsMade < maxPlays) {
-                            const candidates = gameState.enemyHand.filter(card => {
-                                const isAllowedType = card.type === 'creature' || card.type === 'artifact' || card.type === 'instant';
-                                const allowInstants = gameState.difficulty === 'hard' || card.type !== 'instant';
-                                return isAllowedType && allowInstants && canPayCost(card.cost, gameState.enemyMana);
-                            });
-
-                            const best = candidates.sort((a, b) => scoreAiPlay(b) - scoreAiPlay(a))[0];
+                        // Bounded: every play removes a card from a finite hand.
+                        while (playsMade < profile.maxPlays && !gameState.matchFinalized) {
+                            const best = aiChooseNextPlay(profile);
                             if (!best || !canPayCost(best.cost, gameState.enemyMana)) {
                                 break;
                             }
 
-                            payCost(best.cost, gameState.enemyMana);
-                            gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== best.id);
-
-                            if (best.type === 'creature') {
-                                gameState.enemyBoard.push({...best, tapped: false, summoningSick: !best.abilities?.includes('haste'), damage: 0});
-                                showGameLog(`${best.emoji} Enemy summons ${best.name}`, true, best.theme === 'scifi');
-                                playedEnemyCardIds.push(best.id);
-                            } else if (best.type === 'artifact') {
-                                const artifactOnBoard = {...best, tapped: false};
-                                gameState.enemyBoard.push(artifactOnBoard);
-                                showGameLog(`${best.emoji} Enemy plays ${best.name}`, true);
-                                playedEnemyCardIds.push(artifactOnBoard.id);
-
-                                if (['buff', 'buff_defense', 'aoe', 'draw_on_play'].includes(artifactOnBoard.effect)) {
-                                    resolveSpell(artifactOnBoard, 'enemy');
-                                    checkStateBasedActions();
-
-                                    if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
-                                        sendBoardCardToGraveyard(artifactOnBoard.id, 'enemy');
-                                    }
-                                }
-                            } else {
-                                showGameLog(`${best.emoji} Enemy casts ${best.name}`, true);
-                                resolveSpell(best, 'enemy');
-                                moveCardToGraveyard(best, 'enemy');
-                                checkStateBasedActions();
+                            const playedId = aiPlayCard(best);
+                            if (playedId !== null) {
+                                playedEnemyCardIds.push(playedId);
                             }
 
                             playsMade++;
                         }
 
+                        mainPhaseActed = playsMade > 0;
                         if (playsMade > 0) {
                             updateUI();
                             playedEnemyCardIds.forEach(playedId => {
@@ -5505,10 +6130,8 @@
                     }
 
                         setTimeout(() => {
-                            if (gameState.matchFinalized) return;
-                            const fallbackAttackers = gameState.enemyBoard.filter(c =>
-                                c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
-                            );
+                            if (turnIsStale()) return;
+                            const fallbackAttackers = gameState.enemyBoard.filter(canAttack);
 
                             let attackingCreatures = [];
                             try {
@@ -5528,20 +6151,20 @@
                             checkGameOver();
 
                             setTimeout(() => {
-                                if (gameState.matchFinalized) return;
+                                if (turnIsStale()) return;
                                 clearTimeout(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
-                            }, 1500);
-                        }, 1500);
-                    }, 1500);
-                }, 1500);
+                            }, attackingCreatures.length ? 1500 : 500); // pacing: AI.md §5
+                        }, mainPhaseActed ? 1500 : 300);
+                    }, manaTapped ? 1000 : 300);
+                }, landInHand ? 1500 : 300);
             }, 1000);
         } catch (error) {
             console.error('Error during AI turn:', error);
             clearTimeout(emergencyTurnStart);
             // Ensure turn transitions back to player even on error
             setTimeout(() => {
-                startPlayerTurn();
+                if (serial === matchSerial) startPlayerTurn();
             }, 1000);
         }
     }
@@ -5552,54 +6175,103 @@
         return assignAutoBlockers(enemyAttackers, availableBlockers);
     }
 
+    // Attack choice (AI.md §3). Easy attacks at random. Medium and hard look at the block each attacker will
+    // meet (blocking is automatic for both sides, RULES.md R5.4), take lethal when it is there, and skip
+    // attacks that lose a creature for nothing. Hard also keeps blockers home when your board could kill it.
+    const aiCardValue = card => Math.max(aiManaValue(card), ((card.power || 0) + (card.toughness || 0)) / 2);
+
+    // One attacker against its blockers, by the combat rules (first strike, deathtouch, double strike).
+    function aiBlockOutcome(attacker, blockers) {
+        const strikesFirst = c => hasAbility(c, 'first_strike') || hasAbility(c, 'double_strike');
+        const lethalTo = (source, target) => hasAbility(source, 'deathtouch') && (source.power || 0) > 0
+            ? 1 : Math.max(0, (target.toughness || 0) - (target.damage || 0));
+        let damage = (attacker.power || 0) * (hasAbility(attacker, 'double_strike') ? 2 : 1);
+        const killed = [];
+        [...blockers].sort((a, b) => b.toughness - a.toughness).forEach(b => {
+            const need = lethalTo(attacker, b);
+            if (damage >= need && need > 0) { killed.push(b); damage -= need; }
+        });
+        const attackerFirst = strikesFirst(attacker) && !blockers.some(strikesFirst);
+        const hitters = attackerFirst ? blockers.filter(b => !killed.includes(b)) : blockers;
+        const incoming = hitters.reduce((sum, b) => sum + (b.power || 0), 0);
+        const attackerDies = hitters.some(b => hasAbility(b, 'deathtouch') && (b.power || 0) > 0) ||
+            incoming >= (attacker.toughness || 0) - (attacker.damage || 0);
+        // A blocker with first strike that kills the attacker first takes no damage.
+        const blockersFirst = blockers.some(strikesFirst) && !strikesFirst(attacker);
+        const reallyKilled = blockersFirst && attackerDies ? [] : killed;
+        return { attackerDies, killedValue: reallyKilled.reduce((sum, b) => sum + aiCardValue(b), 0) };
+    }
+
+    // Damage that reaches the player if these creatures attack into the automatic blocks.
+    function aiAttackDamage(attackers, blockers) {
+        const blocks = assignAutoBlockers(attackers, blockers);
+        return attackers.reduce((sum, a) => {
+            const hits = hasAbility(a, 'double_strike') ? 2 : 1;
+            const assigned = (blocks[a.id] || []).map(id => blockers.find(b => b.id === id)).filter(Boolean);
+            if (!assigned.length) return sum + (a.power || 0) * hits;
+            if (!hasAbility(a, 'trample')) return sum;
+            const absorb = assigned.reduce((t, b) => t + (hasAbility(a, 'deathtouch') ? 1 : Math.max(0, b.toughness - (b.damage || 0))), 0);
+            return sum + Math.max(0, (a.power || 0) * hits - absorb);
+        }, 0);
+    }
+
     function chooseEnemyAttackers(eligibleAttackers, difficulty) {
         if (!Array.isArray(eligibleAttackers) || eligibleAttackers.length === 0) {
             return [];
         }
 
-        if (difficulty === 'easy') {
+        const profile = AI_PROFILES[difficulty] || AI_PROFILES.easy;
+        if (profile.attacks === 'random') {
             return eligibleAttackers.filter(() => Math.random() > 0.3);
         }
 
-        const potentialBlockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
-        const scoredAttackers = eligibleAttackers.map(attacker => {
-            let score = 0;
-            const power = attacker.power || 0;
-            const toughness = attacker.toughness || 0;
+        const blockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
+        const ordered = aiBestAttackOrder(eligibleAttackers, blockers);
 
-            if (power >= 2) {
-                score += 2;
-            }
+        // Game-ending attack: everything goes if the damage that gets through is lethal.
+        if (aiAttackDamage(ordered, blockers) >= gameState.playerLife) {
+            return ordered;
+        }
 
-            potentialBlockers.forEach(blocker => {
-                const blockerPower = blocker.power || 0;
-                const blockerToughness = blocker.toughness || 0;
-                const blockerDamage = blocker.damage || 0;
-                const blockerRemainingHealth = Math.max(0, blockerToughness - blockerDamage);
-
-                // Prefer attacks that can survive and trade up into likely blockers.
-                if (power >= blockerToughness && toughness > blockerPower) {
-                    score += 4;
-                }
-
-                // Prefer finishing off damaged blockers that are close to dying.
-                if (blockerDamage > 0 && blockerRemainingHealth > 0 && power >= blockerRemainingHealth) {
-                    score += 3;
-                }
+        // Drop attackers that would die without taking something worth as much; re-check, because blocks
+        // move to the next attacker when one stays home.
+        let chosen = ordered;
+        for (let pass = 0; pass < 4; pass++) {
+            const blocks = assignAutoBlockers(chosen, blockers);
+            const keep = chosen.filter(a => {
+                const assigned = (blocks[a.id] || []).map(id => blockers.find(b => b.id === id)).filter(Boolean);
+                if (!assigned.length) return true;
+                const outcome = aiBlockOutcome(a, assigned);
+                return !outcome.attackerDies || outcome.killedValue >= aiCardValue(a);
             });
+            if (keep.length === chosen.length) break;
+            chosen = keep;
+        }
 
-            return {attacker, score};
-        });
+        // Hard: if your creatures could deal lethal next turn, keep enough blockers home.
+        if (profile.keepsBlockers) {
+            const yourAttackers = aiCreatures(gameState.playerBoard).filter(c => !hasAbility(c, 'defender'));
+            const threat = yourAttackers.reduce((sum, c) => sum + (c.power || 0) * (hasAbility(c, 'double_strike') ? 2 : 1), 0);
+            if (threat >= gameState.enemyLife) {
+                const homeBlockers = () => aiCreatures(gameState.enemyBoard)
+                    .filter(c => !c.tapped && (!chosen.includes(c) || hasAbility(c, 'vigilance'))).length;
+                const sendable = chosen.filter(c => !hasAbility(c, 'vigilance')).sort((a, b) => b.toughness - a.toughness);
+                while (homeBlockers() < yourAttackers.length && sendable.length) {
+                    const stay = sendable.shift();
+                    chosen = chosen.filter(c => c !== stay);
+                }
+            }
+        }
 
-        scoredAttackers.sort((a, b) => b.score - a.score);
+        return aiBestAttackOrder(chosen, blockers);
+    }
 
-        const attackCount = difficulty === 'hard'
-            ? eligibleAttackers.length
-            : Math.max(1, Math.ceil(eligibleAttackers.length * 0.6));
-
-        return scoredAttackers
-            .slice(0, attackCount)
-            .map(({attacker}) => attacker);
+    // Blocks go toughest-blocker-first to attackers in the order they are declared (for both sides), so the
+    // order decides which attacker gets blocked. Pick the order that lets the most damage through.
+    function aiBestAttackOrder(attackers, blockers) {
+        const byPower = [...attackers].sort((a, b) => (b.power || 0) - (a.power || 0));
+        const orders = [byPower, [...byPower].reverse(), [...attackers]];
+        return orders.reduce((best, order) => (aiAttackDamage(order, blockers) > aiAttackDamage(best, blockers) ? order : best), orders[0]);
     }
 
     function resolveEnemyAttackPhase(attackingCreatures) {
@@ -5616,6 +6288,10 @@
         if (Object.keys(playerBlockers).length > 0) {
             playSFX('block');
         }
+        const combatPairs = attackingCreatures.map(attacker => ({
+            attacker,
+            blockers: (playerBlockers[attacker.id] || []).map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean)
+        }));
 
         attackingCreatures.forEach(attacker => {
             if (!hasAbility(attacker, 'vigilance')) {
@@ -5628,10 +6304,7 @@
             if (blockers.length > 0) {
                 applyDamage(attacker, blockers, false);
             } else {
-                changePlayerLife(-(attacker.power || 0));
-                if (hasAbility(attacker, 'lifelink')) {
-                    changeEnemyLife(attacker.power || 0);
-                }
+                dealUnblockedDamage(attacker, false);
             }
 
             const playerArea = document.querySelector('.player-area:not(.enemy-area)');
@@ -5640,6 +6313,7 @@
         });
 
         checkStateBasedActions();
+        reportCombat(combatPairs, 'enemy');
     }
 
     // Helper functions for lifepoint changes with sound and animation
@@ -5744,10 +6418,11 @@
     }
 
     // Check Game Over
+    // The player's loss is checked first, so a simultaneous loss counts against the player (RULES.md R7.2).
     function checkGameOver() {
-        if (gameState.playerLife <= 0) {
+        if (gameState.playerLife <= 0 || gameState.playerDeckedOut) {
             finalizeMatch('loss');
-        } else if (gameState.enemyLife <= 0) {
+        } else if (gameState.enemyLife <= 0 || gameState.enemyDeckedOut) {
             finalizeMatch('win');
         }
     }
@@ -5786,6 +6461,7 @@
         updateManaDisplay('enemyMana', gameState.enemyMana);
 
         // Update player hand
+        const savedRowFocus = captureRowFocus();
         const handEl = document.getElementById('playerHand');
         handEl.innerHTML = '';
         gameState.playerHand.forEach(card => {
@@ -5807,44 +6483,12 @@
                 cardEl.classList.add('unplayable');
             }
             
-            // Click to play
-            cardEl.onclick = () => playCard(card.id);
-            
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let longPressTimer;
-            let touchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                touchMoved = false;
-                // IMPROVED: Faster long-press response (350ms instead of 500ms)
-                longPressTimer = setTimeout(() => {
-                    if (!touchMoved) {
-                        // Add haptic feedback on mobile devices
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50); // Short vibration for feedback
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                touchMoved = true;
-                clearTimeout(longPressTimer);
-            };
-
-            cardEl.ontouchend = (e) => {
-                clearTimeout(longPressTimer);
-                if (!touchMoved) {
-                    e.preventDefault();
-                    playCard(card.id);
-                }
-            };
+            // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
+            bindCardPress(cardEl, {
+                label: describeCardForA11y(card, 'hand'),
+                onTap: () => playCard(card.id),
+                onLongPress: () => showCardDetail(card)
+            });
 
             handEl.appendChild(cardEl);
         });
@@ -5918,12 +6562,14 @@
                 stackCard.appendChild(totalEl);
             }
 
-            // "Tap all" button (shown on hover / long-press)
+            // "Tap all" button: a mouse shortcut shown on hover or focus. Long-press, right-click and I do the same.
             if (untappedCount > 1) {
                 const tapAllBtn = document.createElement('div');
                 tapAllBtn.className = 'land-stack-tap-all';
                 tapAllBtn.textContent = '⚡';
                 tapAllBtn.title = 'Tap all untapped';
+                tapAllBtn.setAttribute('aria-hidden', 'true');
+                tapAllBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
                 tapAllBtn.onclick = (e) => {
                     e.stopPropagation();
                     tapAllLandsOfType(element);
@@ -5931,80 +6577,22 @@
                 stackCard.appendChild(tapAllBtn);
             }
 
-            // Click to tap one untapped land
-            stackCard.onclick = () => {
-                const untappedLand = stack.find(c => !c.tapped);
-                if (untappedLand) {
-                    tapLand(untappedLand.id);
-                } else {
-                    // All tapped - untap the last tapped one
-                    const tappedLand = stack.find(c => c.tapped);
-                    if (tappedLand) {
-                        tapLand(tappedLand.id);
-                    }
-                }
-            };
-
-            // Right-click to tap ALL untapped lands of this type
-            stackCard.oncontextmenu = (e) => {
-                e.preventDefault();
-                if (untappedCount > 0) {
-                    tapAllLandsOfType(element);
-                } else {
-                    showCardDetail(representativeCard);
-                }
-            };
-
-            // Long-press: show tap-all indicator, then tap all on release
-            let landStackLongPressTimer;
-            let landStackTouchMoved = false;
-            let landStackLongPressed = false;
-
-            stackCard.ontouchstart = (e) => {
-                landStackTouchMoved = false;
-                landStackLongPressed = false;
-                landStackLongPressTimer = setTimeout(() => {
-                    if (!landStackTouchMoved) {
-                        landStackLongPressed = true;
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        if (untappedCount > 1) {
-                            tapAllLandsOfType(element);
-                        } else {
-                            showCardDetail(representativeCard);
-                        }
-                    }
-                }, 350);
-            };
-
-            stackCard.ontouchmove = () => {
-                landStackTouchMoved = true;
-                clearTimeout(landStackLongPressTimer);
-                stackCard.classList.remove('show-tap-all');
-            };
-
-            stackCard.ontouchend = (e) => {
-                clearTimeout(landStackLongPressTimer);
-                stackCard.classList.remove('show-tap-all');
-                if (landStackLongPressed) {
-                    e.preventDefault();
-                    return;
-                }
-
-                if (!landStackTouchMoved) {
-                    e.preventDefault();
-                    const untappedLand = stack.find(c => !c.tapped);
-                    if (untappedLand) {
-                        tapLand(untappedLand.id);
+            // Tap: tap one untapped land (or undo the last one). Long-press, right-click or I: tap them all,
+            // or show details when there is only one left.
+            bindCardPress(stackCard, {
+                label: `${representativeCard.name}: ${untappedCount} of ${total} untapped. Press to tap one; long-press or I to tap all.`,
+                onTap: () => {
+                    const land = stack.find(c => !c.tapped) || stack.find(c => c.tapped);
+                    if (land) tapLand(land.id);
+                },
+                onLongPress: () => {
+                    if (untappedCount > 1) {
+                        tapAllLandsOfType(element);
                     } else {
-                        const tappedLand = stack.find(c => c.tapped);
-                        if (tappedLand) {
-                            tapLand(tappedLand.id);
-                        }
+                        showCardDetail(representativeCard);
                     }
                 }
-            };
+            });
 
             boardEl.appendChild(stackCard);
         });
@@ -6014,53 +6602,24 @@
             const cardEl = createCardElement(card, true);
             attachDesktopTooltip(cardEl, card);
             
-            if (card.type === 'creature' && attackPhase) {
-                cardEl.onclick = () => selectAttacker(card.id);
-                if (gameState.attackers.includes(card.id)) {
-                    cardEl.classList.add('attacking');
-                }
-            } else if (card.type === 'artifact' && !attackPhase) {
-                cardEl.onclick = () => activateArtifact(card.id);
+            if (card.type === 'creature' && attackPhase && gameState.attackers.includes(card.id)) {
+                cardEl.classList.add('attacking');
             }
 
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let boardLongPressTimer;
-            let boardTouchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                boardTouchMoved = false;
-                boardLongPressTimer = setTimeout(() => {
-                    if (!boardTouchMoved) {
-                        // Haptic feedback for mobile
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                boardTouchMoved = true;
-                clearTimeout(boardLongPressTimer);
-            };
-
-            cardEl.ontouchend = (e) => {
-                clearTimeout(boardLongPressTimer);
-                if (!boardTouchMoved) {
-                    e.preventDefault();
-                    if (card.type === 'creature' && attackPhase) {
-                        selectAttacker(card.id);
-                    } else if (card.type === 'artifact' && !attackPhase) {
-                        activateArtifact(card.id);
-                    }
-                }
-            };
+            // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
+            // Long-press, right-click or I always shows details.
+            let boardAction = () => showCardDetail(card);
+            if (card.type === 'creature' && attackPhase) {
+                boardAction = () => selectAttacker(card.id);
+            } else if (card.type === 'artifact' && !attackPhase) {
+                boardAction = () => activateArtifact(card.id);
+            }
+            bindCardPress(cardEl, {
+                label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
+                    ? (gameState.attackers.includes(card.id) ? ', attacking' : ', press to attack') : ''),
+                onTap: boardAction,
+                onLongPress: () => showCardDetail(card)
+            });
 
             boardEl.appendChild(cardEl);
         });
@@ -6133,35 +6692,12 @@
                 stackCard.appendChild(totalEl);
             }
 
-            // Long-press to view card detail (display only, no tap interaction)
-            stackCard.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(representativeCard);
-            };
-
-            let enemyLandStackLPTimer;
-            let enemyLandStackTouchMoved = false;
-
-            stackCard.ontouchstart = () => {
-                enemyLandStackTouchMoved = false;
-                enemyLandStackLPTimer = setTimeout(() => {
-                    if (!enemyLandStackTouchMoved) {
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(representativeCard);
-                    }
-                }, 350);
-            };
-
-            stackCard.ontouchmove = () => {
-                enemyLandStackTouchMoved = true;
-                clearTimeout(enemyLandStackLPTimer);
-            };
-
-            stackCard.ontouchend = () => {
-                clearTimeout(enemyLandStackLPTimer);
-            };
+            // Enemy cards: any press shows details.
+            bindCardPress(stackCard, {
+                label: `Enemy ${representativeCard.name}: ${total - tappedCount} of ${total} untapped`,
+                onTap: () => showCardDetail(representativeCard),
+                onLongPress: () => showCardDetail(representativeCard)
+            });
 
             enemyBoardEl.appendChild(stackCard);
         });
@@ -6171,44 +6707,27 @@
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
 
-            // Right-click or long-press to view details
-            cardEl.oncontextmenu = (e) => {
-                e.preventDefault();
-                showCardDetail(card);
-            };
-
-            let enemyBoardLongPressTimer;
-            let enemyBoardTouchMoved = false;
-
-            cardEl.ontouchstart = (e) => {
-                enemyBoardTouchMoved = false;
-                enemyBoardLongPressTimer = setTimeout(() => {
-                    if (!enemyBoardTouchMoved) {
-                        // Haptic feedback for mobile
-                        if (navigator.vibrate) {
-                            navigator.vibrate(50);
-                        }
-                        showCardDetail(card);
-                    }
-                }, 350);
-            };
-
-            cardEl.ontouchmove = () => {
-                enemyBoardTouchMoved = true;
-                clearTimeout(enemyBoardLongPressTimer);
-            };
-
-            cardEl.ontouchend = () => {
-                clearTimeout(enemyBoardLongPressTimer);
-            };
+            bindCardPress(cardEl, {
+                label: `Enemy ${describeCardForA11y(card, 'board')}`,
+                onTap: () => showCardDetail(card),
+                onLongPress: () => showCardDetail(card)
+            });
 
             enemyBoardEl.appendChild(cardEl);
         });
 
+        restoreRowFocus(savedRowFocus);
+
         // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
         const endTurnBtn = document.getElementById('endTurnBtn');
+        const mulliganBtn = document.getElementById('mulliganBtn');
         const isPlayerTurn = gameState.turn === 'player' && gameState.phase !== 'enemy';
+
+        if (mulliganBtn) {
+            mulliganBtn.disabled = !canMulligan();
+            mulliganBtn.style.opacity = mulliganBtn.disabled ? '0.5' : '1';
+        }
 
         if (attackBtn) {
             const shouldDisableAttack = !isPlayerTurn || isProcessingAction;
@@ -6290,6 +6809,10 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
+        if (onBoard && !isEnemy && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste')) {
+            cardEl.classList.add('summoning-sick');
+            cardEl.title = 'Summoning sick: can attack next turn';
+        }
         // Emoji - centered
         const emojiEl = document.createElement('div');
         emojiEl.textContent = card.emoji;
@@ -6319,6 +6842,14 @@
             powerEl.textContent = `${card.power}/${card.toughness}`;
             cardEl.appendChild(powerEl);
 
+            // Damage marked this turn (it wears off between turns)
+            if (onBoard && card.damage > 0) {
+                const damageEl = document.createElement('div');
+                damageEl.className = 'card-damage';
+                damageEl.textContent = `💔${card.damage}`;
+                cardEl.appendChild(damageEl);
+            }
+
             // Abilities
             if (card.abilities && card.abilities.length > 0) {
                 const abilitiesEl = document.createElement('div');
@@ -6326,7 +6857,8 @@
                 card.abilities.forEach(ability => {
                     const abilityEl = document.createElement('div');
                     abilityEl.className = 'ability-icon';
-                    abilityEl.textContent = ability[0].toUpperCase();
+                    abilityEl.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
+                    abilityEl.title = describeKeyword(ability);
                     abilitiesEl.appendChild(abilityEl);
                 });
                 cardEl.appendChild(abilitiesEl);
@@ -6348,21 +6880,88 @@
         }, 100); // Debounce resize for better performance
     });
 
-    // DESKTOP ENHANCEMENT: Keyboard shortcuts for better desktop experience
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const packOverlay = document.getElementById('packOpeningOverlay');
-            if (packOverlay?.classList.contains('show')) {
-                e.preventDefault();
-                closePackOpeningOverlay();
-                return;
-            }
+    // Dialogs, topmost first. Esc closes the top one; Tab stays inside it; focus moves into a dialog when
+    // it opens and returns to where it was when it closes (UI.md).
+    const GAME_DIALOGS = [
+        { id: 'gameConfirmModal', close: () => document.getElementById('gameConfirmNoBtn')?.click() },
+        { id: 'mulliganConfirmModal', close: () => document.getElementById('mulliganNoBtn')?.click() },
+        { id: 'manaChoiceModal', close: () => document.querySelector('#manaChoiceModal .cancel-btn')?.click() },
+        { id: 'cardDetailPopup', close: () => hideCardDetail() },
+        { id: 'packOpeningOverlay', close: () => closePackOpeningOverlay() },
+        { id: 'matchRewardOverlay', close: null },   // the only way on is OPEN BOOSTER
+        { id: 'victoryOverlay', close: null },       // PLAY AGAIN or MAIN MENU (Esc used to strand the board)
+        { id: 'loseOverlay', close: null },
+        { id: 'graveyardModal', close: () => hideGraveyard() },
+        { id: 'pauseModal', close: () => resumeGame() }
+    ];
 
-            const victoryOverlay = document.getElementById('victoryOverlay');
-            if (victoryOverlay?.classList.contains('show')) {
+    function isDialogOpen(el) {
+        return !!el && el.classList.contains('show') && getComputedStyle(el).display !== 'none';
+    }
+
+    function getOpenGameDialog() {
+        return GAME_DIALOGS.find(d => isDialogOpen(document.getElementById(d.id))) || null;
+    }
+
+    function getFocusable(container) {
+        return [...container.querySelectorAll('button, [href], select, input, textarea, [tabindex]:not([tabindex="-1"])')]
+            .filter(el => !el.disabled && el.getAttribute('aria-hidden') !== 'true' && el.getClientRects().length > 0 &&
+                getComputedStyle(el).visibility !== 'hidden');
+    }
+
+    const dialogReturnFocus = new Map();
+    GAME_DIALOGS.forEach(({ id }) => {
+        const el = document.getElementById(id);
+        if (!el || typeof MutationObserver === 'undefined') return;
+        let wasOpen = isDialogOpen(el);
+        new MutationObserver(() => {
+            const open = isDialogOpen(el);
+            if (open === wasOpen) return;
+            wasOpen = open;
+            if (open) {
+                // A message toast would sit on top of the dialog
+                document.getElementById('gameLog')?.classList.remove('show');
+                const active = document.activeElement;
+                if (active && active !== document.body && !el.contains(active)) dialogReturnFocus.set(id, active);
+                // After the opening animation frame, so the dialog is laid out.
+                setTimeout(() => {
+                    if (!isDialogOpen(el) || el.contains(document.activeElement)) return;
+                    const first = getFocusable(el)[0];
+                    if (first) first.focus({ preventScroll: true });
+                    else { el.tabIndex = -1; el.focus({ preventScroll: true }); }
+                }, 50);
+            } else {
+                const back = dialogReturnFocus.get(id);
+                dialogReturnFocus.delete(id);
+                if (el.contains(document.activeElement) || document.activeElement === document.body) {
+                    if (getOpenGameDialog()) return; // another dialog took over; it manages focus
+                    if (back && back.isConnected && back.getClientRects().length) back.focus({ preventScroll: true });
+                    else focusSafeElement();
+                }
+            }
+        }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+    });
+
+    // Keyboard shortcuts during a match: Space/E end turn, A attack, M mulligan, Esc pause.
+    document.addEventListener('keydown', (e) => {
+        // Tab stays inside the open dialog.
+        if (e.key === 'Tab') {
+            const open = getOpenGameDialog();
+            if (!open) return;
+            const dialog = document.getElementById(open.id);
+            const items = getFocusable(dialog);
+            if (!items.length) { e.preventDefault(); return; }
+            const index = items.indexOf(document.activeElement);
+            if (e.shiftKey && (index <= 0)) { e.preventDefault(); items[items.length - 1].focus(); }
+            else if (!e.shiftKey && (index === -1 || index === items.length - 1)) { e.preventDefault(); items[0].focus(); }
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            const open = getOpenGameDialog();
+            if (open) {
                 e.preventDefault();
-                victoryOverlay.classList.remove('show');
-                focusSafeElement();
+                if (open.close) open.close();
                 return;
             }
 
@@ -6401,11 +7000,21 @@
             return;
         }
 
-        // Prevent shortcuts if a modal is open
-        const pauseModal = document.getElementById('pauseModal');
-        const cardDetailPopup = document.getElementById('cardDetailPopup');
-        const graveyardModal = document.getElementById('graveyardModal');
-        if (pauseModal.classList.contains('show') || cardDetailPopup.classList.contains('show') || graveyardModal.classList.contains('show')) {
+        // Not while a dialog is open, with a modifier held (Ctrl+A is select-all), or when Space/Enter is
+        // meant for the focused button or card.
+        if (getOpenGameDialog() || e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+        }
+        // A control reached with Tab gets its own Space/Enter. After a mouse click or tap the shortcuts still
+        // work, as before.
+        const focusedControl = e.target instanceof Element && e.target.closest('button, a, input, select, textarea, [role="button"]');
+        if (focusedControl && !lastInputWasPointer && (e.key === ' ' || e.key === 'Enter')) {
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            pauseGame();
             return;
         }
 
@@ -6438,11 +7047,6 @@
                 if (mulliganBtn && !mulliganBtn.disabled) {
                     mulliganBtn.click();
                 }
-                break;
-
-            case 'escape': // ESC = Pause game
-                e.preventDefault();
-                pauseGame();
                 break;
         }
     });

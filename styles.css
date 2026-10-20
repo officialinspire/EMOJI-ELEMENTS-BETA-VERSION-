@@ -2457,7 +2457,8 @@ body.no-scroll {
 }
 
 .victory-overlay.show .overlay-btn,
-.lose-overlay.show .overlay-btn {
+.lose-overlay.show .overlay-btn,
+.match-reward-overlay.show .overlay-btn {
     pointer-events: auto;
 }
 
@@ -3220,5 +3221,457 @@ html {
     100% {
         transform: translate3d(-50%, -130%, 0);
         opacity: 0;
+    }
+}
+
+/* ========================================
+   INTERACTION POLISH (see UI.md)
+   Phone, tablet and desktop fixes found by tests/ui-audit.mjs. Same look; fixes only.
+   ======================================== */
+
+/* Cards and land stacks are buttons: keyboard focus shows, a long-press never opens the OS callout,
+   and double-tap never zooms. */
+.card,
+.land-stack-card {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.card:focus-visible,
+.land-stack-card:focus-visible,
+.close-detail:focus-visible,
+.graveyard-close:focus-visible,
+.pack-close-btn:focus-visible,
+.menu-icon-btn:focus-visible,
+.graveyard-tab:focus-visible,
+.deck-mode-btn:focus-visible,
+.deck-builder-row button:focus-visible,
+.modal-footer-credit a:focus-visible,
+.mana-choice-btn:focus-visible {
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+}
+
+/* Keyboard shortcut hints show on keyboard focus too, not only on hover */
+@media (min-width: 768px) {
+    .btn:focus-visible::after {
+        opacity: 0.8;
+    }
+}
+
+.land-stack-card:focus-within .land-stack-tap-all {
+    display: flex;
+}
+
+.land-stack-tap-all {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+}
+
+.binder-row:focus-visible,
+.graveyard-card:focus-visible,
+.deck-builder-list:focus-visible {
+    outline: 3px solid #ffd700;
+    outline-offset: 2px;
+}
+
+/* Combat state on the card face */
+.card-damage {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #dc143c;
+    color: #ff9a9a;
+    font-family: 'Cinzel', serif;
+    font-weight: bold;
+}
+
+.card.summoning-sick {
+    border-style: dashed;
+}
+
+.card.summoning-sick > div:first-child {
+    opacity: 0.6;
+}
+
+/* Game log and combat reports: use the screen width on phones (the box was half the screen wide) */
+.game-log {
+    width: max-content;
+    max-width: min(92vw, 560px);
+}
+
+/* A tapped card turns sideways; give it room so it doesn't cover its neighbours */
+.card.tapped {
+    margin-inline: 10px;
+}
+
+@media (min-width: 768px) {
+    .card.tapped {
+        margin-inline: 13px;
+    }
+}
+
+/* Readable keyword badges (were 9px) */
+.ability-icon {
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 1px 4px;
+}
+
+/* Touch targets: 44px for close buttons, tabs, choices and the deck picker */
+.close-detail {
+    width: 44px;
+    height: 44px;
+    top: 8px;
+    right: 8px;
+    padding: 0;
+    font-family: inherit;
+    font-size: 22px;
+}
+
+.graveyard-close {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.graveyard-tab,
+.difficulty-btn,
+#deckBuilderDeckKey {
+    min-height: 44px;
+}
+
+.menu-icon-btn {
+    flex-shrink: 0;
+}
+
+.modal-footer-credit a {
+    display: inline-block;
+    padding: 10px 8px;
+}
+
+@media (pointer: coarse) {
+    .menu-icon-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* The ⚡ "tap all" corner button is a mouse shortcut; on touch, long-press the stack does the same */
+    .land-stack-card .land-stack-tap-all {
+        display: none !important;
+    }
+
+    .deck-builder-row button {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Game header on narrow phones: drop the title swords so the phase label fits */
+.title {
+    min-width: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 420px) {
+    .title .title-sword {
+        display: none;
+    }
+
+    .title {
+        letter-spacing: 1px;
+    }
+
+    .header {
+        gap: 6px;
+    }
+
+    /* Long phase labels (DECLARE ATTACKERS) wrap instead of pushing the title out */
+    .phase-indicator {
+        white-space: normal;
+        text-align: center;
+        max-width: 86px;
+        line-height: 1.15;
+    }
+}
+
+/* CLICK TO START title fits its panel on tablets (it was clipped at about 700px wide) */
+@media (max-width: 768px) {
+    .click-to-start-title {
+        font-size: min(7vw, 31px);
+    }
+}
+
+/* Menu title never clips at the right edge */
+.modal-title {
+    transform: none;
+    font-size: clamp(18px, 5.6vw, 32px);
+    overflow-wrap: anywhere;
+}
+
+/* Menus taller than the screen scroll from their top instead of being centred and clipped */
+.modal {
+    justify-content: flex-start;
+}
+
+.modal > .modal-content {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+/* Phone portrait controls: MULLIGAN · GRAVEYARD · END TURN, then a full-width ATTACK
+   (END TURN used to sit alone on a third row) */
+@media (max-width: 767px) {
+    .controls {
+        grid-template-columns: repeat(3, 1fr);
+        grid-auto-flow: row dense;
+    }
+}
+
+/* Tablet portrait: bigger cards in the room the battlefield has */
+@media (min-width: 600px) and (max-width: 767px) and (min-height: 900px) {
+    .card {
+        min-width: 76px;
+        width: 76px;
+        height: 100px;
+    }
+
+    .land-stack-card {
+        min-width: 76px;
+        height: 100px;
+    }
+
+    .land-stack-emoji {
+        font-size: 34px;
+    }
+
+    .hand-area {
+        min-height: 116px;
+        max-height: 116px;
+    }
+
+    .card.tapped {
+        margin-inline: 12px;
+    }
+}
+
+/* Landscape phones (500px tall or less): the controls move to a side column, so both battlefields, both
+   life totals and the hand fit on one screen. The desktop sizes (min-width: 768px) used to apply here. */
+@media (orientation: landscape) and (max-height: 500px) {
+    /* !important: index.js shows the match with an inline display: flex (and checks for it) */
+    #gameContainer[style*="flex"] {
+        display: grid !important;
+    }
+
+    .game-container {
+        grid-template-columns: minmax(0, 1fr) clamp(104px, 16vw, 150px);
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 4px;
+        padding: 4px max(4px, env(safe-area-inset-right)) 4px max(4px, env(safe-area-inset-left));
+    }
+
+    .game-container > .header {
+        grid-column: 1 / -1;
+        padding: 2px 6px;
+    }
+
+    .battlefield {
+        grid-column: 1;
+        grid-row: 2;
+        min-height: 0;
+        gap: 3px;
+    }
+
+    .battlefield::after {
+        display: none;
+    }
+
+    .hand-area {
+        grid-column: 1;
+        grid-row: 3;
+        min-height: 78px;
+        max-height: 78px;
+        padding: 3px 4px;
+    }
+
+    .controls {
+        grid-column: 2;
+        grid-row: 2 / 4;
+        grid-template-columns: 1fr;
+        grid-auto-rows: minmax(44px, 1fr);
+        grid-auto-flow: row;
+        gap: 4px;
+        padding: 0;
+    }
+
+    .controls .btn {
+        min-height: 44px;
+        font-size: 12px;
+        padding: 4px;
+        letter-spacing: 0;
+    }
+
+    .btn-attack {
+        grid-column: auto;
+    }
+
+    .player-area {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 4px;
+        padding: 3px;
+        min-height: 0;
+    }
+
+    .player-info {
+        order: -1;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        justify-content: center;
+        width: 64px;
+        flex-shrink: 0;
+        padding: 2px 4px;
+        gap: 2px;
+    }
+
+    .life-counter {
+        font-size: 17px;
+        gap: 3px;
+    }
+
+    .mana-pool {
+        max-width: none;
+        justify-content: center;
+    }
+
+    .mana-icon {
+        font-size: 12px;
+        padding: 1px 3px;
+    }
+
+    .cards-row {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        align-items: center;
+        padding: 2px;
+    }
+
+    .card {
+        min-width: 52px;
+        width: 52px;
+        height: 68px;
+    }
+
+    .card > div:first-child {
+        font-size: 26px !important;
+    }
+
+    .card.tapped {
+        margin-inline: 8px;
+    }
+
+    .land-stack-card {
+        min-width: 52px;
+        height: 68px;
+        margin-right: 4px;
+    }
+
+    .land-stack-emoji {
+        font-size: 22px;
+    }
+
+    .land-stack-count,
+    .land-stack-total {
+        font-size: 10px;
+    }
+
+    .title {
+        font-size: 15px;
+    }
+
+    .phase-indicator {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+
+    .menu-icon-btn {
+        width: 44px;
+        height: 40px;
+    }
+
+    /* Dialogs fit the short screen */
+    .card-detail-popup {
+        max-height: calc(100dvh - 16px);
+        max-width: min(560px, 92vw);
+        padding: 12px 16px;
+    }
+
+    .card-detail-emoji {
+        font-size: 44px;
+        margin-bottom: 4px;
+    }
+
+    .card-detail-name {
+        font-size: 20px;
+        margin-bottom: 6px;
+    }
+
+    .card-detail-info {
+        line-height: 1.5;
+    }
+
+    .pack-opening-panel {
+        max-height: calc(100dvh - 12px);
+        padding: 8px 12px;
+    }
+
+    .pack-sealed-shell {
+        min-height: 150px;
+    }
+
+    .pack-card-viewport {
+        min-height: 150px;
+        padding: 6px;
+    }
+
+    .pack-card-emoji {
+        font-size: 44px;
+    }
+
+    .pack-card-name {
+        font-size: 18px;
+        margin-top: 2px;
+    }
+
+    .pack-card-counter,
+    .pack-nav-buttons {
+        margin-top: 4px;
+    }
+
+    .graveyard-content {
+        max-height: calc(100dvh - 16px);
+        padding: 10px 14px;
+    }
+}
+
+/* Reduced motion: also stop pseudo-element animations (the legendary halo kept spinning) and smooth
+   scrolling. index.js skips screen shake, particles and sparkles. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }

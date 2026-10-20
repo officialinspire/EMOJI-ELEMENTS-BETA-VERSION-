@@ -2,64 +2,63 @@
 ║                   🎮 EMOJI ELEMENTS - QUICK START 🎮               ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
-✅ VERIFIED WORKING - Based on Original emoji-elements.html
-
 📁 YOUR FILES:
-   • index.html  (Main game file - open this!)
-   • styles.css  (All styling)
-   • index.js    (Game logic)
-   • README.md   (Full documentation)
-   • FIXES.md    (What was fixed)
+   • index.html   (the game - open this)
+   • index.js     (game logic)
+   • styles.css   (styling)
+   • *.mp3, inspiresoftwareintro.mp4   (music, sound effects, intro)
+   • README.md    (full documentation)
+   • RULES.md, EFFECTS.md, PROGRESSION.md, AI.md   (exact, tested rules)
+   • emoji-elements.html   (old single-file version; not used by the game)
 
 🚀 TO PLAY:
-   1. Open index.html in any browser
-   2. That's it! No setup needed!
+   1. Serve the folder (python -m http.server 8000) and open
+      http://localhost:8000 - or open index.html directly
+   2. Tap CLICK TO START (this also turns on sound), then tap to
+      skip the intro or let it play
 
-🎯 WHAT WORKS:
-   ✅ Starts instantly (no intro video issues)
-   ✅ All 150+ cards functional
-   ✅ Full Magic: The Gathering mechanics
-   ✅ 3 AI difficulty levels
-   ✅ Mobile optimized
-   ✅ Stats tracking
-
-🆕 NEW FEATURES ADDED:
-   • 🔄 Mulligan button (redraw starting hand once)
-   • 🎴 Deck counters (shows cards remaining)
-   • 🔓 Tap/Untap lands (click tapped land to untap)
-   • 📚 Land stacking (cleaner battlefield)
+🎯 WHAT'S IN IT:
+   ✅ 268 cards: lands, creatures, instants and artifacts
+   ✅ 15 ready decks: 5 single-colour, 10 two-colour
+   ✅ 3 AI difficulty levels, all playing by your rules
+   ✅ Pack Shop, free pack on every win, Binder, Deck Builder
+   ✅ Phone, tablet and desktop; touch, mouse and keyboard
+   ✅ Progress saved in your browser (damaged saves are repaired
+      and backed up)
 
 🎮 CONTROLS:
-   • Click cards to play
-   • Click lands to tap for mana
-   • Click tapped lands to untap
-   • 🔄 Mulligan once at game start
-   • ⚔️ Attack button for combat
-   • Right-click for card details
-
-⚠️ NOTES:
-   • No audio files needed (optional)
-   • No intro video (starts instantly)
-   • Works in all modern browsers
-   • Mobile-friendly touch controls
+   • Tap / click a card to play it, a land stack to tap a land,
+     an artifact to use it, a creature (after ATTACK) to attack
+   • Long-press / right-click a card for its details
+   • Tap a tapped land again to undo it while its mana is unspent
+   • Keyboard: Tab to a card + Enter to play, I for details,
+     Space/E end turn, A attack, M mulligan, Esc pause/close
 
 📖 GAME RULES:
    • Start with 20 life, reduce opponent to 0
-   • Draw 7 cards, mulligan to 6 if needed
+   • Draw 7 cards; mulligan to 6 once, before your first action
    • Play 1 land per turn
    • Tap lands for mana to play cards
    • Attack with creatures
-   • AI auto-blocks
+   • Blocking is automatic for both sides
+   • Attackers stay tapped until your next turn (unless Vigilance)
+   • Drawing from an empty deck loses
+   • These are house rules inspired by, not identical to, other
+     card games. Full rules: RULES.md
+
+💳 PROGRESSION:
+   • New profile: 100 credits, 5 starter decks' worth of cards, 15 ready decks
+   • Win: +25 credits and a free booster pack. Loss: +10 credits
+   • Pack Shop: 60 credits a pack (Lands pack 40)
+   • Decks: exactly 60 cards, max 2 copies (1 legendary); basic lands
+     are limited only by the land caps (20 mono, 11 per colour dual)
+   • Full rules: PROGRESSION.md
 
 🔧 TECHNICAL:
-   • Pure vanilla JavaScript
-   • No dependencies
-   • No build process
-   • localStorage for stats
-   • 100% client-side
-
-═══════════════════════════════════════════════════════════════════
-
-🎉 READY TO PLAY! Open index.html and enjoy! ⚔️✨
+   • Vanilla JavaScript, no build step, no runtime dependencies
+   • localStorage for progress
+   • Sound starts after the first tap (browser autoplay rules);
+     mute is remembered; "reduce motion" turns off animations
+   • Tests: see README.md › Testing
 
 ═══════════════════════════════════════════════════════════════════
