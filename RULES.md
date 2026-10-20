@@ -98,13 +98,97 @@ that differ from, or aren't covered by, the trading-card games this one is model
     seconds, it could play lands and creatures and attack on the player's first turn, and start an extra
     player turn.
 
+## 8. Combat
+
+These rules are checked by `tests/combat.test.mjs` (`npm run combat`). Its scenario table runs every case
+twice, once with the player attacking and once with the AI attacking, so both sides follow the same rules.
+Emoji Elements borrows trading-card-game vocabulary, but these rules are its own.
+
+- **C1 Attacking.** On your turn you may attack once: ATTACK, select attackers, CONFIRM.
+  - A creature can attack if it is untapped, does not have Defender, and either arrived before this turn or
+    has Haste.
+  - Haste counts even if it was **granted** after the creature arrived (Footsteps, Gravity Boots). **Changed:**
+    granted haste used to do nothing.
+  - Clicking a creature that can't attack logs the reason (tapped, summoning sickness, defender). **Changed:**
+    this was silent before.
+  - Confirming with no attackers cancels the attack and does not use it up.
+  - The AI follows the same eligibility rules.
+- **C2 Blocking is automatic for both sides (house rule).** Attackers are handled in the order they were
+  declared. Each one is blocked by the defender's **toughest** untapped creature that can legally block it and
+  isn't already blocking.
+  - A menace attacker needs **exactly two** blockers, otherwise it is unblocked.
+  - Blocks happen whenever a legal blocker exists, even if the blocker will die.
+  - Creatures with summoning sickness and Defender creatures may block. Tapped creatures can't.
+- **C3 Legal blockers.**
+  - Flying attackers can only be blocked by creatures with Flying or Reach.
+  - **Unblockable** attackers can't be blocked. **Changed:** unblockable used to have no effect.
+- **C4 Damage.** Creatures deal damage equal to their power.
+  - An **unblocked** attacker hits the defending player.
+  - A **blocked** attacker splits its damage over its blockers in **block order (toughest first)**: each blocker
+    must receive lethal damage before the next one gets any. Lethal means its remaining toughness, or just 1
+    from a Deathtouch creature. Without Trample, the last blocker receives all the remaining damage. With
+    Trample, the remaining damage goes to the defending player.
+  - Each blocker deals its power to the attacker.
+  - Damage within a step is simultaneous.
+- **C5 Excess damage to a creature is lost (house rule).** A creature can only take damage up to its remaining
+  toughness. Lifelink counts the damage actually taken, plus any damage to a player.
+- **C6 First Strike and Double Strike.**
+  - If any creature in a block has First Strike or Double Strike, there is an earlier damage step in which only
+    those creatures deal damage. Creatures killed then deal no normal damage. This is how first strike
+    survives a trade.
+  - Double Strike deals damage in both steps. **Changed:** an **unblocked** double striker now also hits the
+    player twice (it used to hit once, and lifelink also counted once).
+  - A blocked attacker whose blockers all died in the first step deals no more damage, unless it has Trample:
+    then the whole second hit goes to the player.
+- **C7 Deathtouch.** Any damage a Deathtouch creature deals to a creature destroys it. A 0-power Deathtouch
+  creature deals no damage, so it destroys nothing.
+- **C8 Lifelink.** Damage dealt by a Lifelink creature also gains its controller that much life, whether the
+  creature is attacking or blocking.
+- **C9 Order and lethal (house rule).** Attackers resolve one at a time in declaration order; dead creatures
+  are removed after all attackers resolve. If a player reaches 0 life, the match ends at once, and nothing
+  after that applies (including later lifelink).
+- **C10 Death and graveyards.**
+  - A creature with damage at least equal to its toughness goes to its **owner's** graveyard, untapped and
+    undamaged.
+  - **House rule:** tokens also go to the graveyard and can be revived.
+  - **Changed:** revive spells return the **most recent creature** in your graveyard. They used to return the
+    last card of any type, including instants and artifacts.
+- **C11 Cleanup.** Damage marked on creatures wears off between turns. After combat the game returns to the
+  main phase with no attackers selected.
+- **C12 Hexproof.** Your opponent's destroy, tap and bounce effects can't choose this creature. It still blocks,
+  is blocked, and is hit by "all creatures" effects such as Earthquake.
+- **C13 Vigilance.** Attacking doesn't tap the creature, so it can still block on the next enemy turn (see R5.3).
+- **C14 Granted keywords** (Feather, Surf, In the Clouds, Halo, Gravity Boots, Footsteps, Elven Bow) apply
+  only to the creature that received them. **Changed:** a granted keyword used to be added to the shared card
+  definition. That gave it to every copy of that card on both sides, in hand and deck, for the rest of the
+  session.
+- **C15 Flash: not supported.** There is no instant-speed play, so Flash currently has **no effect**. The card
+  details screen says so.
+
+| Keyword | Cards | Status |
+|---|---|---|
+| Flying, Reach | 40, 8 | ✅ Supported (C3) |
+| Trample | 19 | ✅ Supported (C4) |
+| Lifelink | 14 | ✅ Supported (C5, C8) |
+| Haste | 27 + granted | ✅ Supported, including when granted (C1) |
+| Vigilance | 36 | ✅ Supported (C13) |
+| Defender | 17 | ✅ Supported (C1, C2) |
+| Deathtouch | 13 | ✅ Supported (C7) |
+| First Strike, Double Strike | 16, 1 | ✅ Supported (C6) |
+| Menace | 17 | ✅ Supported (C2) |
+| Hexproof | 8 | ⚠️ Partial by design: protects only against the opponent's destroy, tap and bounce (C12) |
+| Unblockable | 1 + Surf | ✅ Supported (C3) |
+| Flash | 9 | ❌ Not supported (C15) |
+
 ## Still open (not changed in this pass)
 
 | Topic | Current behaviour | Why it's open |
 |---|---|---|
 | Choosing blockers | Automatic for both sides (R5.4) | Manual blocking would be new UI. |
 | Spell targets | Damage spells hit the opponent; destroy/tap/bounce/buff pick random targets | Card text says "target" (card audit, decision F). |
-| `flash`, `unblockable` | No effect | Card audit, decision E. |
+| `flash` | No effect (C15) | Needs an instant-speed window during the AI turn (card audit, decision E). |
+| Damage order among blockers | Toughest blocker first (C4) | Letting the attacker choose the order would need new UI. |
+| Bonuses on dead creatures | A creature keeps its buffs and granted keywords in the graveyard and if revived or bounced | It could instead reset to the printed card. |
 | Upkeep order | You draw before your upkeep effects and untap. The AI untaps, then draws, then upkeep. | Only the order of log messages differs. Neither side can act in between. |
 | AI mana display | The AI's unspent mana stays visible during your turn | Cosmetic; the AI's pool is cleared at the start of its turn. |
 | Who goes first | Always the player | It could alternate or be random. |

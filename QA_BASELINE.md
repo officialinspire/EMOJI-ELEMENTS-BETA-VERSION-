@@ -47,11 +47,14 @@ Run in the cloud container: Playwright 1.56.1, Chromium 141.0.7390.37 headless.
 
 | Project | Scenarios | PASS | FAIL | XFAIL |
 |---|---|---|---|---|
-| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 100 | 0 | 8 |
+| desktop (1280×800) | 13: boot, intro fallback, navigation, deck builder, dual-deck persistence, pack shop, turn cycle, 3-turn natural play, win, loss, corrupt-save recovery, defect probes, reset progress | 101 | 0 | 7 |
 | mobile (Pixel 7 emulation, touch) | 8: boot, navigation, deck builder, pack shop, turn cycle, win, loss, touch/long-press | 90 | 0 | 6 |
-| **Total** (exit 0, ~2 min) | 21 | **190** | **0** | **14**: D1 and D6–D12 still reproduce; D2–D5 are fixed (D3 moved to the rules suite) |
+| **Total** (exit 0, ~2 min) | 21 | **191** | **0** | **13**: D1, D6 and D8–D12 still reproduce; D2–D5 and D7 are fixed (D3 moved to the rules suite) |
 
 Two more suites:
+- **Combat:** `node --test tests/combat.test.mjs` (`npm run combat`). 78 tests, ~2.5 min. A 31-row scenario table
+  is run with the player attacking and with the AI attacking, plus eligibility, keyword, graveyard and UI-text
+  tests. The rules are in [RULES.md](RULES.md) §8.
 - **Turn and resource rules:** `node --test tests/rules.test.mjs` (`npm run rules`). 30 tests, ~1.5 min, all
   passing. They use a seeded `Math.random`, Playwright's fake clock and card fixtures. The rules are defined
   in [RULES.md](RULES.md).

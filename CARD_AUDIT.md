@@ -239,7 +239,7 @@ Each item is listed in `KNOWN_ISSUES` (or noted as text-only) until you decide.
 | B | **Rarity is inferred, not authored.** `inferRarity` never produces `uncommon` (204 common / 41 rare / 14 epic / 9 legendary). The basic land Ancient Grove is "rare" because its name contains "ancient". Legendaries by colour: fire 4, water 3, earth 1, swamp 1, light 0. The SciFi pool has no legendaries. | 1) Author an explicit `rarity` per card (changes pack odds and copy limits where values differ). 2) Only pin basic lands to common. 3) Keep. |
 | C | **3 free artifacts** (cost `{}`): DNA Sequence (draw a card), **Fingerprint Scanner (+1 mana every turn for 0)**, Footsteps (all your creatures gain haste). Similar sci-fi artifacts cost 1–3 colourless. All three are in **all 15 starter decks** (2 copies each). | 1) Give them colourless costs. This regenerates every starter for new players; existing saved decks keep their lists. 2) Keep them as deliberate 0-drops. |
 | D | **Duplicate names**: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact, with the same emoji. | 1) Rename the creature versions, with a save alias so owned copies carry over. Renaming changes ids, and the check blocks a bare rename. 2) Keep. |
-| E | **Keywords with no rules effect**: `flash` (9 creatures) and `unblockable` (Otter Scout, and Surf's grant). | 1) Implement them (gameplay work). 2) Replace them with supported keywords. |
+| E | **Keyword with no rules effect**: `flash` (9 creatures). `unblockable` (Otter Scout, Surf's grant) was implemented in the combat pass (RULES.md C3). | 1) Implement Flash: it needs an instant-speed window during the AI turn (gameplay work). 2) Replace it with a supported keyword. |
 | F | **Rules text that doesn't match the engine** (15 cards, not allow-listed because it's text): Fireball, Explosion, Inferno and Comet Strike say "target" but hit the opponent. Anger says "until end of turn" but buffs are permanent. Deep Freeze says "doesn't untap" but it untaps (so it's Freeze at +1 cost). Earthquake and Avalanche say "all creatures" but only hit enemy creatures. Six "equipped" artifacts (Flaming Sword, Earth Shield, Heavy Armor, Battle Axe, Nano Shield, Mech Claw) are one-shot buffs to a random creature. Magic Wand says "when activated" but deals 2 **every upkeep**. | 1) Rewrite the text to match the engine now (no balance change), and plan the rules work separately. 2) Implement the described behaviour. |
 | G | **FIRE_SWAMP starter uses Web Trap, which nobody owns** (QA D10). The deck becomes 59 cards after the first reload and can never be saved. | 1) Exclude two-colour cards from starter generation. New players get a different 60th card; existing saves need a one-time starter refresh. 2) Grant 1 Web Trap to players who have that starter (a targeted grant, which is your call). 3) Leave it. |
 | H | **Crystal Wasteland** (colourless land) can be pulled from SciFi and Lands packs but is legal in no deck. | 1) Allow colourless lands in any deck (counting toward the total land cap, not toward colour caps). 2) Remove it from the pools. |
@@ -253,13 +253,13 @@ Code and design intent are treated as the source of truth; these are documentati
 
 | Claim | Where | Actual |
 |---|---|---|
-| "All 150+ cards functional" | QUICK-START | **268** cards. 11 carry a keyword with no effect (E), and 15 have mismatched text (F). |
+| "All 150+ cards functional" | QUICK-START | **268** cards. 9 carry a keyword with no effect (Flash, E), and 15 have mismatched text (F). |
 | "Creatures (85+)": 17 each for Fire, Water, Earth, Swamp and Light, plus 30+ Sci-Fi | CHANGELOG | **190** creatures. Mono: fire 35, water 30, earth 35, swamp 30, light 35. 25 two-colour. 41 have the Science Fiction theme. |
 | "Spells (25+)", "Artifacts (15+)" | CHANGELOG | **41** instants, **29** artifacts (plus 8 lands). |
 | `cardType` is one of Creature, Instant/Spell, Land, Artifact | CHANGELOG | Also "Land - Dual" and "Land - Universal". |
 | `theme` is one of Science Fiction, Fantasy, Nature, City | CHANGELOG | ✓ Nature 101, Fantasy 83, Science Fiction 56, City 28. |
 | Named example cards (Dragon … Protective Amulet) | CHANGELOG | All present ("Crocodile" is *Swamp Croc*). |
-| 13 keywords, including Flash at instant speed | CHANGELOG | 12 are implemented. Flash is not, and neither is `unblockable` (which isn't listed). |
+| 13 keywords, including Flash at instant speed | CHANGELOG | 13 of the 14 keywords in the catalog are implemented (`unblockable` isn't listed in the CHANGELOG). Flash is not; see RULES.md §8. |
 | Rarity tiers common, uncommon, rare, epic, legendary | README | 4 are produced; there is **no uncommon** (B). |
 | 6 themed packs; "cards selected from inferred theme pools" | README | ✓ 6, but Alien and Robot hold no themed cards (A). |
 | 5 cards per pack; Lands packs prioritise lands | README | ✓ Lands are weighted ×3. The Lands pool is 8 lands + Badlands Boar. |

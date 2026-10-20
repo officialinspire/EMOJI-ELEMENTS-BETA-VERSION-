@@ -263,7 +263,7 @@
                             <li>Tap lands to generate mana (click on them)</li>
                             <li>Play cards from your hand using mana</li>
                             <li>Click "ATTACK" to select attackers</li>
-                            <li>Blockers are chosen automatically for both sides</li>
+                            <li>Blocking is automatic for both sides: each attacker is blocked by the toughest untapped creature that can legally block it (two for Menace)</li>
                             <li>Creatures deal damage = their power</li>
                         </ul>
 
@@ -279,14 +279,8 @@
                         </ul>
 
                         <h3>✨ Abilities</h3>
-                        <ul>
-                            <li><strong>Flying</strong> - Can only be blocked by flying/reach</li>
-                            <li><strong>Trample</strong> - Excess damage goes through (screen shake!)</li>
-                            <li><strong>Lifelink</strong> - Damage dealt heals you (sparkles!)</li>
-                            <li><strong>Haste</strong> - Can attack immediately</li>
-                            <li><strong>Vigilance</strong> - Doesn't tap to attack</li>
-                            <li><strong>Defender</strong> - Cannot attack</li>
-                        </ul>
+                        <!-- Filled from KEYWORD_RULES in index.js so the guide always matches the rules. -->
+                        <ul id="howToPlayKeywords"></ul>
 
                         <h3>📱 Controls</h3>
                         <p>Click cards to play them, tap lands for mana, select attackers in combat phase! Right-click or long-press to see card details.</p>

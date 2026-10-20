@@ -768,6 +768,29 @@
         updateUI();
     }
 
+    // Keyword rules: the one source for card details, board badges and How To Play (RULES.md §8).
+    const KEYWORD_RULES = {
+        flying: { label: 'Flying', badge: '🪽', text: 'Can only be blocked by creatures with Flying or Reach.' },
+        reach: { label: 'Reach', badge: '🏹', text: 'Can block creatures with Flying.' },
+        trample: { label: 'Trample', badge: '🐾', text: 'Damage beyond what its blockers need to die goes to the defending player.' },
+        lifelink: { label: 'Lifelink', badge: '💖', text: 'Damage it deals also gains its controller that much life.' },
+        haste: { label: 'Haste', badge: '⚡', text: 'Can attack the turn it arrives.' },
+        vigilance: { label: 'Vigilance', badge: '👁️', text: "Doesn't tap when attacking, so it can still block." },
+        defender: { label: 'Defender', badge: '🧱', text: "Can't attack, but can block." },
+        deathtouch: { label: 'Deathtouch', badge: '☠️', text: 'Any damage it deals to a creature destroys it.' },
+        first_strike: { label: 'First Strike', badge: '1️⃣', text: 'Deals combat damage before creatures without First Strike.' },
+        double_strike: { label: 'Double Strike', badge: '2️⃣', text: 'Deals combat damage twice: once early, once with normal damage.' },
+        hexproof: { label: 'Hexproof', badge: '🔰', text: "Your opponent's destroy, tap and bounce effects can't choose it." },
+        menace: { label: 'Menace', badge: '😈', text: 'Can only be blocked by two or more creatures.' },
+        unblockable: { label: 'Unblockable', badge: '👻', text: "Can't be blocked." },
+        flash: { label: 'Flash', badge: '💨', text: 'No effect yet: this version has no instant-speed play.' }
+    };
+
+    function describeKeyword(ability) {
+        const rule = KEYWORD_RULES[ability];
+        return rule ? `${rule.label}: ${rule.text}` : ability;
+    }
+
     // Mana System
     const ELEMENTS = {
         fire: { emoji: '🔥', color: '#ff4444' },
@@ -2878,8 +2901,17 @@
         }
     }
 
+    function renderKeywordGuide() {
+        const list = document.getElementById('howToPlayKeywords');
+        if (!list) return;
+        list.innerHTML = Object.values(KEYWORD_RULES)
+            .map(rule => `<li>${rule.badge} <strong>${rule.label}</strong> - ${rule.text}</li>`)
+            .join('');
+    }
+
     function showHowToPlay() {
         playSFX('menuOpen');
+        renderKeywordGuide();
         setStartMenuScreen('howToPlayScreen');
         setHowToPlayPage(1);
     }
@@ -3518,8 +3550,8 @@
                 .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
                 .join(', ');
             
-            const abilitiesStr = card.abilities && card.abilities.length > 0 
-                ? card.abilities.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ')
+            const abilitiesStr = card.abilities && card.abilities.length > 0
+                ? card.abilities.map(a => `<div class="card-detail-keyword">${describeKeyword(a)}</div>`).join('')
                 : 'None';
 
             html = `
@@ -4642,9 +4674,9 @@
                         }
                         if (card.grantAbilities) {
                             card.grantAbilities.forEach(ability => {
-                                if (!target.abilities) target.abilities = [];
-                                if (!target.abilities.includes(ability)) {
-                                    target.abilities.push(ability);
+                                // New array: abilities is shared with the card definition and every other copy.
+                                if (!target.abilities?.includes(ability)) {
+                                    target.abilities = [...(target.abilities || []), ability];
                                 }
                             });
                         }
@@ -4673,9 +4705,9 @@
                         target.toughness = (target.toughness || 0) + card.value;
                         if (card.grantAbilities) {
                             card.grantAbilities.forEach(ability => {
-                                if (!target.abilities) target.abilities = [];
-                                if (!target.abilities.includes(ability)) {
-                                    target.abilities.push(ability);
+                                // New array: abilities is shared with the card definition and every other copy.
+                                if (!target.abilities?.includes(ability)) {
+                                    target.abilities = [...(target.abilities || []), ability];
                                 }
                             });
                         }
@@ -4733,8 +4765,9 @@
                 // Return a creature from graveyard to battlefield
                 const graveyard = isCasterPlayer ? gameState.playerGraveyard : gameState.enemyGraveyard;
                 const board = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
-                if (graveyard.length > 0) {
-                    const revived = graveyard.pop();
+                const reviveIndex = graveyard.map(c => c.type).lastIndexOf('creature');
+                if (reviveIndex >= 0) {
+                    const [revived] = graveyard.splice(reviveIndex, 1);
                     revived.damage = 0;
                     revived.tapped = false;
                     revived.id = Math.random(); // New ID
@@ -4876,9 +4909,7 @@
         }
 
         // Check if there are any untapped creatures that can attack
-        const availableAttackers = gameState.playerBoard.filter(c =>
-            c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
-        );
+        const availableAttackers = gameState.playerBoard.filter(canAttack);
 
         if (availableAttackers.length === 0) {
             showGameLog('⚠️ You have no creatures available to attack!', false);
@@ -4894,11 +4925,29 @@
         updateUI();
     }
 
+    // Why a creature can't attack right now, or null if it can (RULES.md C1).
+    function getAttackRestriction(card) {
+        if (!card || card.type !== 'creature') return 'is not a creature';
+        if (card.tapped) return 'is tapped';
+        if (hasAbility(card, 'defender')) return "is a Defender and can't attack";
+        if (card.summoningSick && !hasAbility(card, 'haste')) return 'has summoning sickness: it can attack next turn';
+        return null;
+    }
+
+    function canAttack(card) {
+        return getAttackRestriction(card) === null;
+    }
+
     function selectAttacker(cardId) {
         if (gameState.matchFinalized || !attackPhase) return;
-        
+
         const card = gameState.playerBoard.find(c => c.id === cardId);
-        if (!card || card.type !== 'creature' || card.tapped || card.summoningSick || card.abilities?.includes('defender')) return;
+        if (!card) return;
+        const restriction = getAttackRestriction(card);
+        if (restriction) {
+            showGameLog(`⚠️ ${card.name} ${restriction}`, false);
+            return;
+        }
 
         if (gameState.attackers.includes(cardId)) {
             gameState.attackers = gameState.attackers.filter(id => id !== cardId);
@@ -4965,6 +5014,7 @@
 
     function canBlockAttacker(blocker, attacker) {
         if (!blocker || blocker.type !== 'creature' || blocker.tapped) return false;
+        if (hasAbility(attacker, 'unblockable')) return false;
         if (hasAbility(attacker, 'flying') && !hasAbility(blocker, 'flying') && !hasAbility(blocker, 'reach')) {
             return false;
         }
@@ -5084,6 +5134,26 @@
         // Trample and lifelink are processed within each combat damage step.
     }
 
+    // An unblocked attacker hits the defending player; Double Strike hits twice (RULES.md C4, C6).
+    function dealUnblockedDamage(attacker, isPlayerAttacking) {
+        const hits = hasAbility(attacker, 'double_strike') ? 2 : 1;
+        const power = attacker.power || 0;
+        for (let i = 0; i < hits; i++) {
+            if (isPlayerAttacking) {
+                changeEnemyLife(-power);
+            } else {
+                changePlayerLife(-power);
+            }
+            if (hasAbility(attacker, 'lifelink')) {
+                if (isPlayerAttacking) {
+                    changePlayerLife(power);
+                } else {
+                    changeEnemyLife(power);
+                }
+            }
+        }
+    }
+
     function aiDeclareBlockers() {
         const availableBlockers = gameState.enemyBoard.filter(c => c.type === 'creature' && !c.tapped);
         const attackingCreatures = gameState.attackers
@@ -5112,10 +5182,7 @@
             if (blockers.length > 0) {
                 applyDamage(attacker, blockers, true);
             } else {
-                changeEnemyLife(-(attacker.power || 0));
-                if (hasAbility(attacker, 'lifelink')) {
-                    changePlayerLife(attacker.power || 0);
-                }
+                dealUnblockedDamage(attacker, true);
             }
         });
 
@@ -5545,9 +5612,7 @@
 
                         setTimeout(() => {
                             if (turnIsStale()) return;
-                            const fallbackAttackers = gameState.enemyBoard.filter(c =>
-                                c.type === 'creature' && !c.tapped && !c.summoningSick && !c.abilities?.includes('defender')
-                            );
+                            const fallbackAttackers = gameState.enemyBoard.filter(canAttack);
 
                             let attackingCreatures = [];
                             try {
@@ -5667,10 +5732,7 @@
             if (blockers.length > 0) {
                 applyDamage(attacker, blockers, false);
             } else {
-                changePlayerLife(-(attacker.power || 0));
-                if (hasAbility(attacker, 'lifelink')) {
-                    changeEnemyLife(attacker.power || 0);
-                }
+                dealUnblockedDamage(attacker, false);
             }
 
             const playerArea = document.querySelector('.player-area:not(.enemy-area)');
@@ -6372,7 +6434,8 @@
                 card.abilities.forEach(ability => {
                     const abilityEl = document.createElement('div');
                     abilityEl.className = 'ability-icon';
-                    abilityEl.textContent = ability[0].toUpperCase();
+                    abilityEl.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
+                    abilityEl.title = describeKeyword(ability);
                     abilitiesEl.appendChild(abilityEl);
                 });
                 cardEl.appendChild(abilitiesEl);

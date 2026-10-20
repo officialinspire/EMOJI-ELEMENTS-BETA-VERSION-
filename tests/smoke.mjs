@@ -597,14 +597,14 @@ scenario('known-defect-probes', async ({ page, t, url }) => {
     t.check('attacking creature stays tapped during the enemy turn', untap === true, 'untapped by endTurn()');
     await waitForPlayerTurn(page);
 
-    // D7: revive should only return creatures.
+    // Was D7: revive returned the top graveyard card of any type (RULES.md C10).
     const revived = await page.evaluate(() => {
         const spell = window.__ALL_CARDS.find(c => c.type === 'instant');
         gameState.playerGraveyard.push({ ...spell, id: 0.555 });
         resolveSpell({ effect: 'revive', name: 'probe', emoji: '' }, 'player');
         return gameState.playerBoard.find(c => c.id !== 0.555 && c.name === spell.name)?.type || null;
     });
-    t.knownDefect('D7', 'revive never puts a non-creature on the battlefield', revived === null, `revived a ${revived}`);
+    t.check('revive never puts a non-creature on the battlefield', revived === null, `revived a ${revived}`);
 }, { projects: ['desktop'] });
 
 scenario('reset-progress', async ({ page, t, url }) => {

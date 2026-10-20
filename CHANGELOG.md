@@ -1,5 +1,21 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: combat rules
+
+Combat house rules are written down in `RULES.md` §8 and covered by `tests/combat.test.mjs`. Every
+scenario runs with both the player and the AI attacking.
+- Double Strike now hits twice when unblocked too, and its lifelink counts both hits.
+- Unblockable (Otter Scout, Surf) now works.
+- Haste granted after a creature arrives (Footsteps, Gravity Boots) now lets it attack that turn.
+- Keywords granted by spells and equipment (Feather, Surf, Halo, …) stay on that one creature. They used to
+  spread to every copy of the card on both sides for the rest of the session.
+- Revive spells return the most recent creature, never an instant or artifact.
+- Every keyword is explained, from one shared rules table: card details, distinct board badges with
+  tooltips, and the How To Play list. Badges used to be first letters, so F could mean Flying, First Strike
+  or Flash.
+- Clicking a creature that can't attack now says why (tapped, summoning sickness, Defender).
+- Flash is labelled as having no effect yet.
+
 ## Unreleased: turn and resource rules
 
 Rules are now written down in `RULES.md` and covered by `tests/rules.test.mjs`.

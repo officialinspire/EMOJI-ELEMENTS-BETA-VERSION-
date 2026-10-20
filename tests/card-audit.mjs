@@ -30,7 +30,7 @@ const KNOWN_ISSUES = {
     'unsupported-ability': [
         'creatures-mystic-dolphin', 'creatures-river-otter', 'creatures-swamp-frog', 'creatures-enchanting-mermaid',
         'creatures-forest-fairy', 'creatures-time-device', 'creatures-comm-device', 'creatures-men-in-black',
-        'creatures-grey-alien', 'creatures-otter-scout', 'spells-surf'
+        'creatures-grey-alien'
     ],
     'not-deck-legal': ['lands-crystal-wasteland'],
     'starter-card-not-owned': ['spells-web-trap'],
