@@ -5180,7 +5180,102 @@
             const losses = Math.max(0, Number(gameStats.losses) || 0);
             recordEl.textContent = wins + losses > 0 ? `${wins} won · ${losses} lost` : 'No battles yet';
         }
+        // NEW GAME names the deck it will start from, once you have played at least once
+        const newGameDesc = document.getElementById('menuNewGameDesc');
+        if (newGameDesc) {
+            const played = (Number(gameStats.wins) || 0) + (Number(gameStats.losses) || 0) > 0;
+            const colors = played && gameMeta?.decks?.[gameMeta?.selectedDeckKey] ? getDeckColorsFromKey(gameMeta.selectedDeckKey) : [];
+            newGameDesc.textContent = colors.length
+                ? `Last deck: ${colors.map(elementLabel).join(' + ')}`
+                : 'Pick your elements and duel the AI';
+        }
     }
+
+    // Visual themes: colours, type and backgrounds only (styles.css "VISUAL THEMES"). Saved under its own key,
+    // apart from the profile, so a progress reset keeps it and switching theme never touches the save.
+    const THEME_STORAGE_KEY = 'emoji_elements_theme';
+    const VISUAL_THEMES = {
+        arcane: { label: 'Arcane Fantasy', desc: 'Violet ink, gold leaf and runes', metaColor: '#140b1f' },
+        'deep-space': { label: 'Deep Space', desc: 'Midnight navy, starlight and ice blue', metaColor: '#060a16' },
+        neon: { label: 'Neon Sci-Fi', desc: 'Black glass, cyan and magenta', metaColor: '#07060c' }
+    };
+
+    function getVisualTheme() {
+        const key = document.documentElement.dataset.theme;
+        return VISUAL_THEMES[key] ? key : 'arcane';
+    }
+
+    function applyVisualTheme(key, { save = true } = {}) {
+        if (!VISUAL_THEMES[key]) key = 'arcane';
+        document.documentElement.dataset.theme = key;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', VISUAL_THEMES[key].metaColor);
+        const chipName = document.getElementById('themeChipName');
+        if (chipName) chipName.textContent = VISUAL_THEMES[key].label;
+        document.querySelectorAll('#themeOptions [role="radio"]').forEach(option => {
+            const checked = option.dataset.uiTheme === key;
+            option.setAttribute('aria-checked', String(checked));
+            option.tabIndex = checked ? 0 : -1;
+        });
+        if (save) {
+            try { localStorage.setItem(THEME_STORAGE_KEY, key); } catch (_) { /* private mode: the theme lasts this visit */ }
+        }
+    }
+
+    function renderThemePicker() {
+        const list = document.getElementById('themeOptions');
+        if (!list || list.childElementCount) return;
+        Object.entries(VISUAL_THEMES).forEach(([key, theme]) => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            // Each option is drawn in its own theme's tokens, so it is its own preview
+            option.className = 'theme-option';
+            option.setAttribute('role', 'radio');
+            option.dataset.uiTheme = key;
+            option.innerHTML = `
+                <span class="theme-option-preview" aria-hidden="true">
+                    <span class="theme-option-mark"><svg focusable="false"><use href="#ee-sigil"/></svg></span>
+                    <span class="theme-option-swatches"><i></i><i></i><i></i></span>
+                </span>
+                <span class="theme-option-body">
+                    <span class="theme-option-label">${theme.label}</span>
+                    <span class="theme-option-desc">${theme.desc}</span>
+                </span>`;
+            option.addEventListener('click', () => { playSFX('select'); applyVisualTheme(key); });
+            list.appendChild(option);
+        });
+        // Arrow keys move between themes and pick them (radio group pattern)
+        list.addEventListener('keydown', e => {
+            const keys = Object.keys(VISUAL_THEMES);
+            const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+            let next;
+            if (step) next = keys[(keys.indexOf(getVisualTheme()) + step + keys.length) % keys.length];
+            else if (e.key === 'Home') next = keys[0];
+            else if (e.key === 'End') next = keys[keys.length - 1];
+            if (!next) return;
+            e.preventDefault();
+            applyVisualTheme(next);
+            list.querySelector(`[data-ui-theme="${next}"]`)?.focus();
+        });
+        applyVisualTheme(getVisualTheme(), { save: false });
+    }
+
+    function showThemePicker() {
+        renderThemePicker();
+        playSFX('menuOpen');
+        document.getElementById('themeDialog').classList.add('show');
+        // Focus starts on the current theme rather than the close button
+        setTimeout(() => document.querySelector('#themeOptions [aria-checked="true"]')?.focus({ preventScroll: true }), 60);
+    }
+
+    function hideThemePicker() {
+        playSFX('menuClose');
+        document.getElementById('themeDialog').classList.remove('show');
+    }
+
+    document.getElementById('themeDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideThemePicker();
+    });
+    applyVisualTheme(getVisualTheme(), { save: false });
 
     function initializeStartMenuState() {
         setStartMenuScreen('mainMenu');
@@ -8665,6 +8760,7 @@
         { id: 'loseOverlay', close: null },
         { id: 'graveyardModal', close: () => hideGraveyard() },
         { id: 'historyModal', close: () => hideMatchHistory() },
+        { id: 'themeDialog', close: () => hideThemePicker() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 

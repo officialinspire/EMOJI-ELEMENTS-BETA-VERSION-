@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="arcane">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -21,19 +21,50 @@
     <meta name="twitter:description" content="Arcane duels. Elemental strategy. Build a single-color or two-color deck and conquer the arena!">
     <meta name="twitter:image" content="https://officialinspire.github.io/EMOJI-ELEMENTS-BETA-VERSION-/EMOJI-ELEMENTS-TITLE-CARD.jpg">
 
+    <!-- The visual theme is saved apart from game progress (key emoji_elements_theme) and applied before the
+         first paint; index.js (VISUAL_THEMES) owns the picker -->
+    <script>
+        (function () {
+            var theme = 'arcane';
+            try {
+                var saved = localStorage.getItem('emoji_elements_theme');
+                if (saved === 'arcane' || saved === 'deep-space' || saved === 'neon') theme = saved;
+            } catch (e) { /* storage blocked: default theme */ }
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@400;500;700&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Cinzel:wght@400;700;900&family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;700&family=MedievalSharp&family=Orbitron:wght@700;900&family=Uncial+Antiqua&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- The logo's sigil: five element nodes on a ring, drawn once and reused (<use href="#ee-sigil">) -->
+    <svg class="svg-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+        <symbol id="ee-sigil" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.9"/>
+            <circle cx="32" cy="32" r="21" fill="none" stroke="currentColor" stroke-width="1" opacity="0.45"/>
+            <path d="M32 9 L45.5 50.6 L10.1 24.9 L53.9 24.9 L18.5 50.6 Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity="0.55"/>
+            <circle cx="32" cy="9" r="5" style="fill: var(--elc-light)"/>
+            <circle cx="53.9" cy="24.9" r="5" style="fill: var(--elc-fire)"/>
+            <circle cx="45.5" cy="50.6" r="5" style="fill: var(--elc-earth)"/>
+            <circle cx="18.5" cy="50.6" r="5" style="fill: var(--elc-water)"/>
+            <circle cx="10.1" cy="24.9" r="5" style="fill: var(--elc-swamp)"/>
+            <path d="M32 24 L38 32 L32 40 L26 32 Z" fill="currentColor"/>
+        </symbol>
+    </svg>
+
     <!-- Click to Start Overlay -->
     <div id="clickToStart" class="click-to-start-overlay">
         <div class="click-to-start-content">
-            <div class="click-to-start-title">⚔️ EMOJI ELEMENTS ⚔️</div>
+            <div class="click-to-start-title ee-logo ee-logo--hero">
+                <svg class="ee-logo-mark" aria-hidden="true" focusable="false"><use href="#ee-sigil"/></svg>
+                <span class="ee-logo-type"><span class="ee-logo-small">Emoji</span> <span class="ee-logo-big">Elements</span></span>
+            </div>
             <div class="click-to-start-tagline">Arcane duels. Elemental strategy.</div>
-            <div class="click-to-start-text">🎮 CLICK TO START 🎮</div>
-            <div class="click-to-start-hint">(with sound)</div>
+            <div class="click-to-start-text"><span aria-hidden="true">▶</span> Click to start</div>
+            <div class="click-to-start-hint">Sound on · tap or click anywhere</div>
         </div>
     </div>
 
@@ -58,13 +89,13 @@
     <div id="victoryOverlay" class="victory-overlay" role="dialog" aria-modal="true" aria-label="Victory">
         <div class="victory-text">🏆 VICTORY! 🏆</div>
         <button class="menu-btn overlay-btn" onclick="playAgain()">🔄 PLAY AGAIN</button>
-        <button class="menu-btn overlay-btn" onclick="returnToMainMenu()" style="background: linear-gradient(135deg, #4169e1 0%, #6495ed 100%); color: #fff; border-color: #1a3a7a;">🏠 MAIN MENU</button>
+        <button class="menu-btn overlay-btn overlay-btn-secondary" onclick="returnToMainMenu()">🏠 MAIN MENU</button>
     </div>
     <div id="loseOverlay" class="lose-overlay" role="dialog" aria-modal="true" aria-label="Defeat">
         <div class="lose-text">💀 DEFEAT! 💀</div>
         <div class="match-reward-line lose-reward-line" id="lossRewardLine"></div>
         <button class="menu-btn overlay-btn" onclick="playAgain()">🔄 TRY AGAIN</button>
-        <button class="menu-btn overlay-btn" onclick="returnToMainMenu()" style="background: linear-gradient(135deg, #4169e1 0%, #6495ed 100%); color: #fff; border-color: #1a3a7a;">🏠 MAIN MENU</button>
+        <button class="menu-btn overlay-btn overlay-btn-secondary" onclick="returnToMainMenu()">🏠 MAIN MENU</button>
     </div>
 
 
@@ -211,7 +242,20 @@
             <div class="pause-buttons">
                 <button class="menu-btn" onclick="resumeGame(event)">▶️ RESUME GAME</button>
                 <button class="menu-btn" onclick="confirmQuit()">🏠 MAIN MENU</button>
+                <button class="menu-btn pause-theme-btn" type="button" onclick="showThemePicker()" aria-haspopup="dialog">🎨 THEME</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Visual theme picker (renderThemePicker): changes colours and type only, never progress -->
+    <div id="themeDialog" class="graveyard-modal theme-dialog" role="dialog" aria-modal="true" aria-labelledby="themeDialogTitle">
+        <div class="graveyard-content theme-dialog-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="themeDialogTitle">🎨 Visual theme</div>
+                <button class="graveyard-close" type="button" onclick="hideThemePicker()" aria-label="Close theme picker">✕</button>
+            </div>
+            <p class="theme-dialog-note">Colours, type and backgrounds only. Your cards, decks and progress stay the same.</p>
+            <div class="theme-options" id="themeOptions" role="radiogroup" aria-labelledby="themeDialogTitle"></div>
         </div>
     </div>
 
@@ -232,9 +276,19 @@
 
     <div id="startModal" class="modal" style="display: none;">
         <div class="modal-content" data-screen="mainMenu">
-            <div class="modal-title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
+            <div class="modal-title ee-logo ee-logo--menu" role="heading" aria-level="1">
+                <svg class="ee-logo-mark" aria-hidden="true" focusable="false"><use href="#ee-sigil"/></svg>
+                <span class="ee-logo-type"><span class="ee-logo-small">Emoji</span> <span class="ee-logo-big">Elements</span></span>
+            </div>
             <div class="modal-intro">
-                <div class="beta-badge">V2 BETA</div>
+                <div class="menu-intro-row">
+                    <div class="beta-badge">V2 BETA</div>
+                    <!-- The visual theme, saved apart from game progress (showThemePicker) -->
+                    <button type="button" class="theme-chip" id="themeChip" onclick="showThemePicker()" aria-haspopup="dialog">
+                        <span class="theme-chip-swatch" aria-hidden="true"></span>
+                        <span class="theme-chip-text">Theme: <strong id="themeChipName">Arcane Fantasy</strong></span>
+                    </button>
+                </div>
                 <div>Build a single-color or two-color deck and conquer the arena.</div>
             </div>
             
@@ -256,7 +310,7 @@
                     <span class="menu-tile-icon" aria-hidden="true">⚔️</span>
                     <span class="menu-tile-body">
                         <span class="menu-tile-label">New Game</span>
-                        <span class="menu-tile-desc">Pick your elements and duel the AI</span>
+                        <span class="menu-tile-desc" id="menuNewGameDesc">Pick your elements and duel the AI</span>
                     </span>
                 </button>
 
@@ -524,7 +578,10 @@
     <div class="game-container" id="gameContainer" style="display: none;">
         <div class="header">
             <button class="menu-icon-btn" onclick="pauseGame()" aria-label="Pause menu (Esc)">☰</button>
-            <div class="title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
+            <div class="title ee-logo ee-logo--bar">
+                <svg class="ee-logo-mark" aria-hidden="true" focusable="false"><use href="#ee-sigil"/></svg>
+                <span class="ee-logo-type"><span class="ee-logo-small">Emoji</span> <span class="ee-logo-big">Elements</span></span>
+            </div>
             <div class="header-right">
                 <button class="menu-icon-btn history-btn" id="historyBtn" onclick="showMatchHistory()" title="Match history (H)" aria-label="Match history">📜<span class="history-badge" id="historyBadge" hidden></span></button>
                 <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound" aria-label="Mute sound" aria-pressed="false">🔊</button>

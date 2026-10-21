@@ -14,6 +14,9 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
   NEW or how many you own. A summary shows all five.
 - Emoji card art in element-coloured frames (split for two-colour cards, steel for colorless), with cost pips,
   rarity borders, and markers for tapped, summoning-sick, damaged and attacking creatures.
+- Three visual themes: **Arcane Fantasy** (violet and gold), **Deep Space** (navy, starlight, ice blue) and
+  **Neon Sci-Fi** (black glass, cyan, magenta). Pick one from the Theme chip on the main menu or 🎨 THEME in
+  the pause menu. Themes change colours, type and backgrounds only, never cards, decks or progress.
 - Desktop shortcuts + mobile touch support.
 - localStorage persistence for stats, collection, decks, wallet, and last pack, with automatic repair and backups of damaged saves.
 
@@ -142,10 +145,18 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 - Swiping across the hand or battlefield scrolls it without playing anything or scrolling the page.
 - Pinch-zoom is allowed; double-tap zoom is not.
 
+### Visual theme
+
+- **Theme: …** on the main menu (or 🎨 THEME in the pause menu) opens the picker. Each option is drawn in its own
+  theme. The choice applies at once and is remembered on this device.
+- Keyboard: arrow keys, `Home` and `End` move between themes and pick them; `Esc` closes the picker.
+- The theme is saved apart from your profile: switching it never touches the save, and RESET PROGRESS keeps it.
+
 ### Motion and sound
 
-- With the system's **reduce motion** setting, the intro animation, screen shake, particles and looping glows
-  are off.
+- Nothing loops or pulses during a match, in any theme. The start screen and the result banners animate once.
+- With the system's **reduce motion** setting, the intro animation, screen shake, particles and those one-off
+  entrances are off too.
 - No sound plays before the first tap or click (browser autoplay rules). The mute choice is remembered.
 
 ## How To Run
@@ -176,6 +187,7 @@ You can also open `index.html` directly in many browsers, but a local server is 
 | `emoji_elements_meta_backups` | Up to 3 earlier copies of the profile, saved before the game ever rewrites or resets it |
 | `emojiElementsStats` | Win/loss copy for the legacy build; imported once into a new profile |
 | `emojiElementsMuted` | Sound on/off |
+| `emoji_elements_theme` | Visual theme: `arcane`, `deep-space` or `neon` (kept apart from the profile; a reset keeps it) |
 
 - On every load, a damaged or older profile is **repaired, not replaced**. A save that can't be read at all
   is kept in the backups before a new profile starts. Details and the migration plan: [PROGRESSION.md §7](PROGRESSION.md).
@@ -210,6 +222,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
 | `npm run regression` | Final regression: Deck Builder focus and scroll, combined filters, combat preview = result on 40 random boards, pack membership = manifest, nothing running after leaving a match, history bound, keyboard-only turn, reduced motion, portrait/landscape changes, fresh and existing profiles ([QA_REPORT.md](QA_REPORT.md) §2) |
 | `npm run cross-browser` | The main flows in every installed engine (Chromium, Firefox, WebKit); engines that aren't installed are reported as NOT TESTED. This is browser emulation, not real devices. |
+| `npm run themes` | The three visual themes at desktop, phone and phone-landscape: axe and measured text contrast, overflow and clipped text, the logo, no looping animation; saving, reload, reset and keyboard use of the picker ([UI.md](UI.md) §12). `npm run menu`, `ui` and `cards:ui` also take `--theme=deep-space` or `--theme=neon`. |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |

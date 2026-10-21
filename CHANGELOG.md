@@ -1,5 +1,38 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Visual themes and logo
+
+For players:
+- **Three themes.** Pick one from **Theme: …** on the main menu or 🎨 THEME in the pause menu.
+  - **Arcane Fantasy** (default): violet ink, gold leaf, Uncial and Cinzel lettering.
+  - **Deep Space**: midnight navy, a sparse still starfield, ice-blue accents, Exo 2 lettering.
+  - **Neon Sci-Fi**: black glass, a faint grid with a magenta horizon, cyan accents, Orbitron and Chakra Petch.
+  - Themes change colours, type and backgrounds only. Card rarity colours and the body text are the same in
+    all three. The choice is saved on its own: it never touches your profile, and RESET PROGRESS keeps it.
+- **A new logo.** A sigil of the five elements and an "EMOJI / Elements" wordmark, as live text and a local SVG.
+  It is large on the start screen, beside the title in the menu and one compact line in the match header.
+- **Start screen:** one clear "▶ Click to start" button with the hint "Sound on · tap or click anywhere". It no
+  longer pulses.
+- **Main menu:** the theme chip sits beside V2 BETA. After your first battle, NEW GAME names the deck it will
+  start from ("Last deck: 🔥 Fire + 💧 Water"). The menu sits on the theme's own background.
+- **Calmer matches.** Nothing loops or pulses during a match any more: not the phase label, not ATTACK, not the
+  enemy turn, not the result banner. MULLIGAN and GRAVEYARD are quiet buttons, END TURN is the accent, ATTACK a
+  steady red. The victory and defeat banners are a dark scrim with a glow instead of a full-screen wash.
+- **Readability fixes:**
+  - MAIN MENU on the victory and defeat banners was white on light blue (3.3:1). It now passes AA in every theme.
+  - MULLIGAN no longer puts light text on bright blue.
+
+Under the hood:
+- **Semantic tokens:** each theme is one token set on `<html data-theme>`. 322 colour and font literals in older
+  rules now read tokens. Before any visual change, a computed-style fingerprint of 24 screen states was
+  identical.
+- **Picker:** `VISUAL_THEMES`, `applyVisualTheme`, `showThemePicker` in `index.js`. It is a radio group in the
+  shared dialog handling (Esc, focus trap, focus return); the theme is applied before the first paint from
+  `localStorage.emoji_elements_theme`.
+- **New suite:** `tests/theme-audit.mjs` (`npm run themes`). It runs axe and measured text contrast, overflow,
+  clipping and looping-animation checks for each theme at three sizes, plus the storage and keyboard checks.
+  `menu-audit`, `ui-audit` and `card-faces` take `--theme=`.
+
 ## Unreleased: Cleanup and final regression
 
 For players:

@@ -684,3 +684,105 @@ Screenshots (`npm run packs:shots`; before, then after):
 - The odds shown are exact for the pack's slots; they don't include the win-pack theme weights.
 - The art is CSS and emoji, so it depends on the device's emoji font, like the cards.
 - Chromium only, as for the other UI passes.
+
+## 12. Visual themes and logo
+
+Branch audit at the start of the pass: the six earlier visual/UX passes (menu, cards, collection, feedback, packs,
+cleanup) are all on `main` (`397089f`). This pass branches from there (`claude/visual-themes`).
+
+**Unchanged:**
+- the menu routes and `data-menu-target`s, the intro skip flow (tap → intro → tap to skip);
+- accessible names: the menu logo is still a level-1 heading named "Emoji Elements", and the controls, dialogs and
+  ids are unchanged;
+- keyboard navigation, saved decks, the save format and the game rules.
+
+### One interface, three token sets
+
+A theme is only a set of tokens on `<html data-theme="arcane|deep-space|neon">`, plus `[data-ui-theme]` on the
+picker's options, so each option previews itself. The rules after the token sets (styles.css "VISUAL THEMES") are
+shared by all three. There are no per-theme copies of the interface.
+
+| Token group | Arcane Fantasy (default) | Deep Space | Neon Sci-Fi |
+|---|---|---|---|
+| Background | violet ink `#090611`→`#23113d`, soft violet and crimson glows | navy `#04060d`→`#0e1a35`, a sparse fixed starfield, two faint nebulae | near-black `#05040a`, a faint 44 px grid fading towards the top, a magenta horizon |
+| Accent (`--gold-1`, fills) | gold `#f2cf72` | ice blue `#9fd6ff` | cyan `#5cefff` |
+| Second accent (`--accent`) | violet `#8a7dff` | periwinkle `#8f9bff` | magenta `#ff4fd8` |
+| Danger / ATTACK | crimson | rose | hot pink-red |
+| Display / headings / UI type | Uncial Antiqua / Cinzel / MedievalSharp | Exo 2 | Orbitron (logo) / Chakra Petch |
+| Element colours (`--elc-*`) | the card-pass colours | slightly cooler | more saturated |
+| Same in all three | Inter body text, rarity colours, card layout and state markers | | |
+
+How the old rules were moved onto tokens, without changing how anything looked first:
+- 322 literal colours and fonts in older rules were replaced by tokens with Arcane's values. Examples: the gold
+  `#ffd700`, the violet `rgba(138,125,255,…)` and the card bases `#1b1030`/`#140b22`.
+- The computed-style fingerprint of 24 screen states (14,830 elements, about 62 properties each) was identical
+  before and after. Only then were the themes and the new components added.
+
+**Storage:**
+- The theme is saved under `localStorage.emoji_elements_theme`, apart from the profile
+  (`emoji_elements_meta_v1`).
+- An inline script in `<head>` applies it before the first paint. An unknown value falls back to Arcane, and
+  blocked storage means the theme lasts the visit.
+- RESET PROGRESS removes only the profile, so it keeps the theme. Switching theme never writes the profile.
+
+### Logo
+
+- **Mark:** `#ee-sigil`, an inline SVG symbol: a ring and pentagram in the theme's accent, with the five element
+  nodes in `--elc-*`.
+- **Wordmark:** live text. A small tracked "EMOJI" sits above "Elements" in the theme's display face, with a
+  gradient fill (gold, starlight-to-ice, or cyan-to-magenta). It has no animation.
+- **Three sizes:**
+  - hero: the sigil above the stacked wordmark (start screen);
+  - menu: the sigil beside it;
+  - bar: one line in the match header. "EMOJI" is hidden at 420 px and below so the header keeps its room.
+- Each theme scales the logo (`--logo-scale`), because Orbitron is much wider than Uncial.
+- The ⚔️ swords around the old all-caps title are gone.
+
+### Start screen and main menu
+
+- **Start screen:**
+  - a panel with the hero logo, the tagline, one pill-shaped **▶ Click to start** and a quiet hint ("Sound on ·
+    tap or click anywhere");
+  - the old 2-second opacity pulse is replaced by one 0.7 s rise;
+  - the intro and its skip are unchanged.
+- **Main menu:**
+  - the logo;
+  - V2 BETA beside a **Theme: …** chip (a 44 px button with a three-colour swatch);
+  - the tagline, the credits and collection chips, then the six entries.
+  - **NEW GAME** stays the one large accent tile. It now has a › that moves on hover and lifts slightly. After
+    the first battle its second line names the deck it will start from ("Last deck: 🔥 Fire + 💧 Water").
+- The menu sits on a 42 % scrim over the theme background (stars, grid) instead of 95 % black.
+- Outside Arcane, the gold divider takes the theme's accent.
+- Hover and focus states:
+  - tiles brighten their border and icon ring;
+  - every new control has a 3 px focus ring in `--gold-2`.
+
+### Theme picker
+
+- **Where:** the menu chip, or 🎨 THEME in the pause menu. It opens above the pause menu.
+- **Structure:** a `role="radiogroup"` of three `role="radio"` buttons with a roving tabindex.
+- **Each option** is drawn in its own theme: a sigil, three swatches, the name in that theme's heading font, and
+  a description. The chosen one has a 2 px ring and the text "✓ Selected", so the choice isn't shown by colour
+  alone.
+- **Keys:** arrow keys, Home and End pick a theme immediately; Esc, ✕ or the backdrop close the picker.
+- **Dialog handling:** it is in `GAME_DIALOGS`, so focus is trapped while it is open and returns to the chip
+  (or THEME) when it closes. From the pause menu, Esc closes only the picker.
+
+### Comfortable during a long match
+
+| Before | After |
+|---|---|
+| Phase label glowed in and out every 2 s (`phaseGlow`) | still |
+| ATTACK pulsed every 1.2 s whenever it was enabled (`attackPulse`) | a steady red fill with a thin ring |
+| Enemy turn: phase label pulsed every 1.5 s (`enemyPulse`) | a steady red label and a stronger enemy border |
+| VICTORY / DEFEAT text scaled 1 → 1.1 every second, forever (`victoryPulse`) | pops in once |
+| Base rules for playable and attacking cards still had looping glows (hidden by later rules) | set to none, so nothing can bring them back |
+| MULLIGAN royal blue, GRAVEYARD and END TURN bright gold gradients, all with outer glow | MULLIGAN and GRAVEYARD are quiet panel buttons; END TURN is the one accent fill |
+| Hand: 3 px double gold border with glow | 1 px accent line (padding +2 px keeps the same inner size) |
+| Result banners: full-screen gold or red wash | a dark scrim with the theme's glow |
+
+With reduced motion, the one-off entrances (start panel, result text) are also off (the existing global rule).
+
+### Evidence
+
+EVIDENCE_PLACEHOLDER
