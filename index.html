@@ -88,11 +88,14 @@
                 <div class="pack-instruction" id="packInstruction">Slide to rip open</div>
                 <div class="pack-sealed-shell" id="packTearSurface">
                     <div class="pack-tear-line" id="packTearLine"></div>
-                    <div class="pack-sealed-emoji">📦</div>
+                    <div class="pack-sealed-emoji" id="packSealedEmoji" aria-hidden="true">📦</div>
+                    <div class="pack-sealed-label" id="packSealedLabel"></div>
                 </div>
                 <div class="pack-progress-track">
                     <div id="packProgressFill" class="pack-progress-fill"></div>
                 </div>
+                <!-- The button alternative to the rip gesture -->
+                <button class="menu-btn pack-open-btn" id="packOpenBtn" type="button">✂️ OPEN PACK</button>
             </div>
 
             <div id="packRevealStage" class="pack-stage">
@@ -103,15 +106,47 @@
                     <div id="packCardType" class="pack-card-type"></div>
                     <!-- Rarity, cost and power/toughness, filled by setPackOpeningCard -->
                     <div id="packCardMeta" class="pack-card-meta"></div>
+                    <!-- Keywords and rules text, and NEW or how many you own -->
+                    <div id="packCardText" class="pack-card-text"></div>
+                    <div id="packCardOwned" class="pack-card-owned"></div>
                 </div>
-                <div id="packCardCounter" class="pack-card-counter"></div>
+                <div id="packCardCounter" class="pack-card-counter" aria-live="polite"></div>
                 <div class="pack-nav-buttons">
                     <button class="menu-btn" id="packPrevBtn">⬅️ PREV</button>
                     <button class="menu-btn" id="packNextBtn">NEXT ➡️</button>
                 </div>
+                <button class="menu-btn pack-summary-btn" id="packSummaryBtn" type="button">▦ ALL 5 CARDS</button>
+            </div>
+
+            <!-- After the reveal: the whole pack at a glance -->
+            <div id="packSummaryStage" class="pack-stage">
+                <div class="pack-summary-title" id="packSummaryTitle">Your 5 cards</div>
+                <p class="pack-summary-stats" id="packSummaryStats"></p>
+                <ul class="pack-summary-grid" id="packSummaryGrid"></ul>
+                <div class="pack-nav-buttons">
+                    <button class="menu-btn" id="packSummaryBackBtn" type="button">⬅️ CARDS</button>
+                    <button class="menu-btn" id="packDoneBtn" type="button">✓ DONE</button>
+                </div>
             </div>
 
             <div id="packQaDebug" class="pack-qa-debug" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Pack Shop: everything a pack can contain, with the odds (renderPackContents) -->
+    <div id="packContentsModal" class="graveyard-modal pack-contents-modal" role="dialog" aria-modal="true" aria-labelledby="packContentsTitle">
+        <div class="graveyard-content pack-contents-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="packContentsTitle">Pack contents</div>
+                <button class="graveyard-close" type="button" onclick="hidePackContents()" aria-label="Close pack contents">✕</button>
+            </div>
+            <div class="pack-contents-scroll" id="packContentsScroll" tabindex="0" role="region" aria-label="Pack contents and odds">
+                <div class="pack-contents-summary" id="packContentsSummary"></div>
+                <div id="packContentsList"></div>
+            </div>
+            <div class="pack-contents-actions">
+                <button class="menu-btn pack-contents-buy" id="packContentsBuyBtn" type="button">Buy</button>
+            </div>
         </div>
     </div>
 
@@ -267,14 +302,9 @@
             <div id="packShopScreen" class="menu-screen" style="display:none;">
                 <div class="modal-subtitle" tabindex="-1">Pack Shop</div>
                 <div class="shop-credits-badge" id="shopCreditsBadge">💳 Credits: 0</div>
-                <div class="pack-shop-grid">
-                    <button class="menu-btn shop-pack-btn" data-theme="fantasy" type="button" onclick="purchasePack('fantasy')">🧙 Fantasy Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="scifi" type="button" onclick="purchasePack('scifi')">🚀 SciFi Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="tech" type="button" onclick="purchasePack('tech')">⚙️ Tech Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="alien" type="button" onclick="purchasePack('alien')">👽 Alien Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="robot" type="button" onclick="purchasePack('robot')">🤖 Robot Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="lands" type="button" onclick="purchasePack('lands')">🌍 Lands Pack · 40 Credits</button>
-                </div>
+                <p class="shop-intro">Each pack holds 5 different cards for your collection. Tap “What’s inside” to see every card a pack can contain and the odds.</p>
+                <!-- One tile per pack (art, price, affordability, contents): built by renderPackShop() -->
+                <div class="pack-shop-grid" id="packShopGrid"></div>
                 <div class="pack-shop-message" id="packShopMessage" aria-live="polite"></div>
                 <button class="menu-btn menu-back" onclick="hidePackShop()">← BACK TO MENU</button>
             </div>

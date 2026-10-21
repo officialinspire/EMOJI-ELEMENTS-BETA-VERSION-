@@ -6033,3 +6033,554 @@ html {
         display: none;
     }
 }
+
+/* =====================================================================================================
+   PACK SHOP AND PACK OPENING
+   Pack tiles (art, price, affordability, contents), the "What's inside" dialog, themed sealed packs, the
+   fuller card reveal and the five-card summary. The art is CSS and emoji only. Colours per pack key.
+   ===================================================================================================== */
+:is(.shop-pack, .pack-opening-overlay)[data-theme="fantasy"] { --pack-a: #ffd86e; --pack-b: #8f5bff; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="scifi"] { --pack-a: #6df1ff; --pack-b: #3c4fd8; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="tech"] { --pack-a: #d4dbe4; --pack-b: #4f6378; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="alien"] { --pack-a: #9dff89; --pack-b: #1d6b50; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="robot"] { --pack-a: #e3e8ee; --pack-b: #5b6577; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="lands"] { --pack-a: #9fdd84; --pack-b: #a5782f; }
+
+#startModal .shop-intro {
+    margin: 0 0 12px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-soft);
+}
+
+#startModal .pack-shop-grid {
+    gap: 12px;
+    text-align: left;
+}
+
+.shop-pack {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gold-line, rgba(242, 207, 114, 0.4));
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel-inset, rgba(12, 8, 22, 0.6));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* The pack wrapper: two theme colours, foil stripes and a soft glow; the icon and a few of its cards */
+.shop-pack-art {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 84px;
+    padding: 10px 14px;
+    background:
+        radial-gradient(circle at 18% 30%, rgba(255, 255, 255, 0.45) 0%, transparent 42%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 18px),
+        linear-gradient(135deg, var(--pack-a) 0%, var(--pack-b) 100%);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+.shop-pack-art::after {
+    /* the crimped top edge of a booster */
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0 4px, transparent 4px 8px);
+}
+
+.shop-pack-art-icon {
+    font-size: 46px;
+    line-height: 1;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+
+.shop-pack-art-strip {
+    display: flex;
+    gap: 4px;
+    font-size: 22px;
+}
+
+.shop-pack-art-strip span {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.shop-pack-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px 12px;
+    flex: 1;
+}
+
+.shop-pack-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.shop-pack-name {
+    margin: 0;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-size: 17px;
+    color: var(--gold-2);
+}
+
+.shop-pack-price {
+    flex: 0 0 auto;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-1);
+    background: rgba(242, 207, 114, 0.14);
+    color: var(--gold-2);
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.shop-pack-tagline,
+.shop-pack-slots,
+.shop-pack-owned,
+.shop-pack-afford {
+    margin: 0;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--text-soft);
+}
+
+.shop-pack-slots {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.shop-pack-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+#startModal #packShopGrid .shop-pack-btn {
+    background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 100%);
+    color: #2a1a06;
+    border: 1px solid #8b6a1f;
+    font-size: 13px;
+    padding: 8px 10px;
+    letter-spacing: 0.04em;
+}
+
+#startModal #packShopGrid .shop-pack.is-unaffordable .shop-pack-btn {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0c3c3;
+    border: 1px dashed rgba(255, 160, 160, 0.6);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.shop-pack-info {
+    min-height: 44px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--gold-line, rgba(242, 207, 114, 0.4));
+    background: transparent;
+    color: var(--gold-2);
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.shop-pack-info:focus-visible,
+.pack-summary-card:focus-visible,
+.pack-contents-buy:focus-visible {
+    outline: 3px solid var(--gold-2);
+    outline-offset: 2px;
+}
+
+.shop-pack.is-unaffordable .shop-pack-afford {
+    color: #ffc2c2;
+}
+
+.shop-pack.is-unaffordable .shop-pack-art {
+    filter: saturate(0.55) brightness(0.85);
+}
+
+/* ---- What's inside */
+.pack-contents-content {
+    width: min(620px, 100%);
+    max-height: 88dvh;
+}
+
+.pack-contents-summary {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-soft);
+}
+
+.pack-contents-summary p {
+    margin: 0 0 6px;
+}
+
+.pack-contents-tagline {
+    color: var(--gold-2);
+}
+
+.pack-odds {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+}
+
+.pack-odds-tier {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.pack-odds-tier.tier-rare { color: var(--rarity-rare, #6fb7ff); }
+.pack-odds-tier.tier-epicplus { color: #d4b2ff; }
+
+.pack-contents-note {
+    padding: 6px 8px;
+    border-left: 3px solid var(--gold-1);
+    background: rgba(242, 207, 114, 0.08);
+}
+
+.pack-contents-scroll {
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+    min-height: 120px;
+}
+
+.pack-contents-heading {
+    position: sticky;
+    top: 0;
+    margin: 8px 0 4px;
+    padding: 4px 0;
+    background: #2e1f44;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-size: 14px;
+    color: var(--gold-2);
+}
+
+.pack-contents-heading span {
+    color: var(--text-soft);
+    font-weight: 400;
+}
+
+.pack-contents-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-contents-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pack-contents-row.is-unowned {
+    border-style: dashed;
+}
+
+.pack-contents-row.is-unowned .card-row-art {
+    filter: grayscale(0.7);
+    opacity: 0.75;
+}
+
+.pack-contents-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pack-contents-name {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.pack-contents-modal .card-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 8px;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 11.5px;
+    color: var(--text-soft);
+}
+
+.pack-contents-modal .row-cost { display: inline-flex; gap: 3px; }
+.pack-contents-modal .row-keyword.is-inactive { opacity: 0.75; text-decoration: line-through; }
+.pack-contents-modal .row-rarity.rarity-common { color: #d6c8aa; }
+.pack-contents-modal .row-rarity.rarity-rare { color: var(--rarity-rare, #6fb7ff); }
+.pack-contents-modal .row-rarity.rarity-epic { color: #c9a2ff; }
+.pack-contents-modal .row-rarity.rarity-legendary { color: var(--rarity-legendary, #ffcf5a); }
+
+.pack-contents-owned {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 12px;
+    color: var(--gold-2);
+    white-space: nowrap;
+}
+
+.pack-contents-row.is-unowned .pack-contents-owned {
+    color: var(--text-soft);
+}
+
+.pack-contents-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.pack-contents-buy {
+    min-height: 44px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: 1px solid #8b6a1f;
+    background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 100%);
+    color: #2a1a06;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pack-contents-buy.is-unaffordable {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0c3c3;
+    border: 1px dashed rgba(255, 160, 160, 0.6);
+    cursor: not-allowed;
+}
+
+/* ---- Sealed pack in its theme's colours */
+.pack-opening-overlay[data-theme]:not([data-theme=""]) .pack-sealed-shell {
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.55);
+    background:
+        radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.4) 0%, transparent 45%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 18px),
+        linear-gradient(135deg, var(--pack-a) 0%, var(--pack-b) 100%);
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-sealed-label {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(20, 12, 32, 0.78);
+    color: var(--gold-2);
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.pack-sealed-label:empty {
+    display: none;
+}
+
+.pack-open-btn,
+.pack-summary-btn {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 10px;
+}
+
+.pack-summary-btn.is-ready {
+    box-shadow: 0 0 0 2px var(--gold-2), 0 0 16px rgba(255, 215, 0, 0.45);
+}
+
+/* ---- Reveal: rules, keywords and ownership */
+.pack-card-text {
+    max-width: 34em;
+    margin-top: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #fff4cf;
+}
+
+.pack-card-text p {
+    margin: 4px 0 0;
+}
+
+.pack-card-flavour {
+    font-style: italic;
+    color: #f0e2b8;
+}
+
+.pack-card-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 6px;
+}
+
+.pack-card-keyword {
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.35);
+    font-size: 12px;
+}
+
+.pack-card-keyword.is-inactive {
+    opacity: 0.75;
+    text-decoration: line-through;
+}
+
+.pack-card-owned {
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-2);
+}
+
+.pack-owned-before {
+    font-weight: 400;
+    color: #eadfb8;
+}
+
+.pack-new-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #7dffb0, #2fbf71);
+    color: #062a14;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.pack-card-viewport:not(.is-revealed) .pack-card-text,
+.pack-card-viewport:not(.is-revealed) .pack-card-owned {
+    opacity: 0;
+}
+
+.pack-card-text,
+.pack-card-owned {
+    transition: opacity 0.22s ease;
+}
+
+/* ---- Summary: the five cards */
+.pack-summary-title {
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.pack-summary-stats {
+    margin: 4px 0 10px;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #eadfb8;
+}
+
+.pack-summary-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--rarity-common, #b9b0a0);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff8d1;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pack-summary-card.rarity-rare { border-color: var(--rarity-rare, #6fb7ff); }
+.pack-summary-card.rarity-epic { border-color: var(--rarity-epic, #b17cff); }
+.pack-summary-card.rarity-legendary { border-color: var(--rarity-legendary, #ffcf5a); }
+
+.pack-summary-body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 8px;
+    flex: 1;
+    min-width: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.pack-summary-name {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.pack-summary-rarity {
+    font-size: 12px;
+}
+
+.pack-summary-rarity.rarity-rare { color: var(--rarity-rare, #6fb7ff); }
+.pack-summary-rarity.rarity-epic { color: #d4b2ff; }
+.pack-summary-rarity.rarity-legendary { color: var(--rarity-legendary, #ffcf5a); }
+
+.pack-summary-owned {
+    font-size: 12px;
+    color: var(--gold-2);
+    text-align: right;
+}
+
+@media (min-width: 900px) {
+    #startModal .pack-shop-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #startModal .modal-content[data-screen="packShopScreen"] {
+        max-width: min(980px, 96vw);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .shop-pack-art { min-height: 60px; padding: 6px 12px; }
+    .shop-pack-art-icon { font-size: 34px; }
+    .pack-card-text { font-size: 12px; margin-top: 2px; }
+    .pack-card-owned { margin-top: 4px; }
+    .pack-summary-card { min-height: 44px; padding: 4px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pack-card-text,
+    .pack-card-owned {
+        transition: none;
+    }
+}

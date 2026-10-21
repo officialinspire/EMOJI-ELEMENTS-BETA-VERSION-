@@ -2348,13 +2348,15 @@
     };
     }
 
+    // Packs for the Pack Shop and win rewards. Prices, pack size and the win-reward theme weights are the
+    // same as before (PROGRESSION.md P3); the art colours for each key are in styles.css ("PACK SHOP").
     const PACK_THEMES = [
-        { key: 'fantasy', label: 'Fantasy', weight: 24 },
-        { key: 'scifi', label: 'Science Fiction', weight: 18 },
-        { key: 'tech', label: 'Tech', weight: 16 },
-        { key: 'alien', label: 'Alien', weight: 14 },
-        { key: 'robot', label: 'Robot', weight: 14 },
-        { key: 'lands', label: 'Lands', weight: 14 }
+        { key: 'fantasy', label: 'Fantasy', weight: 24, icon: '🧙', tagline: 'Myth, magic and the wild creatures of the five elements' },
+        { key: 'scifi', label: 'Science Fiction', weight: 18, icon: '🚀', tagline: 'Space, science and the future' },
+        { key: 'tech', label: 'Tech', weight: 16, icon: '⚙️', tagline: 'Gadgets, machines and modern life' },
+        { key: 'alien', label: 'Alien', weight: 14, icon: '👽', tagline: 'Aliens, spacecraft and the cosmos' },
+        { key: 'robot', label: 'Robot', weight: 14, icon: '🤖', tagline: 'Robots, drones, mechs and machine minds' },
+        { key: 'lands', label: 'Lands', weight: 14, icon: '🌍', tagline: 'Only lands: basic, dual and special' }
     ];
 
     const PACK_SHOP_COSTS = {
@@ -2367,69 +2369,342 @@
     };
 
     const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
-    const THEME_KEYWORDS = {
-        fantasy: ['wizard', 'mage', 'witch', 'sorcer', 'knight', 'dragon', 'demon', 'angel', 'temple', 'wand', 'relic', 'ancient', 'holy', 'cursed'],
-        scifi: ['science fiction', 'space', 'star', 'cosmic', 'quantum', 'galaxy', 'void', 'planet', 'orbital', 'aether', 'chrono', 'nano', 'signal'],
-        tech: ['tech', 'artifact', 'engine', 'device', 'scanner', 'battery', 'core', 'prism', 'watch', 'lens', 'compass', 'tower'],
-        alien: ['alien', 'ufo', 'planet', 'void', 'cosmic', 'xeno', 'martian', 'nebula'],
-        robot: ['robot', 'drone', 'mech', 'android', 'cyber', 'machine', 'construct', 'automaton'],
-        lands: ['land', 'wasteland', 'grove', 'bog', 'peak', 'springs', 'temple', 'planet', 'rainbow']
+    const PACK_SIZE = 5;
+
+    // Which packs each card can come from, reviewed card by card and keyed by card id (CARD_AUDIT.md §7).
+    // A card may be in several packs. In short:
+    // - fantasy: every Fantasy- and Nature-theme card (the elemental wildlife), plus City folklore
+    //   (Santa Claus, Phantom Train, Dread Clown, Temple Cat, Holy Hamster, Grave Digger, War Horn);
+    // - scifi: every Science Fiction card;
+    // - tech: Science Fiction devices, machines, drones and gear, plus the other City (modern life) cards;
+    // - alien: aliens, spacecraft, space travel and cosmic cards (Meteor Strike too);
+    // - robot: robots, androids, cyborgs, mechs, drones, AI and machine parts;
+    // - lands: all 8 lands and nothing else.
+    // tests/card-audit.mjs fails if a card is missing, an id is unknown or a pack breaks these limits.
+    const PACK_MEMBERSHIP = {
+        // Lands
+        'lands-volcanic-peak': ['lands'],
+        'lands-mystic-springs': ['lands'],
+        'lands-ancient-grove': ['lands'],
+        'lands-cursed-bog': ['fantasy', 'lands'],
+        'lands-sacred-temple': ['fantasy', 'lands'],
+        'lands-crystal-wasteland': ['scifi', 'lands'],
+        'lands-distant-planet': ['scifi', 'alien', 'lands'],
+        'lands-rainbow': ['lands'],
+        // Creatures
+        'creatures-ancient-dragon': ['fantasy'],
+        'creatures-phoenix': ['fantasy'],
+        'creatures-infernal-demon': ['fantasy'],
+        'creatures-blazing-tiger': ['fantasy'],
+        'creatures-fire-fox': ['fantasy'],
+        'creatures-fire-lion': ['fantasy'],
+        'creatures-fire-salamander': ['fantasy'],
+        'creatures-magma-monkey': ['fantasy'],
+        'creatures-raging-bull': ['fantasy'],
+        'creatures-flame-steed': ['fantasy'],
+        'creatures-wild-boar': ['fantasy'],
+        'creatures-fire-ram': ['fantasy'],
+        'creatures-lava-scorpion': ['fantasy'],
+        'creatures-magma-crab': ['fantasy'],
+        'creatures-fire-lobster': ['fantasy'],
+        'creatures-ember-beetle': ['fantasy'],
+        'creatures-fire-ladybug': ['fantasy'],
+        'creatures-raging-oni': ['fantasy'],
+        'creatures-fire-djinn': ['fantasy'],
+        'creatures-fireman': ['tech'],
+        'creatures-phoenix-firebird': ['fantasy'],
+        'creatures-leviathan-whale': ['fantasy'],
+        'creatures-great-shark': ['fantasy'],
+        'creatures-giant-octopus': ['fantasy'],
+        'creatures-mystic-dolphin': ['fantasy'],
+        'creatures-school-fish': ['fantasy'],
+        'creatures-arctic-seal': ['fantasy'],
+        'creatures-river-otter': ['fantasy'],
+        'creatures-ice-penguin': ['fantasy'],
+        'creatures-swamp-frog': ['fantasy'],
+        'creatures-giant-squid': ['fantasy'],
+        'creatures-mantis-shrimp': ['fantasy'],
+        'creatures-swamp-croc': ['fantasy'],
+        'creatures-ancient-turtle': ['fantasy'],
+        'creatures-sea-horse': ['fantasy'],
+        'creatures-stinging-jellyfish': ['fantasy'],
+        'creatures-armored-snail': ['fantasy'],
+        'creatures-crystal-swan': ['fantasy'],
+        'creatures-enchanting-mermaid': ['fantasy'],
+        'creatures-great-white-shark': ['fantasy'],
+        'creatures-elder-elephant': ['fantasy'],
+        'creatures-silverback-gorilla': ['fantasy'],
+        'creatures-forest-bear': ['fantasy'],
+        'creatures-swift-rabbit': ['fantasy'],
+        'creatures-noble-deer': ['fantasy'],
+        'creatures-pack-wolf': ['fantasy'],
+        'creatures-armored-rhino': ['fantasy'],
+        'creatures-river-hippo': ['fantasy'],
+        'creatures-forest-squirrel': ['fantasy'],
+        'creatures-spiky-hedgehog': ['fantasy'],
+        'creatures-fierce-badger': ['fantasy'],
+        'creatures-tall-giraffe': ['fantasy'],
+        'creatures-striped-zebra': ['fantasy'],
+        'creatures-desert-camel': ['fantasy'],
+        'creatures-strong-ox': ['fantasy'],
+        'creatures-bamboo-panda': ['fantasy'],
+        'creatures-sleepy-koala': ['fantasy'],
+        'creatures-wild-west-cowboy': ['tech'],
+        'creatures-weightlifter': ['tech'],
+        'creatures-bengal-tiger': ['fantasy'],
+        'creatures-garden-ladybug': ['fantasy'],
+        'creatures-ancient-vampire': ['fantasy'],
+        'creatures-risen-zombie': ['fantasy'],
+        'creatures-restless-ghost': ['fantasy'],
+        'creatures-vampire-bat': ['fantasy'],
+        'creatures-giant-spider': ['fantasy'],
+        'creatures-skeleton-warrior': ['fantasy'],
+        'creatures-dark-wizard': ['fantasy'],
+        'creatures-swamp-witch': ['fantasy'],
+        'creatures-plague-rat': ['fantasy'],
+        'creatures-venom-snake': ['fantasy'],
+        'creatures-death-scorpion': ['fantasy'],
+        'creatures-death-crow': ['fantasy'],
+        'creatures-werewolf': ['fantasy'],
+        'creatures-stone-gargoyle': ['fantasy'],
+        'creatures-ancient-mummy': ['fantasy'],
+        'creatures-goblin-raider': ['fantasy'],
+        'creatures-swamp-troll': ['fantasy'],
+        'creatures-demonic-clown': ['fantasy'],
+        'creatures-sacred-unicorn': ['fantasy'],
+        'creatures-guardian-angel': ['fantasy'],
+        'creatures-sky-eagle': ['fantasy'],
+        'creatures-peace-dove': ['fantasy'],
+        'creatures-light-butterfly': ['fantasy'],
+        'creatures-winged-pegasus': ['fantasy'],
+        'creatures-forest-fairy': ['fantasy'],
+        'creatures-temple-cat': ['fantasy'],
+        'creatures-loyal-hound': ['tech'],
+        'creatures-wise-owl': ['fantasy'],
+        'creatures-golden-bee': ['fantasy'],
+        'creatures-holy-chicken': ['fantasy'],
+        'creatures-sun-parrot': ['fantasy'],
+        'creatures-pink-flamingo': ['fantasy'],
+        'creatures-royal-peacock': ['fantasy'],
+        'creatures-baby-chick': ['fantasy'],
+        'creatures-holy-hamster': ['fantasy'],
+        'creatures-combat-robot': ['scifi', 'robot'],
+        'creatures-alien-invader': ['scifi', 'alien'],
+        'creatures-pixel-monster': ['scifi', 'alien'],
+        'creatures-ufo-saucer': ['scifi', 'alien'],
+        'creatures-satellite-drone': ['scifi', 'tech', 'alien', 'robot'],
+        'creatures-battle-rocket': ['scifi', 'tech', 'alien'],
+        'creatures-space-marine': ['scifi', 'alien'],
+        'creatures-cyborg-soldier': ['scifi', 'robot'],
+        'creatures-android-guardian': ['scifi', 'robot'],
+        'creatures-battle-mech': ['scifi', 'robot'],
+        'creatures-attack-drone': ['scifi', 'tech', 'robot'],
+        'creatures-ai-core': ['scifi', 'tech', 'robot'],
+        'creatures-cyber-brain': ['scifi', 'tech', 'robot'],
+        'creatures-gene-splice': ['scifi', 'tech'],
+        'creatures-nano-virus': ['scifi', 'tech'],
+        'creatures-med-capsule': ['scifi', 'tech', 'robot'],
+        'creatures-bio-injector': ['scifi', 'tech'],
+        'creatures-lab-scanner': ['scifi', 'tech'],
+        'creatures-orbital-scanner': ['scifi', 'tech', 'alien'],
+        'creatures-power-cell': ['scifi', 'tech'],
+        'creatures-magnetic-trap': ['scifi', 'tech'],
+        'creatures-signal-tower': ['scifi', 'tech'],
+        'creatures-radar-array': ['scifi', 'tech'],
+        'creatures-plasma-bomb': ['scifi', 'tech'],
+        'creatures-mech-part': ['scifi', 'tech', 'robot'],
+        'creatures-repair-bot': ['scifi', 'tech', 'robot'],
+        'creatures-forge-hammer': ['scifi', 'tech'],
+        'creatures-time-device': ['scifi', 'tech'],
+        'creatures-alert-system': ['scifi', 'tech'],
+        'creatures-chrono-watch': ['scifi', 'tech'],
+        'creatures-data-disc': ['scifi', 'tech'],
+        'creatures-comm-device': ['scifi', 'tech'],
+        'creatures-spy-camera': ['scifi', 'tech'],
+        'creatures-recorder-drone': ['scifi', 'tech', 'robot'],
+        'creatures-men-in-black': ['scifi', 'alien'],
+        'creatures-grey-alien': ['scifi', 'alien'],
+        'creatures-astronaut-explorer': ['scifi', 'alien'],
+        'creatures-poop': ['fantasy'],
+        'creatures-santa-claus': ['fantasy'],
+        'creatures-police-officer': ['tech'],
+        'creatures-crooked-cop': ['tech'],
+        'creatures-farmer': ['tech'],
+        'creatures-welder': ['tech'],
+        'creatures-sunflower': ['fantasy'],
+        'creatures-lantern-koi': ['fantasy'],
+        'creatures-hot-pepper-sprite': ['fantasy'],
+        'creatures-torch-runner': ['tech'],
+        'creatures-forge-hound': ['fantasy'],
+        'creatures-comet-hawk': ['fantasy'],
+        'creatures-volcano-golem': ['fantasy'],
+        'creatures-rocket-imp': ['scifi', 'alien'],
+        'creatures-ember-chef': ['tech'],
+        'creatures-war-drummer': ['tech'],
+        'creatures-neon-panther': ['scifi', 'tech'],
+        'creatures-jelly-knight': ['fantasy'],
+        'creatures-otter-scout': ['fantasy'],
+        'creatures-moonfish': ['fantasy'],
+        'creatures-tidal-turtle': ['fantasy'],
+        'creatures-snow-owl': ['fantasy'],
+        'creatures-harbor-mage': ['fantasy'],
+        'creatures-dolphin-rider': ['fantasy'],
+        'creatures-hydrobot': ['scifi', 'robot'],
+        'creatures-ice-gargoyle': ['fantasy'],
+        'creatures-wave-skater': ['tech'],
+        'creatures-mole-engineer': ['fantasy'],
+        'creatures-bison-guard': ['fantasy'],
+        'creatures-stone-serpent': ['fantasy'],
+        'creatures-garden-giant': ['fantasy'],
+        'creatures-lumber-mammoth': ['fantasy'],
+        'creatures-cactus-guardian': ['fantasy'],
+        'creatures-trail-hiker': ['tech'],
+        'creatures-badlands-boar': ['fantasy'],
+        'creatures-mountain-ram': ['fantasy'],
+        'creatures-temple-keeper': ['fantasy'],
+        'creatures-grim-crow': ['fantasy'],
+        'creatures-blood-leech': ['fantasy'],
+        'creatures-bone-hound': ['fantasy'],
+        'creatures-grave-digger': ['fantasy'],
+        'creatures-witch-cat': ['fantasy'],
+        'creatures-night-reaper': ['fantasy'],
+        'creatures-toxic-frog': ['fantasy'],
+        'creatures-phantom-train': ['fantasy', 'tech'],
+        'creatures-dread-clown': ['fantasy'],
+        'creatures-night-moth': ['fantasy'],
+        'creatures-sun-monk': ['fantasy'],
+        'creatures-lantern-guard': ['tech'],
+        'creatures-dove-rider': ['fantasy'],
+        'creatures-paladin-captain': ['fantasy'],
+        'creatures-choir-angel': ['fantasy'],
+        'creatures-healer-bot': ['scifi', 'robot'],
+        'creatures-beacon-keeper': ['tech'],
+        'creatures-solar-drake': ['fantasy'],
+        'creatures-daybreak-stag': ['fantasy'],
+        'creatures-mirror-knight': ['fantasy'],
+        // Instants
+        'spells-fireball': ['fantasy'],
+        'spells-explosion': ['fantasy'],
+        'spells-inferno': ['fantasy'],
+        'spells-meteor-strike': ['fantasy', 'alien'],
+        'spells-flame-jet': ['fantasy'],
+        'spells-anger': ['tech'],
+        'spells-freeze': ['fantasy'],
+        'spells-tsunami': ['fantasy'],
+        'spells-bubble-shield': ['fantasy'],
+        'spells-healing-rain': ['fantasy'],
+        'spells-whirlpool': ['fantasy'],
+        'spells-deep-freeze': ['fantasy'],
+        'spells-surf': ['tech'],
+        'spells-coral-shield': ['fantasy'],
+        'spells-earthquake': ['fantasy'],
+        'spells-growth': ['fantasy'],
+        'spells-tangling-roots': ['fantasy'],
+        'spells-avalanche': ['fantasy'],
+        'spells-harvest': ['fantasy'],
+        'spells-wrestle': ['tech'],
+        'spells-mushroom-power': ['fantasy'],
+        'spells-curse': ['fantasy'],
+        'spells-drain-life': ['fantasy'],
+        'spells-poison': ['fantasy'],
+        'spells-necromancy': ['fantasy'],
+        'spells-terror': ['fantasy'],
+        'spells-heal': ['fantasy'],
+        'spells-divine-smite': ['fantasy'],
+        'spells-blessing': ['fantasy'],
+        'spells-light-beam': ['fantasy'],
+        'spells-resurrection': ['fantasy'],
+        'spells-in-the-clouds': ['fantasy'],
+        'spells-meditate': ['tech'],
+        'spells-feather': ['fantasy'],
+        'spells-summon-spirits': ['fantasy'],
+        'spells-raise-army': ['fantasy'],
+        'spells-call-of-the-forest': ['fantasy'],
+        'spells-web-trap': ['fantasy'],
+        'spells-comet-strike': ['scifi', 'alien'],
+        'spells-mind-rot': ['fantasy'],
+        'spells-thought-steal': ['fantasy'],
+        // Artifacts
+        'artifacts-flaming-sword': ['fantasy'],
+        'artifacts-earth-shield': ['fantasy'],
+        'artifacts-crown-of-power': ['fantasy'],
+        'artifacts-mana-gem': ['fantasy'],
+        'artifacts-bomb': ['tech'],
+        'artifacts-holy-chalice': ['fantasy'],
+        'artifacts-dark-scroll': ['fantasy'],
+        'artifacts-cursed-orb': ['fantasy'],
+        'artifacts-war-horn': ['fantasy'],
+        'artifacts-protective-amulet': ['fantasy'],
+        'artifacts-magic-ring': ['fantasy'],
+        'artifacts-heavy-armor': ['tech'],
+        'artifacts-battle-axe': ['fantasy'],
+        'artifacts-elven-bow': ['fantasy'],
+        'artifacts-magic-wand': ['fantasy'],
+        'artifacts-halo': ['fantasy'],
+        'artifacts-dna-sequence': ['scifi', 'tech'],
+        'artifacts-fingerprint-scanner': ['scifi', 'tech'],
+        'artifacts-footsteps': ['scifi'],
+        'artifacts-prism-core': ['scifi', 'tech'],
+        'artifacts-gravity-boots': ['scifi', 'tech'],
+        'artifacts-chrono-watch': ['scifi', 'tech'],
+        'artifacts-nano-shield': ['scifi', 'tech'],
+        'artifacts-signal-tower': ['scifi', 'tech'],
+        'artifacts-mech-claw': ['scifi', 'tech', 'robot'],
+        'artifacts-aether-lens': ['scifi', 'tech', 'alien'],
+        'artifacts-repair-drone': ['scifi', 'tech', 'alien', 'robot'],
+        'artifacts-void-compass': ['scifi', 'tech', 'alien'],
+        'artifacts-relic-cache': ['fantasy']
     };
 
-    function inferTheme(card) {
-        if (!card) return null;
-
-        const explicitTheme = String(card.theme || '').trim().toLowerCase();
-        if (explicitTheme) {
-            if (explicitTheme.includes('fantasy')) return 'fantasy';
-            if (explicitTheme.includes('science')) return 'scifi';
-            if (explicitTheme.includes('tech')) return 'tech';
-            if (explicitTheme.includes('alien')) return 'alien';
-            if (explicitTheme.includes('robot')) return 'robot';
-            if (explicitTheme.includes('land')) return 'lands';
-        }
-
-        if ((card.type || '').toLowerCase() === 'land') {
-            return 'lands';
-        }
-
-        const haystack = `${card._category || ''} ${card.name || ''} ${card.desc || ''} ${card.cardType || ''}`.toLowerCase();
-        const matches = {};
-
-        Object.entries(THEME_KEYWORDS).forEach(([themeKey, keywords]) => {
-            matches[themeKey] = keywords.reduce((sum, keyword) => (
-                haystack.includes(keyword) ? sum + 1 : sum
-            ), 0);
-        });
-
-        const sorted = Object.entries(matches)
-            .filter(([, count]) => count > 0)
-            .sort((a, b) => b[1] - a[1]);
-
-        return sorted[0]?.[0] || null;
+    function getPackMemberships(cardOrId) {
+        const id = typeof cardOrId === 'string' ? cardOrId : cardOrId?.__id;
+        return PACK_MEMBERSHIP[id] || [];
     }
 
+    // Every card a pack can contain, in catalog order
     function getThemePool(themeKey) {
-        const normalizedTheme = String(themeKey || '').trim().toLowerCase();
-        const themedCards = __ALL_CARDS.filter(card => inferTheme(card) === normalizedTheme);
+        const key = String(themeKey || '').trim().toLowerCase();
+        return __ALL_CARDS.filter(card => getPackMemberships(card).includes(key));
+    }
 
-        if (normalizedTheme === 'lands') {
-            const landCards = __ALL_CARDS.filter(card => (card.type || '').toLowerCase() === 'land');
-            const nonLands = themedCards.filter(card => (card.type || '').toLowerCase() !== 'land');
-            const prioritizedLands = [...landCards, ...nonLands];
-            return prioritizedLands.length > 0 ? prioritizedLands : __ALL_CARDS;
-        }
+    // Pack slots use three rarity tiers. Rarities are unchanged (inferRarity has no uncommon, so Rare fills
+    // the second-best slot, as before).
+    const PACK_TIER_OF_RARITY = { common: 'common', uncommon: 'rare', rare: 'rare', epic: 'epic+', legendary: 'epic+' };
+    const PACK_TIER_LABELS = { common: 'Common', rare: 'Rare', 'epic+': 'Epic/Legendary' };
+    // Each slot's tiers in order of preference: three Common, one Rare, one Epic or Legendary (as before)
+    const PACK_SLOT_TIERS = [
+        ['common', 'rare', 'epic+'],
+        ['common', 'rare', 'epic+'],
+        ['common', 'rare', 'epic+'],
+        ['rare', 'common', 'epic+'],
+        ['epic+', 'rare', 'common']
+    ];
+    // A tier with fewer cards than this in a pack is merged with the next tier for that slot, so no card
+    // turns up in every pack (the Robot pack has a single Epic, Battle Mech).
+    const PACK_MIN_TIER_CHOICES = 2;
 
-        if (themedCards.length >= 16) {
-            return themedCards;
-        }
+    const packTierOf = card => PACK_TIER_OF_RARITY[card?.__rarity] || 'common';
 
-        const neutralCards = __ALL_CARDS.filter(card => {
-            const cardThemeKey = inferTheme(card);
-            return !cardThemeKey || !PACK_THEME_KEYS.has(cardThemeKey);
+    // A pack's pool, its tier counts, and for each slot the groups of tiers it tries in order. A slot takes
+    // one card, uniformly, from the first group that still has cards left in this pack.
+    function getPackSlotPlan(themeKey) {
+        const pool = getThemePool(themeKey);
+        const counts = { common: 0, rare: 0, 'epic+': 0 };
+        pool.forEach(card => { counts[packTierOf(card)]++; });
+        const slots = PACK_SLOT_TIERS.map(tiers => {
+            const groups = [];
+            let group = [];
+            tiers.forEach((tier, i) => {
+                group.push(tier);
+                const size = group.reduce((sum, t) => sum + counts[t], 0);
+                if (size >= PACK_MIN_TIER_CHOICES || i === tiers.length - 1) {
+                    groups.push(group);
+                    group = [];
+                }
+            });
+            return groups;
         });
-
-        return [...themedCards, ...neutralCards];
+        return { themeKey: String(themeKey || '').trim().toLowerCase(), pool, counts, slots };
     }
 
     function choosePackThemeByWeight() {
@@ -2449,66 +2724,105 @@
         return PACK_THEMES[PACK_THEMES.length - 1]?.key || 'fantasy';
     }
 
+    // Five different cards. If a pack's pool ever ran out (fewer than PACK_SIZE cards), the rest would come
+    // from the whole catalog in the same tier order; the card audit keeps every pool large enough.
     function generatePack(themeKey) {
-        const requestedTheme = String(themeKey || '').trim().toLowerCase();
-        const sourcePool = getThemePool(requestedTheme);
-        const isLandsPack = requestedTheme === 'lands';
-        const remaining = [...sourcePool];
+        const plan = getPackSlotPlan(themeKey);
+        const remaining = [...plan.pool];
+        const picked = [];
+        const pickOne = candidates => candidates[Math.floor(Math.random() * candidates.length)];
 
-        const tierByRarity = {
-            common: 'common',
-            rare: 'uncommon',
-            epic: 'rare_plus',
-            legendary: 'rare_plus'
-        };
-
-        function drawFromTiers(preferredTiers) {
-            for (const tier of preferredTiers) {
-                const candidates = remaining.filter(card => tierByRarity[card.__rarity] === tier);
-                if (candidates.length > 0) {
-                    const weighted = candidates.map(card => ({
-                        card,
-                        weight: isLandsPack && (card.type || '').toLowerCase() === 'land' ? 3 : 1
-                    }));
-                    const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
-                    let roll = Math.random() * totalWeight;
-                    let pick = weighted[0].card;
-
-                    for (const option of weighted) {
-                        roll -= option.weight;
-                        if (roll <= 0) {
-                            pick = option.card;
-                            break;
-                        }
-                    }
-
-                    for (let i = remaining.length - 1; i >= 0; i--) {
-                        if (remaining[i].__id === pick.__id) {
-                            remaining.splice(i, 1);
-                        }
-                    }
-                    return pick.__id;
+        plan.slots.forEach((groups, slot) => {
+            for (const group of groups) {
+                const candidates = remaining.filter(card => group.includes(packTierOf(card)));
+                if (candidates.length) {
+                    const pick = pickOne(candidates);
+                    remaining.splice(remaining.indexOf(pick), 1);
+                    picked.push(pick.__id);
+                    return;
                 }
             }
-
-            if (remaining.length > 0) {
-                const fallbackIndex = Math.floor(Math.random() * remaining.length);
-                const [pick] = remaining.splice(fallbackIndex, 1);
-                return pick.__id;
+            for (const tier of PACK_SLOT_TIERS[slot]) {
+                const candidates = __ALL_CARDS.filter(card => !picked.includes(card.__id) && packTierOf(card) === tier);
+                if (candidates.length) {
+                    picked.push(pickOne(candidates).__id);
+                    return;
+                }
             }
+        });
 
-            return null;
+        return picked;
+    }
+
+    // Exact odds for a pack, following generatePack slot by slot: the expected number of cards from each
+    // tier, and the chance that one given card of that tier is in a pack. Used by the shop preview.
+    function getPackOdds(themeKey) {
+        const plan = getPackSlotPlan(themeKey);
+        const expected = { common: 0, rare: 0, 'epic+': 0 };
+        const walk = (slot, left, p) => {
+            if (slot === plan.slots.length) return;
+            for (const group of plan.slots[slot]) {
+                const total = group.reduce((sum, t) => sum + left[t], 0);
+                if (!total) continue;
+                group.forEach(tier => {
+                    if (!left[tier]) return;
+                    const q = p * left[tier] / total;
+                    expected[tier] += q;
+                    walk(slot + 1, { ...left, [tier]: left[tier] - 1 }, q);
+                });
+                return;
+            }
+            walk(slot + 1, left, p); // the catalog fallback: never reached while pools hold 5+ cards
+        };
+        walk(0, { ...plan.counts }, 1);
+        const perCard = {};
+        Object.keys(expected).forEach(tier => { perCard[tier] = plan.counts[tier] ? expected[tier] / plan.counts[tier] : 0; });
+        return { ...plan, expected, perCard };
+    }
+
+    // What each slot gives, for the shop: consecutive slots with the same first group are merged
+    // ("3 × Common"). A merged tier (see PACK_MIN_TIER_CHOICES) is explained in `notes`.
+    function describePackSlots(themeKey) {
+        const plan = getPackSlotPlan(themeKey);
+        const slots = [];
+        const notes = [];
+        plan.slots.forEach((groups, i) => {
+            const group = groups[0];
+            const label = group.map(tier => PACK_TIER_LABELS[tier]).join(' or ');
+            const last = slots[slots.length - 1];
+            if (last && last.label === label) last.count++;
+            else slots.push({ label, tiers: group, count: 1 });
+            const wanted = PACK_SLOT_TIERS[i][0];
+            if (group.length > 1) {
+                const n = plan.counts[wanted];
+                notes.push(`Card ${i + 1}: this pack has ${n === 0 ? 'no' : `only ${n}`} ${PACK_TIER_LABELS[wanted]} card${n === 1 ? '' : 's'}, so it can also be ${group.slice(1).map(t => PACK_TIER_LABELS[t]).join(' or ')}.`);
+            }
+        });
+        return { slots, notes };
+    }
+
+    // Copies of each card owned just before the latest pack was added. Kept in memory only (the save format is
+    // unchanged), so the reveal can mark NEW cards and show "had N".
+    let lastPackOwnedBefore = null;
+
+    function addPackToCollection(cardIds, openedAt) {
+        const before = {};
+        cardIds.forEach(cardId => { before[cardId] = gameMeta.collection[cardId] || 0; });
+        cardIds.forEach(cardId => {
+            gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+        });
+        lastPackOwnedBefore = { openedAt, counts: before };
+    }
+
+    // Copies owned before the shown pack: recorded at acquisition, or (for a pack from before a reload) the
+    // current count minus that pack's copy, as a pack never holds a card twice.
+    function getPackOwnedBefore(cardId) {
+        const owned = gameMeta?.collection?.[cardId] || 0;
+        if (lastPackOwnedBefore && lastPackOwnedBefore.openedAt === gameMeta?.lastPack?.openedAt && cardId in lastPackOwnedBefore.counts) {
+            return lastPackOwnedBefore.counts[cardId];
         }
-
-        const cardIds = [
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['uncommon', 'common']),
-            drawFromTiers(['rare_plus', 'uncommon', 'common'])
-        ].filter(Boolean);
-
-        return cardIds;
+        const inPack = (gameMeta?.lastPack?.cardIds || []).filter(id => id === cardId).length;
+        return Math.max(0, owned - inPack);
     }
 
     let openModalCount = 0;
@@ -2702,6 +3016,85 @@
         }
     }
 
+    // The rest of a revealed card: keywords and rules, as in card details
+    function renderPackCardText(card) {
+        if (card.type === 'land') {
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            return `<p class="pack-card-rules">Tap to add ${colours.map(e => `${ELEMENTS[e]?.emoji || '◇'} ${ELEMENT_LABELS[e] || e}`).join(' or ')} mana</p>`;
+        }
+        if (card.type === 'creature') {
+            const keywords = (card.abilities || []).map(a => {
+                const rule = KEYWORD_RULES[a];
+                return `<span class="pack-card-keyword${a === 'flash' ? ' is-inactive' : ''}" title="${describeKeyword(a)}">${rule?.badge || ''} ${rule?.label || a}</span>`;
+            }).join('');
+            return (keywords ? `<div class="pack-card-keywords">${keywords}</div>` : '')
+                + `<p class="pack-card-flavour">${card.desc || ''}</p>`;
+        }
+        return `<p class="pack-card-rules">${describeEffect(card)}</p>`;
+    }
+
+    // NEW when you had none before this pack; otherwise how many you have now
+    function renderPackOwned(card) {
+        const before = getPackOwnedBefore(card.__id);
+        const now = gameMeta?.collection?.[card.__id] || 0;
+        return before === 0
+            ? `<span class="pack-new-badge">✨ NEW</span> <span>First copy</span>`
+            : `<span>You own ${now} <span class="pack-owned-before">(had ${before})</span></span>`;
+    }
+
+    function setPackStage(stage) {
+        packOpeningState.stage = stage;
+        const stages = { sealed: 'packSealedStage', opening: 'packSealedStage', reveal: 'packRevealStage', summary: 'packSummaryStage' };
+        ['packSealedStage', 'packRevealStage', 'packSummaryStage'].forEach(id => {
+            document.getElementById(id)?.classList.toggle('pack-stage-active', stages[stage] === id);
+        });
+    }
+
+    // The whole pack at a glance once the cards are revealed
+    function showPackSummary() {
+        if (packOpeningState.stage !== 'reveal' || !packOpeningState.cards.length) return;
+        setPackStage('summary');
+        const cards = packOpeningState.cards;
+        const grid = document.getElementById('packSummaryGrid');
+        grid.innerHTML = '';
+        cards.forEach((card, index) => {
+            const rarity = getCardRarity(card);
+            const isNew = getPackOwnedBefore(card.__id) === 0;
+            const owned = gameMeta?.collection?.[card.__id] || 0;
+            const li = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `pack-summary-card rarity-${rarity}${isNew ? ' is-new' : ''}`;
+            button.dataset.index = String(index);
+            const art = createCardRowArt(card);
+            art.classList.add('pack-summary-art');
+            button.appendChild(art);
+            const body = document.createElement('span');
+            body.className = 'pack-summary-body';
+            body.innerHTML = `<span class="pack-summary-name">${card.name}</span>`
+                + `<span class="pack-summary-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`
+                + `<span class="pack-summary-owned">${isNew ? '<span class="pack-new-badge">✨ NEW</span>' : `Own ${owned}`}</span>`;
+            button.appendChild(body);
+            button.setAttribute('aria-label', `${card.name}, ${RARITY_INFO[rarity].label}${isNew ? ', new' : `, you own ${owned}`}. Show this card`);
+            button.addEventListener('click', () => {
+                setPackStage('reveal');
+                setPackOpeningCard(index);
+                revealCurrentPackCard();
+                document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+            });
+            li.appendChild(button);
+            grid.appendChild(li);
+        });
+        const newCount = cards.filter(card => getPackOwnedBefore(card.__id) === 0).length;
+        const rank = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+        const best = cards.reduce((a, b) => (rank[getCardRarity(b)] > rank[getCardRarity(a)] ? b : a));
+        document.getElementById('packSummaryTitle').textContent = `Your ${cards.length} cards`;
+        document.getElementById('packSummaryStats').textContent =
+            `${newCount ? `${newCount} new to your collection` : 'No new cards: all duplicates'} · Best: ${best.name} (${RARITY_INFO[getCardRarity(best)].label})`;
+        document.getElementById('packDoneBtn')?.focus({ preventScroll: true });
+        updatePackOpeningDebug();
+    }
+
     function setPackOpeningCard(index) {
         if (!packOpeningState.cards.length) return;
 
@@ -2729,11 +3122,18 @@
             if (card.type === 'creature') parts.push(`<span class="card-power pack-card-power">${card.power}/${card.toughness}</span>`);
             packCardMeta.innerHTML = parts.join('');
         }
+        const packCardText = document.getElementById('packCardText');
+        if (packCardText) packCardText.innerHTML = renderPackCardText(card);
+        const packCardOwned = document.getElementById('packCardOwned');
+        if (packCardOwned) packCardOwned.innerHTML = renderPackOwned(card);
         if (packViewport) {
             applyCardIdentity(packViewport, card);
             packViewport.dataset.rarity = rarity;
+            packViewport.classList.toggle('is-new', getPackOwnedBefore(card.__id) === 0);
         }
         if (packCardCounter) packCardCounter.textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
+        const packSummaryBtn = document.getElementById('packSummaryBtn');
+        packSummaryBtn?.classList.toggle('is-ready', boundedIndex === packOpeningState.cards.length - 1);
         if (packPrevBtn) packPrevBtn.disabled = boundedIndex === 0;
         if (packNextBtn) packNextBtn.disabled = boundedIndex === packOpeningState.cards.length - 1;
 
@@ -2768,10 +3168,14 @@
     }
 
     function showPackRevealStage() {
-        packOpeningState.stage = 'reveal';
-        document.getElementById('packSealedStage').classList.remove('pack-stage-active');
-        document.getElementById('packRevealStage').classList.add('pack-stage-active');
+        const overlay = document.getElementById('packOpeningOverlay');
+        const focusWasOnSealed = document.getElementById('packSealedStage')?.contains(document.activeElement);
+        setPackStage('reveal');
         setPackOpeningCard(0);
+        // The OPEN PACK button is gone now: keep keyboard focus in the dialog
+        if (focusWasOnSealed || document.activeElement === document.body) {
+            if (overlay?.classList.contains('show')) document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+        }
         setTimeout(() => revealCurrentPackCard(), 200);
         updatePackOpeningDebug();
     }
@@ -2804,8 +3208,10 @@
 
             sealedStage?.classList.add('pack-stage-active');
             revealStage?.classList.remove('pack-stage-active');
+            document.getElementById('packSummaryStage')?.classList.remove('pack-stage-active');
             shell?.classList.remove('opened');
             if (instruction) instruction.textContent = 'Slide to rip open';
+            updatePackShopTiles();
             if (progress) progress.style.width = '0%';
             if (tearLine) tearLine.style.left = '0%';
 
@@ -2898,13 +3304,21 @@
             const progress = document.getElementById('packProgressFill');
             const tearLine = document.getElementById('packTearLine');
             const title = overlay.querySelector('.pack-opening-title');
-            const themeLabel = PACK_THEMES.find(theme => theme.key === gameMeta?.lastPack?.themeKey)?.label;
-            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : '🎁 Victory Pack';
+            const theme = getPackTheme(gameMeta?.lastPack?.themeKey);
+            const themeLabel = theme?.label;
+            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : `🎁 Victory Pack${themeLabel ? ` · ${themeLabel}` : ''}`;
+            // The sealed pack wears its theme's art (styles.css "PACK SHOP")
+            overlay.dataset.theme = theme?.key || '';
+            const sealedEmoji = document.getElementById('packSealedEmoji');
+            if (sealedEmoji) sealedEmoji.textContent = theme?.icon || '📦';
+            const sealedLabel = document.getElementById('packSealedLabel');
+            if (sealedLabel) sealedLabel.textContent = themeLabel ? `${themeLabel} Pack` : 'Booster Pack';
 
             sealedStage.classList.add('pack-stage-active');
             revealStage.classList.remove('pack-stage-active');
+            document.getElementById('packSummaryStage')?.classList.remove('pack-stage-active');
             shell.classList.remove('opened');
-            instruction.textContent = 'Slide to rip open';
+            instruction.textContent = 'Slide across the pack to rip it open, or press OPEN PACK';
             progress.style.width = '0%';
             tearLine.style.left = '0%';
 
@@ -2966,6 +3380,19 @@
         closeBtn.addEventListener('click', () => {
             closePackOpeningOverlay();
         });
+
+        // Button alternatives to the gestures: open the pack, see all five cards, finish
+        document.getElementById('packOpenBtn')?.addEventListener('click', () => {
+            if (packOpeningState.active) triggerPackOpenAnimation();
+        });
+        document.getElementById('packSummaryBtn')?.addEventListener('click', () => showPackSummary());
+        document.getElementById('packSummaryBackBtn')?.addEventListener('click', () => {
+            setPackStage('reveal');
+            setPackOpeningCard(packOpeningState.currentIndex);
+            revealCurrentPackCard();
+            document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+        });
+        document.getElementById('packDoneBtn')?.addEventListener('click', () => closePackOpeningOverlay());
 
         prevBtn.addEventListener('click', () => {
             setPackOpeningCard(packOpeningState.currentIndex - 1);
@@ -3059,9 +3486,7 @@
 
                     gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
 
-                    cardIds.forEach(cardId => {
-                        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-                    });
+                    addPackToCollection(cardIds, openedAt);
 
                     gameMeta.lastPack = { themeKey, cardIds, openedAt };
                     metaSave(gameMeta);
@@ -3730,8 +4155,173 @@
     function updatePackShopCreditsBadge() {
         const creditsEl = document.getElementById('shopCreditsBadge');
         if (!creditsEl) return;
-        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const credits = getShopCredits();
         creditsEl.textContent = `💳 Credits: ${credits}`;
+        updatePackShopTiles();
+    }
+
+    const getShopCredits = () => (Number.isFinite(gameMeta?.wallet?.credits) ? Math.max(0, Math.floor(gameMeta.wallet.credits)) : 0);
+    const getPackTheme = themeKey => PACK_THEMES.find(theme => theme.key === themeKey) || null;
+    const formatPackChance = p => (p >= 0.995 ? 'every pack' : `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`);
+
+    // "3 × Common · 1 × Rare · 1 × Epic/Legendary", from the same slot plan generatePack uses
+    function describePackSlotsShort(themeKey) {
+        return describePackSlots(themeKey).slots.map(slot => `${slot.count} × ${slot.label}`).join(' · ');
+    }
+
+    // A few of a pack's rarest cards for its art, without repeating an emoji
+    function getPackArtSample(themeKey, count = 4) {
+        const order = { 'epic+': 0, rare: 1, common: 2 };
+        const seen = new Set();
+        return getThemePool(themeKey)
+            .slice()
+            .sort((a, b) => order[packTierOf(a)] - order[packTierOf(b)])
+            .filter(card => !seen.has(card.emoji) && seen.add(card.emoji))
+            .slice(0, count)
+            .map(card => card.emoji);
+    }
+
+    // The shop tiles are built once; prices, affordability and owned counts are refreshed in place so focus
+    // stays on the button that was pressed.
+    function renderPackShop() {
+        const grid = document.getElementById('packShopGrid');
+        if (!grid) return;
+        if (!grid.children.length) {
+            PACK_THEMES.forEach(theme => {
+                const key = theme.key;
+                const cost = PACK_SHOP_COSTS[key];
+                const tile = document.createElement('article');
+                tile.className = 'shop-pack';
+                tile.dataset.theme = key;
+                tile.setAttribute('aria-labelledby', `shopPackName-${key}`);
+                tile.innerHTML = `
+                    <div class="shop-pack-art" aria-hidden="true">
+                        <span class="shop-pack-art-icon">${theme.icon}</span>
+                        <span class="shop-pack-art-strip">${getPackArtSample(key).map(e => `<span>${e}</span>`).join('')}</span>
+                    </div>
+                    <div class="shop-pack-body">
+                        <div class="shop-pack-head">
+                            <h3 class="shop-pack-name" id="shopPackName-${key}">${theme.label} Pack</h3>
+                            <span class="shop-pack-price" id="shopPackPrice-${key}" aria-label="Price: ${cost} credits">💳 ${cost}</span>
+                        </div>
+                        <p class="shop-pack-tagline">${theme.tagline}</p>
+                        <p class="shop-pack-slots">${describePackSlotsShort(key)}</p>
+                        <p class="shop-pack-owned" data-role="owned"></p>
+                        <div class="shop-pack-actions">
+                            <button type="button" class="menu-btn shop-pack-btn" data-theme="${key}" aria-describedby="shopPackPrice-${key} shopPackAfford-${key}"></button>
+                            <button type="button" class="shop-pack-info" data-theme="${key}" aria-haspopup="dialog">What’s inside</button>
+                        </div>
+                        <p class="shop-pack-afford" id="shopPackAfford-${key}" data-role="afford"></p>
+                    </div>`;
+                tile.querySelector('.shop-pack-btn').addEventListener('click', () => purchasePack(key));
+                tile.querySelector('.shop-pack-info').addEventListener('click', () => showPackContents(key));
+                grid.appendChild(tile);
+            });
+        }
+        updatePackShopTiles();
+    }
+
+    function updatePackShopTiles() {
+        const grid = document.getElementById('packShopGrid');
+        if (!grid || !grid.children.length) return;
+        const credits = getShopCredits();
+        const collection = gameMeta?.collection || {};
+        grid.querySelectorAll('.shop-pack').forEach(tile => {
+            const key = tile.dataset.theme;
+            const theme = getPackTheme(key);
+            const cost = PACK_SHOP_COSTS[key];
+            const pool = getThemePool(key);
+            const owned = pool.filter(card => (collection[card.__id] || 0) > 0).length;
+            const affordable = credits >= cost;
+            const buy = tile.querySelector('.shop-pack-btn');
+            tile.classList.toggle('is-unaffordable', !affordable);
+            buy.textContent = affordable ? `BUY · 💳 ${cost}` : `NEED ${cost - credits} MORE`;
+            buy.setAttribute('aria-label', affordable ? `Buy ${theme.label} Pack for ${cost} credits` : `${theme.label} Pack: you need ${cost - credits} more credits`);
+            // Still pressable when short of credits: pressing says how many more are needed
+            buy.classList.toggle('is-unaffordable', !affordable);
+            tile.querySelector('[data-role="owned"]').textContent = `${pool.length} cards · you have ${owned}`;
+            tile.querySelector('[data-role="afford"]').textContent = affordable
+                ? `You have 💳 ${credits}`
+                : `You have 💳 ${credits} of ${cost}. Win or play matches to earn more.`;
+        });
+    }
+
+    // ---- What's inside a pack: every card it can contain, grouped by rarity tier, with exact odds
+    let packContentsTheme = null;
+
+    function renderPackContents(themeKey) {
+        const theme = getPackTheme(themeKey);
+        if (!theme) return false;
+        const odds = getPackOdds(themeKey);
+        const { notes } = describePackSlots(themeKey);
+        const collection = gameMeta?.collection || {};
+        const cost = PACK_SHOP_COSTS[themeKey];
+        const credits = getShopCredits();
+
+        document.getElementById('packContentsTitle').textContent = `${theme.icon} ${theme.label} Pack`;
+        const chances = ['common', 'rare', 'epic+']
+            .filter(tier => odds.counts[tier])
+            .map(tier => `<li><span class="pack-odds-tier tier-${tier.replace('+', 'plus')}">${PACK_TIER_LABELS[tier]}</span>: ${odds.counts[tier]} card${odds.counts[tier] === 1 ? '' : 's'}, each in <strong>${formatPackChance(odds.perCard[tier])}</strong> of packs</li>`)
+            .join('');
+        document.getElementById('packContentsSummary').innerHTML = `
+            <p class="pack-contents-tagline">${theme.tagline}.</p>
+            <p><strong>${odds.pool.length} cards</strong> can be in this pack. Each pack has ${PACK_SIZE} different cards: ${describePackSlotsShort(themeKey)}.</p>
+            <ul class="pack-odds">${chances}</ul>
+            ${notes.map(note => `<p class="pack-contents-note">${note}</p>`).join('')}`;
+
+        const order = ['epic+', 'rare', 'common'];
+        const list = document.getElementById('packContentsList');
+        list.innerHTML = '';
+        order.forEach(tier => {
+            const cards = odds.pool.filter(card => packTierOf(card) === tier);
+            if (!cards.length) return;
+            const section = document.createElement('section');
+            section.className = 'pack-contents-group';
+            section.innerHTML = `<h3 class="pack-contents-heading">${PACK_TIER_LABELS[tier]} <span>(${cards.length})</span></h3>`;
+            const ul = document.createElement('ul');
+            ul.className = 'pack-contents-rows';
+            cards.forEach(card => {
+                const n = collection[card.__id] || 0;
+                const li = document.createElement('li');
+                li.className = `pack-contents-row${n ? '' : ' is-unowned'}`;
+                li.dataset.cardId = card.__id;
+                li.appendChild(createCardRowArt(card));
+                const body = document.createElement('span');
+                body.className = 'pack-contents-body';
+                body.innerHTML = `<span class="pack-contents-name">${card.name}</span><span class="card-row-meta">${renderCardRowMeta(card)}</span>`;
+                li.appendChild(body);
+                const ownedEl = document.createElement('span');
+                ownedEl.className = 'pack-contents-owned';
+                ownedEl.textContent = n ? `Owned ×${n}` : 'Not owned';
+                li.appendChild(ownedEl);
+                ul.appendChild(li);
+            });
+            section.appendChild(ul);
+            list.appendChild(section);
+        });
+
+        const buy = document.getElementById('packContentsBuyBtn');
+        const affordable = credits >= cost;
+        buy.textContent = affordable ? `BUY · 💳 ${cost}` : `NEED ${cost - credits} MORE CREDITS`;
+        buy.classList.toggle('is-unaffordable', !affordable);
+        buy.onclick = () => {
+            hidePackContents();
+            purchasePack(themeKey);
+        };
+        return true;
+    }
+
+    function showPackContents(themeKey) {
+        if (!renderPackContents(themeKey)) return;
+        packContentsTheme = themeKey;
+        playSFX('menuOpen');
+        document.getElementById('packContentsScroll').scrollTop = 0;
+        document.getElementById('packContentsModal').classList.add('show');
+    }
+
+    function hidePackContents() {
+        packContentsTheme = null;
+        document.getElementById('packContentsModal')?.classList.remove('show');
     }
 
     function setPackShopMessage(message = '', type = '') {
@@ -3747,8 +4337,9 @@
     function showPackShop() {
         playSFX('menuOpen');
         setStartMenuScreen('packShopScreen');
+        renderPackShop();
         updatePackShopCreditsBadge();
-        setPackShopMessage('Choose a themed pack to buy with credits.');
+        setPackShopMessage('Choose a pack to buy with credits.');
     }
 
     function hidePackShop() {
@@ -3981,6 +4572,11 @@
                 return { ok: false, reason: 'unknown_theme' };
             }
 
+            // One purchase at a time: a second tap or Enter while the pack is open buys nothing
+            if (packOpeningState.active) {
+                return { ok: false, reason: 'pack_open' };
+            }
+
             if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
                 gameMeta.wallet = { credits: STARTER_CREDITS };
             }
@@ -4002,9 +4598,7 @@
 
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
-            cardIds.forEach(cardId => {
-                gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-            });
+            addPackToCollection(cardIds, openedAt);
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
@@ -4014,7 +4608,7 @@
                 console.warn('Pack Shop metaSave failed; continuing with in-memory purchase state.', saveError);
             }
 
-            setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
+            setPackShopMessage(`Bought a ${getPackTheme(normalizedTheme)?.label || normalizedTheme} Pack for 💳 ${cost}.`, 'success');
             updatePackShopCreditsBadge();
             openPackOpeningOverlayFromMeta('shop');
             return { ok: true, themeKey: normalizedTheme, cardIds, cost };
@@ -5031,6 +5625,12 @@
     document.getElementById('historyModal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideMatchHistory();
+        }
+    });
+
+    document.getElementById('packContentsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hidePackContents();
         }
     });
 
@@ -8019,6 +8619,7 @@
         { id: 'mulliganConfirmModal', close: () => document.getElementById('mulliganNoBtn')?.click() },
         { id: 'manaChoiceModal', close: () => document.querySelector('#manaChoiceModal .cancel-btn')?.click() },
         { id: 'cardDetailPopup', close: () => hideCardDetail() },
+        { id: 'packContentsModal', close: () => hidePackContents() },
         { id: 'packOpeningOverlay', close: () => closePackOpeningOverlay() },
         { id: 'matchRewardOverlay', close: null },   // the only way on is OPEN BOOSTER
         { id: 'victoryOverlay', close: null },       // PLAY AGAIN or MAIN MENU (Esc used to strand the board)

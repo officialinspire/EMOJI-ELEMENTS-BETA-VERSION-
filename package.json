@@ -22,6 +22,8 @@
     "ai": "node --test tests/ai.test.mjs",
     "feedback": "node --test tests/feedback.test.mjs",
     "feedback:shots": "node tests/feedback-shots.mjs",
+    "packs": "node --test tests/packs.test.mjs",
+    "packs:shots": "node tests/pack-shots.mjs",
     "ai:sim": "node tests/ai-sim.mjs",
     "release": "node tests/release.mjs"
   },
