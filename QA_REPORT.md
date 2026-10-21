@@ -1,18 +1,15 @@
 # EMOJI ELEMENTS: Release QA Report
 
 **Repository state (2026-10-21):**
-- **`main`** is at `c2aba7a`, the merge of PR #117 (2026-10-20, on the owner's instruction). It holds the eight QA
-  passes and the release-QA pass (`ea286e4`, `e1e8dbc`). Whatever GitHub Pages serves comes from `main`.
-- **Branch `claude/compassionate-albattani-aabox6`** is `main` plus the commits in §4 that are **not merged or
-  deployed**:
-  - menu refresh;
-  - card presentation;
-  - Collection and Deck Builder;
-  - gameplay feedback;
-  - Pack Shop and pack opening;
-  - this cleanup and final regression pass (§2).
+- **`main`** holds everything in §4. It was merged on the owner's instruction in two pull requests:
+  - **PR #117** (`c2aba7a`, 2026-10-20): the eight QA passes and the release-QA pass;
+  - **PR #118** (`f800940`, 2026-10-21): menu refresh, card presentation, Collection and Deck Builder,
+    gameplay feedback, Pack Shop and pack opening, and this cleanup and final regression pass (§2).
+- **CI on `main`:** passed on `f800940`.
+- **GitHub Pages:** deployed from `main`. The live site serves this build; it was checked after the deploy:
+  6 pack tiles, Robot packs with robots, no page errors.
 
-**Verdict for the branch:**
+**Verdict:**
 - **Release candidate in Chromium.** Every automated suite and every browser playthrough below passes in
   Chromium at phone, phone-landscape, tablet and desktop sizes.
 - **Not fully verified:**
@@ -63,7 +60,7 @@ run here).
 | 27 | WebKit (Safari's engine) | ⛔ NOT TESTED | Not installed. Even when installed, Playwright's WebKit on Linux is not iOS Safari. |
 | 28 | Real iPhone/iPad, Android phones, Samsung Internet, installed PWA | ⛔ | No devices here; only Chromium emulation (§3) |
 | 29 | CI on the branch head | see the commit's GitHub Actions runs | Workflows: card catalog, the node suites (now with feedback, packs and regression), UI audit |
-| 30 | Merge / deploy of the branch | not done | Waiting for the owner's instruction. The release pass is already on `main` via PR #117. |
+| 30 | Merge / deploy | ✅ | On the owner's instruction: PR #117 (release pass) and PR #118 (everything after it). CI passed on `main` (`f800940`), and GitHub Pages redeployed. |
 
 ## 2. Cleanup and final regression pass (`3769c6f`)
 
@@ -229,7 +226,7 @@ All are Chromium emulation.
 | `4d67aa3` | AI rule parity and decisions, seeded AI simulation |
 | `ea286e4`, `e1e8dbc` | Release QA: QA mode off in production, failsafe and intro fixes, favicon, release playthroughs, this report |
 
-**On the branch only (not merged, not deployed):**
+**Merged in PR #118** (`f800940`):
 
 | Commit | Pass |
 |---|---|
@@ -238,16 +235,14 @@ All are Chromium emulation.
 | `401c99a`, `aa5c31a` | Collection and Deck Builder (UI.md §9) |
 | `8e5098d`, `82612af` | Gameplay feedback: turn banner, AI status, attack preview, reasons, match history (UI.md §10) |
 | `82a7085`, `ccf16ec` | Pack Shop and pack opening; explicit pack membership (UI.md §11, CARD_AUDIT.md §7) |
-| `3769c6f` + docs | Cleanup and final regression (§2) |
-
-No pull request is open for the branch's newer commits.
+| `3769c6f` + docs, `a1b43b2` | Cleanup and final regression (§2). CI: steadier `act()` test helper; actions moved to their Node 24 majors. |
 
 ## 5. Docs reconciled
 
 **In the cleanup pass:**
 - **This report:** it said `main` was unchanged at `4b0cd49` and that no pull request had been opened. Both
   stopped being true when PR #117 merged the release pass. The header, checklist, commit table and reproduce
-  steps now describe `main` (`c2aba7a`), the unmerged branch, and the current suites.
+  steps now describe `main`, both merges, and the current suites.
 - **README:** the Testing table lists `regression` and `cross-browser`.
 - **CHANGELOG:** a short entry for this pass.
 - **Kept as dated records:** QA_BASELINE.md (taken against `4b0cd49`) and the per-pass result tables in
