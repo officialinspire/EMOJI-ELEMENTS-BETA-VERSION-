@@ -1,3 +1,17 @@
+    // Gameplay has its own seeded stream. Presentation code may use Math.random freely
+    // without moving deck, AI, target or reward decisions. A replay can reset this seed.
+    let gameplayRandomState = (Math.random() * 4294967296) >>> 0;
+    function setGameplaySeed(seed) { gameplayRandomState = seed >>> 0; }
+    function gameplayRandom() {
+        gameplayRandomState = (gameplayRandomState + 0x6D2B79F5) | 0;
+        let t = Math.imul(gameplayRandomState ^ (gameplayRandomState >>> 15), 1 | gameplayRandomState);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    // Instance identity is runtime-only, never a random gameplay decision.
+    let cardInstanceSequence = 1000000;
+    function nextCardInstanceId() { return ++cardInstanceSequence; }
+
     // QA tooling is off for players. Add ?qa=1 to the URL (or set localStorage emojiElementsQA = '1') to turn
     // on the [QA] console logs, error echoing, DOM/perf checks and the window.__qa* helpers that
     // tests/smoke.mjs uses (QA_REPORT.md). Automated suites live in tests/.
@@ -323,7 +337,7 @@
             start = { x: e.clientX, y: e.clientY };
             clearTimeout(timer);
             timer = setTimeout(() => {
-                if (!start) return;
+                if (!start || !el.isConnected || (el.closest('#gameContainer') && (gamePaused || gameState.matchFinalized))) return;
                 longPressed = true;
                 start = null;
                 haptic('select');
@@ -415,7 +429,9 @@
             el.classList.remove(className);
             void el.offsetWidth;
             el.classList.add(className);
+            const serial = matchSerial;
             setTimeout(() => {
+                if (serial !== matchSerial) return;
                 try {
                     el.classList.remove(className);
                 } catch (_) {
@@ -967,7 +983,7 @@
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
     let isStartingGame = false;
-    // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
+    // Bumped on match start, abandonment and completion; delayed work belongs to that serial.
     let matchSerial = 0;
 
     // ---- Pausable match timers. The AI's turn steps, its failsafe, the action-lock failsafes and the toasts run
@@ -980,13 +996,14 @@
         timer.startedAt = Date.now();
         timer.handle = setTimeout(() => {
             matchTimers.delete(id);
-            timer.fn();
+            if (timer.serial === matchSerial && !gameState.matchFinalized) timer.fn();
         }, timer.remaining);
     }
 
     function matchDelay(fn, ms) {
+        if (gameState.matchFinalized) return null;
         const id = ++matchTimerSeq;
-        const timer = { fn, remaining: Math.max(0, ms), startedAt: 0, handle: null };
+        const timer = { fn, serial: matchSerial, remaining: Math.max(0, ms), startedAt: 0, handle: null };
         matchTimers.set(id, timer);
         if (!gamePaused) armMatchTimer(id, timer);
         return id;
@@ -2853,7 +2870,7 @@
             return PACK_THEMES[0]?.key || 'fantasy';
         }
 
-        let roll = Math.random() * totalWeight;
+        let roll = gameplayRandom() * totalWeight;
         for (const theme of PACK_THEMES) {
             roll -= Math.max(0, Number(theme.weight) || 0);
             if (roll <= 0) {
@@ -2870,7 +2887,7 @@
         const plan = getPackSlotPlan(themeKey);
         const remaining = [...plan.pool];
         const picked = [];
-        const pickOne = candidates => candidates[Math.floor(Math.random() * candidates.length)];
+        const pickOne = candidates => candidates[Math.floor(gameplayRandom() * candidates.length)];
 
         plan.slots.forEach((groups, slot) => {
             for (const group of groups) {
@@ -3607,6 +3624,7 @@
             return;
         }
         gameState.matchFinalized = true;
+        cancelMatchWork();
 
         const normalizedResult = result === 'win' ? 'win' : 'loss';
         recordHistory(normalizedResult === 'win' ? 'player' : 'enemy', normalizedResult === 'win' ? '🏆 Victory: the enemy is defeated' : '💀 Defeat');
@@ -3744,7 +3762,7 @@
     }
 
     function createParticles(x, y, color, count = 20) {
-        if (prefersReducedMotion()) return;
+        if (gamePaused || gameState.matchFinalized || prefersReducedMotion()) return;
         // Apply mobile optimization
         const adjustedCount = Math.floor(count * particleMultiplier);
 
@@ -3763,20 +3781,22 @@
     const particleFPS = 60;
     const particleFrameInterval = 1000 / particleFPS;
     let particleLoopRunning = false;
+    let particleRafId = 0;
 
     function startParticleLoop() {
         if (particleLoopRunning) return;
         particleLoopRunning = true;
-        requestAnimationFrame(animateParticles);
+        particleRafId = requestAnimationFrame(animateParticles);
     }
 
     function animateParticles(currentTime) {
         if (!particles.length) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             particleLoopRunning = false;
+            particleRafId = 0;
             return;
         }
-        requestAnimationFrame(animateParticles);
+        particleRafId = requestAnimationFrame(animateParticles);
 
         // Throttle particle updates for better performance
         if (currentTime - lastParticleFrame < particleFrameInterval) {
@@ -4240,14 +4260,14 @@
         if (prefersReducedMotion()) return;
         const sparkleEmojis = ['✨', '💫', '⭐', '🌟', '💖'];
         for (let i = 0; i < count; i++) {
-            setTimeout(() => {
+            matchDelay(() => {
                 const sparkle = document.createElement('div');
                 sparkle.className = 'sparkle';
                 sparkle.textContent = sparkleEmojis[Math.floor(Math.random() * sparkleEmojis.length)];
                 sparkle.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
                 sparkle.style.top = (y + (Math.random() - 0.5) * 100) + 'px';
                 document.body.appendChild(sparkle);
-                setTimeout(() => sparkle.remove(), 1000);
+                matchDelay(() => sparkle.remove(), 1000);
             }, i * 50);
         }
     }
@@ -4256,14 +4276,14 @@
         if (prefersReducedMotion()) return;
         const trampleEmojis = ['💥', '⚡', '💢', '💨'];
         for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
+            matchDelay(() => {
                 const effect = document.createElement('div');
                 effect.className = 'trample-effect';
                 effect.textContent = trampleEmojis[Math.floor(Math.random() * trampleEmojis.length)];
                 effect.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
                 effect.style.top = (y + (Math.random() - 0.5) * 80) + 'px';
                 document.body.appendChild(effect);
-                setTimeout(() => effect.remove(), 800);
+                matchDelay(() => effect.remove(), 800);
             }, i * 100);
         }
     }
@@ -4272,14 +4292,14 @@
         if (prefersReducedMotion()) return;
         const gameContainer = document.getElementById('gameContainer');
         gameContainer.classList.add('shake-board');
-        setTimeout(() => {
+        matchDelay(() => {
             gameContainer.classList.remove('shake-board');
         }, 500);
     }
 
     function shakeElement(element) {
         element.classList.add('shake');
-        setTimeout(() => {
+        matchDelay(() => {
             element.classList.remove('shake');
         }, 500);
     }
@@ -5615,7 +5635,7 @@
     }
 
     function returnToMainMenu() {
-        matchSerial++; // abandon any AI turn still scheduled for the match being left
+        cancelMatchWork();
         clearMatchPause();
         resetGameLog();
         stopSFX('gameplayMusic');
@@ -5742,7 +5762,26 @@
         syncSoundSettings();
     }
 
-    // Leaving a match (MAIN MENU, a new match) drops its paused state and any timers it still had
+    // One boundary for abandonment, replacement and completion, paused or running.
+    function cancelMatchWork() {
+        matchSerial++;
+        matchTimers.forEach(timer => clearTimeout(timer.handle));
+        matchTimers.clear();
+        processingActionTimer = null;
+        isProcessingAction = false;
+        isStartingGame = false;
+        particles = [];
+        cancelAnimationFrame(particleRafId);
+        particleRafId = 0;
+        particleLoopRunning = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.querySelectorAll('.sparkle, .trample-effect').forEach(el => el.remove());
+        document.getElementById('gameContainer').classList.remove('shake-board');
+        document.querySelectorAll('.life-increase, .life-decrease, .juice-pop, .screen-shake, .shake').forEach(el =>
+            el.classList.remove('life-increase', 'life-decrease', 'juice-pop', 'screen-shake', 'shake'));
+        hideCardDetail();
+    }
+
     function clearMatchPause() {
         const container = document.getElementById('gameContainer');
         container.inert = false;
@@ -6054,16 +6093,16 @@
 
         if (elements.length === 1) {
             for (let i = 0; i < LAND_COUNT; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: nextCardInstanceId() });
             }
         } else {
             const firstLandCount = landCaps.maxPerColor[elements[0]] || Math.ceil(LAND_COUNT / 2);
             const secondLandCount = landCaps.maxPerColor[elements[1]] || (LAND_COUNT - firstLandCount);
             for (let i = 0; i < firstLandCount; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: nextCardInstanceId() });
             }
             for (let i = 0; i < secondLandCount; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[1]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[1]], id: nextCardInstanceId() });
             }
         }
 
@@ -6092,8 +6131,8 @@
             }
         });
 
-        const creatureTarget = 18 + Math.floor(Math.random() * 7); // 18-24
-        const spellTarget = 7 + Math.floor(Math.random() * 7); // 7-13
+        const creatureTarget = 18 + Math.floor(gameplayRandom() * 7); // 18-24
+        const spellTarget = 7 + Math.floor(gameplayRandom() * 7); // 7-13
         const artifactTarget = Math.max(0, NON_LAND_COUNT - creatureTarget - spellTarget);
 
         // Generated decks (the AI's) follow the same copy limits as a player's deck: at most 2 of a card and
@@ -6102,14 +6141,14 @@
         const canAdd = card => (copies[card.__id] || 0) < getDeckCardCopyLimit(card);
         function addCard(card) {
             copies[card.__id] = (copies[card.__id] || 0) + 1;
-            deck.push({ ...card, id: Math.random() });
+            deck.push({ ...card, id: nextCardInstanceId() });
         }
 
         function addCardsFromPool(pool, count) {
             for (let i = 0; i < count; i++) {
                 const open = pool.filter(canAdd);
                 if (open.length === 0) return;
-                addCard(open[Math.floor(Math.random() * open.length)]);
+                addCard(open[Math.floor(gameplayRandom() * open.length)]);
             }
         }
 
@@ -6119,7 +6158,7 @@
 
         let fallbackPool = [...creatures, ...spells, ...artifacts].filter(canAdd);
         while (deck.length < LAND_COUNT + NON_LAND_COUNT && fallbackPool.length > 0) {
-            addCard(fallbackPool[Math.floor(Math.random() * fallbackPool.length)]);
+            addCard(fallbackPool[Math.floor(gameplayRandom() * fallbackPool.length)]);
             fallbackPool = fallbackPool.filter(canAdd);
         }
 
@@ -6173,7 +6212,7 @@
                 return getFallbackDeckWithLog();
             }
 
-            const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: Math.random() }));
+            const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: nextCardInstanceId() }));
             shuffleDeck(deck);
             if (QA_MODE) {
                 console.debug('[QA] META path');
@@ -6192,12 +6231,12 @@
 
         for (let pass = 0; pass < safePasses; pass++) {
             for (let i = deck.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
+                const j = Math.floor(gameplayRandom() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
             }
 
             if (deck.length > 10) {
-                const cutIndex = Math.floor(deck.length * (0.25 + Math.random() * 0.5));
+                const cutIndex = Math.floor(deck.length * (0.25 + gameplayRandom() * 0.5));
                 const top = deck.splice(0, cutIndex);
                 deck.push(...top);
             }
@@ -6300,6 +6339,7 @@
             return;
         }
 
+        cancelMatchWork();
         isStartingGame = true;
         clearMatchPause();
         resetAiActivityMarks();
@@ -6346,7 +6386,6 @@
         resetMatchHistory();
         recordHistory('player', '🔔 Turn 1: your turn');
         pendingMatchResultOverlay = null;
-        matchSerial++;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -6357,10 +6396,10 @@
 
         // AI picks random elements
         const elementKeys = Object.keys(ELEMENTS).filter(element => element !== 'colorless');
-        const aiRequiredCount = Math.random() < 0.5 ? 1 : 2;
+        const aiRequiredCount = gameplayRandom() < 0.5 ? 1 : 2;
         const aiElements = [];
         while (aiElements.length < aiRequiredCount) {
-            const element = elementKeys[Math.floor(Math.random() * elementKeys.length)];
+            const element = elementKeys[Math.floor(gameplayRandom() * elementKeys.length)];
             if (!aiElements.includes(element)) {
                 aiElements.push(element);
             }
@@ -6401,7 +6440,7 @@
         updateUI();
         updateDeckCounters();
 
-        setTimeout(() => {
+        matchDelay(() => {
             isStartingGame = false;
         }, 300);
     }
@@ -6409,6 +6448,7 @@
     // Draw Card
     // Drawing from an empty deck loses the match (RULES.md R6.1).
     function drawCard(player) {
+        if (gameState.matchFinalized) return;
         const isPlayer = player === 'player';
         const deck = isPlayer ? gameState.playerDeck : gameState.enemyDeck;
         if (deck.length === 0) {
@@ -7048,7 +7088,7 @@
                 const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
                 const creatures = targetBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
                 if (creatures.length > 0) {
-                    const target = creatures[Math.floor(Math.random() * creatures.length)];
+                    const target = creatures[Math.floor(gameplayRandom() * creatures.length)];
                     // Move to graveyard before removing from board
                     moveCardToGraveyard(target, isCasterPlayer ? 'enemy' : 'player');
                     if (isCasterPlayer) {
@@ -7068,7 +7108,7 @@
                 const friendlyBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures = friendlyBoard.filter(c => c.type === 'creature');
                 if (friendlyCreatures.length > 0) {
-                    const buffTargets = card.targetAll ? friendlyCreatures : [friendlyCreatures[Math.floor(Math.random() * friendlyCreatures.length)]];
+                    const buffTargets = card.targetAll ? friendlyCreatures : [friendlyCreatures[Math.floor(gameplayRandom() * friendlyCreatures.length)]];
                     const isPowerOnly = card.buffType === 'power';
                     buffTargets.forEach(target => {
                         if (card.value > 0) {
@@ -7109,7 +7149,7 @@
                 const friendlyBoard2 = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures2 = friendlyBoard2.filter(c => c.type === 'creature');
                 if (friendlyCreatures2.length > 0) {
-                    const defTargets = card.targetAll ? friendlyCreatures2 : [friendlyCreatures2[Math.floor(Math.random() * friendlyCreatures2.length)]];
+                    const defTargets = card.targetAll ? friendlyCreatures2 : [friendlyCreatures2[Math.floor(gameplayRandom() * friendlyCreatures2.length)]];
                     defTargets.forEach(target => {
                         target.toughness = (target.toughness || 0) + card.value;
                         if (card.grantAbilities) {
@@ -7141,7 +7181,7 @@
                 const untappedCreatures = tappable.filter(c => !c.tapped);
                 const tapPool = untappedCreatures.length > 0 || !card.skipUntap ? untappedCreatures : tappable;
                 if (tapPool.length > 0) {
-                    const target = tapPool[Math.floor(Math.random() * tapPool.length)];
+                    const target = tapPool[Math.floor(gameplayRandom() * tapPool.length)];
                     target.tapped = true;
                     if (card.skipUntap) {
                         target.frozen = true;
@@ -7162,7 +7202,7 @@
                 const bounceCount = Math.min(2, bounceable.length);
                 for (let i = 0; i < bounceCount; i++) {
                     if (bounceable.length > 0) {
-                        const idx = Math.floor(Math.random() * bounceable.length);
+                        const idx = Math.floor(gameplayRandom() * bounceable.length);
                         const target = bounceable[idx];
                         bounceable.splice(idx, 1);
                         enemyHand.push(asPrintedCard(target));
@@ -7185,7 +7225,7 @@
                     const [revived] = graveyard.splice(reviveIndex, 1);
                     revived.damage = 0;
                     revived.tapped = false;
-                    revived.id = Math.random(); // New ID
+                    revived.id = nextCardInstanceId(); // New ID
                     revived.summoningSick = !revived.abilities?.includes('haste');
                     board.push(revived);
                     showGameLog(`⛪ ${revived.emoji} ${revived.name} is revived!`, !isCasterPlayer);
@@ -7221,7 +7261,7 @@
                 for (let i = 0; i < tokenCount; i++) {
                     const printed = { power: tokenType.power, toughness: tokenType.toughness, abilities: [...tokenType.abilities] };
                     tokenBoard.push({
-                        id: Math.random(),
+                        id: nextCardInstanceId(),
                         emoji: tokenType.emoji,
                         type: 'creature',
                         cardType: 'Creature Token',
@@ -7249,7 +7289,7 @@
 
                 for (let i = 0; i < discardCount; i++) {
                     if (discardHand.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * discardHand.length);
+                        const randomIndex = Math.floor(gameplayRandom() * discardHand.length);
                         const discarded = discardHand.splice(randomIndex, 1)[0];
                         moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
@@ -7264,7 +7304,7 @@
 
                 for (let i = 0; i < discardDrawCount; i++) {
                     if (discardHand2.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * discardHand2.length);
+                        const randomIndex = Math.floor(gameplayRandom() * discardHand2.length);
                         const discarded = discardHand2.splice(randomIndex, 1)[0];
                         moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
@@ -7756,6 +7796,7 @@
         const artifacts = board.filter(c => c.type === 'artifact');
 
         artifacts.forEach(artifact => {
+            if (gameState.matchFinalized) return;
             const snap = snapshotForHistory();
             switch(artifact.effect) {
                 case 'draw':
@@ -7815,10 +7856,12 @@
 
         // Draw card at start of turn
         drawCard('player');
+        if (gameState.matchFinalized) return;
         showGameLog('📜 You draw a card', false);
 
         // Process upkeep effects from artifacts
         processUpkeepEffects(true);
+        if (gameState.matchFinalized) return;
 
         // Untap and reset mana
         gameState.playerBoard.forEach(untapAtTurnStart);
@@ -8056,10 +8099,12 @@
 
             // Draw card
             drawCard('enemy');
+            if (turnIsStale()) return;
             showGameLog('🎴 Enemy draws a card', true);
 
             // Process upkeep effects from enemy artifacts
             processUpkeepEffects(false);
+            if (turnIsStale()) return;
 
             matchDelay(() => {
             if (turnIsStale()) return;
@@ -8235,7 +8280,7 @@
                             } catch (attackSelectionError) {
                                 console.warn('AI attack selection failed, using fallback behavior:', attackSelectionError);
                                 if (gameState.difficulty === 'easy') {
-                                    attackingCreatures = fallbackAttackers.filter(() => Math.random() > 0.3);
+                                    attackingCreatures = fallbackAttackers.filter(() => gameplayRandom() > 0.3);
                                 } else {
                                     attackingCreatures = fallbackAttackers;
                                 }
@@ -8322,7 +8367,7 @@
 
         const profile = AI_PROFILES[difficulty] || AI_PROFILES.easy;
         if (profile.attacks === 'random') {
-            return eligibleAttackers.filter(() => Math.random() > 0.3);
+            return eligibleAttackers.filter(() => gameplayRandom() > 0.3);
         }
 
         const blockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
@@ -8438,14 +8483,14 @@
                 GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
-                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                    matchDelay(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
                 GameFeedback.play('damageTaken', { intensity });
                 haptic('impact');
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
-                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                    matchDelay(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
 
@@ -8484,13 +8529,13 @@
                 GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
-                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                    matchDelay(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
                 GameFeedback.play('damageDealt', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
-                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                    matchDelay(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
 
@@ -9241,7 +9286,7 @@
         // Only check during active gameplay (not in menus)
         if (document.getElementById('gameContainer').style.display === 'flex') {
             // If it's the player's turn and processing has been locked for over 15 seconds, something is wrong
-            if (gameState.turn === 'player' && isProcessingAction) {
+            if (!gamePaused && !gameState.matchFinalized && gameState.turn === 'player' && isProcessingAction) {
                 const timeSinceLastCheck = Date.now() - lastProcessingCheckTime;
                 if (timeSinceLastCheck > 15000) {
                     console.warn('⚠️ Processing lock stuck for over 15 seconds - forcing release');

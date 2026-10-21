@@ -32,6 +32,7 @@
     "ai:sim": "node tests/ai-sim.mjs",
     "release": "node tests/release.mjs",
     "verify": "node tests/verify.mjs",
+    "determinism": "node --test tests/determinism.test.mjs",
     "stabilization": "node --test tests/stabilization.test.mjs"
   },
   "devDependencies": {

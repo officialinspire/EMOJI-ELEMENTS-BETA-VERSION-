@@ -85,3 +85,34 @@ requests or establish parity with the bundled browser. Fonts require `fonts.goog
 `playwright.download.prss.microsoft.com`. Network-blocked checks must remain failed until access
 is available and the affected command is rerun. No merge, deployment or publication is part of
 this stabilization task.
+
+## Gameplay determinism and match teardown
+
+`npm run determinism` runs stopped-clock action sequences against the real browser game.
+It compares opening decks/hands, legal card plays and draws, easy AI attack choices,
+a random-target spell and the awarded pack across sound/haptics, themes and reduced motion.
+Extra previews, card inspection, rendering, particles and ID allocation leave the gameplay
+stream and authoritative state unchanged. `setGameplaySeed(uint32)` resets the gameplay
+stream for a replay; it is runtime state, not a new save format. Production seeds that stream
+once on page load. Cosmetic/audio randomness and monotonic instance IDs cannot advance it.
+Identical actions must include the same gameplay operations (including opening purchased packs).
+
+Match timers carry a match serial. Completion, abandonment and replacement cancel them,
+particles and pending decorative spawns together. Startup debounce belongs to that scope.
+Page restoration deliberately keeps the match paused until RESUME. The watchdog does not
+release a paused action lock. Terminal draws also stop the current synchronous turn pipeline.
+
+Focused verification (Playwright Chromium installed):
+
+```sh
+node --test --test-concurrency=2 tests/rules.test.mjs tests/combat.test.mjs tests/ai.test.mjs tests/feedback.test.mjs tests/battle.test.mjs tests/regression.test.mjs tests/effects.test.mjs tests/audio.test.mjs tests/determinism.test.mjs
+npm run smoke
+```
+
+The first command uses controlled clocks for correctness; smoke uses real browser time on
+desktop and mobile emulation. `npm run verify` automatically includes the new regression
+file in the logic CI job. The teardown regression counts outstanding timeouts, intervals,
+frames and global listener registrations relative to the initialized page. Finite audio fades
+and detached-node CSS cleanup get three seconds to settle. This checks scheduling and
+listener balance, not garbage collection or an operating-system memory profile. Physical
+phone haptics and background suspension still need device testing.

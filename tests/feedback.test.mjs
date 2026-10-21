@@ -71,7 +71,7 @@ function installSpies(page) {
     });
 }
 const fingerprint = page => page.evaluate(() => JSON.stringify({
-    gameState, meta: gameMeta, stats: gameStats, spies: window.__spies,
+    gameState, gameplayRandomState, meta: gameMeta, stats: gameStats, spies: window.__spies,
     floating: document.querySelectorAll('.floating-number, .damage-number').length,
     overlays: ['victoryOverlay', 'loseOverlay', 'matchRewardOverlay'].map(id => document.getElementById(id).className)
 }));
