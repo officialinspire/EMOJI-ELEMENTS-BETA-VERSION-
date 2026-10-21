@@ -235,14 +235,58 @@
         </div>
     </div>
 
-    <!-- Pause Modal -->
-    <div id="pauseModal" class="pause-modal" role="dialog" aria-modal="true" aria-label="Game paused">
+    <!-- Pause: the match waits (pauseGame stops its timers and input). Resume first; settings and help in the
+         middle; leaving the match last and set apart, behind the existing confirmation (confirmQuit). -->
+    <div id="pauseModal" class="pause-modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle" aria-describedby="pauseSummary">
         <div class="pause-content">
-            <div class="pause-title">⏸️ GAME PAUSED</div>
-            <div class="pause-buttons">
-                <button class="menu-btn" onclick="resumeGame(event)">▶️ RESUME GAME</button>
-                <button class="menu-btn" onclick="confirmQuit()">🏠 MAIN MENU</button>
-                <button class="menu-btn pause-theme-btn" type="button" onclick="showThemePicker()" aria-haspopup="dialog">🎨 THEME</button>
+            <div class="pause-head">
+                <h2 class="pause-title" id="pauseTitle"><span aria-hidden="true">⏸</span> Paused</h2>
+                <p class="pause-summary" id="pauseSummary">The match waits for you.</p>
+            </div>
+            <button class="menu-btn pause-resume" id="pauseResumeBtn" type="button" onclick="resumeGame(event)"><span aria-hidden="true">▶</span> Resume</button>
+
+            <section class="pause-section" aria-labelledby="pauseSettingsTitle">
+                <h3 class="pause-section-title" id="pauseSettingsTitle">Settings</h3>
+                <div class="pause-settings">
+                    <button class="pause-switch-row" id="pauseSoundSwitch" type="button" role="switch" aria-checked="true" onclick="toggleMute()">
+                        <span class="pause-row-icon" aria-hidden="true">🔊</span>
+                        <span class="pause-row-text"><span class="pause-row-label">Sound</span><span class="pause-row-note">All music and effects</span></span>
+                        <span class="pause-switch" aria-hidden="true"></span>
+                    </button>
+                    <button class="pause-switch-row" id="pauseMusicSwitch" type="button" role="switch" aria-checked="true" onclick="toggleMusic()">
+                        <span class="pause-row-icon" aria-hidden="true">🎵</span>
+                        <span class="pause-row-text"><span class="pause-row-label">Music</span><span class="pause-row-note">Effects stay on</span></span>
+                        <span class="pause-switch" aria-hidden="true"></span>
+                    </button>
+                    <button class="pause-switch-row" id="pauseHapticsSwitch" type="button" role="switch" aria-checked="true" aria-describedby="pauseHapticsNote" onclick="toggleHaptics()">
+                        <span class="pause-row-icon" aria-hidden="true">📳</span>
+                        <span class="pause-row-text"><span class="pause-row-label">Haptics</span><span class="pause-row-note" id="pauseHapticsNote">Buzz on long-press and when you take damage</span></span>
+                        <span class="pause-switch" aria-hidden="true"></span>
+                    </button>
+                    <button class="pause-switch-row pause-theme-btn" type="button" onclick="showThemePicker()" aria-haspopup="dialog">
+                        <span class="pause-row-icon" aria-hidden="true">🎨</span>
+                        <span class="pause-row-text"><span class="pause-row-label">Theme</span><span class="pause-row-note" id="pauseThemeName">Arcane Fantasy</span></span>
+                        <span class="pause-row-go" aria-hidden="true">›</span>
+                    </button>
+                </div>
+            </section>
+
+            <details class="pause-section pause-help">
+                <summary class="pause-section-title">Controls</summary>
+                <ul class="pause-help-list">
+                    <li><b>Tap or click</b> a hand card to play it, a land to tap it, an artifact to use it.</li>
+                    <li><b>Long-press or right-click</b> any card for its details.</li>
+                    <li><b>ATTACK</b>, tap your attackers, then <b>CONFIRM</b>. Blocks are automatic; the preview shows them.</li>
+                </ul>
+                <ul class="pause-help-list pause-help-keys" aria-label="Keyboard">
+                    <li><kbd>Space</kbd> / <kbd>E</kbd> end turn · <kbd>A</kbd> attack · <kbd>M</kbd> mulligan</li>
+                    <li><kbd>H</kbd> history · <kbd>I</kbd> card details · <kbd>Esc</kbd> pause / resume</li>
+                </ul>
+            </details>
+
+            <div class="pause-leave">
+                <button class="menu-btn pause-quit" type="button" onclick="confirmQuit()"><span aria-hidden="true">🏠</span> Main menu</button>
+                <p class="pause-leave-note">Leaves this match. You'll be asked to confirm.</p>
             </div>
         </div>
     </div>
@@ -614,11 +658,16 @@
             <!-- Enemy Area -->
             <div class="player-area enemy-area">
                 <div class="player-info">
-                    <div class="life-counter">
-                        ❤️ <span id="enemyLife">20</span>
+                    <div class="life-counter" title="Enemy life">
+                        <span class="sr-only">Enemy life</span>❤️ <span id="enemyLife">20</span>
                     </div>
-                    <div class="deck-counter">
-                        🎴 <span id="enemyDeckCount">60</span>
+                    <div class="side-counters">
+                        <div class="deck-counter" title="Cards left in the enemy's deck">
+                            <span class="sr-only">Enemy deck</span>🎴 <span id="enemyDeckCount">60</span>
+                        </div>
+                        <div class="deck-counter hand-counter" title="Cards in the enemy's hand">
+                            <span class="sr-only">Enemy hand</span>✋ <span id="enemyHandCount">7</span>
+                        </div>
                     </div>
                     <div class="mana-pool" id="enemyMana"></div>
                 </div>
@@ -629,11 +678,13 @@
             <div class="player-area">
                 <div class="cards-row" id="playerBoard"></div>
                 <div class="player-info">
-                    <div class="life-counter">
-                        ❤️ <span id="playerLife">20</span>
+                    <div class="life-counter" title="Your life">
+                        <span class="sr-only">Your life</span>❤️ <span id="playerLife">20</span>
                     </div>
-                    <div class="deck-counter">
-                        🎴 <span id="playerDeckCount">60</span>
+                    <div class="side-counters">
+                        <div class="deck-counter" title="Cards left in your deck">
+                            <span class="sr-only">Your deck</span>🎴 <span id="playerDeckCount">60</span>
+                        </div>
                     </div>
                     <div class="mana-pool" id="playerMana"></div>
                 </div>

@@ -122,9 +122,26 @@
     }
 
 
+    // Sound (everything), music on its own, and haptics. Each is a device setting under its own key, apart from the
+    // profile. The pause menu shows all three as switches; the header keeps its one-tap mute.
+    const MUSIC_KEYS = ['startMenuMusic', 'gameplayMusic'];
+
+    function readSetting(key, fallback) {
+        try {
+            const value = localStorage.getItem(key);
+            return value === null ? fallback : value === 'true';
+        } catch (_) {
+            return fallback;
+        }
+    }
+
+    function saveSetting(key, value) {
+        try { localStorage.setItem(key, String(value)); } catch (_) { /* blocked storage: lasts this visit */ }
+    }
+
     function applyMuteState() {
-        Object.values(audioSystem).forEach(audio => {
-            audio.muted = isMuted;
+        Object.entries(audioSystem).forEach(([key, audio]) => {
+            audio.muted = isMuted || (musicOff && MUSIC_KEYS.includes(key));
         });
 
         const muteBtn = document.getElementById('muteBtn');
@@ -133,13 +150,51 @@
             muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
             muteBtn.setAttribute('aria-pressed', String(isMuted));
         }
+        updatePauseSwitches();
     }
 
     function toggleMute() {
         isMuted = !isMuted;
-        localStorage.setItem('emojiElementsMuted', String(isMuted));
+        saveSetting('emojiElementsMuted', isMuted);
         applyMuteState();
-        showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+        // The pause menu's switch already shows it
+        if (!gamePaused) showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+    }
+
+    function toggleMusic() {
+        musicOff = !musicOff;
+        saveSetting('emojiElementsMusicOff', musicOff);
+        applyMuteState();
+    }
+
+    const hapticsSupported = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+
+    function toggleHaptics() {
+        if (!hapticsSupported) return;
+        hapticsOn = !hapticsOn;
+        saveSetting('emojiElementsHaptics', hapticsOn);
+        updatePauseSwitches();
+        haptic(20);
+    }
+
+    // A short buzz on supporting phones (long-press, taking damage), unless switched off
+    function haptic(pattern) {
+        if (hapticsOn && hapticsSupported) {
+            try { navigator.vibrate(pattern); } catch (_) { /* not allowed here */ }
+        }
+    }
+
+    function updatePauseSwitches() {
+        const set = (id, on) => document.getElementById(id)?.setAttribute('aria-checked', String(on));
+        set('pauseSoundSwitch', !isMuted);
+        set('pauseMusicSwitch', !musicOff && !isMuted);
+        set('pauseHapticsSwitch', hapticsOn && hapticsSupported);
+        const music = document.getElementById('pauseMusicSwitch');
+        if (music) music.disabled = isMuted;
+        const haptics = document.getElementById('pauseHapticsSwitch');
+        if (haptics) haptics.disabled = !hapticsSupported;
+        const hapticsNote = document.getElementById('pauseHapticsNote');
+        if (hapticsNote) hapticsNote.textContent = hapticsSupported ? 'Buzz on long-press and when you take damage' : 'Not available on this device';
     }
 
     function initializeButtonTypes() {
@@ -226,7 +281,7 @@
                 if (!start) return;
                 longPressed = true;
                 start = null;
-                if (navigator.vibrate) navigator.vibrate(50);
+                haptic(50);
                 onLongPress?.();
             }, LONG_PRESS_MS);
         });
@@ -619,7 +674,9 @@
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    let isMuted = localStorage.getItem('emojiElementsMuted') === 'true';
+    let isMuted = readSetting('emojiElementsMuted', false);
+    let musicOff = readSetting('emojiElementsMusicOff', false);
+    let hapticsOn = readSetting('emojiElementsHaptics', true);
     let hoverTooltipPinned = false;
 
     // Intro / startup sequence state
@@ -871,17 +928,58 @@
     // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
     let matchSerial = 0;
 
+    // ---- Pausable match timers. The AI's turn steps, its failsafe, the action-lock failsafes and the toasts run
+    // on these, so PAUSE stops them where they are and RESUME continues them with the time they had left.
+    let gamePaused = false;
+    const matchTimers = new Map();
+    let matchTimerSeq = 0;
+
+    function armMatchTimer(id, timer) {
+        timer.startedAt = Date.now();
+        timer.handle = setTimeout(() => {
+            matchTimers.delete(id);
+            timer.fn();
+        }, timer.remaining);
+    }
+
+    function matchDelay(fn, ms) {
+        const id = ++matchTimerSeq;
+        const timer = { fn, remaining: Math.max(0, ms), startedAt: 0, handle: null };
+        matchTimers.set(id, timer);
+        if (!gamePaused) armMatchTimer(id, timer);
+        return id;
+    }
+
+    function clearMatchDelay(id) {
+        const timer = matchTimers.get(id);
+        if (!timer) return;
+        clearTimeout(timer.handle);
+        matchTimers.delete(id);
+    }
+
+    function freezeMatchTimers() {
+        const now = Date.now();
+        matchTimers.forEach(timer => {
+            clearTimeout(timer.handle);
+            timer.remaining = Math.max(0, timer.remaining - (now - timer.startedAt));
+        });
+    }
+
+    function thawMatchTimers() {
+        matchTimers.forEach((timer, id) => armMatchTimer(id, timer));
+    }
+
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
         isProcessingAction = true;
 
         // Clear any existing timer
         if (processingActionTimer) {
-            clearTimeout(processingActionTimer);
+            clearMatchDelay(processingActionTimer);
         }
 
         // Set failsafe timer to auto-unlock after duration
-        processingActionTimer = setTimeout(() => {
+        processingActionTimer = matchDelay(() => {
             if (QA_MODE) console.log('⚠️ Failsafe: Auto-unlocking processing action');
             isProcessingAction = false;
             updateUI();
@@ -892,7 +990,7 @@
     function releaseProcessingLock() {
         isProcessingAction = false;
         if (processingActionTimer) {
-            clearTimeout(processingActionTimer);
+            clearMatchDelay(processingActionTimer);
             processingActionTimer = null;
         }
         // CRITICAL FIX: Update UI to refresh button states immediately after releasing lock
@@ -3657,8 +3755,8 @@
         const now = Date.now();
         if (!hold && now < gameLogHoldUntil) {
             gameLogQueue = [...gameLogQueue, { message, isEnemy, isScifi }].slice(-3);
-            clearTimeout(gameLogFlushTimer);
-            gameLogFlushTimer = setTimeout(flushGameLog, gameLogHoldUntil - now);
+            clearMatchDelay(gameLogFlushTimer);
+            gameLogFlushTimer = matchDelay(flushGameLog, gameLogHoldUntil - now);
             return;
         }
         if (hold) {
@@ -3667,8 +3765,13 @@
         }
 
         const log = document.getElementById('gameLog');
+        // During a match the toast sits on the turn banner, above the board, so it never covers cards
+        const banner = document.getElementById('turnBanner');
+        const inMatch = document.getElementById('gameContainer')?.style.display === 'flex';
+        const host = inMatch && banner ? banner : document.body;
+        if (log.parentElement !== host) host.appendChild(log);
         log.textContent = message;
-        log.className = 'game-log show';
+        log.className = `game-log show${inMatch ? ' is-docked' : ''}`;
 
         if (isEnemy) {
             log.classList.add('enemy');
@@ -3677,10 +3780,21 @@
             log.classList.add('scifi');
         }
 
-        clearTimeout(gameLogHideTimer);
-        gameLogHideTimer = setTimeout(() => {
+        clearMatchDelay(gameLogHideTimer);
+        gameLogHideTimer = matchDelay(() => {
             log.classList.remove('show');
         }, hold || 2000);
+    }
+
+    // Leaving a match drops its pending toasts, so a menu message isn't held behind a combat report
+    function resetGameLog() {
+        gameLogQueue = [];
+        gameLogHoldUntil = 0;
+        clearMatchDelay(gameLogFlushTimer);
+        clearMatchDelay(gameLogHideTimer);
+        const log = document.getElementById('gameLog');
+        log?.classList.remove('show');
+        if (log && log.parentElement !== document.body) document.body.appendChild(log);
     }
 
     function flushGameLog() {
@@ -3690,7 +3804,7 @@
         showGameLog(next.message, next.isEnemy, next.isScifi);
         if (gameLogQueue.length) {
             gameLogHoldUntil = Date.now() + 900;
-            gameLogFlushTimer = setTimeout(flushGameLog, 900);
+            gameLogFlushTimer = matchDelay(flushGameLog, 900);
         }
     }
 
@@ -5211,6 +5325,8 @@
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', VISUAL_THEMES[key].metaColor);
         const chipName = document.getElementById('themeChipName');
         if (chipName) chipName.textContent = VISUAL_THEMES[key].label;
+        const pauseName = document.getElementById('pauseThemeName');
+        if (pauseName) pauseName.textContent = VISUAL_THEMES[key].label;
         document.querySelectorAll('#themeOptions [role="radio"]').forEach(option => {
             const checked = option.dataset.uiTheme === key;
             option.setAttribute('aria-checked', String(checked));
@@ -5263,8 +5379,12 @@
         renderThemePicker();
         playSFX('menuOpen');
         document.getElementById('themeDialog').classList.add('show');
-        // Focus starts on the current theme rather than the close button
-        setTimeout(() => document.querySelector('#themeOptions [aria-checked="true"]')?.focus({ preventScroll: true }), 60);
+        // Focus starts on the current theme rather than the close button, scrolled into view on short screens
+        setTimeout(() => {
+            const current = document.querySelector('#themeOptions [aria-checked="true"]');
+            current?.focus({ preventScroll: true });
+            current?.scrollIntoView({ block: 'nearest' });
+        }, 60);
     }
 
     function hideThemePicker() {
@@ -5435,6 +5555,8 @@
 
     function returnToMainMenu() {
         matchSerial++; // abandon any AI turn still scheduled for the match being left
+        clearMatchPause();
+        resetGameLog();
         stopSFX('gameplayMusic');
         stopSFX('gameVictory');
         stopSFX('gameLose');
@@ -5484,12 +5606,25 @@
         showElementSelection();
     }
 
-    // Pause/Resume Functions
+    // Pause/Resume. Pausing stops the match where it is: the AI's turn, its failsafe, the action-lock failsafes and
+    // the toasts wait (matchDelay), CSS animations on the board hold, and the board takes no input (inert). Resume
+    // continues the same timers with the time they had left; the dialog code returns focus to where it was.
     function pauseGame() {
-        if (document.getElementById('gameContainer').style.display !== 'flex') {
+        const container = document.getElementById('gameContainer');
+        if (container.style.display !== 'flex' || gamePaused) {
             return;
         }
 
+        gamePaused = true;
+        freezeMatchTimers();
+        container.classList.add('is-paused');
+        container.inert = true;
+        document.getElementById('gameLog')?.classList.remove('show');
+        // Effect particles are only decoration: drop them rather than draw them over the pause panel
+        particles = [];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay * 0.4, 250);
+        updatePausePanel();
         playSFX('menuOpen');
         document.getElementById('pauseModal').classList.add('show');
     }
@@ -5500,13 +5635,67 @@
             event.stopPropagation();
         }
 
-        playSFX('menuClose');
-        document.getElementById('pauseModal').classList.remove('show');
-
+        const container = document.getElementById('gameContainer');
         // Safety fix: keep gameplay active after resuming from pause
         document.getElementById('startModal').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'flex';
+        container.style.display = 'flex';
+        // The board takes input again before the dialog closes, so focus can return to it
+        container.inert = false;
+        container.classList.remove('is-paused');
+
+        playSFX('menuClose');
+        document.getElementById('pauseModal').classList.remove('show');
+        if (gamePaused) {
+            gamePaused = false;
+            thawMatchTimers();
+            fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay, 250);
+        }
     }
+
+    // What the AI did, shown on the board: cards it put onto the battlefield since its turn began (marked NEW until
+    // its next turn), and during its attack, its attackers and the creatures that blocked them automatically.
+    let enemyTurnStartIds = null;
+    let enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
+
+    function resetAiActivityMarks() {
+        enemyTurnStartIds = null;
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
+    }
+
+    function addBoardMarker(cardEl, className, text) {
+        const marker = document.createElement('div');
+        marker.className = `card-state ${className}`;
+        marker.textContent = text;
+        marker.setAttribute('aria-hidden', 'true');
+        cardEl.appendChild(marker);
+    }
+
+    // Where the match stands, for the pause panel's subtitle, and the current settings
+    function updatePausePanel() {
+        const summary = document.getElementById('pauseSummary');
+        if (summary) {
+            const whose = gameState.turn === 'enemy' ? "Enemy's turn" : 'Your turn';
+            summary.textContent = `Turn ${gameState.round || 1} · ${whose} · You ❤️ ${gameState.playerLife} · Enemy ❤️ ${gameState.enemyLife}`;
+        }
+        updatePauseSwitches();
+    }
+
+    // Leaving a match (MAIN MENU, a new match) drops its paused state and any timers it still had
+    function clearMatchPause() {
+        const container = document.getElementById('gameContainer');
+        container.inert = false;
+        container.classList.remove('is-paused');
+        if (gamePaused) {
+            gamePaused = false;
+            matchTimers.forEach(timer => clearTimeout(timer.handle));
+            matchTimers.clear();
+        }
+    }
+
+    // A match pauses itself when the page is hidden (another tab or app), so nothing happens unseen
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !gameState.matchFinalized) pauseGame();
+    });
 
     function confirmQuit() {
         showConfirmModal('🏠 QUIT GAME?', 'Are you sure you want to quit to main menu? Current game will be lost.', function() {
@@ -5962,6 +6151,7 @@
     }
 
     function mulligan() {
+        if (gamePaused) return;
         if (!canMulligan()) {
             showGameLog('⚠️ You can only mulligan once, before your first action!', false);
             return;
@@ -6028,6 +6218,8 @@
     function updateDeckCounters() {
         document.getElementById('playerDeckCount').textContent = gameState.playerDeck.length;
         document.getElementById('enemyDeckCount').textContent = gameState.enemyDeck.length;
+        const enemyHand = document.getElementById('enemyHandCount');
+        if (enemyHand) enemyHand.textContent = gameState.enemyHand.length;
     }
 
     function startGame() {
@@ -6047,6 +6239,8 @@
         }
 
         isStartingGame = true;
+        clearMatchPause();
+        resetAiActivityMarks();
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
             startBtn.disabled = true;
@@ -6167,6 +6361,7 @@
 
     // Play Card
     function playCard(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6270,7 +6465,7 @@
         }
 
         // Release processing lock after a short delay
-        setTimeout(() => {
+        matchDelay(() => {
             releaseProcessingLock();
         }, 200);
     }
@@ -6413,6 +6608,7 @@
 
     // Tap lands for mana
     function tapLand(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6483,6 +6679,7 @@
 
     // Tap ALL untapped lands of a given element type at once
     function tapAllLandsOfType(landKey) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6532,6 +6729,7 @@
     }
 
     function activateArtifact(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -7025,6 +7223,7 @@
     }
 
     function enterAttackPhase() {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -7120,6 +7319,7 @@
     }
 
     function selectAttacker(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized || !attackPhase) return;
 
         const card = gameState.playerBoard.find(c => c.id === cardId);
@@ -7191,7 +7391,7 @@
         updateUI();
 
         // Release processing lock after combat resolves
-        setTimeout(() => {
+        matchDelay(() => {
             releaseProcessingLock();
         }, 300);
     }
@@ -7422,6 +7622,7 @@
 
     // End Turn
     function endTurn() {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -7474,6 +7675,8 @@
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         aiStatusText = 'Starting its turn';
+        enemyTurnStartIds = new Set(gameState.enemyBoard.map(c => c.id));
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
         document.getElementById('gameContainer').classList.add('enemy-turn');
 
@@ -7481,7 +7684,7 @@
 
         // AI turn (skipped if this match was left in the meantime)
         const serial = matchSerial;
-        setTimeout(() => {
+        matchDelay(() => {
             if (serial === matchSerial) aiTurn();
         }, 1500);
     }
@@ -7535,6 +7738,7 @@
         }
 
         document.getElementById('gameContainer').classList.remove('enemy-turn');
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
 
         gameState.turn = 'player';
         gameState.phase = 'main';
@@ -7767,12 +7971,12 @@
         // A stale turn also cancels the failsafe below (it used to fire 12 s after every AI win).
         const turnIsStale = () => {
             const stale = gameState.matchFinalized || serial !== matchSerial;
-            if (stale) clearTimeout(emergencyTurnStart);
+            if (stale) clearMatchDelay(emergencyTurnStart);
             return stale;
         };
 
         // Emergency failsafe: ensure player turn starts even if something goes wrong
-        emergencyTurnStart = setTimeout(() => {
+        emergencyTurnStart = matchDelay(() => {
             if (gameState.matchFinalized || serial !== matchSerial || gameState.turn !== 'enemy') return;
             console.warn('Emergency turn transition triggered');
             startPlayerTurn();
@@ -7793,7 +7997,7 @@
             // Process upkeep effects from enemy artifacts
             processUpkeepEffects(false);
 
-            setTimeout(() => {
+            matchDelay(() => {
             if (turnIsStale()) return;
             // Play lands
             const landInHand = aiChooseLand();
@@ -7810,7 +8014,7 @@
                 applyJuice(enemyLandEl || document.getElementById('enemyBoard'), 'juice-pop');
             }
 
-            setTimeout(() => {
+            matchDelay(() => {
                 if (turnIsStale()) return;
                 // Tap lands and mana artifacts for mana
                 setAiStatus('Tapping mana');
@@ -7822,7 +8026,7 @@
                     updateUI();
                 }
 
-                setTimeout(() => {
+                matchDelay(() => {
                     if (turnIsStale()) return;
                     const applyOldMainPhaseBehavior = () => {
                         const playableCreatures = gameState.enemyHand
@@ -7957,7 +8161,7 @@
                         applyOldMainPhaseBehavior();
                     }
 
-                        setTimeout(() => {
+                        matchDelay(() => {
                             if (turnIsStale()) return;
                             const fallbackAttackers = gameState.enemyBoard.filter(canAttack);
 
@@ -7982,9 +8186,9 @@
                             checkGameOver();
                             // The attack status stays up through the pause before the player's turn
 
-                            setTimeout(() => {
+                            matchDelay(() => {
                                 if (turnIsStale()) return;
-                                clearTimeout(emergencyTurnStart); // Clear emergency failsafe
+                                clearMatchDelay(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
                             }, attackingCreatures.length ? 1500 : 500); // pacing: AI.md §5
                         }, mainPhaseActed ? 1500 : 300);
@@ -7993,9 +8197,9 @@
             }, 1000);
         } catch (error) {
             console.error('Error during AI turn:', error);
-            clearTimeout(emergencyTurnStart);
+            clearMatchDelay(emergencyTurnStart);
             // Ensure turn transitions back to player even on error
-            setTimeout(() => {
+            matchDelay(() => {
                 if (serial === matchSerial) startPlayerTurn();
             }, 1000);
         }
@@ -8118,6 +8322,10 @@
         }
 
         const playerBlockers = declarePlayerBlockers(attackingCreatures);
+        enemyCombatMarks = {
+            attackers: new Set(attackingCreatures.map(c => c.id)),
+            blockers: new Set(Object.values(playerBlockers).flat())
+        };
         if (Object.keys(playerBlockers).length > 0) {
             playSFX('block');
         }
@@ -8172,6 +8380,7 @@
                 }
             } else {
                 // Life decrease - play damage sound for each point
+                haptic(40);
                 for (let i = 0; i < absChange; i++) {
                     setTimeout(() => playSFX('playerTakeDamage'), i * 100);
                 }
@@ -8448,6 +8657,10 @@
                     cardEl.title = `Can't attack: it ${restriction}`;
                     attackNote = `, can't attack: it ${restriction}`;
                 }
+            } else if (enemyCombatMarks.blockers.has(card.id)) {
+                cardEl.classList.add('auto-blocked');
+                addBoardMarker(cardEl, 'card-state-blocked', '🛡');
+                attackNote = ', blocked automatically';
             }
 
             // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
@@ -8460,7 +8673,7 @@
             }
             bindCardPress(cardEl, {
                 label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
-                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : ''),
+                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : attackNote),
                 onTap: boardAction,
                 onLongPress: () => showCardDetail(card)
             });
@@ -8551,7 +8764,21 @@
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
-            const blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
+            let blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
+            if (enemyCombatMarks.attackers.has(card.id)) {
+                cardEl.classList.add('enemy-attacking');
+                addBoardMarker(cardEl, 'card-state-attacking', '⚔️');
+                blockNote += ', attacking you';
+            }
+            if (enemyTurnStartIds && !enemyTurnStartIds.has(card.id)) {
+                cardEl.classList.add('ai-new');
+                const chip = document.createElement('div');
+                chip.className = 'ai-new-chip';
+                chip.textContent = 'New';
+                chip.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(chip);
+                blockNote += ', played on its last turn';
+            }
 
             bindCardPress(cardEl, {
                 label: `Enemy ${describeCardForA11y(card, 'board')}${blockNote}`,

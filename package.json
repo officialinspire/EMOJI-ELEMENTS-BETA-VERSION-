@@ -26,6 +26,7 @@
     "packs": "node --test tests/packs.test.mjs",
     "packs:shots": "node tests/pack-shots.mjs",
     "regression": "node --test tests/regression.test.mjs",
+    "battle": "node --test tests/battle.test.mjs",
     "cross-browser": "node tests/cross-browser.mjs",
     "ai:sim": "node tests/ai-sim.mjs",
     "release": "node tests/release.mjs"

@@ -7318,13 +7318,628 @@ html {
     color: var(--text-soft);
 }
 
-.pause-theme-btn {
-    font-size: 14px;
-}
-
 /* MAIN MENU on the result banners: the quieter second choice (was white on cornflower blue, 3.3:1) */
 .overlay-btn-secondary {
     background: var(--panel-tile);
     border-color: var(--gold-line);
     color: var(--gold-2);
+}
+
+/* =====================================================================================================
+   BATTLE SCREEN AND PAUSE: reading the board at a glance, in every theme.
+   - Toasts sit on the turn banner during a match (showGameLog docks them), so they never cover cards.
+   - Whose turn: the banner, and a bar on the active side's edge. The enemy turn dims your side lightly so your
+     cards stay readable while the AI acts.
+   - Each state has its own shape as well as colour: chosen attacker = solid outline + ⚔️; can attack = dashed
+     accent outline; predicted blocker = dotted second-accent outline + 🛡; the AI's new cards = "New" tag; its
+     attackers = ⚔️; your automatic blockers = 🛡; damage = 💔N; tapped = sideways.
+   - Life is the biggest number on each side; deck and hand counts are smaller and labelled.
+   - Pause: Resume, settings (sound, music, haptics, theme), controls help, and Main menu set apart below.
+   ===================================================================================================== */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---- Toast docked on the turn banner */
+.turn-banner > .game-log.is-docked {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    width: auto;
+    max-width: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 4px 12px;
+    transform: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--gold-1);
+    border-radius: 10px;
+    /* Opaque, so the banner text underneath doesn't show through */
+    background: linear-gradient(var(--panel-strong), var(--panel-strong)), var(--bg-0);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: center;
+    text-shadow: none;
+    animation: none;
+    transition: opacity 0.15s ease;
+}
+
+.turn-banner > .game-log.is-docked.enemy {
+    border-color: var(--danger-hi);
+    background:
+        linear-gradient(90deg, rgb(var(--danger-hi-rgb) / 0.22), transparent 45%),
+        linear-gradient(var(--panel-strong), var(--panel-strong)),
+        var(--bg-0);
+    color: var(--text-main);
+}
+
+.turn-banner > .game-log.is-docked.scifi {
+    border-color: var(--accent);
+    color: var(--text-main);
+}
+
+.turn-banner > .game-log.is-docked.show {
+    animation: ee-toast-in 0.18s ease-out;
+}
+
+@keyframes ee-toast-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* ---- Turn banner: the round, whose turn, and what is happening */
+.turn-banner {
+    border-color: var(--gold-line);
+    background: var(--panel-strong);
+    font-family: var(--font-body);
+}
+
+.turn-banner[data-turn="enemy"] {
+    border-color: rgb(var(--danger-hi-rgb) / 0.7);
+    background:
+        linear-gradient(90deg, rgb(var(--danger-hi-rgb) / 0.18), transparent 60%),
+        var(--panel-strong);
+}
+
+.turn-banner-round {
+    border-color: var(--gold-line);
+    font-family: var(--font-body);
+    letter-spacing: 0.02em;
+}
+
+.cp-tag {
+    color: var(--gold-2);
+    border-color: var(--gold-line);
+}
+
+.combat-preview-details[open] .combat-preview-drop {
+    border-color: var(--gold-line);
+    background: var(--panel-strong);
+}
+
+/* ---- Whose side is active: a bar on its inner edge */
+.game-container:not(.enemy-turn) .player-area:not(.enemy-area) {
+    box-shadow: inset 4px 0 0 var(--gold-1), inset 0 0 26px rgb(var(--glow-rgb) / 0.14);
+}
+
+.game-container.enemy-turn .enemy-area {
+    box-shadow: inset 4px 0 0 var(--danger-hi), inset 0 0 26px rgb(var(--danger-deep-rgb) / 0.45), 0 0 0 1px rgb(var(--danger-hi-rgb) / 0.45);
+}
+
+/* Your side stays readable while the AI acts (it was 60 % opacity at 70 % brightness) */
+.game-container.enemy-turn .player-area:not(.enemy-area) {
+    opacity: 0.9;
+    filter: saturate(0.75) brightness(0.9);
+}
+
+.game-container.enemy-turn .hand-area {
+    opacity: 0.75;
+    filter: saturate(0.7) brightness(0.85);
+}
+
+.game-container.enemy-turn .controls {
+    opacity: 0.55;
+}
+
+/* ---- Counters: life first; deck and hand smaller, quieter and labelled */
+.player-info {
+    gap: 10px;
+}
+
+.life-counter {
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.side-counters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.deck-counter {
+    gap: 4px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-soft);
+    text-shadow: none;
+}
+
+@media (min-width: 768px) {
+    .deck-counter {
+        font-size: 14px;
+    }
+}
+
+/* ---- Card states */
+.card .card-damage {
+    border-color: rgb(var(--danger-hi-rgb) / 0.85);
+    color: #ffd0d0;
+    font-weight: 700;
+}
+
+.card.can-attack {
+    outline: 2px dashed var(--gold-1);
+}
+
+.card.attacking {
+    outline: 3px solid var(--danger-hi);
+    outline-offset: 1px;
+}
+
+/* Predicted blockers: dotted, in the second accent, so they never read as your attackers */
+.card.preview-blocker {
+    outline: 3px dotted var(--accent-soft);
+    outline-offset: 2px;
+}
+
+/* The predicted outcome sits low on the card, so the art and the badges stay visible */
+.preview-mark {
+    top: auto;
+    bottom: 20px;
+    transform: translateX(-50%);
+    padding: 1px 6px;
+    border-style: solid;
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.preview-mark.preview-dies {
+    border-color: var(--danger-hi);
+}
+
+.preview-mark.preview-survives {
+    border-color: #8affb5;
+}
+
+/* The AI's activity on the board */
+.card.ai-new {
+    box-shadow: var(--card-shadow), 0 0 0 2px rgb(var(--accent-2-soft-rgb) / 0.75);
+}
+
+.ai-new-chip {
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    z-index: 2;
+    transform: translateX(-50%);
+    padding: 0 5px;
+    border-radius: 999px;
+    border: 1px solid rgb(var(--accent-2-soft-rgb) / 0.9);
+    background: var(--card-chip);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 9.5px;
+    font-weight: 800;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+.card.ai-new.type-creature .ai-new-chip {
+    bottom: auto;
+    top: 2px;
+}
+
+.card.enemy-attacking {
+    outline: 3px solid var(--danger-hi);
+    outline-offset: 1px;
+    transform: translateY(4px);
+}
+
+.card.auto-blocked {
+    outline: 3px dotted var(--gold-1);
+    outline-offset: 1px;
+}
+
+.card-state-blocked {
+    border-color: var(--gold-1);
+}
+
+/* ---- While paused, the board's own animations hold too */
+.game-container.is-paused,
+.game-container.is-paused * {
+    animation-play-state: paused !important;
+}
+
+/* ---- Pause panel */
+.pause-modal {
+    background: rgb(0 0 0 / 0.72);
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+}
+
+.pause-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(420px, 100%);
+    max-width: 420px;
+    max-height: 100%;
+    overflow-y: auto;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid var(--gold-line);
+    border-radius: 18px;
+    background: var(--panel-modal);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    text-align: left;
+}
+
+.pause-head {
+    text-align: center;
+}
+
+.pause-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+    text-shadow: none;
+}
+
+.pause-summary {
+    margin: 4px 0 0;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-soft);
+}
+
+#pauseModal .pause-resume {
+    width: 100%;
+    min-height: 54px;
+    padding: 10px 16px;
+    border: 1px solid var(--accent-edge);
+    border-radius: 12px;
+    background: var(--gold-fill);
+    color: var(--ink);
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 6px 18px rgb(var(--accent-rgb) / 0.22);
+}
+
+.pause-section {
+    display: grid;
+    gap: 6px;
+}
+
+.pause-section-title {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+}
+
+.pause-settings {
+    display: grid;
+    border: 1px solid var(--gold-line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--panel-inset);
+}
+
+.pause-switch-row {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    padding: 6px 12px;
+    border: 0;
+    border-top: 1px solid rgb(var(--accent-rgb) / 0.14);
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pause-switch-row:first-child {
+    border-top: 0;
+}
+
+.pause-switch-row:hover:not(:disabled) {
+    background: rgb(var(--accent-rgb) / 0.07);
+}
+
+.pause-switch-row:focus-visible,
+#pauseModal .menu-btn:focus-visible,
+.pause-help summary:focus-visible {
+    outline: 3px solid var(--gold-2);
+    outline-offset: -3px;
+}
+
+.pause-switch-row:disabled {
+    cursor: default;
+}
+
+.pause-switch-row:disabled .pause-row-label,
+.pause-switch-row:disabled .pause-switch {
+    opacity: 0.55;
+}
+
+.pause-row-icon {
+    font-size: 18px;
+    text-align: center;
+}
+
+.pause-row-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.pause-row-label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--gold-2);
+}
+
+.pause-row-note {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-soft);
+}
+
+.pause-row-go {
+    font-size: 22px;
+    color: var(--gold-1);
+}
+
+/* The switch: a track and a knob, with ON/OFF text so it doesn't rely on colour */
+.pause-switch {
+    position: relative;
+    width: 58px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-line);
+    background: rgb(0 0 0 / 0.35);
+}
+
+.pause-switch::before {
+    content: 'OFF';
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-soft);
+}
+
+.pause-switch::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--text-soft);
+    transition: transform 0.15s ease;
+}
+
+[aria-checked="true"] > .pause-switch {
+    background: var(--gold-fill);
+    border-color: var(--accent-edge);
+}
+
+[aria-checked="true"] > .pause-switch::before {
+    content: 'ON';
+    right: auto;
+    left: 8px;
+    color: var(--ink);
+}
+
+[aria-checked="true"] > .pause-switch::after {
+    background: var(--ink);
+    transform: translateX(30px);
+}
+
+.pause-help {
+    padding: 8px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: 12px;
+    background: var(--panel-inset);
+}
+
+.pause-help summary {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    cursor: pointer;
+}
+
+.pause-help-list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+.pause-help-list b {
+    color: var(--gold-2);
+}
+
+.pause-help kbd {
+    padding: 0 5px;
+    border: 1px solid var(--gold-line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 0.3);
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--gold-2);
+}
+
+/* Phones and tablets without a keyboard don't need the key list */
+@media (hover: none) and (pointer: coarse) {
+    .pause-help-keys {
+        display: none;
+    }
+}
+
+/* Leaving the match: last, set apart by a rule, quiet until hovered */
+.pause-leave {
+    display: grid;
+    gap: 4px;
+    padding-top: 12px;
+    border-top: 1px dashed rgb(var(--danger-hi-rgb) / 0.45);
+}
+
+#pauseModal .pause-quit {
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 14px;
+    border: 1px solid rgb(var(--danger-hi-rgb) / 0.6);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    box-shadow: none;
+}
+
+#pauseModal .pause-quit:hover {
+    transform: none;
+    background: rgb(var(--danger-hi-rgb) / 0.14);
+    border-color: var(--danger-hi);
+}
+
+.pause-leave-note {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 12px;
+    text-align: center;
+    color: var(--text-soft);
+}
+
+/* Short landscape phones: two columns, so nothing needs scrolling to reach Resume */
+@media (orientation: landscape) and (max-height: 500px) {
+    .pause-content {
+        width: min(720px, 100%);
+        max-width: 720px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        grid-template-areas:
+            "head settings"
+            "resume settings"
+            "help settings"
+            "leave settings";
+        align-content: start;
+        gap: 8px 14px;
+        padding: 12px 14px;
+    }
+
+    .pause-head { grid-area: head; }
+    #pauseModal .pause-resume { grid-area: resume; min-height: 46px; }
+    .pause-help { grid-area: help; }
+    .pause-leave { grid-area: leave; padding-top: 8px; }
+    .pause-section:not(.pause-help) { grid-area: settings; }
+
+    .pause-title {
+        font-size: 18px;
+    }
+
+    .pause-switch-row {
+        min-height: 46px;
+        padding: 4px 10px;
+    }
+
+    .pause-help-list {
+        font-size: 12px;
+    }
+}
+
+/* Short landscape cards are 52 px wide: a reason ("Next turn") wraps instead of being cut off */
+@media (orientation: landscape) and (max-height: 500px) {
+    .card-reason {
+        white-space: normal;
+        line-height: 1.1;
+    }
+}
+
+/* The theme picker on short landscape screens: compact options, so all three fit or nearly fit */
+@media (orientation: landscape) and (max-height: 500px) {
+    .theme-dialog-content {
+        max-height: calc(100dvh - 24px);
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .theme-dialog-note {
+        display: none;
+    }
+
+    .theme-option {
+        min-height: 56px;
+        padding: 6px 10px;
+        grid-template-columns: 72px minmax(0, 1fr);
+    }
+
+    .theme-option[aria-checked="true"] {
+        padding: 5px 9px;
+    }
+
+    .theme-option-preview {
+        height: 42px;
+    }
 }

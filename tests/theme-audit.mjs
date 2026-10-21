@@ -95,7 +95,7 @@ function measure(page, rootSelector) {
         };
         const clipped = [];
         for (const el of root.querySelectorAll('*')) {
-            if (!visible(el) || !el.childNodes.length) continue;
+            if (!visible(el) || !el.childNodes.length || el.closest('.sr-only')) continue;
             const ownText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
             if (!ownText) continue;
             const s = getComputedStyle(el);
@@ -124,9 +124,11 @@ const CONTRAST_PROBES = {
     '04-setup': ['#startModal .modal-subtitle', '#startModal .setup-step-title', '#startModal .element-btn-name', '#startModal .deck-summary-line'],
     '05-shop': ['#startModal .modal-subtitle', '#startModal .shop-intro'],
     '06-match': ['#mulliganBtn .btn-text', '.turn-banner-text', '.turn-banner-round', '.phase-indicator', '#endTurnBtn .btn-text', '#graveyardBtn .btn-text', '#attackBtn .btn-text',
-        '.player-info .life-counter', '.title .ee-logo-small'],
+        '.player-info .life-counter', '.player-info .deck-counter', '.title .ee-logo-small'],
+    '06b-toast': ['#gameLog'],
     '07-attack': ['.combat-preview-summary', '#attackBtn .btn-text', '#endTurnBtn .btn-text'],
-    '09-pause': ['#pauseModal .menu-btn', '#pauseModal .pause-title'],
+    '09-pause': ['#pauseModal .menu-btn', '#pauseModal .pause-title', '.pause-summary', '.pause-section-title', '.pause-row-label',
+        '.pause-row-note', '.pause-leave-note'],
     '10-victory': ['#victoryOverlay .overlay-btn']
 };
 
@@ -140,6 +142,12 @@ async function measuredContrast(page, selector) {
         }
         return [...document.querySelectorAll(selector)]
             .filter(el => getComputedStyle(el).visibility !== 'hidden' && el.getClientRects().length && el.textContent.trim() && !el.closest(':disabled'))
+            // Only what is actually on screen: not scrolled out of its panel or under another layer
+            .filter(el => {
+                const r = el.getBoundingClientRect();
+                const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                return !!hit && (el.contains(hit) || hit.contains(el));
+            })
             .slice(0, 4)
             .map((el, i) => {
                 el.dataset.eeProbe = String(i);
@@ -281,6 +289,16 @@ async function auditTheme(browser, url, theme, profile, options) {
         document.getElementById('mulliganBtn').disabled = false; // as on the opening hand, so its colours are checked
     });
     await screen(ctx, '06-match', '#gameContainer');
+    // A toast during the match: it sits on the turn banner
+    await page.evaluate(() => showGameLog('🔥 You cast Fireball: Ember Beetle destroyed'));
+    await screen(ctx, '06b-toast', '#gameContainer');
+    await page.evaluate(() => showGameLog('🤖 Enemy summons Great Shark', true));
+    await page.waitForTimeout(250);
+    for (const m of await measuredContrast(page, '#gameLog')) {
+        ctx.contrast.push({ screen: '06b-toast-enemy', selector: '#gameLog', ...m });
+        check(scope, 'contrast', `06b-toast: enemy toast "${m.text}" ${m.ratio}:1 (needs ${m.need})`, m.ratio >= m.need);
+    }
+    await page.evaluate(() => resetGameLog());
     await page.evaluate(() => { enterAttackPhase(); gameState.playerBoard.filter(c => c.type === 'creature').forEach(c => selectAttacker(c.id)); updateUI({ immediate: true }); });
     await screen(ctx, '07-attack', '#gameContainer');
     await page.evaluate(() => { cancelAttack(); releaseProcessingLock(); endTurn(); });

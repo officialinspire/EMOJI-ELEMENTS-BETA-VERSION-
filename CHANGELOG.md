@@ -1,5 +1,46 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Battle screen and pause
+
+For players:
+- **Pause really pauses.** Before, the pause menu only covered the screen. Behind it, the AI went on playing its
+  whole turn, your next turn began, and a message popped up over the menu.
+  - Now the AI's turn, its 12 s failsafe, the action locks and the messages all wait.
+  - The board takes no clicks, taps or keys while paused.
+  - RESUME carries on the same match with the time each step had left, and puts focus back where it was.
+  - The match also pauses itself when you switch tab or app.
+- **A new pause menu.**
+  - RESUME first, then switches for Sound, Music and Haptics, and the theme.
+  - A short Controls list (the keyboard keys are hidden on touch-only devices).
+  - MAIN MENU last, set apart, with the same confirmation as before. NO returns to the paused match.
+  - The subtitle shows the turn and both life totals.
+- **Messages never cover cards.** During a match they appear on the turn banner instead of over the middle of
+  the board.
+- **Easier to read at a glance.**
+  - Attackers (solid outline, ⚔️), creatures that could attack (dashed) and predicted blockers (dotted, 🛡)
+    now differ in shape, not only colour. Before, attackers and blockers were both red.
+  - The predicted ✓/☠ sits low on the card instead of over its art.
+  - Cards the AI put down since its turn began say **NEW**. During its attack, its attackers show ⚔️ and your
+    automatic blockers 🛡.
+  - A bar on the inner edge marks the side whose turn it is. Your side is only lightly dimmed during the
+    enemy's turn (it was 60 % opacity at 70 % brightness), so you can still read your cards.
+  - Life is the largest number on each side. Deck size is smaller and quieter, the enemy's hand size is new,
+    and all of them have labels for screen readers.
+  - Damage chips have a red rim, and in short landscape a reason like "Next turn" wraps instead of being cut.
+- **Theme picker on short landscape screens:** compact options, and the current theme is scrolled into view.
+- **Haptics** (phones that support vibration): a short buzz on long-press and when you take damage. It can be
+  switched off.
+
+Under the hood:
+- **Pausable timers:** `matchDelay` / `clearMatchDelay` / `freezeMatchTimers` / `thawMatchTimers` in
+  `index.js`. The AI turn, the action-lock failsafes and the toasts use them.
+- **Leaving a match** clears its paused state, timers and pending toasts. Before, a combat report's hold kept
+  menu messages queued.
+- **Settings keys:** `emojiElementsMusicOff`, `emojiElementsHaptics` (beside `emojiElementsMuted`). None of
+  them touch the profile.
+- **New suite:** `tests/battle.test.mjs` (`npm run battle`, 14 tests, in CI). The theme audit also checks the
+  docked toast, the pause panel and the counters.
+
 ## Unreleased: Visual themes and logo
 
 For players:

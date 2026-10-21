@@ -123,8 +123,15 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
   automatic blocks and the expected result: life totals, who dies, and whether it wins the match. It is only a
   preview; blocks are made from the board as it is when you confirm.
 - A hand card you can't play right now shows why: land already played this turn, or how much mana it still needs.
-- After combat, a message lists who blocked whom and what died. 💔 shows damage taken this turn; a dashed
-  border marks a creature that can't attack until next turn.
+- After combat, a message lists who blocked whom and what died. Messages appear on the turn banner, so they
+  never cover cards. 💔 shows damage taken this turn; a dashed border marks a creature that can't attack until
+  next turn.
+- On the board: your chosen attackers have a solid red outline and ⚔️; creatures that could attack, a dashed
+  outline; the enemy creatures predicted to block, a dotted outline and 🛡. The predicted outcome (✓ survives,
+  ☠ dies) sits low on each card.
+- The AI's turn is marked too: cards it put down since its turn began say **NEW** (until its next turn); while
+  it attacks, its attackers have ⚔️ and your creatures that blocked automatically have 🛡.
+- Each side shows its life (largest), deck size and, for the enemy, how many cards it holds.
 - **📜 Match history** (header, or `H`) keeps the last 80 events of the match: plays and what they did,
   attacks, blocks, damage, deaths and life changes, grouped by turn. The badge counts new entries.
 
@@ -136,6 +143,10 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
   confirm or cancel).
 - `H` opens the match history at any time.
 - `Esc` closes the open window (card details, graveyard, match history, confirmations, pack), resumes from pause, or pauses.
+- **Pause** (☰ or `Esc`) really stops the match: the AI's turn, toasts and timers wait, and the board takes no
+  input until you resume. The match also pauses itself if you switch tab or app. The pause menu has Resume,
+  Sound, Music and Haptics switches, the theme, a short controls list, and MAIN MENU (with the usual
+  confirmation) set apart at the bottom.
 - Dialogs keep keyboard focus inside them and return it when they close.
 
 ### Touch
@@ -187,6 +198,8 @@ You can also open `index.html` directly in many browsers, but a local server is 
 | `emoji_elements_meta_backups` | Up to 3 earlier copies of the profile, saved before the game ever rewrites or resets it |
 | `emojiElementsStats` | Win/loss copy for the legacy build; imported once into a new profile |
 | `emojiElementsMuted` | Sound on/off |
+| `emojiElementsMusicOff` | Music off (effects stay on) |
+| `emojiElementsHaptics` | Vibration on long-press and when you take damage (phones that support it) |
 | `emoji_elements_theme` | Visual theme: `arcane`, `deep-space` or `neon` (kept apart from the profile; a reset keeps it) |
 
 - On every load, a damaged or older profile is **repaired, not replaced**. A save that can't be read at all
@@ -222,6 +235,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
 | `npm run regression` | Final regression: Deck Builder focus and scroll, combined filters, combat preview = result on 40 random boards, pack membership = manifest, nothing running after leaving a match, history bound, keyboard-only turn, reduced motion, portrait/landscape changes, fresh and existing profiles ([QA_REPORT.md](QA_REPORT.md) §2) |
 | `npm run cross-browser` | The main flows in every installed engine (Chromium, Firefox, WebKit); engines that aren't installed are reported as NOT TESTED. This is browser emulation, not real devices. |
+| `npm run battle` | Battle screen and pause: pause stops the AI turn and every match timer and resumes with the time left, no input while paused, focus returns, sound/music/haptics switches, MAIN MENU confirmation, auto-pause when hidden, toasts never cover cards, AI activity marks, attacker/blocker outlines, counters, a 15-turn session ([UI.md](UI.md) §13) |
 | `npm run themes` | The three visual themes at desktop, phone and phone-landscape: axe and measured text contrast, overflow and clipped text, the logo, no looping animation; saving, reload, reset and keyboard use of the picker ([UI.md](UI.md) §12). `npm run menu`, `ui` and `cards:ui` also take `--theme=deep-space` or `--theme=neon`. |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |

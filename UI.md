@@ -786,3 +786,88 @@ With reduced motion, the one-off entrances (start panel, result text) are also o
 ### Evidence
 
 EVIDENCE_PLACEHOLDER
+
+## 13. Battle screen and pause
+
+This pass builds on §12 (branch `claude/battle-pause`, from `claude/visual-themes`). It changes how the match
+reads and how pause behaves.
+
+**Unchanged:**
+- combat calculations, the preview (`previewCombat`), rewards, saves and card interactions;
+- the ids and texts the existing tests use. The pause buttons still contain RESUME and MAIN MENU, and MAIN
+  MENU still goes through `confirmQuit`.
+
+### Findings at the start
+
+Measured on a crowded late-game board (12 cards a side, 7 in hand) at 1366×900, 360×740 and 640×360:
+
+| Finding | Evidence |
+|---|---|
+| **Pause didn't pause.** The panel covered the screen, but the AI's turn kept running on its timers. | Pause right after END TURN, wait 7 s: the AI drew, played two cards and attacked, history went from 1 to 6 entries, your next turn started, and a toast showed **above** the pause panel. |
+| Toasts sat in the middle of the screen, over cards | On every size; in 640×360 landscape they covered the enemy's creatures. |
+| Selected attackers and predicted blockers were both red outlines | Solid red and dashed red; easy to mix up at a glance. |
+| The predicted outcome (✓, ☠, 🛡) was centred on the card | It covered the creature's art. |
+| The deck count was as loud as life | Same size, accent colour and glow; no label. |
+| During the enemy turn your side dropped to 60 % opacity at 70 % brightness | Your creatures were hard to read just when the AI attacked them. |
+| Nothing showed what the AI had just done, apart from a toast and the banner | You had to compare boards. |
+| The pause panel offered only Resume, Main menu and Theme | Large gold buttons of equal weight; Main menu between the other two. |
+
+### Pause
+
+How pausing works:
+- **Timers:** the match's own timers go through `matchDelay`. These are the AI turn's steps, its 12 s failsafe,
+  the action-lock failsafes and releases, and the toasts. `pauseGame` freezes them, keeping the time each had
+  left; `resumeGame` re-arms them with that time. A step 1 s from firing still waits 1 s after RESUME.
+- **Input:** the board becomes `inert`, so no clicks, taps, focus or keys reach it. The actions themselves
+  (`playCard`, `tapLand`, `endTurn`, `enterAttackPhase`, `selectAttacker`, `mulligan`, `activateArtifact`,
+  tap all) also return while paused.
+- **Presentation:** CSS animations on the board hold, effect particles are dropped, the toast hides, and the
+  music drops to 40 % (back up on resume).
+- **Focus:** it moves to RESUME and stays inside the panel; RESUME or Esc returns it to where it was (the
+  dialog code in `GAME_DIALOGS`).
+- **Hidden page:** the match pauses itself when the page is hidden (another tab or app).
+- **Leaving:**
+  - MAIN MENU uses the existing confirmation. NO returns to the still-paused match.
+  - YES leaves and clears the paused state, the old match's timers and its pending toasts. (Before, a combat
+    report's hold could also delay a menu message.)
+
+The panel, top to bottom:
+1. **PAUSED**, with "Turn 10 · Your turn · You ❤️ 7 · Enemy ❤️ 11".
+2. **RESUME**: the one filled, accent-coloured button.
+3. **Settings**, as rows with switches. The switches are `role="switch"`, and each shows ON/OFF in text as
+   well as colour.
+   - **Sound:** the existing mute; the header 🔊 agrees.
+   - **Music:** effects stay on; disabled while Sound is off.
+   - **Haptics:** a short buzz on long-press and when you take damage. On devices without vibration it reads
+     "Not available on this device" and is disabled.
+   - **Theme:** opens the §12 picker on top; Esc closes only the picker.
+   - Each setting is saved under its own key (`emojiElementsMuted`, `emojiElementsMusicOff`,
+     `emojiElementsHaptics`), never in the profile.
+4. **Controls** (collapsed): tap, long-press and attack in three lines, plus the keyboard keys. The keys are
+   hidden on touch-only devices.
+5. **MAIN MENU**, below a dashed rule: an outlined button, with "Leaves this match. You'll be asked to
+   confirm."
+
+In short landscape the panel has two columns (resume, help and leave on the left; settings on the right), so
+nothing needs scrolling.
+
+### Reading the board
+
+| What | How it shows (shape or text first, colour second) |
+|---|---|
+| Whose turn | The banner ("⚔️ Your turn" / "🤖 Enemy turn · Playing a land: …"), the header label, and a 4 px bar on the active side's inner edge. |
+| AI activity | The banner says what the AI is doing. Cards it put down since its turn began get a **NEW** tag and a ring until its next turn. During its attack, its attackers have a solid outline, drop slightly and show ⚔️; your automatic blockers have a dotted outline and 🛡. Your side is only lightly dimmed (90 %, a little desaturated) so it stays readable. |
+| Chosen attackers | Solid 3 px outline in the danger colour, lifted, ⚔️ bottom-left |
+| Could attack | Dashed accent outline |
+| Can't attack | A reason chip ("Tapped", "Defender", "Next turn"); it wraps on 52 px landscape cards instead of being cut |
+| Predicted blockers | Dotted outline in the second accent, and 🛡 (🛡☠ if it dies) |
+| Predicted outcome | ✓ or ☠ in a small chip low on the card, above power/toughness, so the art stays visible |
+| Damage | 💔N, top-left, with a red rim |
+| Tapped | Turned sideways, as before |
+| Playable / unplayable in hand | Lifted with a ring / flat and dimmed with the reason, as before |
+| Counters | Life is the largest number on each side. Deck (🎴) and the enemy's hand size (✋, new) are smaller and quieter. All have screen-reader labels ("Enemy life", "Enemy deck", "Enemy hand", "Your life", "Your deck"). |
+| Messages | On the turn banner for their usual 2 s (combat reports 3.5 s), opaque, with a red edge for the enemy's. They never cover a card; in the menus they stay centred. |
+
+### Evidence
+
+BATTLE_EVIDENCE_PLACEHOLDER
