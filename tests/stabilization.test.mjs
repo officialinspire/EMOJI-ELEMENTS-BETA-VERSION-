@@ -32,6 +32,15 @@ test('pack reveal and summary retain reachable controls across orientation and z
         }), ids);
         for (const r of result) assert.ok(r.fits && r.reachable, `${r.id}: ${JSON.stringify(r)}`);
     };
+    const scrollWithKeyboard = async selector => {
+        await page.locator(selector).focus();
+        assert.equal(await page.evaluate(selector => document.activeElement.matches(selector), selector), true);
+        await page.keyboard.press('End');
+        await page.waitForFunction(selector => {
+            const el = document.querySelector(selector);
+            return el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+        }, selector);
+    };
     for (const [width, height, zoom] of [[568,320,1], [844,390,1], [667,375,1], [390,844,1], [844,390,1], [844,390,2]]) {
         // A 200% layout zoom halves the available CSS viewport. CSS zoom would leave dvh unchanged.
         await page.setViewportSize({ width: width / zoom, height: height / zoom });
@@ -39,6 +48,7 @@ test('pack reveal and summary retain reachable controls across orientation and z
         await visible(['packCloseBtn', 'packPrevBtn', 'packNextBtn', 'packSummaryBtn']);
         const cardHeight = await page.locator('#packCardViewport').evaluate(el => el.clientHeight);
         assert.ok(cardHeight >= 44, `readable card area at ${width / zoom}×${height / zoom}: ${cardHeight}px`);
+        await scrollWithKeyboard('#packCardViewport');
         for (let i = 0; i < 4; i++) {
             await page.evaluate(() => revealCurrentPackCard());
             await page.locator('#packCardOwned').evaluate(el => el.scrollIntoView({ block: 'nearest' }));
@@ -61,6 +71,7 @@ test('pack reveal and summary retain reachable controls across orientation and z
         assert.ok(await page.locator('.pack-summary-content').evaluate(el => el.clientHeight >= 44), 'summary retains a readable scrolling area');
         await page.screenshot({ path: path.join(out, `${width}-${height}-${zoom}-summary.png`) });
         assert.equal(await page.locator('#packSummaryGrid .pack-summary-card').count(), 5);
+        await scrollWithKeyboard('.pack-summary-content');
         await page.locator('#packSummaryGrid .pack-summary-card').last().evaluate(el => el.scrollIntoView({ block: 'nearest' }));
         await visible(['packSummaryBackBtn', 'packDoneBtn']);
         await clickAt(page, '#packSummaryBackBtn');

@@ -130,7 +130,7 @@
             </div>
 
             <div id="packRevealStage" class="pack-stage">
-                <div id="packCardViewport" class="pack-card-viewport">
+                <div id="packCardViewport" class="pack-card-viewport" role="region" aria-label="Pack card details" tabindex="0">
                     <div class="pack-card-cover" id="packCardCover">Tap to reveal</div>
                     <div id="packCardEmoji" class="pack-card-emoji">✨</div>
                     <div id="packCardName" class="pack-card-name"></div>
@@ -151,7 +151,7 @@
 
             <!-- After the reveal: the whole pack at a glance -->
             <div id="packSummaryStage" class="pack-stage">
-                <div class="pack-summary-content">
+                <div class="pack-summary-content" role="region" aria-label="Pack summary" tabindex="0">
                     <div class="pack-summary-title" id="packSummaryTitle">Your 5 cards</div>
                     <p class="pack-summary-stats" id="packSummaryStats"></p>
                     <ul class="pack-summary-grid" id="packSummaryGrid"></ul>
