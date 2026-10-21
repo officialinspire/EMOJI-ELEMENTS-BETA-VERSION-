@@ -30,7 +30,10 @@ wall time cannot move this boundary. No assertions were removed and game pause l
 The aggregate run also exposed a focus race in the paused-board test: Space can correctly activate
 the focused RESUME button. The test now waits for modal focus and blurs that button before sending
 board shortcuts. A separate test verifies that both Space and Enter on RESUME resume the same
-match without advancing its turn. Board snapshot and direct-call guards remain asserted.
+match without advancing its turn. Board snapshot and direct-call guards remain asserted. All battle scenarios now stop the fake
+clock before starting a match, also preventing the AI marker's render frame from racing with host
+time. The full 15-test battle suite passed three diagnostic runs, including two concurrent runs,
+with no game timer or rendering assertions bypassed.
 
 ## Full Chromium verification
 

@@ -11,9 +11,17 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { useGameBrowser, openGame, startMatch, act, setup, snapshot, clickAt, QUIET_ENEMY } from './lib/game.mjs';
+import { useGameBrowser, openGame as openRunningGame, startMatch, act, setup, snapshot, clickAt, QUIET_ENEMY } from './lib/game.mjs';
 
 useGameBrowser();
+
+// install() alone still advances with host time. All battle scenarios step a stopped clock so
+// timer boundaries and the frame displaying AI markers cannot race with protocol round trips.
+async function openGame(t, options) {
+    const page = await openRunningGame(t, options);
+    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+    return page;
+}
 
 const LOBSTER = 'creatures-fire-lobster';          // 2/2
 const BEETLE = 'creatures-ember-beetle';           // 1/2
@@ -67,7 +75,6 @@ test('the remaining time carries over exactly across pause and resume', { timeou
     const page = await openGame(t);
     await startMatch(page);
     await setup(page, { ...QUIET_ENEMY, playerBoard: [PEAK], playerHand: [] });
-    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
     await page.evaluate(() => endTurn());
     await page.clock.runFor(500); // AI starts 1500 ms after END TURN
     await page.evaluate(() => pauseGame());
