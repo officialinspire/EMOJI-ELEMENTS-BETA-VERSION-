@@ -6375,6 +6375,11 @@ html {
     .pack-nav-buttons .menu-btn { min-height: 44px; padding: 4px; font-size: 13px; line-height: 1.1; }
 }
 
+/* At high layout zoom, reserve room even when the web font has slightly taller metrics. */
+@media (max-height: 250px) {
+    .pack-opening-panel { padding-block: 2px; }
+}
+
 /* ---- Summary: the five cards */
 .pack-summary-title {
     text-align: center;

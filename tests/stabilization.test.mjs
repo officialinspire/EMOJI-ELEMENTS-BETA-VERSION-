@@ -22,6 +22,7 @@ test('pack reveal and summary retain reachable controls across orientation and z
     await page.clock.runFor(300);
     await clickAt(page, '#packOpenBtn');
     await page.clock.runFor(1000);
+    await page.evaluate(async () => { await document.fonts.ready; });
     const visible = async ids => {
         const result = await page.evaluate(ids => ids.map(id => {
             const el = document.getElementById(id), r = el.getBoundingClientRect();
