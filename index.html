@@ -155,6 +155,20 @@
         </div>
     </div>
 
+    <!-- Match history: recorded events of this match (recordHistory), newest at the bottom -->
+    <div id="historyModal" class="graveyard-modal history-modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+        <div class="graveyard-content history-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="historyTitle">📜 MATCH HISTORY</div>
+                <button class="graveyard-close" onclick="hideMatchHistory()" aria-label="Close match history">✕</button>
+            </div>
+            <p class="history-note" id="historyNote"></p>
+            <div class="history-scroll" id="historyScroll" tabindex="0" role="region" aria-label="Match events">
+                <ol class="history-list" id="historyList"></ol>
+            </div>
+        </div>
+    </div>
+
     <!-- Pause Modal -->
     <div id="pauseModal" class="pause-modal" role="dialog" aria-modal="true" aria-label="Game paused">
         <div class="pause-content">
@@ -482,12 +496,34 @@
             <button class="menu-icon-btn" onclick="pauseGame()" aria-label="Pause menu (Esc)">☰</button>
             <div class="title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
             <div class="header-right">
+                <button class="menu-icon-btn history-btn" id="historyBtn" onclick="showMatchHistory()" title="Match history (H)" aria-label="Match history">📜<span class="history-badge" id="historyBadge" hidden></span></button>
                 <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound" aria-label="Mute sound" aria-pressed="false">🔊</button>
-                <div class="phase-indicator" id="phaseIndicator" aria-live="polite">MAIN PHASE</div>
+                <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
             </div>
         </div>
 
         <div class="battlefield">
+            <!-- Whose turn, what is happening, and the attack preview (updateTurnBanner, renderCombatPreviewPanel) -->
+            <div class="turn-banner" id="turnBanner" data-turn="player">
+                <div class="turn-banner-main" role="status" aria-live="polite">
+                    <span class="turn-banner-round">Turn 1</span>
+                    <span class="turn-banner-text">⚔️ Your turn · Main phase</span>
+                </div>
+                <div class="combat-preview" id="combatPreview" hidden>
+                    <div class="combat-preview-head">
+                        <span class="cp-tag">Preview</span>
+                        <span class="combat-preview-summary" aria-live="polite"></span>
+                    </div>
+                    <details class="combat-preview-details">
+                        <summary>Blocks and results</summary>
+                        <div class="combat-preview-drop">
+                            <ul class="combat-preview-list"></ul>
+                            <p class="combat-preview-note">Not final. Blocking is automatic and uses the board as it is when you confirm.</p>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
             <!-- Enemy Area -->
             <div class="player-area enemy-area">
                 <div class="player-info">

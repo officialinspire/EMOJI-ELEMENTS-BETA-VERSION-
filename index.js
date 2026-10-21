@@ -3035,6 +3035,7 @@
         gameState.matchFinalized = true;
 
         const normalizedResult = result === 'win' ? 'win' : 'loss';
+        recordHistory(normalizedResult === 'win' ? 'player' : 'enemy', normalizedResult === 'win' ? '🏆 Victory: the enemy is defeated' : '💀 Defeat');
 
         if (normalizedResult === 'win') {
             gameStats.wins++;
@@ -3258,6 +3259,363 @@
 
     // After combat: who blocked whom and what died, in one message (blocks are automatic, so this is the
     // only place the player sees them).
+    // ---- Match history: a bounded record of what happened this match, for review after the temporary messages
+    // are gone. Events are recorded once, where the game acts (never while rendering), and only say what both
+    // players can see: cards are named once they are played, revealed or in a graveyard; draws are counted.
+    const MATCH_HISTORY_LIMIT = 80;
+    let matchHistory = [];
+    let matchHistorySeq = 0;
+    let matchHistoryDropped = 0;
+    let matchHistoryUnread = 0;
+
+    const cardLabel = card => `${card.emoji} ${card.name}`;
+    const sideName = side => (side === 'player' ? 'You' : 'Enemy');
+
+    function resetMatchHistory() {
+        matchHistory = [];
+        matchHistorySeq = 0;
+        matchHistoryDropped = 0;
+        matchHistoryUnread = 0;
+        updateHistoryButton();
+    }
+
+    function recordHistory(side, text, details = []) {
+        matchHistory.push({ seq: ++matchHistorySeq, round: gameState.round || 1, side, text, details: details.filter(Boolean) });
+        if (matchHistory.length > MATCH_HISTORY_LIMIT) {
+            matchHistoryDropped += matchHistory.length - MATCH_HISTORY_LIMIT;
+            matchHistory.splice(0, matchHistory.length - MATCH_HISTORY_LIMIT);
+        }
+        const modal = document.getElementById('historyModal');
+        if (modal?.classList.contains('show')) {
+            renderMatchHistory();
+        } else {
+            matchHistoryUnread++;
+        }
+        updateHistoryButton();
+    }
+
+    // What is visible before an action, so its results can be described afterwards
+    function snapshotForHistory() {
+        const board = list => new Map(list.map(c => [c.id, { card: c, power: c.power, toughness: c.toughness, tapped: !!c.tapped }]));
+        return {
+            life: { player: gameState.playerLife, enemy: gameState.enemyLife },
+            boards: { player: board(gameState.playerBoard), enemy: board(gameState.enemyBoard) },
+            hands: { player: gameState.playerHand.length, enemy: gameState.enemyHand.length },
+            graves: { player: gameState.playerGraveyard.length, enemy: gameState.enemyGraveyard.length }
+        };
+    }
+
+    // The visible results of an action since a snapshot: life, cards destroyed, returned to hand, created or
+    // changed, cards drawn (counted) and discarded (named: the graveyard is public). playedFrom: the side whose
+    // hand the action's own card came from, and that card's id, so playing it isn't reported twice.
+    function describeChangesSince(snap, { playedFrom = null, playedId = null } = {}) {
+        const out = [];
+        ['player', 'enemy'].forEach(side => {
+            const now = side === 'player' ? gameState.playerLife : gameState.enemyLife;
+            if (now !== snap.life[side]) out.push(`${sideName(side)}: ❤️ ${snap.life[side]} → ${now}`);
+        });
+        ['player', 'enemy'].forEach(side => {
+            const board = side === 'player' ? gameState.playerBoard : gameState.enemyBoard;
+            const hand = side === 'player' ? gameState.playerHand : gameState.enemyHand;
+            const grave = side === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
+            const owner = side === 'player' ? '' : 'enemy ';
+            const ids = new Set(board.map(c => c.id));
+            snap.boards[side].forEach(({ card }, id) => {
+                if (ids.has(id) || card.type === 'land') return;
+                if (hand.some(c => c.id === id)) out.push(`↩️ ${owner}${cardLabel(card)} returns to hand`);
+                else if (card.type === 'artifact') out.push(`⚙️ ${owner}${cardLabel(card)} is used up`);
+                else out.push(`💀 ${owner}${cardLabel(card)} is destroyed`);
+            });
+            board.forEach(card => {
+                const before = snap.boards[side].get(card.id);
+                if (!before) {
+                    if (card.id !== playedId && card.type !== 'land') out.push(`✨ ${owner}${cardLabel(card)} enters the battlefield`);
+                    return;
+                }
+                if (card.type === 'creature' && (card.power !== before.power || card.toughness !== before.toughness)) {
+                    out.push(`${owner}${cardLabel(card)} becomes ${card.power}/${card.toughness}`);
+                }
+                if (card.type === 'creature' && card.tapped && !before.tapped) out.push(`${owner}${cardLabel(card)} is tapped`);
+            });
+            const handChange = hand.length - (snap.hands[side] - (playedFrom === side ? 1 : 0));
+            const graveGain = grave.length - snap.graves[side];
+            if (handChange > 0) out.push(`${sideName(side)} ${side === 'player' ? 'draw' : 'draws'} ${handChange} card${handChange === 1 ? '' : 's'}`);
+            if (handChange < 0 && graveGain > 0) {
+                const discarded = grave.slice(-Math.min(graveGain, -handChange)).map(cardLabel).join(', ');
+                out.push(`${sideName(side)} ${side === 'player' ? 'discard' : 'discards'} ${discarded}`);
+            }
+        });
+        return out;
+    }
+
+    // One attacker's combat, in words. Used for the live result (history, from the real totals) and for the
+    // preview (from previewCombat), so both read the same way.
+    function describeCombatPair({ attacker, blockers, attackerDies, blockersDie, lifeChange }, isPlayerAttacking) {
+        const defender = isPlayerAttacking ? 'enemy' : 'player';
+        const attackerSide = isPlayerAttacking ? 'player' : 'enemy';
+        const parts = [];
+        if (blockers.length) {
+            parts.push(`blocked by ${blockers.map(cardLabel).join(' + ')}`);
+            const dead = blockers.filter(b => blockersDie.includes(b.id));
+            if (dead.length) parts.push(`${dead.map(b => b.name).join(' and ')} ${dead.length === 1 ? 'dies' : 'die'}`);
+            parts.push(attackerDies ? `${attacker.name} dies` : `${attacker.name} survives`);
+        } else {
+            parts.push('unblocked');
+        }
+        if (lifeChange[defender]) parts.push(`${sideName(defender)} ❤️ ${lifeChange[defender] > 0 ? '+' : ''}${lifeChange[defender]}`);
+        if (lifeChange[attackerSide]) parts.push(`${sideName(attackerSide)} ❤️ ${lifeChange[attackerSide] > 0 ? '+' : ''}${lifeChange[attackerSide]}`);
+        return `${cardLabel(attacker)}: ${parts.join(' · ')}`;
+    }
+
+    // Resolves one side's attack with the live rules, recording each attacker's real result once
+    function resolveAttackersWithHistory(attackers, blockersFor, isPlayerAttacking) {
+        const results = attackers.map(attacker => {
+            const blockers = blockersFor(attacker);
+            const before = { player: gameState.playerLife, enemy: gameState.enemyLife };
+            if (!hasAbility(attacker, 'vigilance')) {
+                attacker.tapped = true;
+            }
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, isPlayerAttacking);
+            } else {
+                dealUnblockedDamage(attacker, isPlayerAttacking);
+            }
+            return { attacker, blockers, lifeChange: { player: gameState.playerLife - before.player, enemy: gameState.enemyLife - before.enemy } };
+        });
+        checkStateBasedActions();
+        const alive = new Set([...gameState.playerBoard, ...gameState.enemyBoard].map(c => c.id));
+        const side = isPlayerAttacking ? 'player' : 'enemy';
+        const details = results.map(r => describeCombatPair({
+            ...r,
+            attackerDies: !alive.has(r.attacker.id),
+            blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id)
+        }, isPlayerAttacking));
+        recordHistory(side, `⚔️ ${sideName(side)} ${isPlayerAttacking ? 'attack' : 'attacks'} with ${attackers.length} creature${attackers.length === 1 ? '' : 's'}`, details);
+        return results;
+    }
+
+    // Why a hand card can't be played right now, or null. The same checks playCard makes, in the same order.
+    function getPlayRestriction(card) {
+        if (!card) return null;
+        if (gameState.matchFinalized) return { code: 'over', text: 'The match is over' };
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') return { code: 'turn', text: "Wait for your turn" };
+        if (card.type === 'land') {
+            return gameState.landsPlayedThisTurn >= 1 ? { code: 'land', text: 'One land per turn: you have played one' } : null;
+        }
+        if (canPayCost(card.cost || {}, gameState.playerMana)) return null;
+        const missing = getMissingMana(card.cost || {}, gameState.playerMana);
+        const untapped = gameState.playerBoard.filter(c => c.type === 'land' && !c.tapped).length;
+        const need = Object.entries(missing).map(([el, n]) => `${n} ${ELEMENTS[el]?.emoji || '◇'}`).join(' + ') || 'more mana';
+        return { code: 'mana', text: `Needs ${need} more in your mana pool${untapped ? ` (${untapped} untapped land${untapped === 1 ? '' : 's'})` : ''}` };
+    }
+
+    // What canPayCost finds short: coloured mana first (colourless in the pool can stand in), then the generic part
+    function getMissingMana(cost, mana) {
+        const missing = {};
+        let spareColorless = mana.colorless || 0;
+        let paid = 0;
+        Object.entries(cost).forEach(([element, required]) => {
+            if (element === 'colorless') return;
+            const available = mana[element] || 0;
+            const fromColour = Math.min(required, available);
+            const fromColorless = Math.min(required - fromColour, spareColorless);
+            spareColorless -= fromColorless;
+            paid += fromColour + fromColorless;
+            if (required - fromColour - fromColorless > 0) missing[element] = required - fromColour - fromColorless;
+        });
+        const total = Object.values(mana).reduce((sum, n) => sum + (n || 0), 0);
+        const generic = cost.colorless || 0;
+        const genericShort = generic - Math.max(0, total - paid);
+        if (genericShort > 0) missing.colorless = genericShort;
+        return missing;
+    }
+
+    // ---- Turn banner and AI status (what the AI is doing, in words; never what is in its hand)
+    let aiStatusText = '';
+
+    function setAiStatus(text) {
+        aiStatusText = text;
+        updateTurnBanner();
+    }
+
+    function updateTurnBanner() {
+        const banner = document.getElementById('turnBanner');
+        if (!banner) return;
+        const enemyTurn = gameState.turn === 'enemy' || gameState.phase === 'enemy';
+        const turn = enemyTurn ? 'enemy' : 'player';
+        let phase;
+        if (gameState.matchFinalized) phase = 'Match over';
+        else if (enemyTurn) phase = aiStatusText || 'Thinking…';
+        else if (attackPhase) phase = 'Choose attackers';
+        else phase = gameState.hasAttackedThisTurn ? 'Main phase · attacked' : 'Main phase';
+        const label = enemyTurn ? '🤖 Enemy turn' : '⚔️ Your turn';
+        const text = `${label} · ${phase}`;
+        if (banner.dataset.turn !== turn) {
+            banner.dataset.turn = turn;
+            banner.classList.remove('turn-changed');
+            void banner.offsetWidth;
+            banner.classList.add('turn-changed');
+        }
+        banner.querySelector('.turn-banner-round').textContent = `Turn ${gameState.round || 1}`;
+        const textEl = banner.querySelector('.turn-banner-text');
+        if (textEl.textContent !== text) textEl.textContent = text;
+    }
+
+    // ---- Attack preview. Kept outside gameState and recomputed (previewCombat) only when something it depends on
+    // changes: the chosen attackers, any creature's stats, damage, tapped state or keywords, or a life total.
+    let combatPreviewState = { key: '', preview: null };
+
+    function combatPreviewKey() {
+        const creature = c => [c.id, c.power, c.toughness, c.damage || 0, c.tapped ? 1 : 0, (c.abilities || []).join('+')].join(':');
+        const creatures = board => board.filter(c => c.type === 'creature').map(creature);
+        return JSON.stringify([gameState.attackers, creatures(gameState.playerBoard), creatures(gameState.enemyBoard), gameState.playerLife, gameState.enemyLife]);
+    }
+
+    function refreshCombatPreview() {
+        if (!attackPhase || gameState.turn !== 'player' || gameState.matchFinalized) {
+            combatPreviewState = { key: '', preview: null };
+            return null;
+        }
+        const key = combatPreviewKey();
+        if (key !== combatPreviewState.key) {
+            const attackers = gameState.attackers.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
+            combatPreviewState = { key, preview: attackers.length ? previewCombat(attackers, gameState.enemyBoard, true) : null };
+        }
+        return combatPreviewState.preview;
+    }
+
+    // Marks a card with its predicted part in the attack (✓ survives, ☠ dies, 🛡 blocks); returns words for its name
+    function markPreviewOutcome(cardEl, cardId) {
+        const preview = combatPreviewState.preview;
+        if (!preview) return '';
+        const asAttacker = preview.pairs.find(p => p.attackerId === cardId);
+        const asBlocker = preview.pairs.find(p => p.blockerIds.includes(cardId));
+        if (!asAttacker && !asBlocker) return '';
+        const dies = asAttacker ? asAttacker.attackerDies : asBlocker.blockersDie.includes(cardId);
+        const mark = document.createElement('div');
+        mark.className = `preview-mark ${dies ? 'preview-dies' : 'preview-survives'}`;
+        mark.textContent = asBlocker ? (dies ? '🛡☠' : '🛡') : (dies ? '☠' : '✓');
+        mark.setAttribute('aria-hidden', 'true');
+        cardEl.appendChild(mark);
+        cardEl.classList.add(asBlocker ? 'preview-blocker' : 'preview-attacker');
+        if (asBlocker) {
+            const attacker = gameState.playerBoard.find(c => c.id === asBlocker.attackerId);
+            return `, preview: blocks ${attacker?.name || 'an attacker'}${dies ? ' and dies' : ''}`;
+        }
+        return dies ? ', preview: dies' : ', preview: survives';
+    }
+
+    function renderCombatPreviewPanel() {
+        const panel = document.getElementById('combatPreview');
+        if (!panel) return;
+        const active = attackPhase && gameState.turn === 'player' && !gameState.matchFinalized;
+        panel.hidden = !active;
+        if (!active) {
+            panel.dataset.previewKey = '';
+            return;
+        }
+        if (panel.dataset.previewKey === combatPreviewState.key) return;
+        panel.dataset.previewKey = combatPreviewState.key;
+        const summary = panel.querySelector('.combat-preview-summary');
+        const list = panel.querySelector('.combat-preview-list');
+        const preview = combatPreviewState.preview;
+        list.innerHTML = '';
+        if (!preview) {
+            summary.textContent = 'Tap creatures to attack. Blocks are automatic: each attacker meets the toughest creature that can block it.';
+            panel.classList.remove('has-preview');
+            return;
+        }
+        panel.classList.add('has-preview');
+        const find = id => [...gameState.playerBoard, ...gameState.enemyBoard].find(c => c.id === id);
+        const lost = board => preview.deaths.filter(id => board.some(c => c.id === id)).length;
+        const parts = [`Enemy ❤️ ${gameState.enemyLife} → ${preview.life.enemy}`];
+        if (preview.life.player !== gameState.playerLife) parts.push(`You ❤️ ${gameState.playerLife} → ${preview.life.player}`);
+        parts.push(`Enemy loses ${lost(gameState.enemyBoard)}`, `You lose ${lost(gameState.playerBoard)}`);
+        if (preview.result === 'win') parts.push('🏆 Wins the match');
+        summary.textContent = parts.join(' · ');
+        preview.pairs.forEach(pair => {
+            const item = document.createElement('li');
+            item.textContent = describeCombatPair({
+                attacker: find(pair.attackerId),
+                blockers: pair.blockerIds.map(find).filter(Boolean),
+                attackerDies: pair.attackerDies,
+                blockersDie: pair.blockersDie,
+                lifeChange: pair.lifeChange
+            }, true);
+            list.appendChild(item);
+        });
+    }
+
+    // ---- Match history dialog
+    function updateHistoryButton() {
+        const button = document.getElementById('historyBtn');
+        const badge = document.getElementById('historyBadge');
+        if (!button || !badge) return;
+        badge.hidden = matchHistoryUnread === 0;
+        badge.textContent = matchHistoryUnread > 9 ? '9+' : String(matchHistoryUnread);
+        button.setAttribute('aria-label', matchHistoryUnread ? `Match history, ${matchHistoryUnread} new` : 'Match history');
+    }
+
+    function renderMatchHistory() {
+        const list = document.getElementById('historyList');
+        const note = document.getElementById('historyNote');
+        if (!list) return;
+        list.innerHTML = '';
+        let round = null;
+        matchHistory.forEach(entry => {
+            if (entry.round !== round) {
+                round = entry.round;
+                const heading = document.createElement('li');
+                heading.className = 'history-round';
+                heading.textContent = `Turn ${round}`;
+                list.appendChild(heading);
+            }
+            const item = document.createElement('li');
+            item.className = `history-item history-${entry.side}`;
+            const text = document.createElement('div');
+            text.className = 'history-text';
+            text.textContent = entry.text;
+            item.appendChild(text);
+            if (entry.details.length) {
+                const details = document.createElement('ul');
+                details.className = 'history-details';
+                entry.details.forEach(line => {
+                    const li = document.createElement('li');
+                    li.textContent = line;
+                    details.appendChild(li);
+                });
+                item.appendChild(details);
+            }
+            list.appendChild(item);
+        });
+        if (!matchHistory.length) {
+            const empty = document.createElement('li');
+            empty.className = 'history-item';
+            empty.textContent = 'Nothing has happened yet.';
+            list.appendChild(empty);
+        }
+        if (note) {
+            note.textContent = matchHistoryDropped
+                ? `The last ${MATCH_HISTORY_LIMIT} events of this match (${matchHistoryDropped} older not kept).`
+                : `Everything that happened this match, oldest first (up to ${MATCH_HISTORY_LIMIT} events).`;
+        }
+        const scroller = document.getElementById('historyScroll');
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    }
+
+    function showMatchHistory() {
+        if (document.getElementById('gameContainer').style.display !== 'flex') return;
+        matchHistoryUnread = 0;
+        updateHistoryButton();
+        renderMatchHistory();
+        playSFX('menuOpen');
+        document.getElementById('historyModal').classList.add('show');
+    }
+
+    function hideMatchHistory() {
+        document.getElementById('historyModal').classList.remove('show');
+    }
+
     function reportCombat(pairs, attackerSide) {
         if (!pairs.length) return;
         const alive = card => [...gameState.playerBoard, ...gameState.enemyBoard].some(c => c.id === card.id);
@@ -4385,6 +4743,7 @@
         // Reset processing lock and attack phase to clean state
         attackPhase = false;
         releaseProcessingLock();
+        setAttackControls('idle');
 
         initializeStartMenuState();
 
@@ -4556,12 +4915,20 @@
             html += `<div class="card-detail-section">${stats.join('')}</div>`;
         }
 
+        // In your hand: whether it can be played now, and why not (the checks playCard makes)
+        if (gameState.playerHand.includes(card)) {
+            const restriction = getPlayRestriction(card);
+            html += `<div class="card-detail-section card-detail-state">${row('In your hand', restriction ? `Can't play now: ${restriction.text}` : 'Can be played now')}</div>`;
+        }
+
         // Where it stands on the battlefield right now
         const onBoard = gameState.playerBoard.includes(card) || gameState.enemyBoard.includes(card);
         if (onBoard) {
             const state = [];
             if (card.tapped) state.push('Tapped');
             if (card.type === 'creature') {
+                const attackRestriction = gameState.playerBoard.includes(card) && gameState.turn === 'player' ? getAttackRestriction(card) : null;
+                if (attackRestriction && !card.tapped && !card.summoningSick) state.push(`Can't attack: it ${attackRestriction}`);
                 if (card.damage > 0) state.push(`💔 ${card.damage} damage this turn`);
                 if (card.summoningSick && !card.abilities?.includes('haste')) state.push('💤 Summoning sick: can attack next turn');
                 if (gameState.attackers.includes(card.id)) state.push('⚔️ Attacking');
@@ -4658,6 +5025,12 @@
     document.getElementById('graveyardModal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideGraveyard();
+        }
+    });
+
+    document.getElementById('historyModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideMatchHistory();
         }
     });
 
@@ -4912,6 +5285,7 @@
         document.getElementById('mulliganBtn').style.opacity = '0.5';
 
         showGameLog('🔄 Mulligan - Drew 6 new cards', false);
+        recordHistory('player', '🔄 You mulligan: a new hand of 6');
         updateUI();
         updateDeckCounters();
     }
@@ -4977,6 +5351,10 @@
         gameState.playerDeckedOut = false;
         gameState.enemyDeckedOut = false;
         gameState.matchFinalized = false;
+        gameState.round = 1;
+        aiStatusText = '';
+        resetMatchHistory();
+        recordHistory('player', '🔔 Turn 1: your turn');
         pendingMatchResultOverlay = null;
         matchSerial++;
 
@@ -5028,8 +5406,7 @@
         // Reset attack phase variable and processing lock
         attackPhase = false;
         releaseProcessingLock();
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         updateUI();
         updateDeckCounters();
@@ -5095,6 +5472,7 @@
         applyJuice(clickedHandCardEl, 'juice-pop');
 
         let playedBoardCardId = null;
+        const historySnap = snapshotForHistory();
 
         // Set processing lock to prevent rapid clicking (with 3 second failsafe)
         setProcessingLock(3000);
@@ -5138,6 +5516,10 @@
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             castInstant(card, 'player');
         }
+
+        const verb = { land: 'play', creature: 'summon', artifact: 'play', instant: 'cast' }[card.type] || 'play';
+        recordHistory('player', `${card.emoji} You ${verb} ${card.name}`,
+            describeChangesSince(historySnap, { playedFrom: 'player', playedId: playedBoardCardId ?? card.id }));
 
         // Particles
         const handEl = document.getElementById('playerHand');
@@ -5947,8 +6329,46 @@
         gameState.attackers = [];
         gameState.phase = 'attack';
         document.getElementById('phaseIndicator').textContent = 'DECLARE ATTACKERS';
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">✓ CONFIRM</span>';
-        document.getElementById('attackBtn').onclick = confirmAttackers;
+        setAttackControls('select');
+        updateUI();
+    }
+
+    // The two controls that change during attacker selection: ATTACK becomes CONFIRM (with the count) and
+    // END TURN, which can't be used mid-attack, becomes CANCEL.
+    function setAttackControls(mode) {
+        const attackBtn = document.getElementById('attackBtn');
+        const endTurnBtn = document.getElementById('endTurnBtn');
+        if (!attackBtn || !endTurnBtn) return;
+        const selecting = mode === 'select';
+        attackBtn.classList.toggle('is-confirm', selecting);
+        endTurnBtn.classList.toggle('is-cancel', selecting);
+        if (selecting) {
+            const n = gameState.attackers.length;
+            attackBtn.innerHTML = `<span class="btn-text">✓ CONFIRM ${n}</span>`;
+            attackBtn.setAttribute('aria-label', n ? `Confirm attack with ${n} creature${n === 1 ? '' : 's'}` : 'Confirm: no attack');
+            attackBtn.onclick = confirmAttackers;
+            endTurnBtn.innerHTML = '<span class="btn-text">✕ CANCEL</span>';
+            endTurnBtn.setAttribute('aria-label', 'Cancel the attack');
+            endTurnBtn.onclick = cancelAttack;
+        } else {
+            attackBtn.innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
+            attackBtn.removeAttribute('aria-label');
+            attackBtn.onclick = enterAttackPhase;
+            endTurnBtn.innerHTML = '<span class="btn-text">END TURN</span>';
+            endTurnBtn.removeAttribute('aria-label');
+            endTurnBtn.onclick = endTurn;
+        }
+    }
+
+    // Leave attacker selection without attacking: the attack is still available this turn
+    function cancelAttack() {
+        if (!attackPhase || gameState.turn !== 'player' || isProcessingAction) return;
+        attackPhase = false;
+        gameState.attackers = [];
+        gameState.phase = 'main';
+        document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+        setAttackControls('idle');
+        showGameLog('↩️ Attack cancelled', false);
         updateUI();
     }
 
@@ -5999,9 +6419,9 @@
             attackPhase = false;
             gameState.phase = 'main';
             document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-            document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-            document.getElementById('attackBtn').onclick = enterAttackPhase;
+            setAttackControls('idle');
             showGameLog('🛡️ You choose not to attack', false);
+            updateUI();
             return;
         }
 
@@ -6031,8 +6451,7 @@
         attackPhase = false;
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         checkGameOver();
         updateUI();
@@ -6075,13 +6494,20 @@
         return blockers;
     }
 
-    function applyDamage(attacker, blockers, isPlayerAttacking) {
+    // Where combat life changes go. Real combat uses the live totals; previewCombat passes its own copy, so the
+    // preview runs these exact damage rules without touching the game.
+    const LIVE_COMBAT_LIFE = {
+        player: amount => changePlayerLife(amount),
+        enemy: amount => changeEnemyLife(amount)
+    };
+
+    function applyDamage(attacker, blockers, isPlayerAttacking, life = LIVE_COMBAT_LIFE) {
         const adjustLifeByController = (isPlayerControlled, amount) => {
             if (amount <= 0) return;
             if (isPlayerControlled) {
-                changePlayerLife(amount);
+                life.player(amount);
             } else {
-                changeEnemyLife(amount);
+                life.enemy(amount);
             }
         };
 
@@ -6141,9 +6567,9 @@
 
                 if (remainingAttackDamage > 0 && hasAbility(attacker, 'trample')) {
                     if (isPlayerAttacking) {
-                        changeEnemyLife(-remainingAttackDamage);
+                        life.enemy(-remainingAttackDamage);
                     } else {
-                        changePlayerLife(-remainingAttackDamage);
+                        life.player(-remainingAttackDamage);
                     }
 
                     if (hasAbility(attacker, 'lifelink')) {
@@ -6170,23 +6596,73 @@
     }
 
     // An unblocked attacker hits the defending player; Double Strike hits twice (RULES.md C4, C6).
-    function dealUnblockedDamage(attacker, isPlayerAttacking) {
+    function dealUnblockedDamage(attacker, isPlayerAttacking, life = LIVE_COMBAT_LIFE) {
         const hits = hasAbility(attacker, 'double_strike') ? 2 : 1;
         const power = attacker.power || 0;
         for (let i = 0; i < hits; i++) {
             if (isPlayerAttacking) {
-                changeEnemyLife(-power);
+                life.enemy(-power);
             } else {
-                changePlayerLife(-power);
+                life.player(-power);
             }
             if (hasAbility(attacker, 'lifelink')) {
                 if (isPlayerAttacking) {
-                    changePlayerLife(power);
+                    life.player(power);
                 } else {
-                    changeEnemyLife(power);
+                    life.enemy(power);
                 }
             }
         }
+    }
+
+    // What an attack would do, by the same rules as the real thing: the automatic blocks (assignAutoBlockers),
+    // then applyDamage / dealUnblockedDamage for each attacker in declared order, deaths checked afterwards
+    // (as checkStateBasedActions does). It works on copies of the creatures and of the life totals, so it never
+    // changes cards, life, mana, randomness, timers or rewards. The life copies follow the live life rules:
+    // never below 0, and nothing changes once a side has lost (the match would be over).
+    function previewCombat(attackers, defendingBoard, isPlayerAttacking) {
+        const copy = card => ({ ...card, abilities: [...(card.abilities || [])] });
+        const attackerCopies = attackers.filter(Boolean).map(copy);
+        const blockerCopies = defendingBoard.filter(c => c.type === 'creature' && !c.tapped).map(copy);
+        const blocks = assignAutoBlockers(attackerCopies, blockerCopies);
+        const totals = { player: gameState.playerLife, enemy: gameState.enemyLife, result: gameState.matchFinalized ? 'over' : null };
+        const change = (side, amount) => {
+            if (totals.result) return;
+            totals[side] = Math.max(0, totals[side] + amount);
+            // checkGameOver looks at the player first
+            if (totals.player <= 0) totals.result = 'loss';
+            else if (totals.enemy <= 0) totals.result = 'win';
+        };
+        const life = { player: amount => change('player', amount), enemy: amount => change('enemy', amount) };
+        const dies = card => (card.damage || 0) >= card.toughness;
+
+        const pairs = attackerCopies.map(attacker => {
+            const blockers = (blocks[attacker.id] || []).map(id => blockerCopies.find(b => b.id === id)).filter(Boolean);
+            const before = { player: totals.player, enemy: totals.enemy };
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, isPlayerAttacking, life);
+            } else {
+                dealUnblockedDamage(attacker, isPlayerAttacking, life);
+            }
+            return { attacker, blockers, lifeChange: { player: totals.player - before.player, enemy: totals.enemy - before.enemy } };
+        });
+
+        return {
+            isPlayerAttacking,
+            blocks,
+            pairs: pairs.map(({ attacker, blockers, lifeChange }) => ({
+                attackerId: attacker.id,
+                blockerIds: blockers.map(b => b.id),
+                attackerDies: dies(attacker),
+                attackerDamage: attacker.damage || 0,
+                blockersDie: blockers.filter(dies).map(b => b.id),
+                blockerDamage: Object.fromEntries(blockers.map(b => [b.id, b.damage || 0])),
+                lifeChange
+            })),
+            life: { player: totals.player, enemy: totals.enemy },
+            deaths: [...attackerCopies, ...blockerCopies].filter(dies).map(c => c.id),
+            result: totals.result === 'over' ? null : totals.result
+        };
     }
 
     function aiDeclareBlockers() {
@@ -6203,25 +6679,9 @@
     }
 
     function resolveCombat() {
-        gameState.attackers.forEach(attackerId => {
-            const attacker = gameState.playerBoard.find(c => c.id === attackerId);
-            if (!attacker) return;
-
-            if (!hasAbility(attacker, 'vigilance')) {
-                attacker.tapped = true;
-            }
-
-            const blockerIds = gameState.blockers[attackerId] || [];
-            const blockers = blockerIds.map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean);
-
-            if (blockers.length > 0) {
-                applyDamage(attacker, blockers, true);
-            } else {
-                dealUnblockedDamage(attacker, true);
-            }
-        });
-
-        checkStateBasedActions();
+        const attackers = gameState.attackers.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
+        resolveAttackersWithHistory(attackers, attacker => (gameState.blockers[attacker.id] || [])
+            .map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean), true);
         gameState.attackers = [];
         gameState.blockers = {};
     }
@@ -6279,6 +6739,7 @@
 
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
+        aiStatusText = 'Starting its turn';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
         document.getElementById('gameContainer').classList.add('enemy-turn');
 
@@ -6297,6 +6758,7 @@
         const artifacts = board.filter(c => c.type === 'artifact');
 
         artifacts.forEach(artifact => {
+            const snap = snapshotForHistory();
             switch(artifact.effect) {
                 case 'draw':
                     // Artifacts like Crown of Power or Dark Scroll
@@ -6326,6 +6788,8 @@
                     showGameLog(`${artifact.emoji} ${artifact.name} deals ${artifact.value || 1} damage!`, !isPlayer);
                     break;
             }
+            const changes = describeChangesSince(snap);
+            if (changes.length) recordHistory(isPlayer ? 'player' : 'enemy', `${cardLabel(artifact)} at the start of the turn`, changes);
         });
     }
 
@@ -6340,13 +6804,15 @@
 
         gameState.turn = 'player';
         gameState.phase = 'main';
+        gameState.round = (gameState.round || 1) + 1;
+        aiStatusText = '';
+        recordHistory('player', `🔔 Turn ${gameState.round}: your turn`);
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
 
         // CRITICAL FIX: Ensure attack phase is reset and button is restored
         attackPhase = false;
         gameState.attackers = [];
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         // Draw card at start of turn
         drawCard('player');
@@ -6375,26 +6841,30 @@
     // The AI plays a creature, artifact or instant from its hand, through the same resolution as the player.
     // Returns the id of the permanent it put on the battlefield, if any.
     function aiPlayCard(card) {
+        const snap = snapshotForHistory();
         payCost(card.cost, gameState.enemyMana);
         gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== card.id);
+        setAiStatus(`${card.type === 'instant' ? 'Casting' : 'Playing'} ${cardLabel(card)}`);
+        let playedId = null;
 
         if (card.type === 'creature') {
             gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
-            return card.id;
-        }
-
-        if (card.type === 'artifact') {
+            playedId = card.id;
+        } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.enemyBoard.push(artifactOnBoard);
             showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
             resolveArtifactOnPlay(artifactOnBoard, 'enemy');
-            return artifactOnBoard.id;
+            playedId = artifactOnBoard.id;
+        } else {
+            showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+            castInstant(card, 'enemy');
         }
 
-        showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
-        castInstant(card, 'enemy');
-        return null;
+        const verb = { creature: 'summons', artifact: 'plays', instant: 'casts' }[card.type] || 'plays';
+        recordHistory('enemy', `${card.emoji} Enemy ${verb} ${card.name}`, describeChangesSince(snap, { playedFrom: 'enemy', playedId: playedId ?? card.id }));
+        return playedId;
     }
 
     // The AI holds a two-sided sweeper (Earthquake, Avalanche) unless it kills more of your creatures than
@@ -6575,6 +7045,9 @@
         }, 12000); // 12 seconds maximum for AI turn
 
         try {
+            setAiStatus('Drawing a card');
+            recordHistory('enemy', '🤖 Enemy turn');
+
             // Untap enemy permanents
             gameState.enemyBoard.forEach(untapAtTurnStart);
             gameState.enemyMana = {};
@@ -6590,10 +7063,12 @@
             if (turnIsStale()) return;
             // Play lands
             const landInHand = aiChooseLand();
+            setAiStatus(landInHand ? `Playing a land: ${cardLabel(landInHand)}` : 'No land to play');
             if (landInHand) {
                 gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== landInHand.id);
                 gameState.enemyBoard.push({...landInHand, tapped: false});
                 showGameLog(`🌍 Enemy plays ${landInHand.name}`, true);
+                recordHistory('enemy', `🌍 Enemy plays ${landInHand.name}`);
                 updateUI();
                 const enemyLandEl = document.querySelector(`#enemyBoard .card[data-card-id="${landInHand.id}"]`) ||
                     document.querySelector(`#enemyBoard .card[data-id="${landInHand.id}"]`) ||
@@ -6604,7 +7079,9 @@
             setTimeout(() => {
                 if (turnIsStale()) return;
                 // Tap lands and mana artifacts for mana
+                setAiStatus('Tapping mana');
                 const manaTapped = aiTapManaSources();
+                if (!manaTapped) setAiStatus('Choosing what to play');
 
                 if (manaTapped) {
                     showGameLog('⚡ Enemy taps lands for mana', true);
@@ -6637,6 +7114,7 @@
                                 gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
                                 playedEnemyCreatureIds.push(creature.id);
                                 showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
+                                recordHistory('enemy', `${creature.emoji} Enemy summons ${creature.name}`);
                                 creaturePlayed = true;
                             }
                         });
@@ -6664,8 +7142,10 @@
                                 gameState.enemyBoard.push(artifactOnBoard);
                                 playedEnemyArtifactIds.push(artifactOnBoard.id);
                                 showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
+                                const artifactSnap = snapshotForHistory();
 
                                 resolveArtifactOnPlay(artifactOnBoard, 'enemy');
+                                recordHistory('enemy', `${artifact.emoji} Enemy plays ${artifact.name}`, describeChangesSince(artifactSnap));
 
                                 artifactPlayed = true;
                             }
@@ -6691,7 +7171,9 @@
                                     payCost(spell.cost, gameState.enemyMana);
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
+                                    const spellSnap = snapshotForHistory();
                                     castInstant(spell, 'enemy');
+                                    recordHistory('enemy', `${spell.emoji} Enemy casts ${spell.name}`, describeChangesSince(spellSnap));
                                     spellPlayed = true;
                                 }
                             });
@@ -6726,6 +7208,7 @@
                         }
 
                         mainPhaseActed = playsMade > 0;
+                        if (!playsMade) setAiStatus('Plays nothing this turn');
                         if (playsMade > 0) {
                             updateUI();
                             playedEnemyCardIds.forEach(playedId => {
@@ -6756,10 +7239,14 @@
                                 }
                             }
 
+                            setAiStatus(attackingCreatures.length
+                                ? `Attacking with ${attackingCreatures.length} creature${attackingCreatures.length === 1 ? '' : 's'}`
+                                : 'Not attacking');
                             resolveEnemyAttackPhase(attackingCreatures);
 
                             updateUI();
                             checkGameOver();
+                            // The attack status stays up through the pause before the player's turn
 
                             setTimeout(() => {
                                 if (turnIsStale()) return;
@@ -6892,6 +7379,7 @@
             playSFX('attack');
         } else {
             showGameLog('🛡️ Enemy does not attack', true);
+            recordHistory('enemy', '🛡️ Enemy does not attack');
             return;
         }
 
@@ -6904,26 +7392,11 @@
             blockers: (playerBlockers[attacker.id] || []).map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean)
         }));
 
-        attackingCreatures.forEach(attacker => {
-            if (!hasAbility(attacker, 'vigilance')) {
-                attacker.tapped = true;
-            }
-
-            const blockerIds = playerBlockers[attacker.id] || [];
-            const blockers = blockerIds.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
-
-            if (blockers.length > 0) {
-                applyDamage(attacker, blockers, false);
-            } else {
-                dealUnblockedDamage(attacker, false);
-            }
-
-            const playerArea = document.querySelector('.player-area:not(.enemy-area)');
-            const rect = playerArea.getBoundingClientRect();
-            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
-        });
-
-        checkStateBasedActions();
+        resolveAttackersWithHistory(attackingCreatures, attacker => (playerBlockers[attacker.id] || [])
+            .map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean), false);
+        const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+        const rect = playerArea.getBoundingClientRect();
+        attackingCreatures.forEach(() => createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30));
         reportCombat(combatPairs, 'enemy');
     }
 
@@ -7060,6 +7533,9 @@
 
     // Update UI
     function performUIUpdate() {
+        // The attack preview first: board cards show their predicted part in it
+        refreshCombatPreview();
+
         // Update life totals
         document.getElementById('playerLife').textContent = gameState.playerLife;
         document.getElementById('enemyLife').textContent = gameState.enemyLife;
@@ -7079,24 +7555,26 @@
             const cardEl = createCardElement(card, false);
             attachDesktopTooltip(cardEl, card);
 
-            if (card.type === 'land') {
-                if (gameState.landsPlayedThisTurn < 1) {
-                    cardEl.classList.add('playable');
+            // Playable or not, by the same checks playCard makes (getPlayRestriction); the reason is on the card
+            const restriction = getPlayRestriction(card);
+            cardEl.classList.add(restriction ? 'unplayable' : 'playable');
+            if (restriction) {
+                cardEl.dataset.restriction = restriction.code;
+                cardEl.title = `Can't play now: ${restriction.text}`;
+                if (restriction.code === 'mana' || restriction.code === 'land') {
+                    const chip = document.createElement('div');
+                    chip.className = 'card-reason';
+                    chip.setAttribute('aria-hidden', 'true');
+                    const missing = getMissingMana(card.cost || {}, gameState.playerMana);
+                    chip.textContent = restriction.code === 'land' ? 'Land used'
+                        : `🔒${Object.entries(missing).map(([el, n]) => `${ELEMENTS[el]?.emoji || '◇'}${n}`).join('') || ''}`;
+                    cardEl.appendChild(chip);
                 }
-            } else if (canPayCost(card.cost, gameState.playerMana)) {
-                cardEl.classList.add('playable');
             }
 
-            if (card.type !== 'land' && !canPayCost(card.cost, gameState.playerMana)) {
-                cardEl.classList.add('unplayable');
-            }
-            if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
-                cardEl.classList.add('unplayable');
-            }
-            
             // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
             bindCardPress(cardEl, {
-                label: describeCardForA11y(card, 'hand'),
+                label: describeCardForA11y(card, 'hand') + (restriction ? `, can't play now: ${restriction.text}` : ''),
                 onTap: () => playCard(card.id),
                 onLongPress: () => showCardDetail(card)
             });
@@ -7214,6 +7692,7 @@
             const cardEl = createCardElement(card, true);
             attachDesktopTooltip(cardEl, card);
             
+            let attackNote = '';
             if (card.type === 'creature' && attackPhase && gameState.attackers.includes(card.id)) {
                 cardEl.classList.add('attacking');
                 const marker = document.createElement('div');
@@ -7221,6 +7700,20 @@
                 marker.textContent = '⚔️';
                 marker.setAttribute('aria-hidden', 'true');
                 cardEl.appendChild(marker);
+                attackNote = markPreviewOutcome(cardEl, card.id);
+            } else if (card.type === 'creature' && attackPhase) {
+                // Why it can't attack (getAttackRestriction), on the card and in its name
+                const restriction = getAttackRestriction(card);
+                cardEl.classList.add(restriction ? 'cannot-attack' : 'can-attack');
+                if (restriction) {
+                    const chip = document.createElement('div');
+                    chip.className = 'card-reason';
+                    chip.setAttribute('aria-hidden', 'true');
+                    chip.textContent = card.tapped ? 'Tapped' : hasAbility(card, 'defender') ? 'Defender' : 'Next turn';
+                    cardEl.appendChild(chip);
+                    cardEl.title = `Can't attack: it ${restriction}`;
+                    attackNote = `, can't attack: it ${restriction}`;
+                }
             }
 
             // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
@@ -7233,7 +7726,7 @@
             }
             bindCardPress(cardEl, {
                 label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
-                    ? (gameState.attackers.includes(card.id) ? ', attacking' : ', press to attack') : ''),
+                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : ''),
                 onTap: boardAction,
                 onLongPress: () => showCardDetail(card)
             });
@@ -7324,9 +7817,10 @@
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
+            const blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
 
             bindCardPress(cardEl, {
-                label: `Enemy ${describeCardForA11y(card, 'board')}`,
+                label: `Enemy ${describeCardForA11y(card, 'board')}${blockNote}`,
                 onTap: () => showCardDetail(card),
                 onLongPress: () => showCardDetail(card)
             });
@@ -7335,6 +7829,9 @@
         });
 
         restoreRowFocus(savedRowFocus);
+        renderCombatPreviewPanel();
+        updateTurnBanner();
+        if (attackPhase) setAttackControls('select');
 
         // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
@@ -7362,7 +7859,8 @@
         }
 
         if (endTurnBtn) {
-            const shouldDisableEndTurn = !isPlayerTurn || isProcessingAction || attackPhase;
+            // During attacker selection this button is CANCEL, so it stays usable
+            const shouldDisableEndTurn = !isPlayerTurn || isProcessingAction;
             endTurnBtn.disabled = shouldDisableEndTurn;
 
             // Visual feedback for disabled state
@@ -7526,6 +8024,7 @@
         { id: 'victoryOverlay', close: null },       // PLAY AGAIN or MAIN MENU (Esc used to strand the board)
         { id: 'loseOverlay', close: null },
         { id: 'graveyardModal', close: () => hideGraveyard() },
+        { id: 'historyModal', close: () => hideMatchHistory() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 
@@ -7661,6 +8160,13 @@
             return;
         }
 
+        // H = match history, on either side's turn
+        if (e.key === 'h' || e.key === 'H') {
+            e.preventDefault();
+            showMatchHistory();
+            return;
+        }
+
         // Only allow shortcuts during player's turn
         if (gameState.turn !== 'player' || isProcessingAction) {
             return;
@@ -7671,7 +8177,9 @@
             case 'e': // E = End Turn
                 e.preventDefault();
                 const endTurnBtn = document.getElementById('endTurnBtn');
-                if (endTurnBtn && !endTurnBtn.disabled) {
+                if (attackPhase) {
+                    endTurn(); // still END TURN, which is refused mid-attack (the button itself is CANCEL now)
+                } else if (endTurnBtn && !endTurnBtn.disabled) {
                     endTurnBtn.click();
                 }
                 break;
