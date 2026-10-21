@@ -8,8 +8,8 @@ jobs:
   ui:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Install Playwright and axe-core (versions pinned in package.json)
@@ -26,7 +26,7 @@ jobs:
         run: node tests/card-faces.mjs --label=ci
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ui-audit-screenshots
           path: |
