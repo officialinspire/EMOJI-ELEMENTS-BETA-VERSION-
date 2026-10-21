@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 22
       - name: Install Playwright and axe-core (versions pinned in package.json)
-        run: npm install
+        run: npm install --package-lock=false --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run themes, UI, menu and card presentation audits

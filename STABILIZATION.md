@@ -27,12 +27,17 @@ AI turn, pauses with exactly 1000 ms remaining, advances 30 seconds while paused
 that resume waits through 999 ms and fires at 1000 ms. An intentional host delay verifies that
 wall time cannot move this boundary. No assertions were removed and game pause logic is unchanged.
 
+The aggregate run also exposed a focus race in the paused-board test: Space can correctly activate
+the focused RESUME button. The test now waits for modal focus and blurs that button before sending
+board shortcuts. A separate test verifies that both Space and Enter on RESUME resume the same
+match without advancing its turn. Board snapshot and direct-call guards remain asserted.
+
 ## Full Chromium verification
 
 From the checkout, with Node 22+:
 
 ```sh
-npm install
+npm install --package-lock=false --no-audit --no-fund
 npx playwright install --with-deps chromium
 npm run verify
 ```

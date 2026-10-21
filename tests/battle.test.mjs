@@ -90,6 +90,10 @@ test('while paused the board takes no input: keys, clicks and direct calls do no
     const before = await snapshot(page);
     await page.keyboard.press('Escape');
     assert.equal((await paused(page)).flag, true, 'Esc pauses');
+    await page.clock.runFor(100);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'pauseResumeBtn');
+    // Space/Enter on RESUME should activate it. Exercise board shortcuts from the neutral body instead.
+    await page.evaluate(() => document.activeElement.blur());
 
     for (const key of ['Space', 'e', 'a', 'm', 'Enter']) await page.keyboard.press(key);
     await page.mouse.click(40, 40);                     // outside the panel: the backdrop
@@ -106,6 +110,20 @@ test('while paused the board takes no input: keys, clicks and direct calls do no
     assert.deepEqual(await snapshot(page), before);
     assert.equal((await paused(page)).flag, true, 'still paused');
     assert.equal(await page.evaluate(() => attackPhase), false);
+});
+
+test('Space and Enter on the focused RESUME button resume without advancing the turn', async t => {
+    const page = await openGame(t);
+    await startMatch(page);
+    const before = await snapshot(page);
+    for (const key of ['Space', 'Enter']) {
+        await page.evaluate(() => pauseGame());
+        await page.clock.runFor(100);
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'pauseResumeBtn');
+        await page.keyboard.press(key);
+        assert.equal((await paused(page)).flag, false, `${key} activates RESUME`);
+        assert.deepEqual(await snapshot(page), before, 'resuming does not play a card or pass the turn');
+    }
 });
 
 test('resume returns focus to the card that had it', { timeout: 60000 }, async t => {
