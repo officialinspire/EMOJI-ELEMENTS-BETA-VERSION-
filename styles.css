@@ -6358,7 +6358,7 @@ html {
     touch-action: pinch-zoom;
 }
 
-.pack-summary-grid {
+.pack-summary-content {
     min-height: 0;
     overflow-y: auto;
 }

@@ -57,6 +57,7 @@ test('pack reveal and summary retain reachable controls across orientation and z
         await clickAt(page, '#packSummaryBtn');
         await page.clock.runFor(300);
         await visible(['packCloseBtn', 'packSummaryBackBtn', 'packDoneBtn']);
+        assert.ok(await page.locator('.pack-summary-content').evaluate(el => el.clientHeight >= 44), 'summary retains a readable scrolling area');
         await page.screenshot({ path: path.join(out, `${width}-${height}-${zoom}-summary.png`) });
         assert.equal(await page.locator('#packSummaryGrid .pack-summary-card').count(), 5);
         await page.locator('#packSummaryGrid .pack-summary-card').last().evaluate(el => el.scrollIntoView({ block: 'nearest' }));
