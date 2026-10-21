@@ -123,6 +123,7 @@ function extractDeclaration(src, name) {
 }
 
 const GAME_DECLARATIONS = [
+    'gameplayRandomState', 'setGameplaySeed', 'gameplayRandom', 'cardInstanceSequence', 'nextCardInstanceId',
     'STARTER_CREDITS', 'STARTER_MONO_DECK_KEYS', 'STARTER_DUAL_DECK_KEYS', 'STANDARD_DECK_SIZE', 'STANDARD_MAX_LANDS',
     'DUAL_DECK_MAX_LANDS_PER_COLOR', 'DUAL_DECK_MAX_LANDS_TOTAL', 'getDeckLandCaps', 'inferLandElements',
     'getDeckColorsFromKey', 'getDeckKeyFromElements', 'getDeckCardCopyLimit', 'getDeckBuilderCopyLimit',
