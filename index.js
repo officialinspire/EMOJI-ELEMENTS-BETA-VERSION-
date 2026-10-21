@@ -3605,14 +3605,28 @@
                 particles.push(new Particle(x, y, color));
             }
         }
+        startParticleLoop();
     }
 
-    // Performance: Use requestAnimationFrame more efficiently
+    // Performance: Use requestAnimationFrame more efficiently. The loop runs only while particles are alive;
+    // it used to clear the full-screen canvas 60 times a second forever, menus included.
     let lastParticleFrame = 0;
     const particleFPS = 60;
     const particleFrameInterval = 1000 / particleFPS;
+    let particleLoopRunning = false;
+
+    function startParticleLoop() {
+        if (particleLoopRunning) return;
+        particleLoopRunning = true;
+        requestAnimationFrame(animateParticles);
+    }
 
     function animateParticles(currentTime) {
+        if (!particles.length) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particleLoopRunning = false;
+            return;
+        }
         requestAnimationFrame(animateParticles);
 
         // Throttle particle updates for better performance
@@ -3630,8 +3644,6 @@
             p.draw();
         });
     }
-
-    animateParticles(0);
 
     // Game Log System
     // One message at a time. A message shown with `hold` (combat reports) stays up for that long; messages
@@ -4907,6 +4919,7 @@
 
         const { deck, counts, eligibleCardIds } = getDeckBuilderDeckEntries(deckBuilderState.deckKey);
         if (!deck) return;
+        const savedFocus = captureDeckBuilderFocus();
 
         const targetSize = getDeckTargetSize(deck);
         const ownedOf = card => gameMeta.collection[card.__id] || 0;
@@ -4998,6 +5011,25 @@
         renderDeckBuilderSummary(deck);
         renderDeckIssues();
         updateDeckBuilderStatus(deck);
+        restoreDeckBuilderFocus(savedFocus);
+    }
+
+    // + and − rebuild both lists, which dropped keyboard focus to the page. Keep it on the same card's button,
+    // or on the row that took its place when the card left the list.
+    function captureDeckBuilderFocus() {
+        const active = document.activeElement;
+        const row = active?.closest?.('#deckBuilderPool .deck-builder-row, #deckBuilderDeck .deck-builder-row');
+        if (!row) return null;
+        const rows = [...row.parentElement.querySelectorAll('.deck-builder-row')];
+        return { listId: row.parentElement.id, cardId: row.dataset.cardId, index: rows.indexOf(row), button: [...row.querySelectorAll('button')].indexOf(active) };
+    }
+
+    function restoreDeckBuilderFocus(saved) {
+        if (!saved) return;
+        const rows = [...(document.getElementById(saved.listId)?.querySelectorAll('.deck-builder-row') || [])];
+        const row = rows.find(r => r.dataset.cardId === saved.cardId) || rows[Math.min(saved.index, rows.length - 1)];
+        const target = row?.querySelectorAll('button')[Math.max(saved.button, 0)] || document.querySelector('#deckBuilderFilters .card-filter-search');
+        target?.focus({ preventScroll: true });
     }
 
     function loadDeckIntoBuilder(deckKey) {
@@ -5338,6 +5370,13 @@
         attackPhase = false;
         releaseProcessingLock();
         setAttackControls('idle');
+
+        // Drop the left match's cards (and their listeners) from the hidden board; startGame rebuilds the rows.
+        // A UI update already queued for the next frame would fill them again from the old match, so cancel it.
+        if (uiUpdateRafId && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(uiUpdateRafId);
+        uiUpdateRafId = 0;
+        isUIUpdateScheduled = false;
+        ['playerHand', 'playerBoard', 'enemyBoard'].forEach(id => { document.getElementById(id).innerHTML = ''; });
 
         initializeStartMenuState();
 

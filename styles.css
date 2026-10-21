@@ -996,13 +996,6 @@ body::after {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
-@media (min-width: 768px) {
-    .element-btn {
-        padding: 25px;
-        font-size: 48px;
-    }
-}
-
 .element-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
@@ -1381,17 +1374,7 @@ body::after {
 
 .shop-pack-btn {
     width: 100%;
-    font-size: 13px;
-    padding: 12px 10px;
-    letter-spacing: 0.5px;
 }
-
-.shop-pack-btn[data-theme="fantasy"] { background: linear-gradient(135deg, #ffd86e 0%, #b88cff 100%); }
-.shop-pack-btn[data-theme="scifi"] { background: linear-gradient(135deg, #6df1ff 0%, #6787ff 100%); }
-.shop-pack-btn[data-theme="tech"] { background: linear-gradient(135deg, #b8c0cc 0%, #7d8fa4 100%); }
-.shop-pack-btn[data-theme="alien"] { background: linear-gradient(135deg, #9dff89 0%, #2f8a67 100%); }
-.shop-pack-btn[data-theme="robot"] { background: linear-gradient(135deg, #cfd6df 0%, #8a95a8 100%); }
-.shop-pack-btn[data-theme="lands"] { background: linear-gradient(135deg, #9fdd84 0%, #d8b16a 100%); }
 
 .pack-shop-message {
     min-height: 24px;
@@ -1611,47 +1594,6 @@ body::after {
     }
 }
 
-.card-stack {
-    position: relative;
-    min-width: 60px;
-    height: 80px;
-    margin-right: 10px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.card-stack:hover {
-    transform: translateY(-5px);
-}
-
-.stack-count {
-    position: absolute;
-    bottom: -5px;
-    right: -5px;
-    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-    color: #2a1a0a;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    font-family: 'Cinzel', serif;
-    border: 2px solid #8b7355;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    z-index: 100;
-    pointer-events: none;
-}
-
-.stack-count-enemy {
-    background: linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%);
-    color: #fff;
-    border-color: #8b0000;
-}
-
 /* Land stack representative card */
 .land-stack-card {
     position: relative;
@@ -1770,35 +1712,8 @@ body::after {
     -webkit-tap-highlight-color: transparent;
 }
 
-.land-stack-card:hover .land-stack-tap-all,
-.land-stack-card.show-tap-all .land-stack-tap-all {
+.land-stack-card:hover .land-stack-tap-all {
     display: flex;
-}
-
-@media (min-width: 768px) {
-    .card-stack {
-        min-width: 60px;
-        height: 80px;
-    }
-
-    .stack-count {
-        width: 26px;
-        height: 26px;
-        font-size: 13px;
-    }
-
-    .land-stack-card {
-        min-width: 70px;
-        height: 90px;
-    }
-
-    .land-stack-emoji {
-        font-size: 32px;
-    }
-
-    .land-stack-count {
-        font-size: 12px;
-    }
 }
 
 .pause-modal {
@@ -2683,13 +2598,6 @@ body.no-scroll {
         font-size: 56px;
     }
 
-    /* Larger card stack counters */
-    .stack-count {
-        width: 30px;
-        height: 30px;
-        font-size: 14px;
-    }
-
     .land-stack-card {
         min-width: 80px;
         height: 100px;
@@ -2716,13 +2624,6 @@ body.no-scroll {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
-}
-
-/* Better loading states */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-    filter: grayscale(0.5);
 }
 
 /* Improved focus states for accessibility and keyboard navigation */
@@ -3065,10 +2966,6 @@ html {
     transform-origin: center;
 }
 
-.juice-shake {
-    animation: juiceQuickShake 0.28s ease-in-out;
-}
-
 .juice-glow-common {
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.18), 0 0 14px rgba(255, 255, 255, 0.12);
 }
@@ -3095,62 +2992,6 @@ html {
 .card.rarity-epic,
 .card.rarity-legendary {
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.card.rarity-common {
-    border-color: rgba(230, 230, 230, 0.75);
-}
-
-.card.rarity-uncommon {
-    border-color: rgba(126, 242, 159, 0.78);
-}
-
-.card.rarity-rare {
-    border-color: rgba(96, 181, 255, 0.82);
-}
-
-.card.rarity-epic {
-    border-color: rgba(183, 121, 255, 0.84);
-}
-
-.card.rarity-legendary {
-    border-color: rgba(255, 206, 96, 0.96);
-    animation: legendaryAuraPulse 1.8s ease-in-out infinite;
-}
-
-.card.rarity-legendary::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 12px;
-    pointer-events: none;
-    background: radial-gradient(circle, rgba(255, 238, 168, 0.48) 0%, rgba(255, 180, 86, 0.22) 42%, rgba(255, 126, 34, 0) 72%);
-    filter: blur(5px);
-    opacity: 0.82;
-    mix-blend-mode: screen;
-    animation: legendaryHaloSpin 2.8s linear infinite;
-}
-
-@keyframes legendaryAuraPulse {
-    0%,
-    100% {
-        box-shadow: 0 0 12px rgba(255, 220, 122, 0.45), 0 0 24px rgba(255, 169, 60, 0.26);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(255, 232, 157, 0.76), 0 0 42px rgba(255, 169, 60, 0.48), 0 0 60px rgba(255, 112, 18, 0.28);
-    }
-}
-
-@keyframes legendaryHaloSpin {
-    0% {
-        transform: rotate(0deg) scale(0.98);
-    }
-    50% {
-        transform: rotate(180deg) scale(1.03);
-    }
-    100% {
-        transform: rotate(360deg) scale(0.98);
-    }
 }
 
 .screen-shake {
@@ -3189,15 +3030,6 @@ html {
         transform: scale(1);
         opacity: 1;
     }
-}
-
-@keyframes juiceQuickShake {
-    0%,
-    100% { transform: translateX(0); }
-    20% { transform: translateX(-3px); }
-    40% { transform: translateX(3px); }
-    60% { transform: translateX(-2px); }
-    80% { transform: translateX(2px); }
 }
 
 @keyframes screenShakeFx {
@@ -4751,7 +4583,7 @@ html {
     --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 -10px 12px -6px rgba(120, 84, 40, 0.55);
 }
 
-/* Rarity: border colour only, never animated (the legendary pulse and halo are gone) */
+/* Rarity: border colour only, never animated */
 .card.rarity-common { border-color: var(--rarity-common); }
 .card.rarity-uncommon { border-color: var(--rarity-uncommon); }
 .card.rarity-rare { border-color: var(--rarity-rare); }
@@ -4759,12 +4591,7 @@ html {
 
 .card.rarity-legendary {
     border-color: var(--rarity-legendary);
-    animation: none;
     --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 206, 96, 0.55), 0 0 8px rgba(255, 206, 96, 0.3);
-}
-
-.card.rarity-legendary::after {
-    content: none;
 }
 
 /* ---- Cost pips (faces, details, pack reveal) */
@@ -5294,12 +5121,13 @@ html {
     color: var(--text-dim);
 }
 
-#startModal .row-cost {
+/* Shared by the Collection, the Deck Builder and the Pack Shop's "What's inside" (outside #startModal) */
+:is(#startModal, .pack-contents-modal) .row-cost {
     display: inline-flex;
     gap: 3px;
 }
 
-#startModal .row-pt {
+:is(#startModal, .pack-contents-modal) .row-pt {
     padding: 0 5px;
     border: 1px solid rgba(242, 207, 114, 0.6);
     border-radius: 4px;
@@ -5309,14 +5137,14 @@ html {
     font-weight: 700;
 }
 
-#startModal .row-keyword.is-inactive {
+:is(#startModal, .pack-contents-modal) .row-keyword.is-inactive {
     text-decoration: line-through;
 }
 
-#startModal .row-rarity.rarity-common { color: #d6c8aa; }
-#startModal .row-rarity.rarity-rare { color: var(--rarity-rare); }
-#startModal .row-rarity.rarity-epic { color: #c9a2ff; }
-#startModal .row-rarity.rarity-legendary { color: var(--rarity-legendary); }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-common { color: #d6c8aa; }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-rare { color: var(--rarity-rare); }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-epic { color: #c9a2ff; }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-legendary { color: var(--rarity-legendary); }
 
 #startModal .row-unowned {
     padding: 0 6px;
@@ -6333,12 +6161,6 @@ html {
     color: var(--text-soft);
 }
 
-.pack-contents-modal .row-cost { display: inline-flex; gap: 3px; }
-.pack-contents-modal .row-keyword.is-inactive { opacity: 0.75; text-decoration: line-through; }
-.pack-contents-modal .row-rarity.rarity-common { color: #d6c8aa; }
-.pack-contents-modal .row-rarity.rarity-rare { color: var(--rarity-rare, #6fb7ff); }
-.pack-contents-modal .row-rarity.rarity-epic { color: #c9a2ff; }
-.pack-contents-modal .row-rarity.rarity-legendary { color: var(--rarity-legendary, #ffcf5a); }
 
 .pack-contents-owned {
     font-family: var(--font-body, 'Inter', sans-serif);
