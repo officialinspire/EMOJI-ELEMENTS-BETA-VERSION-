@@ -141,15 +141,21 @@ export async function startMatch(page, { mode = 'single', elements = ['fire'] } 
     assert.equal(await page.evaluate(() => document.getElementById('gameContainer').style.display), 'flex', 'match did not start');
 }
 
-// Runs an action in the page, then lets short UI locks (playCard 200 ms, combat 300 ms) expire.
-// On a busy machine (CI) a lock's release timer occasionally hadn't run after the fixed 400 ms, so the next
-// action (often END TURN) was silently refused. During the player's turn, keep advancing in small steps until
-// the lock clears (at most 2 s more); the enemy turn's lock is meant to be held, so it is left alone.
+// Runs an action in the page, then lets short UI locks (playCard 200 ms, combat 300 ms) expire and the
+// UI update it queued for the next frame run.
+// On a busy machine (CI) these occasionally hadn't happened after the fixed 400 ms: a lock still held made the
+// next action (often END TURN) silently refused, and a queued update left the screen one step behind. Keep
+// stepping (fake clock plus a short real wait) until both are done, at most 2 s more. Only on the player's
+// turn: the enemy turn's lock is meant to be held, and extra time there would move the AI on.
 export async function act(page, fn, arg) {
     const result = await page.evaluate(fn, arg);
     await page.clock.runFor(400);
-    const shortLockHeld = () => page.evaluate(() => isProcessingAction && gameState.turn === 'player' && gameState.phase !== 'enemy' && !gameState.matchFinalized);
-    for (let i = 0; i < 20 && await shortLockHeld(); i++) await page.clock.runFor(100);
+    const unsettled = () => page.evaluate(() => gameState.turn === 'player' && gameState.phase !== 'enemy' &&
+        !gameState.matchFinalized && (isUIUpdateScheduled || isProcessingAction));
+    for (let i = 0; i < 20 && await unsettled(); i++) {
+        await page.clock.runFor(100);
+        await new Promise(resolve => setTimeout(resolve, 20));
+    }
     return result;
 }
 
