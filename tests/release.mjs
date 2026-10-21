@@ -326,7 +326,7 @@ async function playthrough(browser, url, project, { existingSave }) {
     const reloaded = await state(page);
     const backupsAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('emoji_elements_meta_backups') || '[]').length);
     check(label, 'save', 'reloading a clean save writes no new backup', backupsAfterReload === prod.backups.length, `${prod.backups.length} → ${backupsAfterReload}`);
-    const mutedAfterReload = await page.evaluate(() => isMuted && document.getElementById('muteBtn').textContent === '🔇');
+    const mutedAfterReload = await page.evaluate(() => soundSettings.muted && document.getElementById('muteBtn').textContent === '🔇');
     check(label, 'save', 'reload keeps credits, collection, wins/losses, packs opened and mute', reloaded.credits === lost.credits && reloaded.collection === afterBuy.collection && reloaded.wins === lost.wins && reloaded.losses === lost.losses && reloaded.packsOpened === afterBuy.packsOpened && mutedAfterReload, JSON.stringify({ reloaded, mutedAfterReload }));
 
     // ---- resets (through STATS and the confirm dialog)

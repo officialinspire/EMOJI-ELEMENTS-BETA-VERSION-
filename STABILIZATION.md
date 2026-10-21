@@ -35,6 +35,10 @@ clock before starting a match, also preventing the AI marker's render frame from
 time. The full 15-test battle suite passed three diagnostic runs, including two concurrent runs,
 with no game timer or rendering assertions bypassed.
 
+The release runner also referenced the removed `isMuted` global from before the audio settings
+change. It now reads `soundSettings.muted` and keeps the existing header-icon and saved-profile
+assertions on reload.
+
 ## Full Chromium verification
 
 From the checkout, with Node 22+:
