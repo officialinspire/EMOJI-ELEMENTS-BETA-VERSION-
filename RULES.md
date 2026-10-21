@@ -116,7 +116,12 @@ Emoji Elements borrows trading-card-game vocabulary, but these rules are its own
     granted haste used to do nothing.
   - Clicking a creature that can't attack logs the reason (tapped, summoning sickness, defender). **Changed:**
     this was silent before.
-  - Confirming with no attackers cancels the attack and does not use it up.
+  - Confirming with no attackers cancels the attack and does not use it up. So does **✕ CANCEL** (the END
+    TURN button while you choose attackers).
+  - While you choose, creatures that can't attack show why on the card, and a **Preview** above the
+    battlefield shows the automatic blocks (C2) and the expected result. It runs the same combat code on copies
+    of the cards, so it changes nothing; it is recomputed whenever the boards, life totals or your choice
+    change. The real blocks are made from the board as it is when you confirm.
   - The AI follows the same eligibility rules.
 - **C2 Blocking is automatic for both sides (house rule).** Attackers are handled in the order they were
   declared. Each one is blocked by the defender's **toughest** untapped creature that can legally block it and

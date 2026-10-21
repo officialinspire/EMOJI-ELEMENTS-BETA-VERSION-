@@ -1,5 +1,36 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Gameplay feedback
+
+For players:
+- **Always know whose turn it is.** A banner above the battlefield shows the turn number, whose turn it is and
+  the phase. On the enemy turn it says what the AI is doing: drawing, playing a land, tapping mana, playing a
+  card, attacking with N or not attacking. It never shows the AI's hand.
+- **Clear attack buttons.** ATTACK becomes **✓ CONFIRM n** (how many you picked) and END TURN becomes
+  **✕ CANCEL**, which leaves without attacking. You can still attack later this turn.
+- **Reasons, not guesses.**
+  - While you choose attackers, creatures that can't attack say why: Tapped, Defender, or Next turn.
+  - Hand cards you can't play say why: "Land used", or how much mana they still need ("🔒🔥2"). The full sentence
+    is in the tooltip and card details.
+- **Attack preview.** While you choose attackers, a Preview shows the automatic blocks and the expected result:
+  life totals, who dies (✓ / ☠ on the cards) and whether it wins the match. It uses the same combat rules as the
+  real attack and changes nothing. It updates whenever the board changes.
+- **Match history (📜, or `H`).** The last 80 events of the match, grouped by turn: plays and what they did,
+  attacks, blocks, damage, deaths and life changes. It stays after the messages fade.
+- Turn-change motion is one short pulse, and none with reduced motion turned on.
+
+Unchanged: combat rules, automatic blocking, random targeting, mana, rewards and saves.
+
+Under the hood:
+- `previewCombat` runs the live `assignAutoBlockers`, `applyDamage` and `dealUnblockedDamage` on copies, with
+  its own life ledger.
+- `recordHistory` is called once from the engine, separate from rendering.
+- `getPlayRestriction` makes the same checks as `playCard`; `getAttackRestriction` (already there) gives the
+  attack reasons.
+- New `tests/feedback.test.mjs` (55 tests, in CI): preview = result for first strike, double strike, trample,
+  deathtouch, menace and lifelink with both sides attacking.
+- `tests/feedback-shots.mjs` takes the screenshots and runs axe. See UI.md §10.
+
 ## Unreleased: Collection and Deck Builder
 
 For players:

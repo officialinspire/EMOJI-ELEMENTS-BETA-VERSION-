@@ -132,6 +132,8 @@ Already fine, confirmed by the audit:
 | Card details | long-press (400 ms), or tap a card with no action | right-click, or click a card with no action | I (or the context-menu key) |
 | Tap all lands in a stack | long-press the stack | right-click, or the ⚡ corner button | I on the stack |
 | End turn / attack / mulligan | buttons | buttons | Space or E / A / M |
+| Cancel attacker selection | ✕ CANCEL | ✕ CANCEL | Tab to it, Enter |
+| Match history | 📜 | 📜 | H |
 | Close a window / pause | ✕ | ✕ | Esc |
 
 ## 5. Implementation notes
@@ -456,3 +458,129 @@ Screenshots (`npm run collection:shots` for the states; before | after):
   want a specific land can remove it themselves.
 - Land caps are not checked when a land is added (the validator only checks them on save, as before). They show
   up at once in the issue list instead.
+
+## 10. Gameplay feedback
+
+Clearer information during a match. Combat rules, random targeting, automatic blocking, mana, rewards and
+timers are unchanged. Nothing here reveals the AI's hand.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Whose turn | A small header pill ("MAIN PHASE", "ENEMY TURN"), hidden on phones by the title | A banner above the battlefield: **Turn N**, "⚔️ Your turn · Main phase / Choose attackers" or "🤖 Enemy turn · *what the AI is doing*". It pulses once (0.6 s) when the turn changes, and not at all under reduced motion. It is a polite live region. The header pill stays on wider screens. |
+| AI status | Toasts only | The banner names each paced AI step: starting its turn, drawing a card, playing a land (named, since it is now public) or none, tapping mana / choosing what to play, the card it plays, plays nothing, attacking with N / not attacking. |
+| Attacker selection | ATTACK became CONFIRM; END TURN was disabled | **✓ CONFIRM n** (the count, with a matching accessible name) and **✕ CANCEL**, which leaves without attacking and keeps the attack available. `Space`/`E` still mean END TURN, which waits until you confirm or cancel. |
+| Why a creature can't attack | Logged after a click | In attack selection, eligible creatures get a dashed outline; the others say why on the card ("Tapped", "Defender", "Next turn"), in the tooltip and in the accessible name. The text comes from `getAttackRestriction`, which `canAttack` uses. |
+| Why a hand card can't be played | Logged after a click | Unplayable cards are dimmed with a reason chip ("Land used", "🔒🔥2") and the full reason in the tooltip, accessible name and card details: "Wait for your turn", "One land per turn: you have played one", "Needs 2 🔥 more in your mana pool (1 untapped land)". `getPlayRestriction` makes the same checks as `playCard`, in the same order. |
+| Combat preview | none | While attackers are chosen, a **Preview** strip under the banner: "Enemy ❤️ 20 → 15 · Enemy loses 5 · You lose 0" (or "🏆 Wins the match"). "Blocks and results" opens one line per attacker ("🦁 Fire Lion: blocked by 🪲 Ember Beetle · Ember Beetle dies · Fire Lion survives · Enemy ❤️ -2"), with the note "Not final. Blocking is automatic and uses the board as it is when you confirm." Cards are marked ✓ survives / ☠ dies / 🛡 blocks, also in their accessible names. |
+| Match history | none (toasts disappear) | **📜** in the header (or `H`) opens a dialog listing the last 80 events, grouped by turn: turns, plays and what they did (life, damage, stats, destroyed / returned / entered cards, draws, discards), upkeep effects, each attack with its per-attacker blocks, damage, deaths and life change, "Enemy does not attack", mulligans and the result. A badge counts entries since it was last opened. It uses the shared dialog handling (focus moves into it; `Esc`, ✕ or the backdrop closes it). |
+
+### How the preview stays pure and exact
+
+- `applyDamage` and `dealUnblockedDamage` take a life target that defaults to the live one
+  (`changePlayerLife`/`changeEnemyLife`).
+- `previewCombat(attackers, defendingBoard, isPlayerAttacking)` copies the creatures, calls the same
+  `assignAutoBlockers` on the copies, and runs the same damage code into its own life ledger. That ledger follows
+  the live rules: life stops at 0, nothing changes after a loss, and the player is checked first.
+- It never touches `gameState`, the save, `Math.random`, timers, sounds, particles or rewards. The tests check
+  this with a fingerprint of the state plus spies on randomness and timers.
+- Combat deals no random damage and has no death triggers, so the prediction is exact for the current board.
+- The preview is keyed on the chosen attackers, each creature's power, toughness, damage, tapped state and
+  abilities, and both life totals. It is recomputed only when that key changes, at the start of each UI update.
+  Outside attacker selection it is hidden and cleared.
+
+### Match history, recorded once
+
+- `recordHistory` is called from the engine where things resolve: `playCard`, `aiPlayCard` and the AI's
+  land / fallback plays, upkeep, `resolveAttackersWithHistory` (both sides' combat), turn starts, mulligan and
+  `finalizeMatch`.
+- Rendering only reads `matchHistory`, so opening, closing or re-rendering never adds entries.
+- Each per-attacker line comes from `describeCombatPair`, the same function the preview uses. The parity tests
+  compare the two texts directly.
+- Only public information is written: cards as they are played or revealed, and counts for draws.
+
+### Implementation
+
+- **`index.js`:**
+  - Match history: `recordHistory`, `describeChangesSince`, `describeCombatPair`, `resolveAttackersWithHistory`,
+    `renderMatchHistory`, `showMatchHistory` / `hideMatchHistory` (registered in `GAME_DIALOGS`).
+  - Reasons and status: `getPlayRestriction` / `getMissingMana`, `setAiStatus` / `updateTurnBanner`.
+  - Preview: `previewCombat`, `refreshCombatPreview`, `renderCombatPreviewPanel`, `markPreviewOutcome`.
+  - Attack controls: `setAttackControls`, `cancelAttack`.
+  - A turn counter, `gameState.round`.
+- **`index.html`:** `#turnBanner` (with `#combatPreview`), `#historyBtn` with `#historyBadge`, and the
+  `#historyModal` dialog.
+- **`styles.css`:** the "GAMEPLAY FEEDBACK" block. Below 520 px the header phase pill is hidden (the banner
+  replaces it). Animations stop under `prefers-reduced-motion`.
+- **Kept:** END TURN / ATTACK ids and shortcuts, and `#phaseIndicator` (no longer a live region, so the banner
+  isn't announced twice).
+
+### Evidence
+
+`tests/feedback.test.mjs` (`npm run feedback`, in CI with the rules suites) has 55 browser tests:
+- **Parity, 21 scenarios × both sides (42 tests):**
+  - first strike (attacker, blocker, both);
+  - double strike (unblocked, into a tough blocker, with trample);
+  - trample (over a chump, into a damaged blocker, against deathtouch);
+  - deathtouch (attacker, blocker, with first strike);
+  - menace (one blocker left so it is unblocked, two blockers, against a first striker);
+  - lifelink (blocked, unblocked, blocked and dying);
+  - and a mixed three-attacker board.
+  Each one is previewed, checked to have changed nothing, then the real attack resolves and the result is
+  compared: both life totals, which creatures died, damage left on survivors, and the history line for each
+  attacker.
+- **Lethal (2 × both sides):** the match ends part-way. Lifelink after the killing blow is ignored and life stops
+  at 0, in the preview and in the game.
+- **Selection:** CONFIRM count / CANCEL, `Space` refused mid-attack, the attack still available after CANCEL.
+- **Reasons:** creature reasons match `getAttackRestriction`. Each hand-card reason predicts whether `playCard`
+  plays it (2 Fire mana with no land played, then with a land already played).
+- **Staleness:** the only blocker tapping, a life change and selecting or deselecting an attacker each refresh
+  the preview; it is hidden outside attacker selection and on the enemy turn.
+- **Banner, AI status, motion:** the turn number and side, the AI steps seen during a real enemy turn, a single
+  short pulse, and no animation under reduced motion.
+- **History:** recorded once (re-rendering adds nothing), bounded at 80, opened from the header and `H`,
+  focus inside the dialog, closed with `Esc`, and no AI hand card named before it is played (over several real AI turns).
+
+| Suite | Before (`aa5c31a`) | After |
+|---|---|---|
+| `tests/feedback.test.mjs` | 0 / 55 | 55 / 55 |
+| Card catalog | pass | pass |
+| Rules, combat, progression, collection, effects, AI (node) | 348 / 348 | 348 / 348 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit (the battle screen with the banner, at 4 sizes) | 469 / 469 | 469 / 469 |
+| Menu audit | 289 / 289 | 289 / 289 |
+| Card faces | 95 / 95 | 95 / 95 |
+| Release playthroughs (on the code commit, in a clean worktree) | 97 / 97 | 96 / 97 on the full run, then 5 / 5 on a long-match re-run (see below) |
+| `tests/feedback-shots.mjs`: page errors and serious axe violations (including contrast), with the preview open and in the history dialog, at desktop, phone and phone-landscape | n/a | none |
+
+**The one release failure.** On the first full run, the long-match check "event listeners don't accumulate"
+failed: 251 → 801, against a limit of 1.5 × the turn-10 count + 200. That run's board grew to 124 permanents
+(22 + 102); earlier runs had 64–80. Listeners follow board size (about 4–5 per permanent), as QA_REPORT.md
+notes, and the check compares against turn 10, not against the board. Three things show it isn't a leak from
+this pass:
+- **Fixed board, new interactions:** 40 rounds of selecting attackers, cancelling, re-rendering and opening and
+  closing the history keep listeners flat (225 → 225; the old code: 222 → 222).
+- **Old and new code side by side (long match only):** old 237 → 479 with 71 permanents; new 229 → 438 with 66
+  permanents. Both pass all 5 performance checks.
+- **Heap and time:** both stayed bounded in every run.
+
+The check's limit can still be crossed by an unusually large board. It is unchanged in this pass.
+
+Screenshots (`npm run feedback:shots`): before, then after (selection, preview details, enemy turn, history).
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/feedback-phone.jpg](docs/ui-evidence/feedback-phone.jpg) | Phone 360×740 |
+| [docs/ui-evidence/feedback-landscape.jpg](docs/ui-evidence/feedback-landscape.jpg) | Phone landscape |
+| [docs/ui-evidence/feedback-desktop.jpg](docs/ui-evidence/feedback-desktop.jpg) | Desktop 1366×768 |
+
+### Limitations
+
+- The preview covers the attack the player is choosing. The AI's attacks are recorded in the history, not
+  previewed: the AI confirms at once.
+- The preview predicts combat only. Nothing else can happen between CONFIRM and damage today; if instant-speed
+  responses are ever added, the preview's note would need to say so.
+- The history keeps the last 80 events of the current match only, in memory. It is not saved and resets with a
+  new match. Older entries are dropped and the dialog says how many.
+- Chromium only, as for the other UI passes. Real-device checks are still listed in §6.

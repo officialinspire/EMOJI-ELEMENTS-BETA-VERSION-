@@ -105,14 +105,26 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 - **Tap or click** a hand card to play it, a land stack to tap one land, an artifact to use it, and (after
   ATTACK) a creature to select it. Tapping any other card, or an enemy card, shows its details.
 - **Long-press or right-click** a card for its details; on a land stack it taps all its untapped lands.
+- The banner above the battlefield shows the turn number, whose turn it is and the phase. On the enemy turn it
+  says what the AI is doing (drawing, playing a land, tapping mana, attacking); it never shows the AI's hand.
+- **ATTACK** turns the buttons into **✓ CONFIRM n** and **✕ CANCEL**. While you choose, each creature says
+  whether it can attack (and why not: tapped, Defender, arrived this turn), and the **Preview** shows the
+  automatic blocks and the expected result: life totals, who dies, and whether it wins the match. It is only a
+  preview; blocks are made from the board as it is when you confirm.
+- A hand card you can't play right now shows why: land already played this turn, or how much mana it still needs.
 - After combat, a message lists who blocked whom and what died. 💔 shows damage taken this turn; a dashed
   border marks a creature that can't attack until next turn.
+- **📜 Match history** (header, or `H`) keeps the last 80 events of the match: plays and what they did,
+  attacks, blocks, damage, deaths and life changes, grouped by turn. The badge counts new entries.
 
 ### Keyboard
 
 - `Tab` to a card, `Enter` to play or use it, `I` for its details.
-- During your turn: `Space` / `E` end turn, `A` attack / confirm, `M` mulligan (when available).
-- `Esc` closes the open window (card details, graveyard, confirmations, pack), resumes from pause, or pauses.
+- During your turn: `Space` / `E` end turn, `A` attack / confirm, `M` mulligan (when available). While choosing
+  attackers, the CANCEL button leaves without attacking (`Space` still means end turn, which waits until you
+  confirm or cancel).
+- `H` opens the match history at any time.
+- `Esc` closes the open window (card details, graveyard, match history, confirmations, pack), resumes from pause, or pauses.
 - Dialogs keep keyboard focus inside them and return it when they close.
 
 ### Touch
@@ -185,6 +197,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
 | `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
 | `npm run collection` | Collection and Deck Builder: filter combinations, add/remove and Add reasons, summary and curve, invalid saves, unsaved-edit warnings, reloads, existing saves ([UI.md](UI.md) §9) |
+| `npm run feedback` | Gameplay feedback: the attack preview matches real combat for both sides (first strike, double strike, trample, deathtouch, menace, lifelink, lethal), changes nothing, and refreshes; play and attack reasons; CONFIRM/CANCEL; turn banner and AI status; match history ([UI.md](UI.md) §10) |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
