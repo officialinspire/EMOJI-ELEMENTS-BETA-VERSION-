@@ -3271,6 +3271,7 @@
         const packCardOwned = document.getElementById('packCardOwned');
         if (packCardOwned) packCardOwned.innerHTML = renderPackOwned(card);
         if (packViewport) {
+            packViewport.scrollTop = 0;
             applyCardIdentity(packViewport, card);
             packViewport.dataset.rarity = rarity;
             packViewport.classList.toggle('is-new', getPackOwnedBefore(card.__id) === 0);

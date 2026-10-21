@@ -16,5 +16,12 @@ jobs:
         run: npm install
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run rules, combat, progression, collection, effects and AI tests
-        run: node --test tests/rules.test.mjs tests/combat.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/effects.test.mjs tests/ai.test.mjs tests/feedback.test.mjs tests/packs.test.mjs tests/regression.test.mjs tests/battle.test.mjs tests/audio.test.mjs
+      - name: Run catalog and all browser logic suites
+        run: npm run verify -- --group=logic
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: logic-verification
+          path: test-results/verification/logic/
+          retention-days: 14

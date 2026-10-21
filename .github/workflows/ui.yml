@@ -16,21 +16,12 @@ jobs:
         run: npm install
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run the UI audit
-        run: node tests/ui-audit.mjs --label=ci
-      - name: Run the menu and battle setup audit
-        if: always()
-        run: node tests/menu-audit.mjs --label=ci
-      - name: Run the card presentation audit
-        if: always()
-        run: node tests/card-faces.mjs --label=ci
-      - name: Upload screenshots
+      - name: Run themes, UI, menu and card presentation audits
+        run: npm run verify -- --group=visual
+      - name: Upload audit results and screenshots
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ui-audit-screenshots
-          path: |
-            test-results/ui/ci/
-            test-results/menu/ci/
-            test-results/cards/ci/
+          name: visual-verification
+          path: test-results/
           retention-days: 14

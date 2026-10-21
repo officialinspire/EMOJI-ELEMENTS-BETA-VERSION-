@@ -1,0 +1,75 @@
+# Codex stabilization
+
+The stabilization branch starts at `02a5534` (`origin/claude/audio-feedback`). It contains main
+`397089f`, visual themes `4b19811`, battle/pause work through `bd84c8c`, and audio feedback
+`856ff08` through their existing ancestry. No feature commits were replayed.
+
+Present: Arcane Fantasy, Deep Space and Neon Sci-Fi themes, saved theme selection, real battle pause,
+AI delay suspension, board feedback, synthesized sound effects, separate audio settings and guarded
+haptics. No achievement system or achievement branch/commit was found in the fetched remote heads;
+the audio engine has an achievement cue, and a future-save fixture mentions achievements, but those
+are not an achievement feature. The starting checkout had no uncommitted changes or AGENTS.md.
+
+## Reproductions and fixes
+
+At 568×320, the pack reveal's PREV/NEXT row extended below the viewport. The regression checks
+actual button bounds and hit testing before any automatic scrolling. The panel now keeps its header
+and controls outside the scrolling card details/summary list. All five cards, PREV/NEXT, summary,
+return and close remain usable across phone landscape/portrait transitions and a 200% layout-zoom
+viewport. Each new card resets its detail scroll. Pack surfaces allow pinch zoom. Tests use mobile
+Chromium emulation, including a CDP pinch-scale check; this does not establish real-device coverage.
+Screenshots are written under `test-results/stabilization/`.
+
+The original remaining-delay assertion passed on a fast host but failed with an inserted 500 ms
+host delay: Playwright `clock.install()` continues ticking between protocol calls. This was test
+timing, not evidence of a pause defect. The corrected test calls `pauseAt` before scheduling the
+AI turn, pauses with exactly 1000 ms remaining, advances 30 seconds while paused, and verifies
+that resume waits through 999 ms and fires at 1000 ms. An intentional host delay verifies that
+wall time cannot move this boundary. No assertions were removed and game pause logic is unchanged.
+
+## Full Chromium verification
+
+From the checkout, with Node 22+:
+
+```sh
+npm install
+npx playwright install --with-deps chromium
+npm run verify
+```
+
+`verify` runs the card audit, every `tests/*.test.mjs` suite (two files at a time), all themes and
+viewport profiles, UI/menu/card audits, desktop/mobile smoke, and release playthroughs including
+the long-match check. It continues after failed commands and exits nonzero if any command fails.
+It overwrites per-command logs and `results.json` under `test-results/verification/all/`, recording
+full HEAD SHA, dirty status, Node version, commands, exit codes, signals and run times. Individual
+runners retain their own detailed JSON and screenshots. Consult current-run logs for test counts;
+a successful process launch is not a test pass.
+
+CI uses the same plan in three groups:
+
+```sh
+npm run verify -- --group=logic
+npm run verify -- --group=visual
+npm run verify -- --group=playthroughs
+```
+
+The rules job covers catalog, gameplay, saves, battle, audio and pack stabilization.
+The UI job includes the theme audit; the playthrough job includes smoke and release. Each uploads
+results even when checks fail. `npm run cross-browser` (requires Firefox/WebKit too) and the larger
+`npm run ai:sim` statistical sample are optional additional coverage, outside this Chromium gate.
+There is no build step or application server dependency; runners serve the checkout themselves.
+
+In the onboarding machine, Playwright's bundled Chromium download and Google Fonts were blocked
+by network policy. The installed system Chromium can be selected with the environment-local
+launcher provided during setup:
+
+```sh
+NODE_OPTIONS=--require=/workspace/emoji-elements-setup/system-chromium.cjs npm run verify
+```
+
+This tests system Chromium 154 rather than bundled Chromium 141. It does not hide failed network
+requests or establish parity with the bundled browser. Fonts require `fonts.googleapis.com` and
+`fonts.gstatic.com`; bundled browser installation requires `cdn.playwright.dev` and
+`playwright.download.prss.microsoft.com`. Network-blocked checks must remain failed until access
+is available and the affected command is rerun. No merge, deployment or publication is part of
+this stabilization task.

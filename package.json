@@ -30,7 +30,9 @@
     "audio": "node --test tests/audio.test.mjs",
     "cross-browser": "node tests/cross-browser.mjs",
     "ai:sim": "node tests/ai-sim.mjs",
-    "release": "node tests/release.mjs"
+    "release": "node tests/release.mjs",
+    "verify": "node tests/verify.mjs",
+    "stabilization": "node --test tests/stabilization.test.mjs"
   },
   "devDependencies": {
     "axe-core": "4.10.3",

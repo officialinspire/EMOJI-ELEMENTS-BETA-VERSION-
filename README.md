@@ -231,6 +231,9 @@ location.reload();
 
 ## Testing
 
+Full Chromium verification: `npm run verify` (after installing dependencies and Chromium below).
+See [STABILIZATION.md](STABILIZATION.md#full-chromium-verification) for coverage, CI groups, logs and environment limitations.
+
 Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright install chromium`):
 
 | Command | What it covers |

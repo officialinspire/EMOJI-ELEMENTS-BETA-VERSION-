@@ -2114,7 +2114,7 @@ body.no-scroll {
     align-items: center;
     background: radial-gradient(circle at 50% 20%, rgba(255, 225, 120, 0.2), rgba(12, 7, 18, 0.95));
     padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-    touch-action: none;
+    touch-action: pan-y pinch-zoom;
     overscroll-behavior: contain;
     overflow-y: auto;
 }
@@ -6306,6 +6306,73 @@ html {
 .pack-card-text,
 .pack-card-owned {
     transition: opacity 0.22s ease;
+}
+
+/* Keep navigation outside the scrolling content on short and zoomed screens. */
+.pack-opening-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+.pack-opening-header,
+.pack-card-counter,
+.pack-nav-buttons,
+.pack-summary-btn,
+.pack-summary-title,
+.pack-summary-stats,
+.pack-qa-debug {
+    flex-shrink: 0;
+}
+
+#packRevealStage .pack-nav-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#packRevealStage .pack-summary-btn {
+    margin-top: 0;
+}
+
+.pack-stage.pack-stage-active {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pack-card-viewport {
+    min-height: 0;
+    overflow-y: auto;
+    justify-content: flex-start;
+    touch-action: pan-y pinch-zoom;
+}
+
+.pack-card-viewport > *,
+.pack-summary-card {
+    flex-shrink: 0;
+}
+
+.pack-sealed-shell {
+    min-height: 0;
+    flex: 1 1 150px;
+    touch-action: pinch-zoom;
+}
+
+.pack-summary-grid {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Empty debug output must not consume the player's short viewport. */
+.pack-qa-debug:empty {
+    display: none;
+}
+
+@media (max-height: 450px) {
+    .pack-opening-panel { padding: 4px 8px; }
+    .pack-opening-header { margin-bottom: 4px; }
+    .pack-card-counter { margin-top: 0; font-size: 12px; }
+    .pack-nav-buttons .menu-btn { min-height: 44px; padding: 4px; font-size: 13px; line-height: 1.1; }
 }
 
 /* ---- Summary: the five cards */

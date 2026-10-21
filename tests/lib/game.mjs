@@ -76,8 +76,8 @@ function pageInit(seed) {
 // storage: { key: string | null } is written to localStorage before index.js first runs (null removes the
 // key), as if a returning player's browser already held that saved data. Later reloads keep whatever the
 // game itself stored.
-export async function openGamePage({ seed = 1, storage = null } = {}) {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+export async function openGamePage({ seed = 1, storage = null, contextOptions = {} } = {}) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...contextOptions });
     const page = await context.newPage();
     if (storage) {
         await page.addInitScript(items => {

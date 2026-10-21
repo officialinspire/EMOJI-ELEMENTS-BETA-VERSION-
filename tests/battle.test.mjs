@@ -61,22 +61,26 @@ test('pause stops the AI turn where it is; resume finishes it in the same match'
     assert.equal(await page.evaluate(() => gameState.round), 2);
 });
 
-// The fake clock also moves with real time, so the margins are ±300 ms: enough to tell "the 1 s it had left"
-// from both "at once" and "the full 1.5 s again".
-test('the remaining time carries over: a step 1 s from firing waits about 1 s after resume', { timeout: 60000 }, async t => {
+// Freeze the clock: install() alone still advances with wall time between protocol calls.
+// Assert the boundary exactly, even if the host stalls, rather than widening timing tolerances.
+test('the remaining time carries over exactly across pause and resume', { timeout: 60000 }, async t => {
     const page = await openGame(t);
     await startMatch(page);
     await setup(page, { ...QUIET_ENEMY, playerBoard: [PEAK], playerHand: [] });
+    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
     await page.evaluate(() => endTurn());
-    await page.clock.runFor(500);                       // the AI starts 1.5 s after END TURN
+    await page.clock.runFor(500); // AI starts 1500 ms after END TURN
     await page.evaluate(() => pauseGame());
-    await page.clock.runFor(5000);
+    assert.ok(await page.evaluate(() => [...matchTimers.values()].some(timer => timer.remaining === 1000)), 'AI has exactly 1000 ms left');
+    await page.clock.runFor(30000); // includes the AI failsafe deadline
     assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn');
     await page.evaluate(() => resumeGame());
-    await page.clock.runFor(700);
-    assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn', 'not at once');
-    await page.clock.runFor(600);
-    assert.notEqual(await page.evaluate(() => aiStatusText), 'Starting its turn', 'before the full 1.5 s again');
+    await page.clock.runFor(999);
+    // Simulate a slow host/protocol round trip: real time must not advance the paused fake clock.
+    await new Promise(resolve => setTimeout(resolve, 400));
+    assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn', 'not before the remaining delay');
+    await page.clock.runFor(1);
+    assert.notEqual(await page.evaluate(() => aiStatusText), 'Starting its turn', 'fires at exactly the remaining delay');
 });
 
 test('while paused the board takes no input: keys, clicks and direct calls do nothing', { timeout: 60000 }, async t => {
