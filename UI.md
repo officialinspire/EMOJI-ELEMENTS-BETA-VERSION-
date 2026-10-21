@@ -216,3 +216,44 @@ keyboard), narrow phone 360×740, short landscape 863×360 and tablet 712×1138 
 - axe (contrast included) on every menu screen.
 
 The same final version of the audit was run on `main` before the change and on this branch after it:
+
+| Area | `main` (before): failing / checks | This branch (after): failing / checks |
+|---|---|---|
+| Layout (overflow, 44 px controls, 11 px text, NEW GAME and START on screen) | 56 / 115 | 0 / 115 |
+| Accessibility (axe, contrast included) | 4 / 36 | 0 / 36 |
+| Hierarchy (NEW GAME first and largest) | 4 / 8 | 0 / 8 |
+| Labels and supporting text | 8 / 8 | 0 / 8 |
+| Credits and collection progress | 8 / 8 | 0 / 8 |
+| Setup (names, ✓ marker, difficulty text, deck summary) | 40 / 64 | 0 / 64 |
+| Saved deck restored (and after a reload) | 8 / 8 | 0 / 8 |
+| Keyboard (Tab, Enter/Space, Esc, focus return) | 6 / 10 | 0 / 10 |
+| Routing, audio start, page errors | 0 / 32 | 0 / 32 |
+| **Total** | **134 / 289** | **0 / 289** |
+
+Regression on this branch:
+- card catalog: passed;
+- rules, combat, progression, effects and AI: 337/337;
+- smoke: 204/204;
+- UI audit: 469/469.
+
+The smoke, release and UI audits now open Collection and Stats by their new labels, and the UI audit chooses
+"Two Colors" before picking an element, because NEW GAME now restores the saved deck.
+
+Before/after screenshots (real Chromium):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/menu-desktop.jpg](docs/ui-evidence/menu-desktop.jpg) | Desktop 1366×768: menu and battle setup |
+| [docs/ui-evidence/menu-phone.jpg](docs/ui-evidence/menu-phone.jpg) | Phone 360×740: the full menu and setup panels |
+| [docs/ui-evidence/menu-landscape.jpg](docs/ui-evidence/menu-landscape.jpg) | Phone landscape 863×360: menu and setup |
+
+### Limitations
+
+- Only Chromium was run (desktop size and emulated touch devices). Safari/WebKit, Firefox and real phones are
+  untested (§6). That includes CSS `mask` on the SVG decorations, which has been supported since Safari 15.4 and
+  Firefox 53; where it is missing, the decoration just doesn't draw.
+- The difficulty explanations describe `AI_PROFILES` as written. If those settings change, `DIFFICULTY_INFO` must
+  change with them. The audit catches it only for the phrases it checks.
+- On a fresh profile, NEW GAME starts with FIRE picked: `gameMeta.selectedDeckKey` defaults to `FIRE`, and the
+  save can't tell "never chosen" from "chose FIRE".
+- Difficulty is still not saved between sessions. It never was, and it is outside this pass.
