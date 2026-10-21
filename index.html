@@ -269,6 +269,9 @@
             <div id="binderScreen" class="menu-screen" style="display:none;">
                 <div class="modal-subtitle" tabindex="-1">Collection</div>
                 <div class="binder-summary-badge" id="binderSummaryBadge">🗂️ 0 unique cards • 0 total cards</div>
+                <!-- Search, filters and sorting: built by buildCardFilterBar -->
+                <div class="card-filters" id="binderFilters" role="search" aria-label="Search and filter the collection"></div>
+                <div class="card-list-showing" id="binderShowing" aria-live="polite"></div>
                 <div class="binder-list" id="binderList"></div>
                 <button class="menu-btn menu-back" onclick="hideBinder()">← BACK TO MENU</button>
             </div>
@@ -425,11 +428,17 @@
                 <div class="deck-builder-controls">
                     <label for="deckBuilderDeckKey">Deck:</label>
                     <select id="deckBuilderDeckKey" aria-label="Deck to edit"></select>
+                    <span class="deck-builder-unsaved" id="deckBuilderUnsaved" style="display:none;">● Unsaved changes</span>
                 </div>
+                <!-- Counts and mana curve of the working deck, and what stops it saving: renderDeckBuilder -->
+                <div class="deck-summary-panel" id="deckBuilderSummary"></div>
+                <div class="deck-issues" id="deckBuilderIssues" aria-live="polite"></div>
                 <div class="deck-builder-columns">
                     <div class="deck-builder-column">
-                        <div class="deck-builder-column-title">Eligible Owned Cards</div>
-                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Eligible owned cards"></div>
+                        <div class="deck-builder-column-title">Cards for this deck</div>
+                        <div class="card-filters" id="deckBuilderFilters" role="search" aria-label="Search and filter cards for this deck"></div>
+                        <div class="card-list-showing" id="deckBuilderShowing" aria-live="polite"></div>
+                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Cards you can add"></div>
                     </div>
                     <div class="deck-builder-column">
                         <div class="deck-builder-column-title">Deck List</div>
@@ -437,7 +446,7 @@
                     </div>
                 </div>
                 <div class="deck-builder-footer">
-                    <div id="deckBuilderStatus"></div>
+                    <div id="deckBuilderStatus" role="status" aria-live="polite"></div>
                     <div class="deck-builder-footer-buttons">
                         <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
                         <button class="menu-btn" onclick="openDeckBuilderGuide()">📘 DECK BUILDER GUIDE</button>

@@ -3399,48 +3399,201 @@
         focusSafeElement();
     }
 
+    // ---- Card lists: search, combinable filters and sorting shared by the Binder and the Deck Builder pool.
+    // Filters only change what is shown; they never touch the collection or a deck being edited.
+    const CARD_FILTER_OPTIONS = {
+        element: [['all', 'All elements'], ['fire', '🔥 Fire'], ['water', '💧 Water'], ['earth', '🌍 Earth'], ['swamp', '💀 Swamp'],
+            ['light', '☀️ Light'], ['multicolor', 'Two or more colours'], ['colorless', '◇ Colorless']],
+        type: [['all', 'All types'], ['creature', '🐾 Creatures'], ['instant', '✨ Instants'], ['artifact', '⚙️ Artifacts'], ['land', '⛰️ Lands']],
+        cost: [['all', 'Any cost'], ['0', 'Cost 0'], ['1', 'Cost 1'], ['2', 'Cost 2'], ['3', 'Cost 3'], ['4', 'Cost 4'], ['5', 'Cost 5'], ['6+', 'Cost 6+']],
+        rarity: [['all', 'Any rarity'], ['common', '● Common'], ['rare', '◆ Rare'], ['epic', '⬢ Epic'], ['legendary', '★ Legendary']],
+        sort: [['name', 'Sort: name'], ['cost', 'Sort: mana value'], ['rarity', 'Sort: rarest first'], ['type', 'Sort: type'], ['owned', 'Sort: most owned']]
+    };
+    const CARD_OWNED_OPTIONS = {
+        binderFilters: [['all', 'All cards'], ['owned', 'Owned'], ['unowned', 'Not owned']],
+        deckBuilderFilters: [['owned', 'Owned cards'], ['all', 'All legal cards'], ['unowned', 'Not owned']]
+    };
+    const CARD_FILTER_DEFAULTS = {
+        binderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'all', sort: 'name' },
+        deckBuilderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'owned', sort: 'name' }
+    };
+    const cardFilterState = {
+        binderFilters: { ...CARD_FILTER_DEFAULTS.binderFilters },
+        deckBuilderFilters: { ...CARD_FILTER_DEFAULTS.deckBuilderFilters }
+    };
+    const CARD_TYPE_ORDER = ['creature', 'instant', 'artifact', 'land'];
+
+    const getCardManaValue = card => Object.values(card?.cost || {}).reduce((sum, n) => sum + n, 0);
+
+    function cardMatchesFilters(card, filters, ownedCount) {
+        const identity = getCardIdentity(card);
+        if (filters.query) {
+            const keywords = (card.abilities || []).map(a => KEYWORD_RULES[a]?.label || a).join(' ');
+            if (!`${card.name} ${card.desc || ''} ${keywords}`.toLowerCase().includes(filters.query.toLowerCase())) return false;
+        }
+        if (filters.element === 'multicolor' && identity.length < 2) return false;
+        if (filters.element !== 'all' && filters.element !== 'multicolor' && !identity.includes(filters.element)) return false;
+        if (filters.type !== 'all' && card.type !== filters.type) return false;
+        if (filters.cost !== 'all') {
+            const mv = getCardManaValue(card);
+            if (filters.cost === '6+' ? mv < 6 : mv !== Number(filters.cost)) return false;
+        }
+        if (filters.rarity !== 'all' && getCardRarity(card) !== filters.rarity) return false;
+        if (filters.owned === 'owned' && ownedCount <= 0) return false;
+        if (filters.owned === 'unowned' && ownedCount > 0) return false;
+        return true;
+    }
+
+    function sortCardsForList(cards, sort, ownedOf) {
+        const byName = (a, b) => (a.name || '').localeCompare(b.name || '') || a.__id.localeCompare(b.__id);
+        const compare = {
+            name: byName,
+            cost: (a, b) => getCardManaValue(a) - getCardManaValue(b) || byName(a, b),
+            rarity: (a, b) => CARD_RARITIES.indexOf(getCardRarity(b)) - CARD_RARITIES.indexOf(getCardRarity(a)) || byName(a, b),
+            type: (a, b) => CARD_TYPE_ORDER.indexOf(a.type) - CARD_TYPE_ORDER.indexOf(b.type) || byName(a, b),
+            owned: (a, b) => ownedOf(b) - ownedOf(a) || byName(a, b)
+        }[sort] || byName;
+        return [...cards].sort(compare);
+    }
+
+    // Builds the search box and selects once; afterwards it only syncs their values with the state.
+    function buildCardFilterBar(scopeId, onChange) {
+        const container = document.getElementById(scopeId);
+        if (!container) return;
+        const filters = cardFilterState[scopeId];
+        if (!container.dataset.built) {
+            container.dataset.built = 'true';
+            const search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'card-filter-search';
+            search.dataset.filter = 'query';
+            search.placeholder = 'Search names, text, keywords';
+            search.setAttribute('aria-label', 'Search cards');
+            search.addEventListener('input', () => { filters.query = search.value.trim(); container.onFilterChange?.(); });
+            container.appendChild(search);
+            // The selects fold away on narrow screens (search stays visible); open by default elsewhere
+            const more = document.createElement('details');
+            more.className = 'card-filter-more';
+            more.open = !window.matchMedia('(max-width: 519px)').matches;
+            const summary = document.createElement('summary');
+            summary.className = 'card-filter-summary';
+            summary.textContent = 'Filters & sort';
+            more.appendChild(summary);
+            const selects = document.createElement('div');
+            selects.className = 'card-filter-selects';
+            const fields = { element: 'Element', type: 'Card type', cost: 'Mana value', rarity: 'Rarity', owned: 'Ownership', sort: 'Sort order' };
+            Object.entries(fields).forEach(([name, label]) => {
+                const select = document.createElement('select');
+                select.dataset.filter = name;
+                select.setAttribute('aria-label', label);
+                const options = name === 'owned' ? CARD_OWNED_OPTIONS[scopeId] : CARD_FILTER_OPTIONS[name];
+                options.forEach(([value, text]) => select.add(new Option(text, value)));
+                select.addEventListener('change', () => { filters[name] = select.value; container.onFilterChange?.(); });
+                selects.appendChild(select);
+            });
+            const reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'card-filter-reset';
+            reset.textContent = 'Clear';
+            reset.setAttribute('aria-label', 'Clear search and filters');
+            reset.addEventListener('click', () => resetCardFilters(scopeId));
+            selects.appendChild(reset);
+            more.appendChild(selects);
+            container.appendChild(more);
+        }
+        container.onFilterChange = onChange;
+        container.querySelectorAll('[data-filter]').forEach(el => { el.value = filters[el.dataset.filter]; });
+        const active = Object.entries(filters).filter(([k, v]) => !['sort', 'query'].includes(k) && v !== CARD_FILTER_DEFAULTS[scopeId][k]).length;
+        container.classList.toggle('is-filtered', active > 0 || !!filters.query);
+        const summary = container.querySelector('.card-filter-summary');
+        if (summary) summary.textContent = active ? `Filters & sort (${active} on)` : 'Filters & sort';
+    }
+
+    function resetCardFilters(scopeId) {
+        Object.assign(cardFilterState[scopeId], CARD_FILTER_DEFAULTS[scopeId]);
+        const container = document.getElementById(scopeId);
+        container?.querySelectorAll('[data-filter]').forEach(el => { el.value = cardFilterState[scopeId][el.dataset.filter]; });
+        container?.onFilterChange?.();
+    }
+
+    // One-line card preview for list rows: cost pips, type, power/toughness and rarity, from the face helpers
+    function renderCardRowMeta(card) {
+        const type = CARD_TYPE_INFO[card.type];
+        const rarity = getCardRarity(card);
+        const parts = [];
+        if (card.type !== 'land') parts.push(`<span class="row-cost">${renderCostPips(card.cost)}</span>`);
+        parts.push(`<span class="row-type">${type ? `${type.icon} ${type.label}` : card.type}</span>`);
+        if (card.type === 'creature') parts.push(`<span class="row-pt">${card.power}/${card.toughness}</span>`);
+        if (card.type === 'land') {
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            parts.push(`<span class="row-mana">Tap: ${colours.map(e => ELEMENTS[e]?.emoji || '◇').join(' or ')}</span>`);
+        }
+        (card.abilities || []).slice(0, 3).forEach(a => {
+            parts.push(`<span class="row-keyword${a === 'flash' ? ' is-inactive' : ''}" title="${describeKeyword(a)}">${KEYWORD_RULES[a]?.badge || ''} ${KEYWORD_RULES[a]?.label || a}</span>`);
+        });
+        parts.push(`<span class="row-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`);
+        return parts.join('');
+    }
+
+    // The emoji in its element-coloured tile, as on card faces
+    function createCardRowArt(card, className = 'card-row-art') {
+        const art = document.createElement('span');
+        art.className = className;
+        art.textContent = card.emoji || '✨';
+        art.setAttribute('aria-hidden', 'true');
+        applyCardIdentity(art, card);
+        return art;
+    }
+
+    // The Binder lists the whole catalog: owned cards with their count, the rest marked "Not owned".
     function renderBinderCollection() {
         const listEl = document.getElementById('binderList');
         const summaryEl = document.getElementById('binderSummaryBadge');
         if (!listEl || !summaryEl) return;
 
         const collection = gameMeta?.collection || {};
-        const entries = Object.entries(collection)
-            .filter(([, count]) => Number.isFinite(count) && count > 0)
-            .map(([cardId, count]) => ({
-                cardId,
-                count,
-                card: __CARD_BY_ID[cardId]
-            }))
-            .filter(entry => entry.card)
-            .sort((a, b) => (a.card.name || '').localeCompare(b.card.name || ''));
+        const ownedOf = card => (Number.isFinite(collection[card.__id]) ? collection[card.__id] : 0);
+        const ownedCards = __ALL_CARDS.filter(card => ownedOf(card) > 0);
+        const totalCards = ownedCards.reduce((sum, card) => sum + ownedOf(card), 0);
+        summaryEl.textContent = `🗂️ ${ownedCards.length} of ${__ALL_CARDS.length} unique cards • ${totalCards} total cards`;
 
-        const totalCards = entries.reduce((sum, entry) => sum + entry.count, 0);
-        summaryEl.textContent = `🗂️ ${entries.length} unique cards • ${totalCards} total cards`;
+        buildCardFilterBar('binderFilters', renderBinderCollection);
+        const filters = cardFilterState.binderFilters;
+        const shown = sortCardsForList(__ALL_CARDS.filter(card => cardMatchesFilters(card, filters, ownedOf(card))), filters.sort, ownedOf);
+        const showingEl = document.getElementById('binderShowing');
+        if (showingEl) showingEl.textContent = `Showing ${shown.length} of ${__ALL_CARDS.length} cards`;
 
         listEl.innerHTML = '';
-        if (!entries.length) {
+        if (!shown.length) {
             const empty = document.createElement('div');
             empty.className = 'deck-builder-empty';
-            empty.textContent = 'No cards in your binder yet. Open a few packs!';
+            empty.textContent = ownedCards.length ? 'No cards match these filters.' : 'No cards in your binder yet. Open a few packs!';
             listEl.appendChild(empty);
             return;
         }
 
-        entries.forEach(({ card, count }) => {
+        shown.forEach(card => {
+            const count = ownedOf(card);
             const row = document.createElement('div');
             row.className = 'binder-row';
-            row.innerHTML = `
-                <div class="binder-row-emoji">${card.emoji || '✨'}</div>
-                <div class="binder-row-name">
-                    ${card.name || 'Unknown Card'}
-                    <div class="binder-row-meta">${card.type || 'card'}${card.element ? ` • ${card.element}` : ''}</div>
-                </div>
-                <div class="binder-row-count">x${count}</div>
-            `;
+            row.dataset.cardId = card.__id;
+            row.classList.toggle('is-unowned', count === 0);
+            row.appendChild(createCardRowArt(card, 'binder-row-emoji card-row-art'));
+            const nameEl = document.createElement('div');
+            nameEl.className = 'binder-row-name';
+            nameEl.appendChild(document.createTextNode(card.name || 'Unknown Card'));
+            const meta = document.createElement('div');
+            meta.className = 'binder-row-meta';
+            meta.innerHTML = renderCardRowMeta(card) + (count === 0 ? '<span class="row-unowned">Not owned</span>' : '');
+            nameEl.appendChild(meta);
+            row.appendChild(nameEl);
+            const countEl = document.createElement('div');
+            countEl.className = 'binder-row-count';
+            countEl.textContent = `x${count}`;
+            row.appendChild(countEl);
             row.title = getCardTooltipText(card);
             bindCardPress(row, {
-                label: row.textContent.trim().replace(/\s+/g, ' '),
+                label: `${card.name}, ${count ? `${count} owned` : 'not owned'}. Press for details.`,
                 onTap: () => showCardDetail(card),
                 onLongPress: () => showCardDetail(card)
             });
@@ -3534,16 +3687,126 @@
         });
 
         const deckColors = Array.isArray(deck?.colors) ? deck.colors : getDeckColorsFromKey(deckKey);
-        const eligibleCardIds = Object.keys(gameMeta.collection || {})
-            .filter(cardId => {
-                const card = __CARD_BY_ID[cardId];
-                if (!card) return false;
-                if ((gameMeta.collection[cardId] || 0) <= 0) return false;
-                return isCardEligibleForDeck(card, deckColors);
-            })
-            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b));
+        // Every catalog card legal for the deck's colours; the ownership filter decides which are listed
+        const eligibleCardIds = __ALL_CARDS
+            .filter(card => isCardEligibleForDeck(card, deckColors))
+            .map(card => card.__id);
 
         return { deck, counts, deckColors, eligibleCardIds };
+    }
+
+    const deckDisplayName = deckKey => getDeckColorsFromKey(deckKey).map(elementLabel).join(' + ') || deckKey;
+
+    function isDeckBuilderDirty() {
+        const saved = gameMeta?.decks?.[deckBuilderState.deckKey]?.cardIds;
+        if (!deckBuilderState.deckKey || !Array.isArray(saved)) return false;
+        return !sameCardMultiset(deckBuilderState.workingCardIds || [], saved);
+    }
+
+    // Asks before throwing away unsaved deck edits; runs onDiscard straight away when there are none
+    function confirmDiscardDeckEdits(onDiscard, onKeep) {
+        if (!isDeckBuilderDirty()) {
+            onDiscard();
+            return;
+        }
+        showConfirmModal('💾 UNSAVED DECK', `Your changes to ${deckDisplayName(deckBuilderState.deckKey)} aren't saved. Discard them?`, onDiscard, onKeep);
+    }
+
+    // Why a card can't be added right now, or null. Same limits saveDeckBuilderDeck enforces (validateDeckBuild).
+    function getAddBlockReason(card, inDeck, owned, deckSize, targetSize) {
+        const limit = getDeckBuilderCopyLimit(card);
+        if (owned <= 0) return { code: 'not-owned', text: 'Not owned yet: win or buy packs to collect it' };
+        if (inDeck >= limit) {
+            return { code: 'copy-limit', text: limit === 1 ? 'Copy limit: 1 per deck (legendary)' : `Copy limit: ${limit} per deck` };
+        }
+        if (inDeck >= owned) return { code: 'no-copies', text: `All ${owned} owned ${owned === 1 ? 'copy is' : 'copies are'} in the deck` };
+        if (deckSize >= targetSize) return { code: 'deck-full', text: `Deck is full (${deckSize}/${targetSize}): remove a card first` };
+        return null;
+    }
+
+    function removeFromWorkingDeck(cardId, copies = 1) {
+        for (let i = 0; i < copies; i++) {
+            const idx = deckBuilderState.workingCardIds.lastIndexOf(cardId);
+            if (idx < 0) break;
+            deckBuilderState.workingCardIds.splice(idx, 1);
+        }
+    }
+
+    // Removes lands, the most numerous basic land first (of one colour when given)
+    function removeLandsFromWorkingDeck(count, colour = null) {
+        for (let i = 0; i < count; i++) {
+            const tally = {};
+            deckBuilderState.workingCardIds.forEach(id => {
+                const card = __CARD_BY_ID[id];
+                if (card?.type !== 'land') return;
+                if (colour && !inferLandElements(card).includes(colour)) return;
+                tally[id] = (tally[id] || 0) + (card.element && card.element !== 'colorless' ? 1000 : 0) + 1;
+            });
+            const pick = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0];
+            if (!pick) break;
+            removeFromWorkingDeck(pick, 1);
+        }
+    }
+
+    // What stops the working deck from saving, each with an action that fixes it where one is clear.
+    // validateDeckBuild stays the rule: a deck it accepts has no issues, and any error it reports is listed.
+    function getDeckIssues(deckKey, cardIds) {
+        const verdict = validateDeckBuild(deckKey, cardIds, gameMeta);
+        if (verdict.ok) return [];
+        const deck = gameMeta?.decks?.[deckKey];
+        const target = getDeckTargetSize(deck);
+        const deckColors = Array.isArray(deck?.colors) && deck.colors.length ? deck.colors : getDeckColorsFromKey(deckKey);
+        const issues = [];
+        const counts = {};
+        cardIds.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+        const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+        if (cardIds.length < target) {
+            issues.push({ kind: 'size', text: `Add ${plural(target - cardIds.length, 'more card')}: a deck has exactly ${target}.` });
+        } else if (cardIds.length > target) {
+            issues.push({ kind: 'size', text: `Remove ${plural(cardIds.length - target, 'card')}: a deck has exactly ${target}.` });
+        }
+        Object.entries(counts).forEach(([id, used]) => {
+            const card = __CARD_BY_ID[id];
+            if (!card) {
+                issues.push({ kind: 'unknown', text: `Unknown card "${id}" in the deck.`, action: { label: 'Remove it', run: () => removeFromWorkingDeck(id, used) } });
+                return;
+            }
+            if (!isCardEligibleForDeck(card, deckColors)) {
+                issues.push({ kind: 'identity', text: `${card.name} isn't legal in a ${deckDisplayName(deckKey)} deck.`, action: { label: `Remove ${card.name}`, run: () => removeFromWorkingDeck(id, used) } });
+            }
+            const owned = Number.isFinite(gameMeta.collection?.[id]) ? gameMeta.collection[id] : 0;
+            const limit = getDeckBuilderCopyLimit(card);
+            const allowed = Math.min(owned, limit);
+            if (used > allowed) {
+                const why = owned < limit || !Number.isFinite(limit) ? `you own ${owned}` : `the limit is ${limit}${limit === 1 ? ' (legendary)' : ''}`;
+                issues.push({ kind: 'copies', text: `${card.name}: ${used} in the deck, but ${why}. Remove ${used - allowed}.`,
+                    action: { label: `Remove ${used - allowed}`, run: () => removeFromWorkingDeck(id, used - allowed) } });
+            }
+        });
+
+        const covered = [/^Deck must contain exactly/, /^Unknown card id/, / is not valid for /, / exceeds owned copies /, / exceeds max copies /, / is not a valid land color /];
+        verdict.errors.forEach(error => {
+            let m = /^Deck can contain at most (\d+) lands \(currently (\d+)\)/.exec(error);
+            if (m) {
+                const excess = Number(m[2]) - Number(m[1]);
+                issues.push({ kind: 'too-many-lands', text: `Too many lands: ${m[2]} (at most ${m[1]}). Remove ${plural(excess, 'land')}.`,
+                    action: { label: `Remove ${plural(excess, 'land')}`, run: () => removeLandsFromWorkingDeck(excess) } });
+                return;
+            }
+            m = /can contain at most (\d+) (\w+) lands \(currently (\d+)\)/.exec(error);
+            // A one-colour deck's colour cap is its land cap, already listed as "too many lands"
+            if (m && deckColors.length === 1) return;
+            if (m) {
+                const excess = Number(m[3]) - Number(m[1]);
+                const name = ELEMENT_LABELS[m[2]] || m[2];
+                issues.push({ kind: 'too-many-colour-lands', text: `Too many ${name} lands: ${m[3]} (at most ${m[1]}). Remove ${excess}.`,
+                    action: { label: `Remove ${plural(excess, `${name} land`)}`, run: () => removeLandsFromWorkingDeck(excess, m[2]) } });
+                return;
+            }
+            if (!covered.some(re => re.test(error))) issues.push({ kind: 'other', text: error });
+        });
+        return issues;
     }
 
     function renderDeckBuilderListRows(container, rows, emptyText) {
@@ -3567,7 +3830,7 @@
         const ready = current === targetSize;
         const baseMessage = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
         if (Array.isArray(deckBuilderState.validationErrors) && deckBuilderState.validationErrors.length > 0) {
-            status.textContent = `${baseMessage} | ${deckBuilderState.validationErrors.join(' ')}`;
+            status.textContent = `${baseMessage} | Not saved: ${deckBuilderState.validationErrors.join(' ')}`;
             return;
         }
         if (deckBuilderState.debugWarning) {
@@ -3575,6 +3838,113 @@
             return;
         }
         status.textContent = baseMessage;
+    }
+
+    // Cards out of the deck size, type counts and a mana curve, all from the working deck
+    function renderDeckBuilderSummary(deck) {
+        const panel = document.getElementById('deckBuilderSummary');
+        if (!panel) return;
+        const cards = deckBuilderState.workingCardIds.map(id => __CARD_BY_ID[id]).filter(Boolean);
+        const target = getDeckTargetSize(deck);
+        const count = type => cards.filter(card => card.type === type).length;
+        const caps = getDeckLandCaps(Array.isArray(deck?.colors) ? deck.colors : getDeckColorsFromKey(deckBuilderState.deckKey));
+        const curve = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, '6+': 0 };
+        cards.filter(card => card.type !== 'land').forEach(card => {
+            const mv = getCardManaValue(card);
+            curve[mv >= 6 ? '6+' : mv] += 1;
+        });
+        const peak = Math.max(1, ...Object.values(curve));
+        const stat = (key, n, label) => `<div class="deck-stat"><strong data-count="${key}">${n}</strong> ${label}</div>`;
+        const size = cards.length;
+        panel.innerHTML = `
+            <div class="deck-stats">
+                <div class="deck-stat deck-stat-size${size === target ? ' is-complete' : ''}"><strong data-count="cards">${size}</strong> <span>/ ${target} cards</span></div>
+                ${stat('lands', count('land'), `lands <span class="deck-stat-cap">(max ${caps.maxLands})</span>`)}
+                ${stat('creatures', count('creature'), 'creatures')}
+                ${stat('spells', count('instant'), 'spells')}
+                ${stat('artifacts', count('artifact'), 'artifacts')}
+            </div>
+            <figure class="mana-curve-figure">
+            <figcaption class="mana-curve-caption">Mana curve (non-land cards)</figcaption>
+            <div class="mana-curve" role="img" aria-label="Mana curve of non-land cards: ${Object.entries(curve).map(([cost, n]) => `cost ${cost}: ${n}`).join(', ')}">
+                ${Object.entries(curve).map(([cost, n]) => `
+                    <div class="mana-curve-bar" data-cost="${cost}" data-count="${n}">
+                        <span class="mana-curve-n">${n}</span>
+                        <span class="mana-curve-fill" style="height:${Math.round((n / peak) * 100)}%"></span>
+                        <span class="mana-curve-cost">${cost}</span>
+                    </div>`).join('')}
+            </div>
+            </figure>`;
+    }
+
+    function renderDeckIssues() {
+        const container = document.getElementById('deckBuilderIssues');
+        if (!container) return;
+        const issues = getDeckIssues(deckBuilderState.deckKey, deckBuilderState.workingCardIds);
+        container.innerHTML = '';
+        container.classList.toggle('has-issues', issues.length > 0);
+        issues.forEach(issue => {
+            const item = document.createElement('div');
+            item.className = 'deck-issue';
+            item.dataset.issue = issue.kind;
+            const text = document.createElement('span');
+            text.className = 'deck-issue-text';
+            text.textContent = issue.text;
+            item.appendChild(text);
+            if (issue.action) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'deck-issue-action';
+                button.textContent = issue.action.label;
+                button.addEventListener('click', () => {
+                    issue.action.run();
+                    deckBuilderState.validationErrors = [];
+                    deckBuilderState.debugWarning = '';
+                    renderDeckBuilder();
+                });
+                item.appendChild(button);
+            }
+            container.appendChild(item);
+        });
+    }
+
+    function createDeckBuilderRow(card, { button, count, reason }) {
+        const row = document.createElement('div');
+        row.className = 'deck-builder-row';
+        row.dataset.cardId = card.__id;
+        row.appendChild(button);
+        const body = document.createElement('div');
+        body.className = 'deck-builder-card';
+        const name = document.createElement('div');
+        name.className = 'deck-builder-name';
+        name.appendChild(createCardRowArt(card));
+        name.appendChild(document.createTextNode(` ${card.name}`));
+        body.appendChild(name);
+        const meta = document.createElement('div');
+        meta.className = 'deck-builder-meta';
+        meta.innerHTML = renderCardRowMeta(card);
+        body.appendChild(meta);
+        if (reason) {
+            const why = document.createElement('div');
+            why.className = 'deck-builder-reason';
+            why.id = `reason-${card.__id}`;
+            why.textContent = reason.text;
+            body.appendChild(why);
+            button.setAttribute('aria-describedby', why.id);
+        }
+        row.appendChild(body);
+        const countEl = document.createElement('div');
+        countEl.className = 'deck-builder-count';
+        countEl.innerHTML = count;
+        row.appendChild(countEl);
+        const info = document.createElement('button');
+        info.type = 'button';
+        info.className = 'deck-builder-info-btn';
+        info.textContent = 'ⓘ';
+        info.setAttribute('aria-label', `Rules for ${card.name}`);
+        info.addEventListener('click', () => showCardDetail(card));
+        row.appendChild(info);
+        return row;
     }
 
     function renderDeckBuilder() {
@@ -3587,68 +3957,105 @@
         if (!deck) return;
 
         const targetSize = getDeckTargetSize(deck);
+        const ownedOf = card => gameMeta.collection[card.__id] || 0;
+        buildCardFilterBar('deckBuilderFilters', renderDeckBuilder);
+        const filters = cardFilterState.deckBuilderFilters;
+        const eligible = eligibleCardIds.map(id => __CARD_BY_ID[id]);
+        const shown = sortCardsForList(eligible.filter(card => cardMatchesFilters(card, filters, ownedOf(card))), filters.sort, ownedOf);
+        const showingEl = document.getElementById('deckBuilderShowing');
+        if (showingEl) showingEl.textContent = `Showing ${shown.length} of ${eligible.length} legal cards`;
 
-        const poolRows = eligibleCardIds.map(cardId => {
-            const card = __CARD_BY_ID[cardId];
-            const owned = gameMeta.collection[cardId] || 0;
+        const poolRows = shown.map(card => {
+            const cardId = card.__id;
+            const owned = ownedOf(card);
             const inDeck = counts[cardId] || 0;
-            const remaining = Math.max(0, owned - inDeck);
-            const atLimit = inDeck >= getDeckBuilderCopyLimit(card);
-            const row = document.createElement('div');
-            row.className = 'deck-builder-row';
-            row.innerHTML = `<button type="button" aria-label="Add ${card.name}">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
-            const btn = row.querySelector('button');
-            btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
+            const reason = getAddBlockReason(card, inDeck, owned, deckBuilderState.workingCardIds.length, targetSize);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'deck-builder-add';
+            btn.textContent = '+';
+            btn.setAttribute('aria-label', `Add ${card.name}`);
+            if (reason) {
+                // Not the disabled attribute: a blocked button still explains itself when pressed
+                btn.setAttribute('aria-disabled', 'true');
+                btn.dataset.reason = reason.code;
+                btn.title = reason.text;
+            }
             btn.addEventListener('click', () => {
-                if (owned <= 0) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
-                    renderDeckBuilder();
+                const blocked = getAddBlockReason(card, counts[cardId] || 0, owned, deckBuilderState.workingCardIds.length, targetSize);
+                if (blocked) {
+                    deckBuilderState.debugWarning = blocked.code === 'no-copies'
+                        ? `Cannot add ${card.name}: no owned copies remaining (${owned} owned).`
+                        : `Cannot add ${card.name}: ${blocked.text.charAt(0).toLowerCase()}${blocked.text.slice(1)}.`;
+                    updateDeckBuilderStatus(deck);
                     return;
                 }
-                if (remaining <= 0) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
-                    renderDeckBuilder();
-                    return;
-                }
-                if (atLimit) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
-                    renderDeckBuilder();
-                    return;
-                }
-                if (deckBuilderState.workingCardIds.length >= targetSize) return;
                 deckBuilderState.debugWarning = '';
                 deckBuilderState.validationErrors = [];
                 deckBuilderState.workingCardIds.push(cardId);
                 renderDeckBuilder();
             });
+            const row = createDeckBuilderRow(card, {
+                button: btn,
+                reason,
+                count: `<span>In deck <b>${inDeck}</b></span><span>Owned <b>${owned}</b></span>`
+            });
+            row.classList.toggle('is-blocked', !!reason);
+            row.classList.toggle('is-unowned', owned === 0);
             return row;
         });
 
-        const deckRows = Object.keys(counts)
-            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b))
-            .map(cardId => {
+        // The deck list, grouped by type, cheapest first within each group
+        const deckRows = [];
+        CARD_TYPE_ORDER.forEach(type => {
+            const ids = Object.keys(counts)
+                .filter(id => (__CARD_BY_ID[id]?.type || 'unknown') === type)
+                .sort((a, b) => getCardManaValue(__CARD_BY_ID[a]) - getCardManaValue(__CARD_BY_ID[b]) || __CARD_BY_ID[a].name.localeCompare(__CARD_BY_ID[b].name));
+            if (!ids.length) return;
+            const title = document.createElement('div');
+            title.className = 'deck-group-title';
+            const copies = ids.reduce((sum, id) => sum + counts[id], 0);
+            title.textContent = `${CARD_TYPE_INFO[type].icon} ${type === 'instant' ? 'Spells' : `${CARD_TYPE_INFO[type].label}s`} · ${copies}`;
+            deckRows.push(title);
+            ids.forEach(cardId => {
                 const card = __CARD_BY_ID[cardId];
-                const row = document.createElement('div');
-                row.className = 'deck-builder-row';
-                row.innerHTML = `<button type="button" aria-label="Remove ${card.name}">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
-                row.querySelector('button').addEventListener('click', () => {
-                    const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
-                    if (idx >= 0) {
-                        deckBuilderState.workingCardIds.splice(idx, 1);
-                        deckBuilderState.validationErrors = [];
-                        renderDeckBuilder();
-                    }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'deck-builder-remove';
+                btn.textContent = '−';
+                btn.setAttribute('aria-label', `Remove one ${card.name}`);
+                btn.addEventListener('click', () => {
+                    removeFromWorkingDeck(cardId, 1);
+                    deckBuilderState.validationErrors = [];
+                    deckBuilderState.debugWarning = '';
+                    renderDeckBuilder();
                 });
-                return row;
+                deckRows.push(createDeckBuilderRow(card, { button: btn, count: `x${counts[cardId]}` }));
             });
+        });
 
-        renderDeckBuilderListRows(poolContainer, poolRows, 'No eligible owned cards for this deck.');
+        renderDeckBuilderListRows(poolContainer, poolRows, filters.owned === 'owned' && !eligible.some(card => ownedOf(card) > 0)
+            ? 'No owned cards are legal for this deck.' : 'No cards match these filters.');
         renderDeckBuilderListRows(deckContainer, deckRows, 'Deck is empty.');
 
         if (saveBtn) {
             saveBtn.disabled = deckBuilderState.workingCardIds.length !== targetSize;
         }
+        const unsaved = document.getElementById('deckBuilderUnsaved');
+        if (unsaved) unsaved.style.display = isDeckBuilderDirty() ? '' : 'none';
+        renderDeckBuilderSummary(deck);
+        renderDeckIssues();
         updateDeckBuilderStatus(deck);
+    }
+
+    function loadDeckIntoBuilder(deckKey) {
+        const select = document.getElementById('deckBuilderDeckKey');
+        if (select) select.value = deckKey;
+        deckBuilderState.deckKey = deckKey;
+        deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
+        deckBuilderState.debugWarning = '';
+        deckBuilderState.validationErrors = [];
+        renderDeckBuilder();
     }
 
     function initializeDeckBuilder() {
@@ -3664,26 +4071,23 @@
         deckKeys.forEach(deckKey => {
             const option = document.createElement('option');
             option.value = deckKey;
-            option.textContent = deckKey;
+            option.textContent = deckDisplayName(deckKey);
             option.selected = deckKey === preferredDeckKey;
             select.appendChild(option);
         });
 
-        deckBuilderState.deckKey = preferredDeckKey || null;
-        deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
-        deckBuilderState.debugWarning = '';
-        deckBuilderState.validationErrors = [];
-
+        // Switching decks with unsaved edits asks first; until then the selector stays on the edited deck
         select.onchange = (event) => {
             const deckKey = event.target.value;
-            deckBuilderState.deckKey = deckKey;
-            deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
-            deckBuilderState.debugWarning = '';
-            deckBuilderState.validationErrors = [];
-            renderDeckBuilder();
+            if (isDeckBuilderDirty()) {
+                select.value = deckBuilderState.deckKey;
+                confirmDiscardDeckEdits(() => loadDeckIntoBuilder(deckKey));
+                return;
+            }
+            loadDeckIntoBuilder(deckKey);
         };
 
-        renderDeckBuilder();
+        loadDeckIntoBuilder(preferredDeckKey || null);
     }
 
     function resetDeckBuilderDeck() {
@@ -3729,6 +4133,14 @@
     }
 
     function backToMenu() {
+        // Leaving the Deck Builder with unsaved edits asks first
+        if (currentMenuScreen === 'deckBuilderScreen' && isDeckBuilderDirty()) {
+            confirmDiscardDeckEdits(() => {
+                deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
+                backToMenu();
+            });
+            return;
+        }
         playSFX('menuClose');
         closeDeckBuilderGuide();
         setStartMenuScreen('mainMenu');

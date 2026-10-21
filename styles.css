@@ -4653,13 +4653,13 @@ html {
 }
 
 /* Element backgrounds, shared by faces, land stacks, the detail art window and the pack reveal */
-:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport) {
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art) {
     --card-face-bg:
         radial-gradient(90% 60% at 50% 42%, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, transparent) 0%, transparent 72%),
         linear-gradient(165deg, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, #1b1030) 0%, #140b22 80%);
 }
 
-:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport).is-multicolor {
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art).is-multicolor {
     /* Dual cards: a diagonal split between their two colours */
     --card-face-bg:
         radial-gradient(80% 55% at 50% 42%, rgba(255, 255, 255, 0.1) 0%, transparent 70%),
@@ -4670,13 +4670,13 @@ html {
             color-mix(in srgb, var(--card-el-2) 46%, #1b1030) 100%);
 }
 
-:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport).is-rainbow {
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art).is-rainbow {
     --card-face-bg:
         radial-gradient(circle at 50% 45%, rgba(20, 11, 34, 0.25) 0%, rgba(20, 11, 34, 0.75) 75%),
         conic-gradient(from 200deg, var(--elc-fire), var(--elc-light), var(--elc-earth), var(--elc-water), var(--elc-swamp), var(--elc-fire));
 }
 
-:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport)[data-elements="colorless"] {
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art)[data-elements="colorless"] {
     --card-face-bg:
         radial-gradient(80% 55% at 50% 40%, rgba(220, 228, 240, 0.18) 0%, transparent 70%),
         linear-gradient(165deg, #434957 0%, #1c1f28 82%);
@@ -4709,7 +4709,8 @@ html {
 
     .land-stack-card,
     .card-detail-popup .card-detail-emoji,
-    .pack-card-viewport {
+    .pack-card-viewport,
+    .card-row-art {
         background: var(--card-face-bg);
     }
 }
@@ -5194,4 +5195,484 @@ html {
     .pack-card-meta {
         margin-top: 4px;
     }
+}
+
+/* =====================================================================================================
+   COLLECTION AND DECK BUILDER: search and filters, card previews in list rows, the deck summary with its
+   mana curve, actionable deck issues and the unsaved-changes marker. Shares the card-face helpers (element
+   art tile, cost pips, type and rarity) and the menu tokens. Text never relies on opacity, so contrast holds.
+   ===================================================================================================== */
+#startModal .card-filters {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    text-align: left;
+}
+
+#startModal .card-filter-search,
+#startModal .card-filter-selects select,
+#startModal .deck-builder-controls select {
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 14px;
+}
+
+#startModal .card-filter-search {
+    width: 100%;
+}
+
+#startModal .card-filter-search::placeholder {
+    color: var(--text-dim);
+}
+
+#startModal .card-filter-selects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 6px;
+}
+
+#startModal .card-filter-selects select {
+    min-width: 0;
+    font-size: 13px;
+}
+
+#startModal .card-filter-reset {
+    min-height: 44px;
+    border: 1px solid rgba(242, 207, 114, 0.32);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--gold-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#startModal .card-filters.is-filtered .card-filter-reset {
+    border-color: var(--gold-1);
+    background: rgba(242, 207, 114, 0.1);
+}
+
+#startModal .card-list-showing {
+    margin: 0 0 6px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: left;
+}
+
+/* ---- The element art tile used by list rows */
+.card-row-art {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 22px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* ---- Row meta: cost, type, stats, keywords, rarity */
+#startModal .binder-row-meta,
+#startModal .deck-builder-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-top: 3px;
+    opacity: 1;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+#startModal .row-cost {
+    display: inline-flex;
+    gap: 3px;
+}
+
+#startModal .row-pt {
+    padding: 0 5px;
+    border: 1px solid rgba(242, 207, 114, 0.6);
+    border-radius: 4px;
+    background: var(--card-chip);
+    color: #fff;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+#startModal .row-keyword.is-inactive {
+    text-decoration: line-through;
+}
+
+#startModal .row-rarity.rarity-common { color: #d6c8aa; }
+#startModal .row-rarity.rarity-rare { color: var(--rarity-rare); }
+#startModal .row-rarity.rarity-epic { color: #c9a2ff; }
+#startModal .row-rarity.rarity-legendary { color: var(--rarity-legendary); }
+
+#startModal .row-unowned {
+    padding: 0 6px;
+    border: 1px dashed rgba(234, 223, 184, 0.7);
+    border-radius: 999px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+/* ---- Binder rows */
+#startModal .binder-list {
+    max-height: min(56vh, 520px);
+    gap: 6px;
+}
+
+#startModal .binder-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 7px 10px;
+    text-align: left;
+}
+
+#startModal .binder-row-name {
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#startModal .binder-row.is-unowned {
+    border-style: dashed;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#startModal .binder-row.is-unowned .card-row-art {
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+#startModal .binder-row.is-unowned .binder-row-count {
+    color: var(--text-dim);
+}
+
+/* ---- Deck Builder */
+#startModal .deck-builder-controls {
+    flex-wrap: wrap;
+}
+
+#startModal .deck-builder-unsaved {
+    padding: 4px 10px;
+    border: 1px solid #ffb35a;
+    border-radius: 999px;
+    color: #ffc98a;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#startModal .deck-summary-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: var(--space-2) 0;
+    padding: 10px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-inset);
+    text-align: left;
+}
+
+#startModal .deck-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#startModal .deck-stat {
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+#startModal .deck-stat strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .deck-stat-size {
+    border: 1px dashed rgba(255, 179, 90, 0.8);
+}
+
+#startModal .deck-stat-size.is-complete {
+    border: 1px solid rgba(120, 255, 170, 0.7);
+}
+
+#startModal .deck-stat-cap {
+    font-size: 11.5px;
+}
+
+#startModal .mana-curve {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 74px;
+}
+
+#startModal .mana-curve-bar {
+    display: grid;
+    grid-template-rows: 14px 42px 14px;
+    justify-items: center;
+    align-items: end;
+    width: 24px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+#startModal .mana-curve-fill {
+    display: block;
+    width: 16px;
+    min-height: 2px;
+    align-self: end;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, var(--gold-2), var(--gold-1));
+}
+
+#startModal .mana-curve-n {
+    color: var(--text-main);
+}
+
+#startModal .mana-curve-cost {
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+#startModal .deck-issues {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 var(--space-2);
+    text-align: left;
+}
+
+#startModal .deck-issue {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding: 6px 10px;
+    border-left: 3px solid #ff9a7a;
+    border-radius: 6px;
+    background: rgba(255, 120, 90, 0.1);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--text-main);
+}
+
+#startModal .deck-issue-text::before {
+    content: '⚠ ';
+}
+
+#startModal .deck-issue-action {
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid #ff9a7a;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #ffc2ae;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+#startModal .deck-builder-column-title {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#startModal .deck-builder-list {
+    max-height: min(52vh, 460px);
+}
+
+#startModal .deck-group-title {
+    margin: 6px 0 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+    text-align: left;
+}
+
+#startModal .deck-builder-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    gap: 6px;
+    padding: 6px;
+    text-align: left;
+}
+
+#startModal .deck-builder-row .deck-builder-add,
+#startModal .deck-builder-row .deck-builder-remove,
+#startModal .deck-builder-row .deck-builder-info-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-line);
+    background: rgba(242, 207, 114, 0.14);
+    color: var(--gold-2);
+    font-size: 20px;
+    line-height: 1;
+}
+
+#startModal .deck-builder-row .deck-builder-info-btn {
+    background: transparent;
+    font-size: 18px;
+}
+
+#startModal .deck-builder-row .deck-builder-add[aria-disabled="true"] {
+    border-style: dashed;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+#startModal .deck-builder-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#startModal .deck-builder-name .card-row-art {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+}
+
+#startModal .deck-builder-row.is-unowned .card-row-art {
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+#startModal .deck-builder-reason {
+    margin-top: 3px;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: #ffc2ae;
+}
+
+#startModal .deck-builder-count {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 0;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+}
+
+#startModal .deck-builder-count b {
+    color: var(--gold-1);
+}
+
+@media (max-width: 519px) {
+    #startModal .card-filter-selects {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #startModal .deck-builder-row {
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+    }
+
+    /* The counts move under the card name on narrow phones */
+    #startModal .deck-builder-count {
+        grid-column: 2;
+        grid-row: 2;
+        flex-direction: row;
+        gap: 10px;
+        align-items: center;
+    }
+
+    #startModal .deck-builder-info-btn {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    #startModal .deck-summary-panel {
+        justify-content: center;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    #startModal .binder-list,
+    #startModal .deck-builder-list {
+        max-height: 62dvh;
+    }
+
+    #startModal .card-filter-selects {
+        grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    }
+
+    #startModal .mana-curve {
+        height: 60px;
+    }
+
+    #startModal .mana-curve-bar {
+        grid-template-rows: 14px 30px 14px;
+    }
+}
+
+#startModal .card-filter-more {
+    margin: 0;
+}
+
+#startModal .card-filter-summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    color: var(--gold-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    list-style-position: inside;
+}
+
+#startModal .card-filter-more[open] .card-filter-summary {
+    margin-bottom: 6px;
+}
+
+#startModal .card-filters.is-filtered .card-filter-summary {
+    border-color: var(--gold-1);
+}
+
+#startModal .mana-curve-figure {
+    margin: 0;
+}
+
+#startModal .mana-curve-caption {
+    margin-bottom: 2px;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--text-dim);
 }

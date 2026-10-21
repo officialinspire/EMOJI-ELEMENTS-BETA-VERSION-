@@ -358,3 +358,48 @@ Screenshots (before | after):
 - The audit's representative cards are chosen from the live catalog by rule (first match), not hand-picked.
 - The graveyard list, Binder and Deck Builder rows keep their old list layout. This pass covers the hand,
   battlefield, details and pack reveal.
+
+## 9. Collection (Binder) and Deck Builder
+
+Usability for the two list screens. Deck legality (`validateDeckBuild`), copy limits, land caps, progression,
+collection counts, card ids, all 15 decks and the save format are unchanged. Browsing and unsaved edits never
+write to the save.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Binder contents | Owned cards only, sorted by name | All 268 cards. Unowned ones have a dashed row, a grey art tile, a "Not owned" tag and `x0`. Ownership views: all, owned, not owned. |
+| Binder totals | "153 unique cards • 300 total cards" | "153 of 268 unique cards • 300 total cards", plus "Showing N of 268 cards" for the current filters |
+| Search, filter, sort | none | **Search:** name, card text and keyword names. **Filters:** element (each colour, "two or more colours", colorless), type, mana value (0–5, 6+), rarity, ownership. **Sort:** name, mana value, rarity, type, copies owned. The filters combine, and "Clear" resets them. On narrow phones the selects fold under "Filters & sort (N on)" while search stays visible. |
+| Deck Builder pool | Owned eligible cards, name only | Every card legal for the deck, filtered as above (owned by default). Each row has the element art tile, cost pips, type, power/toughness, keywords, rarity, "In deck N · Owned M" and an ⓘ button for the full card details. |
+| Disabled Add | Enabled until the deck was full; a blocked press showed a reason afterwards | A greyed (`aria-disabled`) + with the reason under the card and in its tooltip: **not owned**, **all owned copies in the deck**, **copy limit** (2, or 1 legendary), or **deck full**. Pressing it repeats the reason in the status line. The reasons are the same limits the save checks. |
+| Deck list | Name and count, sorted by name | Grouped into creatures, spells, artifacts and lands, cheapest first, with the same row preview and ⓘ |
+| Summary | "Deck size: 60/60" | Cards out of 60, lands (with the cap), creatures, spells, artifacts, and a mana curve (0–5, 6+, non-land cards), all from the working deck |
+| Errors | The validator's sentences in the status line after a failed save | A live list of what stops the save, each with a fix where one is clear: "Add 1 more card", "Too many lands: 21 (at most 20). Remove 1 land" [Remove 1 land], "X: 3 in the deck, but you own 2. Remove 1" [Remove 1], "X isn't legal in a Fire deck" [Remove X]. A one-colour deck shows its single land cap once. |
+| Unsaved edits | Leaving or switching decks dropped them silently | A "● Unsaved changes" marker. BACK, Esc or switching decks asks "Discard them?": No keeps the draft (and the deck picker), Yes discards. Filters never touch the draft. |
+| Deck picker | Keys (`FIRE_WATER`) | Names ("🔥 Fire + 💧 Water"); the option values are still the keys |
+
+### Implementation
+
+- **`index.js`:**
+  - Shared list helpers before `renderBinderCollection`: `CARD_FILTER_OPTIONS`, `cardFilterState`,
+    `cardMatchesFilters`, `sortCardsForList`, `buildCardFilterBar`, `resetCardFilters`, `renderCardRowMeta`
+    and `createCardRowArt`. They reuse the card-face helpers from §8 (`getCardIdentity`, `renderCostPips`,
+    `CARD_TYPE_INFO`, `RARITY_INFO`).
+  - Deck Builder: `getAddBlockReason`, `getDeckIssues`, `isDeckBuilderDirty`, `confirmDiscardDeckEdits`,
+    `renderDeckBuilderSummary` and `loadDeckIntoBuilder`, plus a guard in `backToMenu`.
+  - `getDeckIssues` runs `validateDeckBuild` first and returns nothing when it accepts the deck. Every error
+    it reports becomes an issue; one it doesn't recognise is shown verbatim.
+- **`styles.css`:** the "COLLECTION AND DECK BUILDER" block. Controls are 44 px. Text contrast doesn't rely on
+  opacity: only the decorative art tile of unowned cards is faded.
+- **DOM contracts kept:**
+  - `#binderList .binder-row` with `.binder-row-name` (the name first) and `.binder-row-count` (`xN`);
+  - `#deckBuilderPool` / `#deckBuilderDeck .deck-builder-row`, where the first button adds or removes and
+    `.deck-builder-name` reads "emoji name";
+  - `#deckBuilderStatus` "Deck size: N/60";
+  - SAVE disabled until the size is right;
+  - `#binderSummaryBadge` and `#deckBuilderDeckKey`.
+- **Fixed during the pass:** the battle-setup summary from §7 is also named `renderDeckSummary`. Function
+  declarations with the same name override each other silently, so the Deck Builder's summary uses
+  `renderDeckBuilderSummary`.

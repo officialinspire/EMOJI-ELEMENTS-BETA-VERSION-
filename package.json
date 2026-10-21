@@ -13,6 +13,8 @@
     "rules": "node --test tests/rules.test.mjs",
     "combat": "node --test tests/combat.test.mjs",
     "progression": "node --test tests/progression.test.mjs",
+    "collection": "node --test tests/collection.test.mjs",
+    "collection:shots": "node tests/collection-shots.mjs",
     "effects": "node --test tests/effects.test.mjs",
     "ui": "node tests/ui-audit.mjs",
     "menu": "node tests/menu-audit.mjs",

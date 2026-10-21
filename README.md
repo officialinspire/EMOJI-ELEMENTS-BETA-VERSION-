@@ -38,8 +38,10 @@ Full, test-backed rules: [PROGRESSION.md](PROGRESSION.md) (`npm run progression`
 - A new profile starts with **100 credits** and the **starter collection**: the cards of the five mono starter
   decks (153 different cards, 300 copies).
 - Opening a pack adds its cards to your collection; duplicates stack (`x3` in the Binder).
-- **Collection** (main menu) lists every owned card with its count, sorted by name. The main menu shows your
-  credits and how many of the 268 cards you have collected.
+- **Collection** (main menu) lists all 268 cards. Owned ones show their count; the rest are marked "Not owned".
+  - Search, and filters for element, type, mana value, rarity and ownership; sort by name, cost, rarity, type
+    or copies owned.
+  - The main menu shows your credits and how many of the 268 cards you have collected.
 - Rarity is inferred from each card: `common`, `rare`, `epic`, `legendary`. No card is currently `uncommon`.
 
 ## Decks & Deck Builder
@@ -67,6 +69,15 @@ Saving a deck requires all of these:
 - **Colour identity:** every colour in a card's cost must be a deck colour (colourless is always allowed).
   A land must produce at least one deck colour.
 - **Land caps:** mono decks at most 20 lands; dual decks at most 11 per colour (22 total).
+
+In the Deck Builder:
+- Every card row shows a preview (cost, type, stats, keywords, rarity), how many you own and how many are in
+  the deck, and an ⓘ button for its full rules.
+- A greyed Add button says why it can't add: not owned, no owned copies left, copy limit, or deck full.
+- A summary shows cards out of 60, lands, creatures, spells and artifacts, and the mana curve of the deck
+  you're editing.
+- Anything that would stop a save is listed with a one-tap fix where there is one.
+- Filters never touch your edits, and leaving with unsaved changes asks first.
 
 ## Booster Packs & Economy
 
@@ -173,6 +184,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run smoke` | Desktop and mobile smoke flows |
 | `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
 | `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
+| `npm run collection` | Collection and Deck Builder: filter combinations, add/remove and Add reasons, summary and curve, invalid saves, unsaved-edit warnings, reloads, existing saves ([UI.md](UI.md) §9) |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |

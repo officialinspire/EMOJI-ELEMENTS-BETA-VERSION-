@@ -389,6 +389,10 @@ describe('credits, packs and the binder', () => {
             }
             document.getElementById('startModal').style.display = 'flex';
             showBinder();
+            // The Binder lists the whole catalog; the owned-only view is the collection itself
+            const ownedFilter = document.querySelector('#binderFilters [data-filter="owned"]');
+            ownedFilter.value = 'owned';
+            ownedFilter.dispatchEvent(new Event('change'));
             const rows = [...document.querySelectorAll('#binderList .binder-row')].map(r => ({
                 name: r.querySelector('.binder-row-name').firstChild.textContent.trim(),
                 count: Number(r.querySelector('.binder-row-count').textContent.slice(1))
@@ -397,6 +401,7 @@ describe('credits, packs and the binder', () => {
             return {
                 packs, rows,
                 badge: document.getElementById('binderSummaryBadge').textContent,
+                catalog: window.__ALL_CARDS.length,
                 unique: owned.length,
                 totalCards: owned.reduce((s, [, n]) => s + n, 0),
                 duplicates: owned.filter(([, n]) => n >= 3).length,
@@ -408,7 +413,7 @@ describe('credits, packs and the binder', () => {
         assert.equal(result.credits, 2000 - result.spent);
         assert.equal(result.rows.length, result.unique);
         assert.equal(result.rows.reduce((s, r) => s + r.count, 0), result.totalCards);
-        assert.equal(result.badge, `🗂️ ${result.unique} unique cards • ${result.totalCards} total cards`);
+        assert.equal(result.badge, `🗂️ ${result.unique} of ${result.catalog} unique cards • ${result.totalCards} total cards`);
         assert.ok(result.sorted, 'binder sorted by name');
         assert.ok(result.duplicates > 0, 'duplicates accumulate');
         for (const pack of result.packs.filter(p => p.theme !== 'lands')) {

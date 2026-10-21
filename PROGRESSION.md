@@ -50,6 +50,14 @@ because **basic lands are not limited by copy count**; they are limited by the l
   - A land that makes both colours (Rainbow) counts toward whichever colour has fewer.
 - **P2.5** A deck can only be saved when it passes every rule above. When it doesn't, nothing is saved, and
   your collection and other decks are untouched.
+  - The Deck Builder lists what stops the working deck from saving, each with a fix where one is clear
+    ("Too many lands: 21 (at most 20). Remove 1 land").
+  - `getDeckIssues` builds that list, but `validateDeckBuild` still decides. A deck it accepts shows no
+    issues, and every error it reports is listed.
+  - An Add button that can't add says why: not owned, all owned copies already in the deck, copy limit, or
+    deck full. These are the same limits the save checks.
+  - Leaving the Deck Builder or switching decks with unsaved edits asks first. Filters never change the
+    working deck.
 - **P2.6 Which deck is played:** starting a match with Fire + Water plays the saved `FIRE_WATER` deck, exactly
   as saved, and remembers it as the selected deck. The Deck Builder opens on the selected deck.
 
@@ -66,8 +74,13 @@ because **basic lands are not limited by copy count**; they are limited by the l
 - **P3.3 Duplicates:** pulled cards add to your owned count, so duplicates stack.
 - **P3.4 Packs opened:** **Changed:** shop packs now also count toward "packs opened". It used to count only
   win packs.
-- **P3.5 Binder:** lists every owned card once with its count (`x3`), sorted by name, under a
-  "N unique cards • M total cards" summary.
+- **P3.5 Binder (Collection):**
+  - Lists the whole catalog. Owned cards show their count (`x3`); the rest are marked "Not owned" (`x0`).
+  - "Owned" and "Not owned" views, search, and filters for element, type, mana value and rarity.
+  - Sorting by name, mana value, rarity, type or copies owned.
+  - Summary line: "N of 268 unique cards • M total cards", counted from the saved collection.
+  - **Changed:** it used to list owned cards only.
+  - Browsing never writes to the save (`npm run collection`).
 - **P3.6 Pack screen:** titled "Victory Pack" for match rewards and "<Theme> Pack" for shop purchases.
   **Changed:** every pack used to be titled "Victory Pack", and QA debug text was shown to players.
 

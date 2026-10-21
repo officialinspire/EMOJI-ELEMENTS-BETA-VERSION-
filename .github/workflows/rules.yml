@@ -16,5 +16,5 @@ jobs:
         run: npm install
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run rules, combat, progression, effects and AI tests
-        run: node --test tests/rules.test.mjs tests/combat.test.mjs tests/progression.test.mjs tests/effects.test.mjs tests/ai.test.mjs
+      - name: Run rules, combat, progression, collection, effects and AI tests
+        run: node --test tests/rules.test.mjs tests/combat.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/effects.test.mjs tests/ai.test.mjs

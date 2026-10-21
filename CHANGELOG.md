@@ -1,5 +1,46 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Collection and Deck Builder
+
+For players:
+- **The Collection shows every card.**
+  - All 268 cards are listed. The ones you don't own yet are marked "Not owned".
+  - Switch to "Owned" to see just your collection.
+  - The summary reads "153 of 268 unique cards • 300 total cards".
+- **Search, filter and sort**, in the Collection and in the Deck Builder:
+  - search by name, card text or keyword;
+  - filter by element (including "two or more colours" and colorless), card type, mana value, rarity and
+    ownership;
+  - sort by name, mana value, rarity, type or copies owned.
+  - On phones, the filters fold away under "Filters & sort".
+- **Readable Deck Builder rows.**
+  - Each card shows its art tile, cost, type, power/toughness, keywords and rarity, plus how many are in the deck
+    and how many you own.
+  - The ⓘ button opens the card's full rules.
+  - The deck list is grouped into creatures, spells, artifacts and lands.
+- **Add buttons explain themselves.** A greyed + says why: not owned yet, all your copies are already in, copy
+  limit (2, or 1 for legendaries), or the deck is full.
+- **Deck summary:** cards out of 60, lands (with the cap), creatures, spells, artifacts, and a mana-curve chart of
+  the deck you're editing.
+- **Problems come with fixes.** If something would stop the deck saving, it's listed in plain words with a button
+  that fixes it where it can ("Too many lands: 21 (at most 20). Remove 1 land").
+- **No lost edits.**
+  - Changing filters never touches your deck.
+  - "● Unsaved changes" shows while you edit.
+  - Leaving, pressing Esc or switching decks with unsaved changes asks first.
+- **The deck picker** shows names ("🔥 Fire + 💧 Water") instead of keys.
+
+Unchanged: deck rules (`validateDeckBuild`), copy limits, land caps, collection counts, all 15 decks, card ids
+and the save format.
+
+Under the hood:
+- Shared helpers in `index.js`: `cardMatchesFilters`, `sortCardsForList`, `buildCardFilterBar`,
+  `renderCardRowMeta`, `getAddBlockReason`, `getDeckIssues`, `isDeckBuilderDirty` and
+  `confirmDiscardDeckEdits`.
+- A "COLLECTION AND DECK BUILDER" block in `styles.css`.
+- New `tests/collection.test.mjs` (`npm run collection`, in CI) and `tests/collection-shots.mjs`.
+- The progression test's Binder check now uses the "Owned" view and the new summary format. See [UI.md](UI.md) §9.
+
 ## Unreleased: card presentation
 
 For players:
