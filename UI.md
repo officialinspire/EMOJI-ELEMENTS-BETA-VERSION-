@@ -843,6 +843,8 @@ The panel, top to bottom:
    - **Theme:** opens the §12 picker on top; Esc closes only the picker.
    - Each setting is saved under its own key (`emojiElementsMuted`, `emojiElementsMusicOff`,
      `emojiElementsHaptics`), never in the profile.
+   - The sound pass that followed added Effects and the two volume sliders, and the same rows on the main menu
+     ([AUDIO.md](AUDIO.md) §4).
 4. **Controls** (collapsed): tap, long-press and attack in three lines, plus the keyboard keys. The keys are
    hidden on touch-only devices.
 5. **MAIN MENU**, below a dashed rule: an outlined button, with "Leaves this match. You'll be asked to

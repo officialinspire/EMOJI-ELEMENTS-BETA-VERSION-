@@ -248,21 +248,7 @@
             <section class="pause-section" aria-labelledby="pauseSettingsTitle">
                 <h3 class="pause-section-title" id="pauseSettingsTitle">Settings</h3>
                 <div class="pause-settings">
-                    <button class="pause-switch-row" id="pauseSoundSwitch" type="button" role="switch" aria-checked="true" onclick="toggleMute()">
-                        <span class="pause-row-icon" aria-hidden="true">🔊</span>
-                        <span class="pause-row-text"><span class="pause-row-label">Sound</span><span class="pause-row-note">All music and effects</span></span>
-                        <span class="pause-switch" aria-hidden="true"></span>
-                    </button>
-                    <button class="pause-switch-row" id="pauseMusicSwitch" type="button" role="switch" aria-checked="true" onclick="toggleMusic()">
-                        <span class="pause-row-icon" aria-hidden="true">🎵</span>
-                        <span class="pause-row-text"><span class="pause-row-label">Music</span><span class="pause-row-note">Effects stay on</span></span>
-                        <span class="pause-switch" aria-hidden="true"></span>
-                    </button>
-                    <button class="pause-switch-row" id="pauseHapticsSwitch" type="button" role="switch" aria-checked="true" aria-describedby="pauseHapticsNote" onclick="toggleHaptics()">
-                        <span class="pause-row-icon" aria-hidden="true">📳</span>
-                        <span class="pause-row-text"><span class="pause-row-label">Haptics</span><span class="pause-row-note" id="pauseHapticsNote">Buzz on long-press and when you take damage</span></span>
-                        <span class="pause-switch" aria-hidden="true"></span>
-                    </button>
+                    <!-- Sound, Music (+ volume), Effects (+ volume) and Haptics: renderSoundSettings() -->
                     <button class="pause-switch-row pause-theme-btn" type="button" onclick="showThemePicker()" aria-haspopup="dialog">
                         <span class="pause-row-icon" aria-hidden="true">🎨</span>
                         <span class="pause-row-text"><span class="pause-row-label">Theme</span><span class="pause-row-note" id="pauseThemeName">Arcane Fantasy</span></span>
@@ -288,6 +274,18 @@
                 <button class="menu-btn pause-quit" type="button" onclick="confirmQuit()"><span aria-hidden="true">🏠</span> Main menu</button>
                 <p class="pause-leave-note">Leaves this match. You'll be asked to confirm.</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Sound and haptics settings from the main menu (the pause panel draws the same rows) -->
+    <div id="soundDialog" class="graveyard-modal theme-dialog sound-dialog" role="dialog" aria-modal="true" aria-labelledby="soundDialogTitle">
+        <div class="graveyard-content theme-dialog-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="soundDialogTitle">🔊 Sound &amp; haptics</div>
+                <button class="graveyard-close" type="button" onclick="hideSoundSettings()" aria-label="Close sound settings">✕</button>
+            </div>
+            <p class="theme-dialog-note">Saved on this device. They never change your cards, decks or progress.</p>
+            <div class="pause-settings" id="menuSoundSettings"></div>
         </div>
     </div>
 
@@ -331,6 +329,10 @@
                     <button type="button" class="theme-chip" id="themeChip" onclick="showThemePicker()" aria-haspopup="dialog">
                         <span class="theme-chip-swatch" aria-hidden="true"></span>
                         <span class="theme-chip-text">Theme: <strong id="themeChipName">Arcane Fantasy</strong></span>
+                    </button>
+                    <button type="button" class="theme-chip sound-chip" id="soundChip" onclick="showSoundSettings()" aria-haspopup="dialog">
+                        <span aria-hidden="true">🔊</span>
+                        <span class="theme-chip-text">Sound</span>
                     </button>
                 </div>
                 <div>Build a single-color or two-color deck and conquer the arena.</div>
@@ -703,6 +705,7 @@
 
     <div id="cardHoverTooltip" class="card-hover-tooltip"></div>
 
+    <script src="feedback.js"></script>
     <script src="index.js"></script>
 </body>
 </html>

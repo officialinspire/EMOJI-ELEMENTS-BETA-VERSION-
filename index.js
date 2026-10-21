@@ -32,85 +32,68 @@
         // 2) Start match -> confirm no red errors.
     }
 
-    // Audio System
+    // Audio System. Music stays on HTML media elements; every sound effect is synthesised by feedback.js
+    // (GameFeedback), which also holds the sound and haptics settings.
     const audioSystem = {
         startMenuMusic: new Audio('startmenu.mp3'),
-        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3'),
-        tapLand: new Audio('tapland.mp3'),
-        untap: new Audio('untap.mp3'),
-        summonCreatureFantasy: new Audio('summoncreaturefantasy.mp3'),
-        summonCreatureScifi: new Audio('scifisummon.mp3'),
-        summonInstant: new Audio('summoninstant.mp3'),
-        cardDestroyed: new Audio('carddestroyed.mp3'),
-        attack: new Audio('attack.mp3'),
-        block: new Audio('block.mp3'),
-        playerHeal: new Audio('playerheal.mp3'),
-        playerTakeDamage: new Audio('playertakedamage.mp3'),
-        opponentHeals: new Audio('opponentheals.mp3'),
-        opponentTakeDamage: new Audio('opponenttakedamage.mp3'),
-        menuOpen: new Audio('menuopen.mp3'),
-        menuClose: new Audio('menuclose.mp3'),
-        select: new Audio('select.mp3'),
-        gameVictory: new Audio('gamevictorysfx.mp3'),
-        gameLose: new Audio('gamelosesfx.mp3')
+        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3')
     };
 
-    // Configure audio loops and volume for mobile compatibility
     audioSystem.startMenuMusic.loop = true;
     audioSystem.gameplayMusic.loop = true;
     audioSystem.startMenuMusic.volume = 0.5;
     audioSystem.gameplayMusic.volume = 0.5;
-    audioSystem.gameVictory.volume = 0.7;
-    audioSystem.gameLose.volume = 0.7;
 
-    // Set all sound effects to reasonable volume
-    Object.keys(audioSystem).forEach(key => {
-        if (!['startMenuMusic', 'gameplayMusic', 'gameVictory', 'gameLose'].includes(key)) {
-            audioSystem[key].volume = 0.6;
-        }
-    });
+    const soundSettings = GameFeedback.settings;
 
+    // Both tracks play at the Music volume (default 0.5, as before)
     const MUSIC_TARGET_VOLUME = {
-        menu: 0.5,
-        gameplay: 0.5
+        get menu() { return soundSettings.musicVolume; },
+        get gameplay() { return soundSettings.musicVolume; }
     };
 
     const activeAudioFades = new WeakMap();
 
-    // IMPROVED: Audio queue management to prevent overlapping sounds
-    const audioQueue = {
-        lastPlayed: {},
-        minInterval: 100 // Minimum milliseconds between same sound effects
+    // The old effect names, as cues (feedback.js). Callers that know more (a summon's theme, a reveal's rarity,
+    // how much life changed) call GameFeedback.play directly.
+    const SFX_CUES = {
+        menuOpen: 'open',
+        menuClose: 'close',
+        select: 'select',
+        tapLand: 'landTap',
+        untap: 'turnStart',
+        cardDestroyed: 'destroy',
+        attack: 'attack',
+        block: 'block',
+        gameVictory: 'victory',
+        gameLose: 'defeat'
     };
 
-    // Helper function to play sound effect with better management
+    // Music (with loop) on its media element; any other name is a sound effect cue
     function playSFX(soundName, loop = false) {
-        if (audioSystem[soundName]) {
-            try {
-                // Prevent rapid-fire duplicate sounds for better audio quality
-                const now = Date.now();
-                const lastPlayTime = audioQueue.lastPlayed[soundName] || 0;
-
-                if (!loop && now - lastPlayTime < audioQueue.minInterval) {
-                    return; // Skip if played too recently
-                }
-
-                audioQueue.lastPlayed[soundName] = now;
-
-                audioSystem[soundName].currentTime = 0;
-                audioSystem[soundName].loop = loop;
-                const playPromise = audioSystem[soundName].play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
-                }
-            } catch (e) {
-                console.log('Audio error:', e);
+        if (!audioSystem[soundName]) {
+            const cue = SFX_CUES[soundName];
+            if (cue) GameFeedback.play(cue);
+            return;
+        }
+        try {
+            audioSystem[soundName].currentTime = 0;
+            audioSystem[soundName].loop = loop;
+            const playPromise = audioSystem[soundName].play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
             }
+        } catch (e) {
+            console.log('Audio error:', e);
         }
     }
 
     // Helper function to stop sound
     function stopSFX(soundName) {
+        if (SFX_CUES[soundName]) {
+            GameFeedback.stopAll();
+            return;
+        }
         if (audioSystem[soundName]) {
             try {
                 audioSystem[soundName].pause();
@@ -122,79 +105,141 @@
     }
 
 
-    // Sound (everything), music on its own, and haptics. Each is a device setting under its own key, apart from the
-    // profile. The pause menu shows all three as switches; the header keeps its one-tap mute.
-    const MUSIC_KEYS = ['startMenuMusic', 'gameplayMusic'];
-
-    function readSetting(key, fallback) {
-        try {
-            const value = localStorage.getItem(key);
-            return value === null ? fallback : value === 'true';
-        } catch (_) {
-            return fallback;
-        }
-    }
-
-    function saveSetting(key, value) {
-        try { localStorage.setItem(key, String(value)); } catch (_) { /* blocked storage: lasts this visit */ }
-    }
-
+    // Sound and haptics settings (GameFeedback.settings, saved per device, never in the profile). The header 🔊 is
+    // the master mute. The pause panel and the menu's Sound dialog draw the same rows (renderSoundSettings).
     function applyMuteState() {
-        Object.entries(audioSystem).forEach(([key, audio]) => {
-            audio.muted = isMuted || (musicOff && MUSIC_KEYS.includes(key));
+        const musicMuted = soundSettings.muted || soundSettings.musicOff;
+        Object.values(audioSystem).forEach(audio => { audio.muted = musicMuted; });
+        // Playing music follows the volume at once (no fade is running when a slider moves)
+        Object.values(audioSystem).forEach(audio => {
+            if (!audio.paused && !activeAudioFades.get(audio)) audio.volume = gamePaused && audio === audioSystem.gameplayMusic
+                ? soundSettings.musicVolume * 0.4 : soundSettings.musicVolume;
         });
 
         const muteBtn = document.getElementById('muteBtn');
         if (muteBtn) {
-            muteBtn.textContent = isMuted ? '🔇' : '🔊';
-            muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
-            muteBtn.setAttribute('aria-pressed', String(isMuted));
+            muteBtn.textContent = soundSettings.muted ? '🔇' : '🔊';
+            muteBtn.title = soundSettings.muted ? 'Unmute sound' : 'Mute sound';
+            muteBtn.setAttribute('aria-pressed', String(soundSettings.muted));
         }
-        updatePauseSwitches();
+        syncSoundSettings();
     }
 
+    GameFeedback.onSettingsChange(() => applyMuteState());
+
     function toggleMute() {
-        isMuted = !isMuted;
-        saveSetting('emojiElementsMuted', isMuted);
-        applyMuteState();
+        GameFeedback.setSetting('muted', !soundSettings.muted);
         // The pause menu's switch already shows it
-        if (!gamePaused) showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+        if (!gamePaused) showGameLog(soundSettings.muted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
     }
 
     function toggleMusic() {
-        musicOff = !musicOff;
-        saveSetting('emojiElementsMusicOff', musicOff);
-        applyMuteState();
+        GameFeedback.setSetting('musicOff', !soundSettings.musicOff);
     }
 
-    const hapticsSupported = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+    function toggleSfx() {
+        GameFeedback.setSetting('sfxOff', !soundSettings.sfxOff);
+        GameFeedback.play('select');
+    }
 
     function toggleHaptics() {
-        if (!hapticsSupported) return;
-        hapticsOn = !hapticsOn;
-        saveSetting('emojiElementsHaptics', hapticsOn);
-        updatePauseSwitches();
-        haptic(20);
+        if (!GameFeedback.hapticsSupported()) return;
+        GameFeedback.setSetting('haptics', !soundSettings.haptics);
+        haptic('toggle');
     }
 
-    // A short buzz on supporting phones (long-press, taking damage), unless switched off
-    function haptic(pattern) {
-        if (hapticsOn && hapticsSupported) {
-            try { navigator.vibrate(pattern); } catch (_) { /* not allowed here */ }
-        }
+    // One guarded entry point for vibration (feedback.js): kind is select, toggle, play, impact, reveal,
+    // revealRare, victory or defeat
+    function haptic(kind) {
+        return GameFeedback.haptic(kind);
     }
 
-    function updatePauseSwitches() {
-        const set = (id, on) => document.getElementById(id)?.setAttribute('aria-checked', String(on));
-        set('pauseSoundSwitch', !isMuted);
-        set('pauseMusicSwitch', !musicOff && !isMuted);
-        set('pauseHapticsSwitch', hapticsOn && hapticsSupported);
-        const music = document.getElementById('pauseMusicSwitch');
-        if (music) music.disabled = isMuted;
-        const haptics = document.getElementById('pauseHapticsSwitch');
-        if (haptics) haptics.disabled = !hapticsSupported;
-        const hapticsNote = document.getElementById('pauseHapticsNote');
-        if (hapticsNote) hapticsNote.textContent = hapticsSupported ? 'Buzz on long-press and when you take damage' : 'Not available on this device';
+    // Quick land taps step up in pitch a little (up to 4 steps), so tapping a row of lands sounds like a run
+    let landTapRun = { step: 0, at: -Infinity };
+    function playLandTap() {
+        const now = performance.now();
+        landTapRun = { step: now - landTapRun.at < 700 ? Math.min(4, landTapRun.step + 1) : 0, at: now };
+        GameFeedback.play('landTap', { step: landTapRun.step });
+    }
+
+    const SOUND_ROWS = [
+        { key: 'muted', id: 'Sound', icon: '🔊', label: 'Sound', note: 'Everything: music and effects', on: () => !soundSettings.muted, toggle: 'toggleMute()' },
+        { key: 'musicOff', id: 'Music', icon: '🎵', label: 'Music', note: 'Menu and battle music', on: () => !soundSettings.musicOff, toggle: 'toggleMusic()', volume: 'musicVolume' },
+        { key: 'sfxOff', id: 'Sfx', icon: '✨', label: 'Effects', note: 'Cards, combat and menus', on: () => !soundSettings.sfxOff, toggle: 'toggleSfx()', volume: 'sfxVolume' },
+        { key: 'haptics', id: 'Haptics', icon: '📳', label: 'Haptics', note: 'Short buzzes for plays, hits, rare cards and wins', on: () => soundSettings.haptics, toggle: 'toggleHaptics()' }
+    ];
+
+    function renderSoundSettings(container, prefix) {
+        if (!container || container.dataset.rendered) return;
+        container.dataset.rendered = '1';
+        const anchor = container.querySelector('.pause-theme-btn');
+        SOUND_ROWS.forEach(row => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pause-switch-row';
+            button.id = `${prefix}${row.id}Switch`;
+            button.setAttribute('role', 'switch');
+            button.setAttribute('onclick', row.toggle);
+            button.dataset.soundRow = row.id;
+            button.innerHTML = `
+                <span class="pause-row-icon" aria-hidden="true">${row.icon}</span>
+                <span class="pause-row-text"><span class="pause-row-label">${row.label}</span><span class="pause-row-note" id="${prefix}${row.id}Note">${row.note}</span></span>
+                <span class="pause-switch" aria-hidden="true"></span>`;
+            button.setAttribute('aria-describedby', `${prefix}${row.id}Note`);
+            container.insertBefore(button, anchor);
+            if (row.volume) {
+                const slider = document.createElement('label');
+                slider.className = 'pause-volume-row';
+                slider.dataset.soundVolume = row.volume;
+                slider.innerHTML = `
+                    <span class="pause-volume-label">${row.label} volume</span>
+                    <input type="range" min="0" max="100" step="5" id="${prefix}${row.id}Volume">
+                    <output class="pause-volume-value" for="${prefix}${row.id}Volume"></output>`;
+                const input = slider.querySelector('input');
+                input.addEventListener('input', () => GameFeedback.setSetting(row.volume, Number(input.value) / 100));
+                // A sample of the new effects level when the slider is let go
+                if (row.volume === 'sfxVolume') input.addEventListener('change', () => GameFeedback.play('select'));
+                container.insertBefore(slider, anchor);
+            }
+        });
+        syncSoundSettings();
+    }
+
+    function syncSoundSettings() {
+        const supported = GameFeedback.hapticsSupported();
+        document.querySelectorAll('[data-sound-row]').forEach(button => {
+            const row = SOUND_ROWS.find(r => r.id === button.dataset.soundRow);
+            const unavailable = row.key === 'haptics' && !supported;
+            // Music and Effects follow the master switch
+            const blocked = soundSettings.muted && (row.key === 'musicOff' || row.key === 'sfxOff');
+            button.setAttribute('aria-checked', String(row.on() && !unavailable && !blocked));
+            button.disabled = unavailable || blocked;
+            if (row.key === 'haptics') {
+                const note = button.querySelector('.pause-row-note');
+                if (note) note.textContent = supported ? row.note : 'Not available on this device';
+            }
+        });
+        document.querySelectorAll('[data-sound-volume]').forEach(label => {
+            const key = label.dataset.soundVolume;
+            const value = Math.round(soundSettings[key] * 100);
+            const input = label.querySelector('input');
+            if (Number(input.value) !== value) input.value = value;
+            input.setAttribute('aria-valuetext', `${value}%`);
+            label.querySelector('output').textContent = `${value}%`;
+            const channelOff = soundSettings.muted || (key === 'musicVolume' ? soundSettings.musicOff : soundSettings.sfxOff);
+            label.hidden = channelOff;
+        });
+    }
+
+    function showSoundSettings() {
+        renderSoundSettings(document.getElementById('menuSoundSettings'), 'menu');
+        playSFX('menuOpen');
+        document.getElementById('soundDialog').classList.add('show');
+    }
+
+    function hideSoundSettings() {
+        playSFX('menuClose');
+        document.getElementById('soundDialog').classList.remove('show');
     }
 
     function initializeButtonTypes() {
@@ -281,7 +326,7 @@
                 if (!start) return;
                 longPressed = true;
                 start = null;
-                haptic(50);
+                haptic('select');
                 onLongPress?.();
             }, LONG_PRESS_MS);
         });
@@ -674,9 +719,6 @@
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    let isMuted = readSetting('emojiElementsMuted', false);
-    let musicOff = readSetting('emojiElementsMusicOff', false);
-    let hapticsOn = readSetting('emojiElementsHaptics', true);
     let hoverTooltipPinned = false;
 
     // Intro / startup sequence state
@@ -3107,6 +3149,10 @@
     function revealCurrentPackCard() {
         if (packOpeningState.stage !== 'reveal' || packOpeningState.cardRevealed) return;
         setPackCardRevealState(true);
+        const revealed = packOpeningState.cards[packOpeningState.currentIndex];
+        const rarity = revealed ? getCardRarity(revealed) : 'common';
+        GameFeedback.play('reveal', { rarity });
+        if (['rare', 'epic', 'legendary'].includes(rarity)) haptic('revealRare');
 
         const viewport = document.getElementById('packCardViewport');
         if (viewport) {
@@ -3333,6 +3379,8 @@
         if (packOpeningState.stage !== 'sealed') return;
 
         packOpeningState.stage = 'opening';
+        GameFeedback.play('packRip');
+        haptic('reveal');
         const instruction = document.getElementById('packInstruction');
         const shell = document.getElementById('packTearSurface');
         if (instruction) {
@@ -3608,6 +3656,7 @@
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
+            haptic('victory');
             showMatchRewardOverlay({
                 creditsAwarded: BASE_WIN_CREDITS,
                 packCount: 1
@@ -3644,6 +3693,7 @@
 
         stopSFX('gameplayMusic');
         playSFX('gameLose');
+        haptic('defeat');
         const lossReward = document.getElementById('lossRewardLine');
         if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
         showMatchResultOverlay('loss');
@@ -3765,6 +3815,7 @@
         }
 
         const log = document.getElementById('gameLog');
+        if (message.startsWith('⚠️')) GameFeedback.play('deny');
         // During a match the toast sits on the turn banner, above the board, so it never covers cards
         const banner = document.getElementById('turnBanner');
         const inMatch = document.getElementById('gameContainer')?.style.display === 'flex';
@@ -3785,6 +3836,11 @@
             log.classList.remove('show');
         }, hold || 2000);
     }
+
+    // Effects (Web Audio) start only after the player touches the page; each later gesture also resumes audio the
+    // browser suspended or interrupted (a call, a background tab)
+    ['pointerdown', 'keydown', 'touchend'].forEach(type =>
+        document.addEventListener(type, () => GameFeedback.unlock(), { capture: true, passive: true }));
 
     // Leaving a match drops its pending toasts, so a menu message isn't held behind a combat report
     function resetGameLog() {
@@ -5392,6 +5448,10 @@
         document.getElementById('themeDialog').classList.remove('show');
     }
 
+    document.getElementById('soundDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideSoundSettings();
+    });
+
     document.getElementById('themeDialog')?.addEventListener('click', function(e) {
         if (e.target === this) hideThemePicker();
     });
@@ -5625,6 +5685,7 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay * 0.4, 250);
         updatePausePanel();
+        renderSoundSettings(document.querySelector('#pauseModal .pause-settings'), 'pause');
         playSFX('menuOpen');
         document.getElementById('pauseModal').classList.add('show');
     }
@@ -5677,7 +5738,7 @@
             const whose = gameState.turn === 'enemy' ? "Enemy's turn" : 'Your turn';
             summary.textContent = `Turn ${gameState.round || 1} · ${whose} · You ❤️ ${gameState.playerLife} · Enemy ❤️ ${gameState.enemyLife}`;
         }
-        updatePauseSwitches();
+        syncSoundSettings();
     }
 
     // Leaving a match (MAIN MENU, a new match) drops its paused state and any timers it still had
@@ -6420,32 +6481,30 @@
             gameState.playerBoard.push({...card, tapped: false});
             playedBoardCardId = card.id;
             gameState.landsPlayedThisTurn++;  // Increment land counter
+            playLandTap();
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
             gameState.playerBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             playedBoardCardId = card.id;
-            // Play appropriate creature summon sound based on theme
-            if (card.theme === 'Science Fiction') {
-                playSFX('summonCreatureScifi');
-            } else {
-                playSFX('summonCreatureFantasy');
-            }
+            // Summon sound by the card's theme
+            GameFeedback.play('summon', { variant: card.theme === 'Science Fiction' ? 'scifi' : 'fantasy' });
             showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'Science Fiction');
         } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.playerBoard.push(artifactOnBoard);
             playedBoardCardId = artifactOnBoard.id;
-            playSFX('summonInstant');
+            GameFeedback.play('artifact');
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
 
             // Trigger artifact effects that should happen immediately when played
             resolveArtifactOnPlay(artifactOnBoard, 'player');
         } else if (card.type === 'instant') {
-            playSFX('summonInstant');
+            GameFeedback.play('spell');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             castInstant(card, 'player');
         }
 
+        haptic('play');
         const verb = { land: 'play', creature: 'summon', artifact: 'play', instant: 'cast' }[card.type] || 'play';
         recordHistory('player', `${card.emoji} You ${verb} ${card.name}`,
             describeChangesSince(historySnap, { playedFrom: 'player', playedId: playedBoardCardId ?? card.id }));
@@ -6655,7 +6714,7 @@
                 card.selectedElement = chosenElement;
                 card.tapped = true;
                 gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
-                playSFX('tapLand');
+                playLandTap();
                 showGameLog(`⚡ You tap ${card.name} for ${chosenElement} mana`, false);
                 updateUI();
             });
@@ -6671,7 +6730,7 @@
         card.tapped = true;
         gameState.playerMana[elementToAdd] = (gameState.playerMana[elementToAdd] || 0) + 1;
 
-        playSFX('tapLand');
+        playLandTap();
         showGameLog(`⚡ You tap ${card.name} for ${elementToAdd} mana`, false);
 
         updateUI();
@@ -6722,7 +6781,7 @@
         });
 
         if (tappedCount > 0) {
-            playSFX('tapLand');
+            playLandTap();
             showGameLog(`⚡ You tap ${tappedCount} ${untappedLands[0].name}${tappedCount > 1 ? 's' : ''} for mana`, false);
             updateUI();
         }
@@ -6756,7 +6815,7 @@
         const manaToAdd = 'colorless';
         gameState.playerMana[manaToAdd] = (gameState.playerMana[manaToAdd] || 0) + (card.value || 1);
 
-        playSFX('tapLand');
+        playLandTap();
         showGameLog(`⚡ ${card.name} adds ${ELEMENTS[manaToAdd].emoji} mana`, false);
         updateUI();
     }
@@ -6936,13 +6995,11 @@
                 // Heal life AND draw cards (e.g., Meditate)
                 if (isCasterPlayer) {
                     changePlayerLife(card.value);
-                    playSFX('playerHeal');
                     const playerInfoHD = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rectHD = playerInfoHD.getBoundingClientRect();
                     createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
                 } else {
                     changeEnemyLife(card.value);
-                    playSFX('opponentHeals');
                     const enemyInfoHD = document.querySelector('.enemy-area .player-info');
                     const rectHD = enemyInfoHD.getBoundingClientRect();
                     createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
@@ -7335,6 +7392,8 @@
         } else {
             gameState.attackers.push(cardId);
         }
+        playSFX('select');
+        haptic('select');
 
         updateUI();
     }
@@ -7366,6 +7425,7 @@
         setProcessingLock(5000);
 
         playSFX('attack');
+        haptic('impact');
         showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
 
         // AI declares blockers
@@ -7788,15 +7848,18 @@
         if (card.type === 'creature') {
             gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
+            GameFeedback.play('summon', { variant: card.theme === 'Science Fiction' ? 'scifi' : 'fantasy' });
             playedId = card.id;
         } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.enemyBoard.push(artifactOnBoard);
             showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
+            GameFeedback.play('artifact');
             resolveArtifactOnPlay(artifactOnBoard, 'enemy');
             playedId = artifactOnBoard.id;
         } else {
             showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+            GameFeedback.play('spell');
             castInstant(card, 'enemy');
         }
 
@@ -8369,21 +8432,16 @@
                 screenShake('med');
             }
 
+            const intensity = Math.min(1, absChange / 8);
             if (actualChange > 0) {
-                // Life increase - play heal sound for each point
-                for (let i = 0; i < actualChange; i++) {
-                    setTimeout(() => playSFX('playerHeal'), i * 100);
-                }
+                GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
                     setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
-                // Life decrease - play damage sound for each point
-                haptic(40);
-                for (let i = 0; i < absChange; i++) {
-                    setTimeout(() => playSFX('playerTakeDamage'), i * 100);
-                }
+                GameFeedback.play('damageTaken', { intensity });
+                haptic('impact');
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
                     setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
@@ -8420,20 +8478,15 @@
                 screenShake('med');
             }
 
+            const intensity = Math.min(1, absChange / 8);
             if (actualChange > 0) {
-                // Life increase - play heal sound for each point
-                for (let i = 0; i < actualChange; i++) {
-                    setTimeout(() => playSFX('opponentHeals'), i * 100);
-                }
+                GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
                     setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
-                // Life decrease - play damage sound for each point
-                for (let i = 0; i < absChange; i++) {
-                    setTimeout(() => playSFX('opponentTakeDamage'), i * 100);
-                }
+                GameFeedback.play('damageDealt', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
                     setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
@@ -8514,6 +8567,9 @@
                     cardEl.appendChild(chip);
                 }
             }
+
+            // Lifting a playable card makes a soft swish (pointer only; the play itself has its own sound)
+            if (!restriction) cardEl.addEventListener('pointerdown', () => GameFeedback.play('pickup'));
 
             // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
             bindCardPress(cardEl, {
@@ -8988,6 +9044,7 @@
         { id: 'graveyardModal', close: () => hideGraveyard() },
         { id: 'historyModal', close: () => hideMatchHistory() },
         { id: 'themeDialog', close: () => hideThemePicker() },
+        { id: 'soundDialog', close: () => hideSoundSettings() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 

@@ -145,7 +145,7 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 - `Esc` closes the open window (card details, graveyard, match history, confirmations, pack), resumes from pause, or pauses.
 - **Pause** (☰ or `Esc`) really stops the match: the AI's turn, toasts and timers wait, and the board takes no
   input until you resume. The match also pauses itself if you switch tab or app. The pause menu has Resume,
-  Sound, Music and Haptics switches, the theme, a short controls list, and MAIN MENU (with the usual
+  Sound, Music (with volume), Effects (with volume) and Haptics settings, the theme, a short controls list, and MAIN MENU (with the usual
   confirmation) set apart at the bottom.
 - Dialogs keep keyboard focus inside them and return it when they close.
 
@@ -168,7 +168,16 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 - Nothing loops or pulses during a match, in any theme. The start screen and the result banners animate once.
 - With the system's **reduce motion** setting, the intro animation, screen shake, particles and those one-off
   entrances are off too.
-- No sound plays before the first tap or click (browser autoplay rules). The mute choice is remembered.
+- No sound plays before the first tap or click (browser autoplay rules).
+- **Sound settings** are in the pause menu and behind **🔊 Sound** on the main menu: Sound (everything; also the
+  header 🔊), Music and Effects, each with a volume, and Haptics. They are remembered on this device.
+- Effects are short and quiet by design, and each one is synthesised in the browser (`feedback.js`). Damage and
+  healing make one sound per change, not one per point. Opening packs has a rip and a reveal sound, with a rising
+  arpeggio for rare cards. Details and measurements: [AUDIO.md](AUDIO.md).
+- **Haptics** (phones that support vibration): short buzzes when you play a card, attack, take damage, reveal a
+  rare card, win or lose. Never on the AI's own actions, never before your first touch, and only single short
+  pulses with reduce motion.
+- `docs/sound-board.html` plays every effect and vibration pattern, for checking them on a device.
 
 ## How To Run
 
@@ -197,9 +206,10 @@ You can also open `index.html` directly in many browsers, but a local server is 
 | `emoji_elements_meta_v1` | Your profile: collection, decks, credits, stats, last pack (schema version 1) |
 | `emoji_elements_meta_backups` | Up to 3 earlier copies of the profile, saved before the game ever rewrites or resets it |
 | `emojiElementsStats` | Win/loss copy for the legacy build; imported once into a new profile |
-| `emojiElementsMuted` | Sound on/off |
-| `emojiElementsMusicOff` | Music off (effects stay on) |
-| `emojiElementsHaptics` | Vibration on long-press and when you take damage (phones that support it) |
+| `emojiElementsMuted` | Sound on/off (music and effects) |
+| `emojiElementsMusicOff` / `emojiElementsMusicVolume` | Music off; music volume (0–1, default 0.5) |
+| `emojiElementsSfxOff` / `emojiElementsSfxVolume` | Effects off; effects volume (0–1, default 0.7) |
+| `emojiElementsHaptics` | Vibration on supporting phones (default on) |
 | `emoji_elements_theme` | Visual theme: `arcane`, `deep-space` or `neon` (kept apart from the profile; a reset keeps it) |
 
 - On every load, a damaged or older profile is **repaired, not replaced**. A save that can't be read at all
@@ -235,6 +245,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
 | `npm run regression` | Final regression: Deck Builder focus and scroll, combined filters, combat preview = result on 40 random boards, pack membership = manifest, nothing running after leaving a match, history bound, keyboard-only turn, reduced motion, portrait/landscape changes, fresh and existing profiles ([QA_REPORT.md](QA_REPORT.md) §2) |
 | `npm run cross-browser` | The main flows in every installed engine (Chromium, Firefox, WebKit); engines that aren't installed are reported as NOT TESTED. This is browser emulation, not real devices. |
+| `npm run audio` | Sound effects and haptics: nothing before the first gesture, cue lengths and levels, independent settings kept across reloads, rapid input and voice limits, one sound per life change, a whole turn, pause, packs, win/loss, haptic guards, no vibration / no Web Audio / interrupted audio, the sound board ([AUDIO.md](AUDIO.md)) |
 | `npm run battle` | Battle screen and pause: pause stops the AI turn and every match timer and resumes with the time left, no input while paused, focus returns, sound/music/haptics switches, MAIN MENU confirmation, auto-pause when hidden, toasts never cover cards, AI activity marks, attacker/blocker outlines, counters, a 15-turn session ([UI.md](UI.md) §13) |
 | `npm run themes` | The three visual themes at desktop, phone and phone-landscape: axe and measured text contrast, overflow and clipped text, the logo, no looping animation; saving, reload, reset and keyboard use of the picker ([UI.md](UI.md) §12). `npm run menu`, `ui` and `cards:ui` also take `--theme=deep-space` or `--theme=neon`. |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |

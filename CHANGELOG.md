@@ -1,5 +1,40 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Sound and haptics
+
+For players:
+- **New sound effects for everything you do.**
+  - There are distinct sounds for menu clicks, picking up and playing cards (fantasy and sci-fi summons
+    differ), land taps (a quick run steps up in pitch), spells, artifacts, attacks, blocks, damage, healing,
+    deaths, the pack rip, card reveals (a rising arpeggio for rare, epic and legendary), victory, defeat and
+    "not allowed".
+  - All are short and quiet by design. Before, one sound served for selection, summons, spells and artifacts
+    alike, clicks rang for 2 seconds, and the defeat sting ran almost 10 seconds at full scale.
+  - Tonal sounds follow the visual theme.
+- **One sound per hit.** Damage and healing used to replay a sound once per life point. A heal spell also
+  played its sound twice.
+- **Pack opening has sound.**
+- **Settings:**
+  - Sound (everything), Music and Effects, each with a volume slider, and Haptics.
+  - In the pause menu and from the new **🔊 Sound** chip on the main menu.
+  - Remembered on this device, never in your profile.
+- **Haptics** (phones with vibration): short patterns when you play a card, attack, take damage, open a pack,
+  reveal a rare card, win or lose. Never for the AI's own actions, never before your first touch, single short
+  pulses with reduce motion, and nothing at all where vibration isn't available.
+- **Faster start on phones:** 2 audio files load before the first tap instead of 19.
+
+Under the hood:
+- **`feedback.js` (`window.GameFeedback`):** a Web Audio effects engine with per-cue cooldowns, a cap on
+  overlapping voices, pitch variation and a compressor. It also holds the sound settings and the one guarded
+  `haptic(kind)` helper.
+- **Unlock:** audio starts only after a gesture, and is resumed quietly after interruptions.
+- **Music and the intro are unchanged.** The 17 effect MP3s are removed.
+- **Achievements:** the game has none, so the achievement cue exists but nothing triggers it yet.
+- **New suite:** `tests/audio.test.mjs` (`npm run audio`, 15 tests, in CI).
+- **Sound board:** `docs/sound-board.html`, for listening on a device.
+- **[AUDIO.md](AUDIO.md):** the audit, measurements, settings, haptic patterns, and what was checked
+  automatically versus on a real device. Nothing has been heard on a real device yet.
+
 ## Unreleased: Battle screen and pause
 
 For players:
