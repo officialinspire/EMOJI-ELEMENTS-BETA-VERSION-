@@ -298,7 +298,7 @@ scenario('deck-builder', async ({ page, touch, t, url }) => {
         return `${card.emoji} ${card.name}`;
     });
     const rowFor = list => page.locator(`${list} .deck-builder-row`)
-        .filter({ has: page.getByText(label, { exact: true }) }).locator('button');
+        .filter({ has: page.getByText(label, { exact: true }) }).locator('button').first(); // add/remove; ⓘ is second
     await act(page, touch, rowFor('#deckBuilderDeck'));
     t.check('removing a card → 59/60', (await page.textContent('#deckBuilderStatus')).includes('59/60'));
     t.check('save disabled when size ≠ 60', await page.locator('#deckBuilderScreen button:has-text("SAVE DECK")').isDisabled());

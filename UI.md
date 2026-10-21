@@ -403,3 +403,56 @@ write to the save.
 - **Fixed during the pass:** the battle-setup summary from §7 is also named `renderDeckSummary`. Function
   declarations with the same name override each other silently, so the Deck Builder's summary uses
   `renderDeckBuilderSummary`.
+
+### Evidence
+
+`tests/collection.test.mjs` (`npm run collection`, in CI with the rules suites) has 11 browser tests:
+- **Binder:**
+  - full catalog, unowned rows marked, totals, owned and not-owned views;
+  - 11 filter combinations, each checked against an independent computation from the catalog, plus the 4
+    sort orders;
+  - a row opens its rules.
+- **Pool:** 7 filter combinations over the deck's legal cards, with the draft unchanged after each.
+- **Rows:** in-deck and owned counts, cost and stats. Every Add reason (not owned, no copies left, copy limit
+  including legendary, deck full). A blocked press adds nothing and explains itself.
+- **Summary and curve:** they match the working deck before and after edits.
+- **Invalid deck:** 21 lands. The save is refused, the save data stays byte-identical, and the issue's action
+  fixes it. The issues agree with `validateDeckBuild`.
+- **Unsaved edits:** BACK, Esc and switching decks ask. No keeps the draft, Yes discards it.
+- **Saving:** a saved edit survives a reload and reopens clean.
+- **Existing save** (`tests/fixtures/saves/existing.json`): browsing plus unsaved edits never change the stored
+  save; totals match the fixture; all 15 decks open legal at 60 cards with no issues.
+
+| Suite | Before (`42040ff`) | After |
+|---|---|---|
+| `tests/collection.test.mjs` | 0 / 11 | 11 / 11 |
+| Card catalog | pass | pass |
+| Rules, combat, progression, collection, effects, AI (node) | 337 / 337 (without collection) | 348 / 348 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit | 469 / 469 | 469 / 469 |
+| Menu audit (Collection and Deck Builder screens at 4 sizes: 44 px controls, 11 px text, axe including contrast) | 289 / 289 | 289 / 289 |
+| Card faces | 95 / 95 | 95 / 95 |
+| Release playthroughs | 97 / 97 | 97 / 97 |
+
+Two existing tests changed with the new screens:
+- The progression test's Binder check uses the "Owned" view and the new summary text. The counts it asserts are
+  the same.
+- The smoke Deck Builder check targets a row's first button (add/remove), since rows now also have ⓘ.
+
+Screenshots (`npm run collection:shots` for the states; before | after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/collection-phone.jpg](docs/ui-evidence/collection-phone.jpg) | Phone 360×740. **Collection:** before, after, and filtered by Fire, rarest first, with unowned cards. **Deck Builder:** before; after with an edit over the land cap (unsaved marker, summary and curve, the issue and its fix); the unsaved-changes question. |
+| [docs/ui-evidence/collection-deckbuilder-desktop.jpg](docs/ui-evidence/collection-deckbuilder-desktop.jpg) | Desktop: the same Deck Builder state, with creature filters and blocked-Add reasons |
+
+### Limitations
+
+- Chromium only, as for the other UI passes. `<details>` and `aria-disabled` are widely supported.
+- The pool's ownership filter defaults to "Owned cards", as before. "All legal cards" shows unowned ones with
+  the not-owned reason.
+- Filter choices are kept for the session, not saved.
+- The "Remove N lands" fix removes the most numerous basic land (of that colour, for a colour cap). Players who
+  want a specific land can remove it themselves.
+- Land caps are not checked when a land is added (the validator only checks them on save, as before). They show
+  up at once in the issue list instead.
