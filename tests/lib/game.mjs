@@ -142,9 +142,14 @@ export async function startMatch(page, { mode = 'single', elements = ['fire'] } 
 }
 
 // Runs an action in the page, then lets short UI locks (playCard 200 ms, combat 300 ms) expire.
+// On a busy machine (CI) a lock's release timer occasionally hadn't run after the fixed 400 ms, so the next
+// action (often END TURN) was silently refused. During the player's turn, keep advancing in small steps until
+// the lock clears (at most 2 s more); the enemy turn's lock is meant to be held, so it is left alone.
 export async function act(page, fn, arg) {
     const result = await page.evaluate(fn, arg);
     await page.clock.runFor(400);
+    const shortLockHeld = () => page.evaluate(() => isProcessingAction && gameState.turn === 'player' && gameState.phase !== 'enemy' && !gameState.matchFinalized);
+    for (let i = 0; i < 20 && await shortLockHeld(); i++) await page.clock.runFor(100);
     return result;
 }
 

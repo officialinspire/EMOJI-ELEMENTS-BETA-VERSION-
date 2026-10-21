@@ -50,6 +50,14 @@ because **basic lands are not limited by copy count**; they are limited by the l
   - A land that makes both colours (Rainbow) counts toward whichever colour has fewer.
 - **P2.5** A deck can only be saved when it passes every rule above. When it doesn't, nothing is saved, and
   your collection and other decks are untouched.
+  - The Deck Builder lists what stops the working deck from saving, each with a fix where one is clear
+    ("Too many lands: 21 (at most 20). Remove 1 land").
+  - `getDeckIssues` builds that list, but `validateDeckBuild` still decides. A deck it accepts shows no
+    issues, and every error it reports is listed.
+  - An Add button that can't add says why: not owned, all owned copies already in the deck, copy limit, or
+    deck full. These are the same limits the save checks.
+  - Leaving the Deck Builder or switching decks with unsaved edits asks first. Filters never change the
+    working deck.
 - **P2.6 Which deck is played:** starting a match with Fire + Water plays the saved `FIRE_WATER` deck, exactly
   as saved, and remembers it as the selected deck. The Deck Builder opens on the selected deck.
 
@@ -57,17 +65,32 @@ because **basic lands are not limited by copy count**; they are limited by the l
 
 - **P3.1 Prices:** Fantasy, Science Fiction, Tech, Alien and Robot packs cost 60 credits; Lands packs cost 40.
   - With too few credits, nothing changes: no charge, no cards, no pack screen.
-- **P3.2 What's in a pack:** 5 **different** cards from that theme's pool.
-  - Slots 1–3 draw commons, slot 4 a rare, and slot 5 an epic or legendary (falling back to lower rarities
-    if a pool runs out).
-  - The Lands pack draws from a small pool (8 lands + Badlands Boar) and weights lands ×3.
+- **P3.2 What's in a pack:** 5 **different** cards from that pack's pool.
+  - **Changed:** pools come from the reviewed per-card list `PACK_MEMBERSHIP`
+    ([CARD_AUDIT.md](CARD_AUDIT.md) §7), so Alien and Robot packs hold aliens and robots. The Lands pack holds
+    the 8 lands only; Badlands Boar and the ×3 land weighting are gone. Prices, pack size and slots are
+    unchanged.
+  - Slots 1–3 draw commons, slot 4 a rare, and slot 5 an epic or legendary.
+  - A rarity a pack has fewer than 2 cards of is merged with the next one down for that slot. Today that is only
+    the Robot pack's single Epic, so its card 5 is Epic or Rare.
+  - A pool smaller than a pack would be completed from the whole catalog (none is).
+  - The shop's "What's inside" shows every card a pack can contain and the exact chance of each.
   - Win packs use a random theme, weighted Fantasy 24, Science Fiction 18, and Tech, Alien, Robot and Lands
     14 each.
 - **P3.3 Duplicates:** pulled cards add to your owned count, so duplicates stack.
+  - The reveal marks a card NEW only if you owned none **before** that pack. It also shows how many you have now.
+  - That before-count is kept in memory, not saved. After a reload it is worked out from the current count, as a
+    pack never holds a card twice.
+  - A second tap or Enter while a pack is open buys nothing (`purchasePack` returns `pack_open`).
 - **P3.4 Packs opened:** **Changed:** shop packs now also count toward "packs opened". It used to count only
   win packs.
-- **P3.5 Binder:** lists every owned card once with its count (`x3`), sorted by name, under a
-  "N unique cards • M total cards" summary.
+- **P3.5 Binder (Collection):**
+  - Lists the whole catalog. Owned cards show their count (`x3`); the rest are marked "Not owned" (`x0`).
+  - "Owned" and "Not owned" views, search, and filters for element, type, mana value and rarity.
+  - Sorting by name, mana value, rarity, type or copies owned.
+  - Summary line: "N of 268 unique cards • M total cards", counted from the saved collection.
+  - **Changed:** it used to list owned cards only.
+  - Browsing never writes to the save (`npm run collection`).
 - **P3.6 Pack screen:** titled "Victory Pack" for match rewards and "<Theme> Pack" for shop purchases.
   **Changed:** every pack used to be titled "Victory Pack", and QA debug text was shown to players.
 
@@ -144,8 +167,8 @@ backups.
 | Topic | Current rule | Why it's open |
 |---|---|---|
 | Win reward | Every win: +25 credits **and** a pack worth 60 credits. A loss gives +10. | README used to say 15% pack chance (`WIN_FREE_PACK_CHANCE` is unused). Winning is worth ~85 credits vs 10 for losing. |
-| Pack quality | Every pack guarantees 1 rare and 1 epic-or-legendary (slots 4–5) | Strong for the price; there are only 14 epics and 9 legendaries. |
-| Theme pools | Alien and Robot packs contain no alien or robot cards (card audit decision A) | Fixing it changes pack odds. |
+| Pack quality | Every pack guarantees 1 rare and 1 epic-or-legendary (slots 4–5); the Robot pack's last slot is Epic or Rare | Strong for the price. The small themed pools make their best cards common: Phantom Train is in half of all Tech packs, Battle Mech in a third of Robot packs ([CARD_AUDIT.md](CARD_AUDIT.md) §7). |
+| ~~Theme pools~~ | ✅ Resolved in the pack pass: explicit, reviewed membership ([CARD_AUDIT.md](CARD_AUDIT.md) §7) | The odds changes are documented there. |
 | Starter collection | No legendaries; Lands pack at 40 credits is the only way to get Rainbow or Distant Planet | Intended? |
 | Owned copies shared across decks | Owning 1 copy lets every deck use it | The alternative (copies locked per deck) would need new UI. |
 | Legacy coins | `emojiElementsProgress` coins and booster packs from the legacy single-file build are not converted to credits | Different economy; converting would grant credits. |

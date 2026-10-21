@@ -1,5 +1,199 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Cleanup and final regression
+
+For players:
+- In the Deck Builder, + and − keep keyboard focus on the card you pressed. Before, focus jumped to the top
+  of the page.
+- Menus no longer redraw an invisible effects layer 60 times a second (less battery use).
+- Leaving a match lets go of its cards straight away.
+- "What's inside" shows power/toughness as the same chip as the Collection.
+
+Under the hood:
+- **CSS:** removed CSS nothing uses or that later passes had overridden (`styles.css` −178 lines). A
+  computed-style fingerprint of 24 screen states is unchanged.
+- **List-row styles:** one shared set for the Collection, Deck Builder and Pack Shop.
+- **New suites:**
+  - `tests/regression.test.mjs` (11 tests, in CI);
+  - `tests/cross-browser.mjs`, which reports engines that aren't installed as NOT TESTED.
+- **QA_REPORT:** brought up to date. `main` holds the release pass (PR #117); the five newer passes and this
+  one are on the branch, not merged.
+
+## Unreleased: Pack Shop and pack opening
+
+For players:
+- **Packs contain what their names say.**
+  - Alien packs hold aliens, UFOs and space cards; Robot packs hold robots, drones, mechs and machine minds.
+    Before, both were 100% unrelated Nature and City cards.
+  - Lands packs hold only lands; Badlands Boar is gone.
+  - Every card is in at least one pack. Some are in several (Satellite Drone is in four).
+- **The odds changed on purpose.** CARD_AUDIT.md §7 has the full before/after table.
+  - Fantasy now also holds the elemental wildlife, so each Fantasy card is about half as likely per pack.
+  - The small Alien, Robot and Tech pools make their rarer cards come round much more often.
+  - The Robot pack has only one Epic (Battle Mech), so its fifth card is Epic or Rare. Battle Mech is in a third
+    of Robot packs instead of every one.
+- **A clearer shop.**
+  - Each pack has its own art, a price chip, its slots and how many of its cards you own.
+  - Short of credits, the button says "NEED 20 MORE"; pressing it explains and charges nothing.
+  - **What's inside** lists every card a pack can contain, with what you own and the exact chance of each card.
+- **Better reveals.**
+  - **OPEN PACK** opens a pack without the rip gesture.
+  - Each card shows its keywords, rules or mana, and **✨ NEW** (only if you had none before this pack) or "You
+    own 3 (had 2)".
+  - **ALL 5 CARDS** gives a summary of the pack, and **DONE** closes it.
+  - Win packs show their theme ("🎁 Victory Pack · Robot").
+
+Unchanged: prices (60, Lands 40), 5 different cards per pack, a pack and +25 credits on every win, win-pack
+theme weights, every card's rarity, and the save format.
+
+Under the hood:
+- `PACK_MEMBERSHIP` (reviewed per card id) replaces `inferTheme` and its keyword lists.
+- `getPackSlotPlan`, `generatePack` and `getPackOdds` share one slot plan, with the documented fallbacks: a tiny
+  tier is merged with the next one, and a small pool is completed from the catalog.
+- `addPackToCollection` keeps the before-pack counts in memory for NEW.
+- `purchasePack` refuses while a pack is open.
+- The card audit checks membership and reachability and simulates seeded packs. The manifest is now
+  `schemaVersion` 2: `packTheme` is replaced by the explicit `availability.packThemes`.
+- New `tests/packs.test.mjs` (16 tests, in CI) and `tests/pack-shots.mjs` (screenshots and axe). See UI.md §11.
+
+## Unreleased: Gameplay feedback
+
+For players:
+- **Always know whose turn it is.** A banner above the battlefield shows the turn number, whose turn it is and
+  the phase. On the enemy turn it says what the AI is doing: drawing, playing a land, tapping mana, playing a
+  card, attacking with N or not attacking. It never shows the AI's hand.
+- **Clear attack buttons.** ATTACK becomes **✓ CONFIRM n** (how many you picked) and END TURN becomes
+  **✕ CANCEL**, which leaves without attacking. You can still attack later this turn.
+- **Reasons, not guesses.**
+  - While you choose attackers, creatures that can't attack say why: Tapped, Defender, or Next turn.
+  - Hand cards you can't play say why: "Land used", or how much mana they still need ("🔒🔥2"). The full sentence
+    is in the tooltip and card details.
+- **Attack preview.** While you choose attackers, a Preview shows the automatic blocks and the expected result:
+  life totals, who dies (✓ / ☠ on the cards) and whether it wins the match. It uses the same combat rules as the
+  real attack and changes nothing. It updates whenever the board changes.
+- **Match history (📜, or `H`).** The last 80 events of the match, grouped by turn: plays and what they did,
+  attacks, blocks, damage, deaths and life changes. It stays after the messages fade.
+- Turn-change motion is one short pulse, and none with reduced motion turned on.
+
+Unchanged: combat rules, automatic blocking, random targeting, mana, rewards and saves.
+
+Under the hood:
+- `previewCombat` runs the live `assignAutoBlockers`, `applyDamage` and `dealUnblockedDamage` on copies, with
+  its own life ledger.
+- `recordHistory` is called once from the engine, separate from rendering.
+- `getPlayRestriction` makes the same checks as `playCard`; `getAttackRestriction` (already there) gives the
+  attack reasons.
+- New `tests/feedback.test.mjs` (55 tests, in CI): preview = result for first strike, double strike, trample,
+  deathtouch, menace and lifelink with both sides attacking.
+- `tests/feedback-shots.mjs` takes the screenshots and runs axe. See UI.md §10.
+
+## Unreleased: Collection and Deck Builder
+
+For players:
+- **The Collection shows every card.**
+  - All 268 cards are listed. The ones you don't own yet are marked "Not owned".
+  - Switch to "Owned" to see just your collection.
+  - The summary reads "153 of 268 unique cards • 300 total cards".
+- **Search, filter and sort**, in the Collection and in the Deck Builder:
+  - search by name, card text or keyword;
+  - filter by element (including "two or more colours" and colorless), card type, mana value, rarity and
+    ownership;
+  - sort by name, mana value, rarity, type or copies owned.
+  - On phones, the filters fold away under "Filters & sort".
+- **Readable Deck Builder rows.**
+  - Each card shows its art tile, cost, type, power/toughness, keywords and rarity, plus how many are in the deck
+    and how many you own.
+  - The ⓘ button opens the card's full rules.
+  - The deck list is grouped into creatures, spells, artifacts and lands.
+- **Add buttons explain themselves.** A greyed + says why: not owned yet, all your copies are already in, copy
+  limit (2, or 1 for legendaries), or the deck is full.
+- **Deck summary:** cards out of 60, lands (with the cap), creatures, spells, artifacts, and a mana-curve chart of
+  the deck you're editing.
+- **Problems come with fixes.** If something would stop the deck saving, it's listed in plain words with a button
+  that fixes it where it can ("Too many lands: 21 (at most 20). Remove 1 land").
+- **No lost edits.**
+  - Changing filters never touches your deck.
+  - "● Unsaved changes" shows while you edit.
+  - Leaving, pressing Esc or switching decks with unsaved changes asks first.
+- **The deck picker** shows names ("🔥 Fire + 💧 Water") instead of keys.
+
+Unchanged: deck rules (`validateDeckBuild`), copy limits, land caps, collection counts, all 15 decks, card ids
+and the save format.
+
+Under the hood:
+- Shared helpers in `index.js`: `cardMatchesFilters`, `sortCardsForList`, `buildCardFilterBar`,
+  `renderCardRowMeta`, `getAddBlockReason`, `getDeckIssues`, `isDeckBuilderDirty` and
+  `confirmDiscardDeckEdits`.
+- A "COLLECTION AND DECK BUILDER" block in `styles.css`.
+- New `tests/collection.test.mjs` (`npm run collection`, in CI) and `tests/collection-shots.mjs`.
+- The progression test's Binder check now uses the "Owned" view and the new summary format. See [UI.md](UI.md) §9.
+
+## Unreleased: card presentation
+
+For players:
+- **Cards look like their element.**
+  - Every card frames its emoji in its element's colour.
+  - Two-colour cards are split between both colours, and Rainbow shows all five.
+  - Colorless artifacts and Crystal Wasteland are steel grey.
+- **Clear costs.**
+  - One pip per colour with its number. Colorless costs read ◇N, and free artifacts read 0.
+  - Instants, artifacts and lands carry a type icon (✨ ⚙️ ⛰️).
+  - Power/toughness sits on a dark chip that's easy to read.
+- **Calmer rarity.** Common, rare, epic and legendary borders are bronze, blue, purple and gold. Nothing pulses or
+  spins any more.
+- **States you can see without relying on colour:**
+  - Tapped cards turn sideways.
+  - Summoning-sick creatures (now enemy ones too) have a dashed border and 💤.
+  - Damage reads 💔N.
+  - Attackers lift with an outline and ⚔️.
+  - Cards you can play lift in your hand; the rest sit flat and dimmed.
+- **Richer card details.**
+  - Type, rarity and element tags.
+  - Cost as pips and words.
+  - Current power/toughness (with the printed values if changed).
+  - What the card is doing on the battlefield (tapped, damage, summoning sick, attacking).
+  - Each keyword with its icon and exact rule.
+  - Flash is clearly marked "No effect": it is greyed out on cards and labelled in details.
+- **Pack reveals** show rarity, cost and power/toughness in the card's colours.
+- **Fixed:** on phones, long-pressing a card sometimes opened its details and closed them again at once.
+
+Under the hood:
+- Shared helpers in `index.js`: `getCardRarity`, `getCardIdentity`, `applyCardIdentity`, `renderCostPips`,
+  `describeCost`, `createKeywordBadge` and `renderKeywordDetail`.
+- A "CARD FACES" block in `styles.css`.
+- Card data, ids, rarity, rules, saves and `bindCardPress` are unchanged.
+- New `tests/card-faces.mjs` (`npm run cards:ui`, in CI). See [UI.md](UI.md) §8.
+
+## Unreleased: menu and battle setup refresh
+
+For players:
+- **A clearer main menu.**
+  - NEW GAME is the one large gold button.
+  - Deck Builder, Collection, Pack Shop, How to Play and Stats each have a readable label and a short line saying
+    what they do.
+  - The menu shows your credits, how many of the 268 cards you have collected, and your win/loss record.
+- **Battle setup in four steps:** deck type, elements, AI difficulty, and your deck.
+  - Element buttons show their names (Fire, Water, Earth, Swamp, Light) in their own colours. A ✓ marks each
+    pick, and a hint says how many are left.
+  - Each difficulty explains what the AI does (it matches the AI's actual settings).
+  - Before you start, a summary shows the saved deck you're about to play: card counts by type, average cost,
+    its rarest cards, and whether it is still the starter list.
+  - NEW GAME starts with the deck you last played already picked, also after a reload. In a single-colour deck,
+    tapping another element switches to it.
+- **Fits every screen:** two columns on wide screens, one column on narrow phones, and a compact layout for
+  phones on their side, where NEW GAME and START BATTLE fit without scrolling.
+- **Keyboard:**
+  - Esc returns to the menu from every menu screen.
+  - Focus goes back to the button that opened the screen, and each screen's heading is focused when it opens.
+
+Under the hood:
+- `index.html`, `styles.css` (a scoped "MENU REFRESH" block) and `index.js` (`updateMenuStatus`,
+  `syncElementSelectionUI`, `renderDeckSummary`, `restoreSavedDeckSelection`, `syncDifficultyUI`).
+- Two small local SVGs for decoration: `menu-sigil.svg` and `menu-divider.svg`.
+- Every existing id, `data-*` attribute, route and handler is kept. The rules and the match screen are unchanged.
+- New `tests/menu-audit.mjs` (`npm run menu`, also run in CI). Smoke and release tests now use the new labels
+  (Collection, Stats). See [UI.md](UI.md) §7.
+
 ## Unreleased: release candidate (player summary)
 
 What's new for players since the last public build:

@@ -261,9 +261,9 @@ scenario('menu-navigation', async ({ page, touch, t, url }) => {
         ['NEW GAME', 'elementSelectionScreen', '#elementSelectionScreen button:has-text("BACK")'],
         ['DECK BUILDER', 'deckBuilderScreen', '#deckBuilderScreen > button:has-text("BACK TO MENU")'],
         ['PACK SHOP', 'packShopScreen', '#packShopScreen button:has-text("BACK TO MENU")'],
-        ['BINDER', 'binderScreen', '#binderScreen button:has-text("BACK TO MENU")'],
+        ['COLLECTION', 'binderScreen', '#binderScreen button:has-text("BACK TO MENU")'],
         ['HOW TO PLAY', 'howToPlayScreen', '#howToPlayScreen > button:has-text("BACK TO MENU")'],
-        ['GAME STATS', 'statsScreen', '#statsScreen button:has-text("BACK TO MENU")']
+        ['STATS', 'statsScreen', '#statsScreen button:has-text("BACK TO MENU")']
     ];
     for (const [label, screenId, backSelector] of screens) {
         await openMenu(page, touch, label);
@@ -278,7 +278,7 @@ scenario('menu-navigation', async ({ page, touch, t, url }) => {
     t.check('How To Play page 2', (await page.textContent('#howToPlayPageIndicator')) === 'Page 2/2');
     await act(page, touch, '#howToPlayScreen > button:has-text("BACK TO MENU")');
 
-    await openMenu(page, touch, 'BINDER');
+    await openMenu(page, touch, 'COLLECTION');
     const summary = await page.textContent('#binderSummaryBadge');
     t.check('binder lists starter collection', /\d+ unique cards/.test(summary) && !summary.startsWith('🗂️ 0 '), summary);
 });
@@ -298,7 +298,7 @@ scenario('deck-builder', async ({ page, touch, t, url }) => {
         return `${card.emoji} ${card.name}`;
     });
     const rowFor = list => page.locator(`${list} .deck-builder-row`)
-        .filter({ has: page.getByText(label, { exact: true }) }).locator('button');
+        .filter({ has: page.getByText(label, { exact: true }) }).locator('button').first(); // add/remove; ⓘ is second
     await act(page, touch, rowFor('#deckBuilderDeck'));
     t.check('removing a card → 59/60', (await page.textContent('#deckBuilderStatus')).includes('59/60'));
     t.check('save disabled when size ≠ 60', await page.locator('#deckBuilderScreen button:has-text("SAVE DECK")').isDisabled());
@@ -534,11 +534,11 @@ scenario('win-flow', async ({ page, touch, t, url, project }) => {
     t.check('legacy emojiElementsStats mirrored', await page.evaluate(() => JSON.parse(localStorage.getItem('emojiElementsStats')).wins === 1));
 
     await act(page, touch, '#victoryOverlay button:has-text("MAIN MENU")');
-    await openMenu(page, touch, 'GAME STATS');
+    await openMenu(page, touch, 'STATS');
     t.check('stats screen: 1 won / 100%', (await page.textContent('#gamesWon')) === '1' && (await page.textContent('#winRate')) === '100%');
 
     await boot(page, touch, url);
-    await openMenu(page, touch, 'GAME STATS');
+    await openMenu(page, touch, 'STATS');
     t.check('stats persist across reload', (await page.textContent('#gamesWon')) === '1');
 });
 
@@ -613,7 +613,7 @@ scenario('reset-progress', async ({ page, t, url }) => {
     await startMatch(page, false);
     await page.evaluate(() => changeEnemyLife(-gameState.enemyLife));
     await page.evaluate(() => returnToMainMenu());
-    await openMenu(page, false, 'GAME STATS');
+    await openMenu(page, false, 'STATS');
     await page.click('#statsScreen button:has-text("RESET PROGRESS")');
     await page.click('#gameConfirmYesBtn');
     await page.waitForTimeout(300);

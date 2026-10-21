@@ -8,8 +8,8 @@ jobs:
   ui:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Install Playwright and axe-core (versions pinned in package.json)
@@ -18,10 +18,19 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run the UI audit
         run: node tests/ui-audit.mjs --label=ci
+      - name: Run the menu and battle setup audit
+        if: always()
+        run: node tests/menu-audit.mjs --label=ci
+      - name: Run the card presentation audit
+        if: always()
+        run: node tests/card-faces.mjs --label=ci
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ui-audit-screenshots
-          path: test-results/ui/ci/
+          path: |
+            test-results/ui/ci/
+            test-results/menu/ci/
+            test-results/cards/ci/
           retention-days: 14

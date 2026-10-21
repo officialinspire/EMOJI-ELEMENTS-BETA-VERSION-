@@ -128,7 +128,9 @@ const GAME_DECLARATIONS = [
     'getDeckColorsFromKey', 'getDeckKeyFromElements', 'getDeckCardCopyLimit', 'getDeckBuilderCopyLimit',
     'validateDeckBuild', 'buildStarterDeckFromColors', 'createInitialMeta', 'clampDeckCardIdsToOwned',
     'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'readStoredNumber', 'sameCardMultiset', 'validateMeta', 'PACK_THEMES',
-    'PACK_SHOP_COSTS', 'PACK_THEME_KEYS', 'THEME_KEYWORDS', 'inferTheme', 'getThemePool', 'generatePack',
+    'PACK_SHOP_COSTS', 'PACK_THEME_KEYS', 'PACK_SIZE', 'PACK_MEMBERSHIP', 'getPackMemberships', 'getThemePool',
+    'PACK_TIER_OF_RARITY', 'PACK_TIER_LABELS', 'PACK_SLOT_TIERS', 'PACK_MIN_TIER_CHOICES', 'packTierOf', 'getPackSlotPlan',
+    'generatePack', 'getPackOdds', 'describePackSlots',
     'shuffleDeck', 'generateDeck', 'KEYWORD_RULES', 'TOKEN_TYPES', 'describeEffect'
 ];
 
@@ -334,13 +336,58 @@ function audit() {
         if (before !== after) add('starter-deck-shrinks-on-reload', key, `${before} → ${after} cards`);
     }
 
+    // ---- Pack membership (PACK_MEMBERSHIP, reviewed per card) and the pools built from it
+    const packKeys = game.PACK_THEMES.map(theme => theme.key);
+    const catalogIds = new Set(cards.map(card => card.__id));
+    for (const id of Object.keys(game.PACK_MEMBERSHIP)) {
+        if (!catalogIds.has(id)) add('pack-membership-unknown-id', id, 'PACK_MEMBERSHIP names a card that is not in the catalog');
+    }
+    for (const card of cards) {
+        const packs = game.PACK_MEMBERSHIP[card.__id];
+        if (!Array.isArray(packs) || !packs.length) { add('pack-membership-missing', card.__id, 'no PACK_MEMBERSHIP entry: every card must be in a pack'); continue; }
+        packs.filter(key => !packKeys.includes(key)).forEach(key => add('pack-membership-bad-pack', card.__id, `unknown pack "${key}"`));
+        if (new Set(packs).size !== packs.length) add('pack-membership-bad-pack', card.__id, 'a pack is listed twice');
+        // Lands packs hold lands only, and every land is in them
+        if (packs.includes('lands') && card.type !== 'land') add('lands-pack-non-land', card.__id, `${card.type} in the Lands pack`);
+        if (card.type === 'land' && !packs.includes('lands')) add('land-not-in-lands-pack', card.__id, 'every land belongs in the Lands pack');
+        // The documented defect: aliens and robots must be in their own packs, not only in Science Fiction
+        const alienLike = /\b(alien|ufo)\b/i.test(card.name) || ['👽', '🛸'].includes(card.emoji);
+        const robotLike = /\b(robot|android|cyborg|mech|drone)\b|bot\b/i.test(card.name) || ['🤖', '🦾', '🦿'].includes(card.emoji);
+        if (alienLike && !packs.includes('alien')) add('alien-not-in-alien-pack', card.__id, card.name);
+        if (robotLike && !packs.includes('robot')) add('robot-not-in-robot-pack', card.__id, card.name);
+    }
+
     const packPools = {};
     const packThemesOf = {};
     for (const { key } of game.PACK_THEMES) {
-        const pool = game.getThemePool(key);
-        const themed = pool.filter(card => game.inferTheme(card) === key).length;
-        packPools[key] = { size: pool.length, themed, padded: pool.length - themed, cost: game.PACK_SHOP_COSTS[key] };
+        const odds = game.getPackOdds(key);
+        const { pool } = odds;
+        if (pool.length < game.PACK_SIZE) add('pack-pool-too-small', key, `${pool.length} cards: packs would fall back to the whole catalog`);
+        // Every card in a pool can be pulled (exact odds > 0)
+        pool.filter(card => !(odds.perCard[game.packTierOf(card)] > 0)).forEach(card => add('pack-card-unreachable', card.__id, `in ${key} but never drawn`));
+        // Seeded packs: 5 different cards, all from the pool, each slot from its planned tiers, every card seen
+        const seen = new Set();
+        for (let i = 0; i < 3000; i++) {
+            const ids = game.generatePack(key);
+            if (ids.length !== game.PACK_SIZE || new Set(ids).size !== ids.length) { add('pack-generation', key, `pack ${ids.join(',')}`); break; }
+            const off = ids.filter(id => !pool.some(card => card.__id === id));
+            if (off.length) { add('pack-generation', key, `outside the pool: ${off.join(', ')}`); break; }
+            ids.forEach(id => seen.add(id));
+        }
+        const neverSeen = pool.filter(card => !seen.has(card.__id));
+        if (neverSeen.length) add('pack-card-never-drawn', key, `${neverSeen.length} card(s) never drawn in 3000 seeded packs: ${neverSeen.slice(0, 5).map(c => c.__id).join(', ')}`);
+        const round = n => Math.round(n * 10000) / 10000;
+        packPools[key] = {
+            cost: game.PACK_SHOP_COSTS[key],
+            size: pool.length,
+            byTier: { ...odds.counts },
+            slots: game.describePackSlots(key).slots.map(slot => `${slot.count} × ${slot.label}`).join(' · '),
+            chancePerCard: Object.fromEntries(Object.entries(odds.perCard).map(([tier, p]) => [tier, round(p)]))
+        };
         pool.forEach(card => (packThemesOf[card.__id] ||= []).push(key));
+    }
+    for (const card of cards) {
+        if (!(packThemesOf[card.__id] || []).length) add('not-in-any-pack', card.__id, 'every card must be obtainable from at least one pack');
     }
 
     const aiSeen = new Set();
@@ -377,7 +424,6 @@ function audit() {
             type: card.type,
             cardType: card.cardType,
             theme: card.theme,
-            packTheme: game.inferTheme(card),
             rarity: card.__rarity,
             colors: card.type === 'land' ? byColorOrder(game.inferLandElements(card)) : costColors(card),
             cost: card.type === 'land' ? null : card.cost,
@@ -407,7 +453,8 @@ function audit() {
         byColorIdentity: tally(manifestCards, identity),
         creaturesByColorIdentity: tally(manifestCards.filter(c => c.type === 'creature'), identity),
         byThemeField: tally(manifestCards, c => c.theme),
-        byPackTheme: tally(manifestCards, c => c.packTheme || '(none: neutral filler)'),
+        byPack: tally(manifestCards, c => c.availability.packThemes),
+        byPackCount: tally(manifestCards, c => `in ${c.availability.packThemes.length} pack${c.availability.packThemes.length === 1 ? '' : 's'}`),
         byRarity: tally(manifestCards, c => c.rarity),
         byEffect: tally(manifestCards.filter(c => c.effect), c => `${c.type}:${c.effect}`),
         byAbility: tally(manifestCards.filter(c => c.type === 'creature'), c => c.abilities.length ? c.abilities : ['(none)']),
@@ -422,7 +469,8 @@ function audit() {
         }
     };
     const manifest = {
-        schemaVersion: 1,
+        // 2: pack membership is explicit (availability.packThemes from PACK_MEMBERSHIP); packTheme removed
+        schemaVersion: 2,
         source: 'index.js CARD_DATABASE (ids: `${category}-${slug(name)}`; saved collections/decks key on these ids)',
         counts,
         cards: manifestCards
@@ -437,8 +485,10 @@ function countsMarkdown(counts) {
         const rows = Object.entries(obj).sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
         return `**${title}**\n\n| ${keyLabel} | Cards |\n|---|---|\n${rows.map(([k, v]) => `| ${k} | ${v} |`).join('\n')}\n`;
     };
+    const pct = p => `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
     const pools = Object.entries(counts.packPools)
-        .map(([key, p]) => `| ${key} | ${p.cost} | ${p.size} | ${p.themed} | ${p.padded} |`).join('\n');
+        .map(([key, p]) => `| ${key} | ${p.cost} | ${p.size} | ${p.byTier.common} / ${p.byTier.rare} / ${p.byTier['epic+']} | ${p.slots} | `
+            + `${['common', 'rare', 'epic+'].map(t => (p.byTier[t] ? pct(p.chancePerCard[t]) : '–')).join(' / ')} |`).join('\n');
     const a = counts.availability;
     return [
         COUNTS_START,
@@ -448,12 +498,13 @@ function countsMarkdown(counts) {
         table('By color identity (cost colors; lands: produced colors)', counts.byColorIdentity, 'Identity'),
         table('Creatures by color identity', counts.creaturesByColorIdentity, 'Identity'),
         table('By `theme` field', counts.byThemeField, 'Theme'),
-        table('By inferred pack theme (`inferTheme`)', counts.byPackTheme, 'Pack theme'),
+        table('By pack (`PACK_MEMBERSHIP`; a card can be in several)', counts.byPack, 'Pack'),
+        table('Packs per card', counts.byPackCount, 'Packs'),
         table('By inferred rarity (`inferRarity`)', counts.byRarity, 'Rarity'),
         table('By effect (instants and artifacts)', counts.byEffect, 'type:effect'),
         table('By creature ability (a creature counts once per ability)', counts.byAbility, 'Ability'),
         table('By mana value (non-lands)', counts.byManaValue, 'Mana value'),
-        '**Pack pools (`getThemePool`)**\n\n| Theme | Cost | Pool size | Theme-matched | Neutral filler |\n|---|---|---|---|---|\n' + pools + '\n',
+        '**Pack pools (`getThemePool`, `getPackOdds`)**\n\n| Pack | Cost | Pool size | Common / Rare / Epic+ | Slots | Chance a given card is in a pack (Common / Rare / Epic+) |\n|---|---|---|---|---|---|\n' + pools + '\n',
         `**Availability:** ${a.inStarterCollection} in the starter collection · ${a.inAnyPackPool} in at least one pack pool · ` +
             `${a.packOnly} pack-only · ${a.inAiDecks} can appear in AI decks · ${a.deckBuilderLegalSomewhere} legal in at least one standard deck.`,
         COUNTS_END

@@ -8,8 +8,12 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 - Match economy: credits on **win and loss**, plus a **free booster pack on every win**.
 - Deck Builder backed by owned cards (collection-driven), with copy-limit + deck-size validation.
 - Standardized starter deck keys for mono and dual identities.
-- Pack Shop with themed packs: fantasy, sci-fi, tech, alien, robot, lands.
-- Animated pack opening flow with drag-to-rip + swipe card reveal.
+- Pack Shop with six themed packs (Fantasy, Science Fiction, Tech, Alien, Robot, Lands). Each shows its art,
+  price, whether you can afford it, and "What's inside": every card it can contain and the odds.
+- Pack opening: drag to rip, or press OPEN PACK. Swipe or use PREV/NEXT to reveal cards with their full rules,
+  NEW or how many you own. A summary shows all five.
+- Emoji card art in element-coloured frames (split for two-colour cards, steel for colorless), with cost pips,
+  rarity borders, and markers for tapped, summoning-sick, damaged and attacking creatures.
 - Desktop shortcuts + mobile touch support.
 - localStorage persistence for stats, collection, decks, wallet, and last pack, with automatic repair and backups of damaged saves.
 
@@ -36,7 +40,10 @@ Full, test-backed rules: [PROGRESSION.md](PROGRESSION.md) (`npm run progression`
 - A new profile starts with **100 credits** and the **starter collection**: the cards of the five mono starter
   decks (153 different cards, 300 copies).
 - Opening a pack adds its cards to your collection; duplicates stack (`x3` in the Binder).
-- **Binder / Collection** (main menu) lists every owned card with its count, sorted by name.
+- **Collection** (main menu) lists all 268 cards. Owned ones show their count; the rest are marked "Not owned".
+  - Search, and filters for element, type, mana value, rarity and ownership; sort by name, cost, rarity, type
+    or copies owned.
+  - The main menu shows your credits and how many of the 268 cards you have collected.
 - Rarity is inferred from each card: `common`, `rare`, `epic`, `legendary`. No card is currently `uncommon`.
 
 ## Decks & Deck Builder
@@ -50,7 +57,9 @@ There are 15 standard decks, each starting as a 60-card starter list:
 
 - Starter lists only use cards the starter collection owns, so every starter deck is legal on a new profile.
 - Starting a match with the chosen colour(s) plays that saved deck exactly, and it becomes the selected deck.
-  The Deck Builder opens on the selected deck.
+  The Deck Builder opens on the selected deck, and NEW GAME starts with it already picked.
+- Battle setup shows a summary of the saved deck for the chosen colour(s) before you start: card-type counts,
+  average cost, its rarest cards, and whether it is still the starter list.
 
 Saving a deck requires all of these:
 
@@ -63,6 +72,15 @@ Saving a deck requires all of these:
   A land must produce at least one deck colour.
 - **Land caps:** mono decks at most 20 lands; dual decks at most 11 per colour (22 total).
 
+In the Deck Builder:
+- Every card row shows a preview (cost, type, stats, keywords, rarity), how many you own and how many are in
+  the deck, and an ⓘ button for its full rules.
+- A greyed Add button says why it can't add: not owned, no owned copies left, copy limit, or deck full.
+- A summary shows cards out of 60, lands, creatures, spells and artifacts, and the mana curve of the deck
+  you're editing.
+- Anything that would stop a save is listed with a one-tap fix where there is one.
+- Filters never touch your edits, and leaving with unsaved changes asks first.
+
 ## Booster Packs & Economy
 
 | | Credits |
@@ -73,8 +91,14 @@ Saving a deck requires all of these:
 | Fantasy, Science Fiction, Tech, Alien or Robot pack | 60 |
 | Lands pack | 40 |
 
-- A pack holds 5 different cards from its theme pool. Slots 1–3 are commons, slot 4 a rare, and slot 5 an
-  epic or legendary (falling back if a pool runs out). Lands packs favour lands ×3.
+- A pack holds 5 different cards from its pool. Each card's packs are listed explicitly (`PACK_MEMBERSHIP`,
+  [CARD_AUDIT.md](CARD_AUDIT.md) §7):
+  - Alien and Robot packs hold aliens and robots;
+  - Lands packs hold only lands;
+  - every card is in at least one pack.
+- Slots 1–3 are commons, slot 4 a rare, and slot 5 an epic or legendary. The Robot pack has only one Epic, so
+  its slot 5 is Epic or Rare.
+- "What's inside" in the shop shows each pack's cards, what you own and the chance of each card.
 - Win packs use a random theme, weighted Fantasy 24, Science Fiction 18, and the others 14 each.
 - With too few credits a purchase does nothing: no charge and no cards.
 - Open economy questions are listed in [PROGRESSION.md §8](PROGRESSION.md).
@@ -89,19 +113,32 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 - **Tap or click** a hand card to play it, a land stack to tap one land, an artifact to use it, and (after
   ATTACK) a creature to select it. Tapping any other card, or an enemy card, shows its details.
 - **Long-press or right-click** a card for its details; on a land stack it taps all its untapped lands.
+- The banner above the battlefield shows the turn number, whose turn it is and the phase. On the enemy turn it
+  says what the AI is doing (drawing, playing a land, tapping mana, attacking); it never shows the AI's hand.
+- **ATTACK** turns the buttons into **✓ CONFIRM n** and **✕ CANCEL**. While you choose, each creature says
+  whether it can attack (and why not: tapped, Defender, arrived this turn), and the **Preview** shows the
+  automatic blocks and the expected result: life totals, who dies, and whether it wins the match. It is only a
+  preview; blocks are made from the board as it is when you confirm.
+- A hand card you can't play right now shows why: land already played this turn, or how much mana it still needs.
 - After combat, a message lists who blocked whom and what died. 💔 shows damage taken this turn; a dashed
   border marks a creature that can't attack until next turn.
+- **📜 Match history** (header, or `H`) keeps the last 80 events of the match: plays and what they did,
+  attacks, blocks, damage, deaths and life changes, grouped by turn. The badge counts new entries.
 
 ### Keyboard
 
 - `Tab` to a card, `Enter` to play or use it, `I` for its details.
-- During your turn: `Space` / `E` end turn, `A` attack / confirm, `M` mulligan (when available).
-- `Esc` closes the open window (card details, graveyard, confirmations, pack), resumes from pause, or pauses.
+- During your turn: `Space` / `E` end turn, `A` attack / confirm, `M` mulligan (when available). While choosing
+  attackers, the CANCEL button leaves without attacking (`Space` still means end turn, which waits until you
+  confirm or cancel).
+- `H` opens the match history at any time.
+- `Esc` closes the open window (card details, graveyard, match history, confirmations, pack), resumes from pause, or pauses.
 - Dialogs keep keyboard focus inside them and return it when they close.
 
 ### Touch
 
-- Pack opening: drag/swipe to rip the sealed pack, then swipe sideways (one card per swipe) to browse.
+- Pack opening: drag/swipe to rip the sealed pack (or press OPEN PACK), then swipe sideways (one card per swipe)
+  or use PREV/NEXT to browse. ALL 5 CARDS shows the summary.
 - Swiping across the hand or battlefield scrolls it without playing anything or scrolling the page.
 - Pinch-zoom is allowed; double-tap zoom is not.
 
@@ -167,6 +204,13 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run rules` / `combat` / `effects` / `progression` / `ai` | Rules, combat, every card effect, saves and progression, AI |
 | `npm run smoke` | Desktop and mobile smoke flows |
 | `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
+| `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
+| `npm run collection` | Collection and Deck Builder: filter combinations, add/remove and Add reasons, summary and curve, invalid saves, unsaved-edit warnings, reloads, existing saves ([UI.md](UI.md) §9) |
+| `npm run feedback` | Gameplay feedback: the attack preview matches real combat for both sides (first strike, double strike, trample, deathtouch, menace, lifelink, lethal), changes nothing, and refreshes; play and attack reasons; CONFIRM/CANCEL; turn banner and AI status; match history ([UI.md](UI.md) §10) |
+| `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
+| `npm run regression` | Final regression: Deck Builder focus and scroll, combined filters, combat preview = result on 40 random boards, pack membership = manifest, nothing running after leaving a match, history bound, keyboard-only turn, reduced motion, portrait/landscape changes, fresh and existing profiles ([QA_REPORT.md](QA_REPORT.md) §2) |
+| `npm run cross-browser` | The main flows in every installed engine (Chromium, Firefox, WebKit); engines that aren't installed are reported as NOT TESTED. This is browser emulation, not real devices. |
+| `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
 
@@ -176,7 +220,7 @@ QA mode (debug logs and `window.__qa*` helpers) is off for players. Add `?qa=1` 
 
 - Improve pack telemetry + duplicate-protection tuning.
 - Real targeting for spells, and choosing blockers (see the open choices in RULES.md, EFFECTS.md and AI.md).
-- Continue mobile UX polish for battle + menus.
+- Continue mobile UX polish for battle screens.
 
 ## Credits
 

@@ -88,11 +88,14 @@
                 <div class="pack-instruction" id="packInstruction">Slide to rip open</div>
                 <div class="pack-sealed-shell" id="packTearSurface">
                     <div class="pack-tear-line" id="packTearLine"></div>
-                    <div class="pack-sealed-emoji">📦</div>
+                    <div class="pack-sealed-emoji" id="packSealedEmoji" aria-hidden="true">📦</div>
+                    <div class="pack-sealed-label" id="packSealedLabel"></div>
                 </div>
                 <div class="pack-progress-track">
                     <div id="packProgressFill" class="pack-progress-fill"></div>
                 </div>
+                <!-- The button alternative to the rip gesture -->
+                <button class="menu-btn pack-open-btn" id="packOpenBtn" type="button">✂️ OPEN PACK</button>
             </div>
 
             <div id="packRevealStage" class="pack-stage">
@@ -101,15 +104,49 @@
                     <div id="packCardEmoji" class="pack-card-emoji">✨</div>
                     <div id="packCardName" class="pack-card-name"></div>
                     <div id="packCardType" class="pack-card-type"></div>
+                    <!-- Rarity, cost and power/toughness, filled by setPackOpeningCard -->
+                    <div id="packCardMeta" class="pack-card-meta"></div>
+                    <!-- Keywords and rules text, and NEW or how many you own -->
+                    <div id="packCardText" class="pack-card-text"></div>
+                    <div id="packCardOwned" class="pack-card-owned"></div>
                 </div>
-                <div id="packCardCounter" class="pack-card-counter"></div>
+                <div id="packCardCounter" class="pack-card-counter" aria-live="polite"></div>
                 <div class="pack-nav-buttons">
                     <button class="menu-btn" id="packPrevBtn">⬅️ PREV</button>
                     <button class="menu-btn" id="packNextBtn">NEXT ➡️</button>
                 </div>
+                <button class="menu-btn pack-summary-btn" id="packSummaryBtn" type="button">▦ ALL 5 CARDS</button>
+            </div>
+
+            <!-- After the reveal: the whole pack at a glance -->
+            <div id="packSummaryStage" class="pack-stage">
+                <div class="pack-summary-title" id="packSummaryTitle">Your 5 cards</div>
+                <p class="pack-summary-stats" id="packSummaryStats"></p>
+                <ul class="pack-summary-grid" id="packSummaryGrid"></ul>
+                <div class="pack-nav-buttons">
+                    <button class="menu-btn" id="packSummaryBackBtn" type="button">⬅️ CARDS</button>
+                    <button class="menu-btn" id="packDoneBtn" type="button">✓ DONE</button>
+                </div>
             </div>
 
             <div id="packQaDebug" class="pack-qa-debug" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <!-- Pack Shop: everything a pack can contain, with the odds (renderPackContents) -->
+    <div id="packContentsModal" class="graveyard-modal pack-contents-modal" role="dialog" aria-modal="true" aria-labelledby="packContentsTitle">
+        <div class="graveyard-content pack-contents-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="packContentsTitle">Pack contents</div>
+                <button class="graveyard-close" type="button" onclick="hidePackContents()" aria-label="Close pack contents">✕</button>
+            </div>
+            <div class="pack-contents-scroll" id="packContentsScroll" tabindex="0" role="region" aria-label="Pack contents and odds">
+                <div class="pack-contents-summary" id="packContentsSummary"></div>
+                <div id="packContentsList"></div>
+            </div>
+            <div class="pack-contents-actions">
+                <button class="menu-btn pack-contents-buy" id="packContentsBuyBtn" type="button">Buy</button>
+            </div>
         </div>
     </div>
 
@@ -153,6 +190,20 @@
         </div>
     </div>
 
+    <!-- Match history: recorded events of this match (recordHistory), newest at the bottom -->
+    <div id="historyModal" class="graveyard-modal history-modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+        <div class="graveyard-content history-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="historyTitle">📜 MATCH HISTORY</div>
+                <button class="graveyard-close" onclick="hideMatchHistory()" aria-label="Close match history">✕</button>
+            </div>
+            <p class="history-note" id="historyNote"></p>
+            <div class="history-scroll" id="historyScroll" tabindex="0" role="region" aria-label="Match events">
+                <ol class="history-list" id="historyList"></ol>
+            </div>
+        </div>
+    </div>
+
     <!-- Pause Modal -->
     <div id="pauseModal" class="pause-modal" role="dialog" aria-modal="true" aria-label="Game paused">
         <div class="pause-content">
@@ -180,7 +231,7 @@
     </div>
 
     <div id="startModal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content" data-screen="mainMenu">
             <div class="modal-title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
             <div class="modal-intro">
                 <div class="beta-badge">V2 BETA</div>
@@ -188,67 +239,139 @@
             </div>
             
             <div class="menu-buttons" id="mainMenu">
-                <button class="menu-btn" onclick="showElementSelection()">🎮 NEW GAME</button>
-                <button class="menu-btn" onclick="showDeckBuilder()">🛠️ DECK BUILDER</button>
-                <button class="menu-btn" onclick="showPackShop()">🛒 PACK SHOP</button>
-                <button class="menu-btn" onclick="showBinder()">📚 BINDER / COLLECTION</button>
-                <button class="menu-btn" onclick="showHowToPlay()">📜 HOW TO PLAY</button>
-                <button class="menu-btn" onclick="showStats()">📊 GAME STATS</button>
+                <!-- Filled by updateMenuStatus() from the saved profile -->
+                <div class="menu-status" role="group" aria-label="Your profile">
+                    <div class="menu-status-chip">
+                        <span class="menu-status-icon" aria-hidden="true">💳</span>
+                        <span class="menu-status-text"><strong id="menuCredits">0</strong> credits</span>
+                    </div>
+                    <div class="menu-status-chip menu-status-collection">
+                        <span class="menu-status-icon" aria-hidden="true">📚</span>
+                        <span class="menu-status-text"><strong id="menuCollection">0 / 0</strong> cards<span class="menu-status-long"> collected</span></span>
+                        <span class="menu-status-meter" aria-hidden="true"><span id="menuCollectionMeter"></span></span>
+                    </div>
+                </div>
+
+                <button class="menu-btn menu-tile menu-primary" type="button" data-menu-target="elementSelectionScreen" onclick="showElementSelection()">
+                    <span class="menu-tile-icon" aria-hidden="true">⚔️</span>
+                    <span class="menu-tile-body">
+                        <span class="menu-tile-label">New Game</span>
+                        <span class="menu-tile-desc">Pick your elements and duel the AI</span>
+                    </span>
+                </button>
+
+                <div class="menu-grid">
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="deckBuilderScreen" onclick="showDeckBuilder()">
+                        <span class="menu-tile-icon" aria-hidden="true">🛠️</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">Deck Builder</span>
+                            <span class="menu-tile-desc">Tune your 15 decks with cards you own</span>
+                        </span>
+                    </button>
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="binderScreen" onclick="showBinder()">
+                        <span class="menu-tile-icon" aria-hidden="true">📚</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">Collection</span>
+                            <span class="menu-tile-desc">Browse every card in your binder</span>
+                        </span>
+                    </button>
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="packShopScreen" onclick="showPackShop()">
+                        <span class="menu-tile-icon" aria-hidden="true">🛒</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">Pack Shop</span>
+                            <span class="menu-tile-desc">Spend credits on booster packs</span>
+                        </span>
+                    </button>
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="howToPlayScreen" onclick="showHowToPlay()">
+                        <span class="menu-tile-icon" aria-hidden="true">📜</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">How to Play</span>
+                            <span class="menu-tile-desc">Rules, keywords and controls</span>
+                        </span>
+                    </button>
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="statsScreen" onclick="showStats()">
+                        <span class="menu-tile-icon" aria-hidden="true">📊</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">Stats</span>
+                            <span class="menu-tile-desc" id="menuRecord">Your battle record</span>
+                        </span>
+                    </button>
+                </div>
             </div>
 
             <div id="packShopScreen" class="menu-screen" style="display:none;">
-                <div class="modal-subtitle">Pack Shop</div>
+                <div class="modal-subtitle" tabindex="-1">Pack Shop</div>
                 <div class="shop-credits-badge" id="shopCreditsBadge">💳 Credits: 0</div>
-                <div class="pack-shop-grid">
-                    <button class="menu-btn shop-pack-btn" data-theme="fantasy" type="button" onclick="purchasePack('fantasy')">🧙 Fantasy Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="scifi" type="button" onclick="purchasePack('scifi')">🚀 SciFi Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="tech" type="button" onclick="purchasePack('tech')">⚙️ Tech Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="alien" type="button" onclick="purchasePack('alien')">👽 Alien Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="robot" type="button" onclick="purchasePack('robot')">🤖 Robot Pack · 60 Credits</button>
-                    <button class="menu-btn shop-pack-btn" data-theme="lands" type="button" onclick="purchasePack('lands')">🌍 Lands Pack · 40 Credits</button>
-                </div>
+                <p class="shop-intro">Each pack holds 5 different cards for your collection. Tap “What’s inside” to see every card a pack can contain and the odds.</p>
+                <!-- One tile per pack (art, price, affordability, contents): built by renderPackShop() -->
+                <div class="pack-shop-grid" id="packShopGrid"></div>
                 <div class="pack-shop-message" id="packShopMessage" aria-live="polite"></div>
-                <button class="menu-btn" onclick="hidePackShop()" style="margin-top: 15px;">← BACK TO MENU</button>
+                <button class="menu-btn menu-back" onclick="hidePackShop()">← BACK TO MENU</button>
             </div>
 
 
             <div id="binderScreen" class="menu-screen" style="display:none;">
-                <div class="modal-subtitle">Binder / Collection</div>
+                <div class="modal-subtitle" tabindex="-1">Collection</div>
                 <div class="binder-summary-badge" id="binderSummaryBadge">🗂️ 0 unique cards • 0 total cards</div>
+                <!-- Search, filters and sorting: built by buildCardFilterBar -->
+                <div class="card-filters" id="binderFilters" role="search" aria-label="Search and filter the collection"></div>
+                <div class="card-list-showing" id="binderShowing" aria-live="polite"></div>
                 <div class="binder-list" id="binderList"></div>
-                <button class="menu-btn" onclick="hideBinder()" style="margin-top: 15px;">← BACK TO MENU</button>
+                <button class="menu-btn menu-back" onclick="hideBinder()">← BACK TO MENU</button>
             </div>
 
             <div id="elementSelectionScreen" style="display: none;">
-                <div class="modal-subtitle">Choose your deck type:</div>
-                <div class="deck-mode-selector">
-                    <button type="button" class="deck-mode-btn" aria-pressed="false" data-deck-mode="single" onclick="setDeckMode('single')">Single Color</button>
-                    <button type="button" class="deck-mode-btn selected" aria-pressed="true" data-deck-mode="dual" onclick="setDeckMode('dual')">Two Colors</button>
-                </div>
+                <div class="modal-subtitle" id="setupTitle" tabindex="-1">Battle Setup</div>
+                <div class="setup-layout">
+                    <div class="setup-choices">
+                        <section class="setup-step" aria-labelledby="setupStepMode">
+                            <h3 class="setup-step-title" id="setupStepMode"><span class="setup-step-num" aria-hidden="true">1</span>Deck type</h3>
+                            <div class="deck-mode-selector">
+                                <button type="button" class="deck-mode-btn" aria-pressed="false" data-deck-mode="single" onclick="setDeckMode('single')">Single Color</button>
+                                <button type="button" class="deck-mode-btn selected" aria-pressed="true" data-deck-mode="dual" onclick="setDeckMode('dual')">Two Colors</button>
+                            </div>
+                        </section>
 
-                <div class="modal-subtitle">Select elements for your deck:</div>
-                
-                <div class="modal-subtitle" style="margin-top: 20px;">AI Difficulty:</div>
-                <div class="difficulty-selector">
-                    <button type="button" class="difficulty-btn selected" aria-pressed="true" data-difficulty="easy" onclick="selectDifficulty('easy')">Easy</button>
-                    <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="medium" onclick="selectDifficulty('medium')">Medium</button>
-                    <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="hard" onclick="selectDifficulty('hard')">Hard</button>
-                </div>
+                        <section class="setup-step" aria-labelledby="setupStepElements">
+                            <h3 class="setup-step-title" id="setupStepElements"><span class="setup-step-num" aria-hidden="true">2</span>Elements</h3>
+                            <div class="element-pick-hint" id="elementPickHint" aria-live="polite">Choose 2 elements</div>
+                            <div class="element-selector" id="elementSelector">
+                                <button type="button" class="element-btn" data-element="fire" aria-pressed="false" onclick="selectElement('fire')"><span class="element-btn-emoji" aria-hidden="true">🔥</span><span class="element-btn-name">Fire</span></button>
+                                <button type="button" class="element-btn" data-element="water" aria-pressed="false" onclick="selectElement('water')"><span class="element-btn-emoji" aria-hidden="true">💧</span><span class="element-btn-name">Water</span></button>
+                                <button type="button" class="element-btn" data-element="earth" aria-pressed="false" onclick="selectElement('earth')"><span class="element-btn-emoji" aria-hidden="true">🌍</span><span class="element-btn-name">Earth</span></button>
+                                <button type="button" class="element-btn" data-element="swamp" aria-pressed="false" onclick="selectElement('swamp')"><span class="element-btn-emoji" aria-hidden="true">💀</span><span class="element-btn-name">Swamp</span></button>
+                                <button type="button" class="element-btn" data-element="light" aria-pressed="false" onclick="selectElement('light')"><span class="element-btn-emoji" aria-hidden="true">☀️</span><span class="element-btn-name">Light</span></button>
+                            </div>
+                        </section>
 
-                <div class="element-selector">
-                    <button type="button" class="element-btn" data-element="fire" aria-label="Fire" aria-pressed="false" onclick="selectElement('fire')">🔥</button>
-                    <button type="button" class="element-btn" data-element="water" aria-label="Water" aria-pressed="false" onclick="selectElement('water')">💧</button>
-                    <button type="button" class="element-btn" data-element="earth" aria-label="Earth" aria-pressed="false" onclick="selectElement('earth')">🌍</button>
-                    <button type="button" class="element-btn" data-element="swamp" aria-label="Swamp" aria-pressed="false" onclick="selectElement('swamp')">💀</button>
-                    <button type="button" class="element-btn" data-element="light" aria-label="Light" aria-pressed="false" onclick="selectElement('light')">☀️</button>
+                        <section class="setup-step" aria-labelledby="setupStepDifficulty">
+                            <h3 class="setup-step-title" id="setupStepDifficulty"><span class="setup-step-num" aria-hidden="true">3</span>AI difficulty</h3>
+                            <div class="difficulty-selector">
+                                <button type="button" class="difficulty-btn selected" aria-pressed="true" data-difficulty="easy" onclick="selectDifficulty('easy')">Easy</button>
+                                <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="medium" onclick="selectDifficulty('medium')">Medium</button>
+                                <button type="button" class="difficulty-btn" aria-pressed="false" data-difficulty="hard" onclick="selectDifficulty('hard')">Hard</button>
+                            </div>
+                            <!-- Filled by updateDifficultyInfo() from DIFFICULTY_INFO (matches AI_PROFILES) -->
+                            <p class="difficulty-info" id="difficultyInfo" aria-live="polite"></p>
+                        </section>
+                    </div>
+
+                    <div class="setup-summary">
+                        <section class="setup-step setup-deck" aria-labelledby="setupStepDeck">
+                            <h3 class="setup-step-title" id="setupStepDeck"><span class="setup-step-num" aria-hidden="true">4</span>Your deck</h3>
+                            <!-- Filled by renderDeckSummary() from the saved deck for the chosen elements -->
+                            <div class="deck-summary" id="deckSummary" aria-live="polite"></div>
+                        </section>
+                        <button class="btn setup-start" id="startBtn" onclick="startGame()" disabled>⚔️ START BATTLE ⚔️</button>
+                        <button class="menu-btn menu-back" onclick="backToMenu()">← BACK</button>
+                    </div>
                 </div>
-                <button class="btn" id="startBtn" onclick="startGame()" disabled>⚔️ START BATTLE ⚔️</button>
-                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK</button>
             </div>
 
             <div id="howToPlayScreen" style="display: none;">
+                <div class="modal-subtitle" tabindex="-1">How to Play</div>
                 <div class="how-to-play">
-                    <div class="howto-page" data-page="1">
+                    <div class="howto-page" data-page="1" tabindex="0" role="region" aria-label="How to play, page 1">
                         <h3>🎯 Objective</h3>
                         <p>Reduce your opponent's life from 20 to 0 using creatures, spells, and strategy!</p>
 
@@ -294,7 +417,7 @@
                         </ul>
                     </div>
 
-                    <div class="howto-page" data-page="2" style="display:none;">
+                    <div class="howto-page" data-page="2" style="display:none;" tabindex="0" role="region" aria-label="How to play, page 2">
                         <h3>🧩 Collecting Cards &amp; Building Decks</h3>
                         <ul>
                             <li>Winning matches awards booster packs to keep your progress growing.</li>
@@ -313,11 +436,11 @@
                     <button class="menu-btn howto-nav-btn" type="button" onclick="setHowToPlayPage(2)">PAGE 2 →</button>
                 </div>
 
-                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 20px;">← BACK TO MENU</button>
+                <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
             </div>
 
             <div id="statsScreen" style="display: none;">
-                <div class="modal-subtitle">Your Battle Record</div>
+                <div class="modal-subtitle" tabindex="-1">Your Battle Record</div>
                 <div class="stats-display">
                     <div class="stat-row">
                         <span class="stat-label">🏆 Games Won:</span>
@@ -336,22 +459,30 @@
                         <span id="winRate">0%</span>
                     </div>
                 </div>
-                <button class="menu-btn" onclick="resetStats()" style="background: linear-gradient(135deg, #dc143c 0%, #8b0000 100%); color: #fff;">🔄 RESET STATS</button>
-                <button class="menu-btn" onclick="resetMetaProgress()" style="background: linear-gradient(135deg, #b71c1c 0%, #4a0404 100%); color: #fff; margin-top: 10px;">🧹 RESET PROGRESS</button>
-                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 15px;">← BACK TO MENU</button>
+                <div class="stats-danger-zone">
+                    <button class="menu-btn menu-danger" onclick="resetStats()">🔄 RESET STATS</button>
+                    <button class="menu-btn menu-danger" onclick="resetMetaProgress()">🧹 RESET PROGRESS</button>
+                </div>
+                <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
             </div>
 
             <div id="deckBuilderScreen" style="display: none;">
-                <div class="modal-subtitle">Deck Builder</div>
+                <div class="modal-subtitle" tabindex="-1">Deck Builder</div>
                 <div class="deck-builder-subtitle">Build from your collection. Win packs. Upgrade your standard decks.</div>
                 <div class="deck-builder-controls">
                     <label for="deckBuilderDeckKey">Deck:</label>
                     <select id="deckBuilderDeckKey" aria-label="Deck to edit"></select>
+                    <span class="deck-builder-unsaved" id="deckBuilderUnsaved" style="display:none;">● Unsaved changes</span>
                 </div>
+                <!-- Counts and mana curve of the working deck, and what stops it saving: renderDeckBuilder -->
+                <div class="deck-summary-panel" id="deckBuilderSummary"></div>
+                <div class="deck-issues" id="deckBuilderIssues" aria-live="polite"></div>
                 <div class="deck-builder-columns">
                     <div class="deck-builder-column">
-                        <div class="deck-builder-column-title">Eligible Owned Cards</div>
-                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Eligible owned cards"></div>
+                        <div class="deck-builder-column-title">Cards for this deck</div>
+                        <div class="card-filters" id="deckBuilderFilters" role="search" aria-label="Search and filter cards for this deck"></div>
+                        <div class="card-list-showing" id="deckBuilderShowing" aria-live="polite"></div>
+                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Cards you can add"></div>
                     </div>
                     <div class="deck-builder-column">
                         <div class="deck-builder-column-title">Deck List</div>
@@ -359,14 +490,14 @@
                     </div>
                 </div>
                 <div class="deck-builder-footer">
-                    <div id="deckBuilderStatus"></div>
+                    <div id="deckBuilderStatus" role="status" aria-live="polite"></div>
                     <div class="deck-builder-footer-buttons">
                         <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
                         <button class="menu-btn" onclick="openDeckBuilderGuide()">📘 DECK BUILDER GUIDE</button>
                         <button class="menu-btn" onclick="saveDeckBuilderDeck()">💾 SAVE DECK</button>
                     </div>
                 </div>
-                <button class="menu-btn" onclick="backToMenu()" style="margin-top: 12px;">← BACK TO MENU</button>
+                <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
             </div>
 
             <div id="deckBuilderGuideOverlay" class="guide-overlay" style="display:none;">
@@ -395,12 +526,34 @@
             <button class="menu-icon-btn" onclick="pauseGame()" aria-label="Pause menu (Esc)">☰</button>
             <div class="title"><span class="title-sword" aria-hidden="true">⚔️</span> EMOJI ELEMENTS <span class="title-sword" aria-hidden="true">⚔️</span></div>
             <div class="header-right">
+                <button class="menu-icon-btn history-btn" id="historyBtn" onclick="showMatchHistory()" title="Match history (H)" aria-label="Match history">📜<span class="history-badge" id="historyBadge" hidden></span></button>
                 <button class="menu-icon-btn mute-btn" id="muteBtn" onclick="toggleMute()" title="Toggle sound" aria-label="Mute sound" aria-pressed="false">🔊</button>
-                <div class="phase-indicator" id="phaseIndicator" aria-live="polite">MAIN PHASE</div>
+                <div class="phase-indicator" id="phaseIndicator">MAIN PHASE</div>
             </div>
         </div>
 
         <div class="battlefield">
+            <!-- Whose turn, what is happening, and the attack preview (updateTurnBanner, renderCombatPreviewPanel) -->
+            <div class="turn-banner" id="turnBanner" data-turn="player">
+                <div class="turn-banner-main" role="status" aria-live="polite">
+                    <span class="turn-banner-round">Turn 1</span>
+                    <span class="turn-banner-text">⚔️ Your turn · Main phase</span>
+                </div>
+                <div class="combat-preview" id="combatPreview" hidden>
+                    <div class="combat-preview-head">
+                        <span class="cp-tag">Preview</span>
+                        <span class="combat-preview-summary" aria-live="polite"></span>
+                    </div>
+                    <details class="combat-preview-details">
+                        <summary>Blocks and results</summary>
+                        <div class="combat-preview-drop">
+                            <ul class="combat-preview-list"></ul>
+                            <p class="combat-preview-note">Not final. Blocking is automatic and uses the board as it is when you confirm.</p>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
             <!-- Enemy Area -->
             <div class="player-area enemy-area">
                 <div class="player-info">

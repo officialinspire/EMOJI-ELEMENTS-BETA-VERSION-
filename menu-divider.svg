@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 16" preserveAspectRatio="xMidYMid meet">
+  <!-- Gold filigree divider: tapering rules, a central diamond and two element nodes -->
+  <defs>
+    <linearGradient id="l" x1="0" x2="1">
+      <stop offset="0" stop-color="#f2cf72" stop-opacity="0"/>
+      <stop offset="1" stop-color="#f2cf72" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="r" x1="1" x2="0">
+      <stop offset="0" stop-color="#f2cf72" stop-opacity="0"/>
+      <stop offset="1" stop-color="#f2cf72" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="7.5" width="94" height="1" fill="url(#l)"/>
+  <rect x="142" y="7.5" width="94" height="1" fill="url(#r)"/>
+  <circle cx="104" cy="8" r="2" fill="#b7afff"/>
+  <circle cx="136" cy="8" r="2" fill="#b7afff"/>
+  <path d="M120 1 L127 8 L120 15 L113 8 Z" fill="none" stroke="#f2cf72" stroke-width="1.4"/>
+  <path d="M120 5 L123 8 L120 11 L117 8 Z" fill="#f2cf72"/>
+</svg>

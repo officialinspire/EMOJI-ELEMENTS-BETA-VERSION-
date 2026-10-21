@@ -4,13 +4,14 @@ Audit of every card in `CARD_DATABASE` (`index.js`) and every path that makes ca
 branch `claude/compassionate-albattani-aabox6`, on top of the [QA baseline](QA_BASELINE.md).
 
 The machine-readable manifest is **[`docs/card-manifest.json`](docs/card-manifest.json)**. It lists one entry per
-card: id, source key, stats, effect, inferred rarity and pack theme, deck-builder copy limit, and availability
-(starter copies, starter decks, pack pools, AI decks, the decks where it is legal).
+card: id, source key, stats, effect, inferred rarity, deck-builder copy limit, and availability (starter copies,
+starter decks, the packs it can come from, AI decks, the decks where it is legal).
 
 **Verdict:** the data itself is clean. All 268 ids are unique, there are no malformed costs or stats, no unknown
 fields, no unsupported effect strings, and no card is unobtainable. This pass fixed three real defects that made
-cards unusable (§4). What remains are content and design choices that need your call (§5). The biggest is that
-the **Alien and Robot packs contain no alien or robot cards**.
+cards unusable (§4). What remains are content and design choices that need your call (§5). The biggest one,
+**Alien and Robot packs containing no alien or robot cards** (decision A), is resolved: pack membership is now
+explicit and reviewed card by card (§7).
 
 ## 1. How it is checked
 
@@ -37,6 +38,16 @@ It **fails** on any of the following:
 - an instant or artifact that `describeEffect` can't explain (its **Rules** line in card details; see
   [EFFECTS.md](EFFECTS.md));
 - a card that is unobtainable or not legal in any deck;
+- pack membership (§7):
+  - a card missing from `PACK_MEMBERSHIP`, or an id there that isn't in the catalog;
+  - an unknown or repeated pack key;
+  - a card in no pack;
+  - a non-land in the Lands pack, or a land missing from it;
+  - an alien or UFO card outside the Alien pack, or a robot, android, cyborg, mech, drone or bot outside the
+    Robot pack;
+  - a pool smaller than a pack;
+  - a pool card with zero chance;
+  - 3000 seeded packs per pack that break the slots, leave the pool, or never draw some pool card;
 - a starter deck that is the wrong size, invalid, uses an unowned card, or shrinks on reload;
 - a stale manifest or counts block;
 - a **removed card id** (saved collections would silently lose it, because `validateMeta` drops unknown ids).
@@ -47,7 +58,15 @@ allow-listed issue that disappears also fails, so the list stays exact.
 Each failure mode was tested by injecting it into a temporary copy of `index.js`: a renamed card, a field typo
 (`toughnes`), an unknown effect (`lifesteal`), a bad cost colour (`fyre`), a duplicate object key, and an unknown
 ability (`regenerate`). All six exit 1 with a specific message. The effects pass added two more: `untilEndOfTurn`
-on Growth (a +2/+2 buff), and an effect that `describeEffect` doesn't cover. Both exit 1.
+on Growth (a +2/+2 buff), and an effect that `describeEffect` doesn't cover. Both exit 1. The pack pass planted
+five more in a copy:
+- Combat Robot without `robot`;
+- Grey Alien without `alien`;
+- Badlands Boar in `lands`;
+- Poop missing;
+- an unknown id.
+
+Each exits 1 with its own check.
 
 ## 2. Exact catalog counts
 
@@ -115,15 +134,25 @@ The block below is generated and verified by the check.
 | Science Fiction | 56 |
 | City | 28 |
 
-**By inferred pack theme (`inferTheme`)**
+**By pack (`PACK_MEMBERSHIP`; a card can be in several)**
 
-| Pack theme | Cards |
+| Pack | Cards |
 |---|---|
-| (none: neutral filler) | 111 |
-| fantasy | 90 |
+| fantasy | 187 |
+| tech | 60 |
 | scifi | 56 |
-| tech | 6 |
-| lands | 5 |
+| alien | 17 |
+| robot | 16 |
+| lands | 8 |
+
+**Packs per card**
+
+| Packs | Cards |
+|---|---|
+| in 1 pack | 209 |
+| in 2 packs | 44 |
+| in 3 packs | 13 |
+| in 4 packs | 2 |
 
 **By inferred rarity (`inferRarity`)**
 
@@ -194,16 +223,16 @@ The block below is generated and verified by the check.
 | 0 | 3 |
 | 7 | 1 |
 
-**Pack pools (`getThemePool`)**
+**Pack pools (`getThemePool`, `getPackOdds`)**
 
-| Theme | Cost | Pool size | Theme-matched | Neutral filler |
-|---|---|---|---|---|
-| fantasy | 60 | 90 | 90 | 0 |
-| scifi | 60 | 56 | 56 | 0 |
-| tech | 60 | 117 | 6 | 111 |
-| alien | 60 | 111 | 0 | 111 |
-| robot | 60 | 111 | 0 | 111 |
-| lands | 40 | 9 | 5 | 4 |
+| Pack | Cost | Pool size | Common / Rare / Epic+ | Slots | Chance a given card is in a pack (Common / Rare / Epic+) |
+|---|---|---|---|---|---|
+| fantasy | 60 | 187 | 143 / 25 / 19 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 2.1% / 4.0% / 5.3% |
+| scifi | 60 | 56 | 40 / 13 / 3 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 7.5% / 7.7% / 33% |
+| tech | 60 | 60 | 50 / 8 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 6.0% / 13% / 50% |
+| alien | 60 | 17 | 7 / 8 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 43% / 13% / 50% |
+| robot | 60 | 16 | 12 / 3 / 1 | 3 × Common · 1 × Rare · 1 × Epic/Legendary or Rare | 25% / 56% / 33% |
+| lands | 40 | 8 | 4 / 2 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 75% / 50% / 50% |
 
 **Availability:** 153 in the starter collection · 268 in at least one pack pool · 115 pack-only · 255 can appear in AI decks · 267 legal in at least one standard deck.
 <!-- card-counts:end -->
@@ -214,7 +243,7 @@ The block below is generated and verified by the check.
 |---|---|---|
 | **Starter decks** | `buildStarterDeckFromColors`, `createInitialMeta` | 15 decks (5 mono, 10 dual), each 60 cards. Mono decks hold 20 lands, 21 creatures, 9 instants and 10 artifacts. Dual decks hold 22 lands (11 per colour), 20 creatures, 9 instants and 9 artifacts. They are built deterministically from the cheapest eligible cards. The 3 free artifacts appear in **all 15**. |
 | **Owned collection** | `createInitialMeta` | Seeded **only from the 5 mono starters**: 153 unique cards, 300 copies, no legendaries. Dual starters are built only from these owned cards, so every starter is legal on a fresh profile (decision G, resolved). |
-| **Booster packs** (shop and win) | `getThemePool`, `generatePack` | 5 cards per pack, no duplicates within a pack. Every card is in at least one pool, and every card in a pool can be drawn. 115 cards can only be obtained from packs. See the pool table above: Alien and Robot are 100% neutral filler (decision A). |
+| **Booster packs** (shop and win) | `PACK_MEMBERSHIP`, `getThemePool`, `generatePack` | 5 cards per pack, no duplicates within a pack. Every card is in at least one pack (268 of 268), and every card in a pool can be drawn. 115 cards can only be obtained from packs. Membership is explicit and reviewed per card (§7). |
 | **Deck Builder** | `getDeckBuilderDeckEntries`, `validateDeckBuild` | Only owned cards that are legal for the deck's colours. **267 of 268** cards are legal in at least one standard deck; the exception is Crystal Wasteland (decision H). |
 | **Binder** | `renderBinderCollection` | Shows every owned id that exists in the catalog, sorted by name. Duplicate names display as identical rows (decision D). |
 | **AI decks** | `generateDeck` | Random decks from the cards whose cost colours are within the AI's colours. **13 cards never appear** in AI decks: the 3 special lands and the 10 colourless-cost artifacts. Separately, QA defect D3 (the AI can be dealt a "colorless" colour) is unchanged. |
@@ -240,7 +269,7 @@ Each item is listed in `KNOWN_ISSUES` (or noted as text-only) until you decide.
 
 | # | Issue | Options (recommendation first) |
 |---|---|---|
-| A | **Pack themes don't match their cards.** `inferTheme` maps every `Science Fiction` card to `scifi` before checking keywords. As a result the **Alien and Robot pools contain 0 matching cards** (111 Nature/City "neutral filler" cards each), and Tech has 6 matches + 111 filler. All 14 robot, alien, drone, mech, cyborg and android cards are only in SciFi. Keyword false positives: Badlands Boar is in the Lands pool ("land"); Sky Eagle and Lantern Guard count as Tech ("watch"), as does Mole Engineer ("engine"); Bomb, War Horn and Heavy Armor count as Tech (their cardType "Artifact"). | 1) Add an explicit pack theme per card, so Alien and Robot actually contain aliens and robots. **This changes pack odds.** 2) Re-label the packs to match the real `theme` field (Nature, City, …). 3) Keep as is. |
+| A | ✅ **Resolved in the pack pass** (§7): option 1, an explicit, reviewed pack list per card id. ~~**Pack themes don't match their cards.** `inferTheme` maps every `Science Fiction` card to `scifi` before checking keywords. As a result the **Alien and Robot pools contain 0 matching cards** (111 Nature/City "neutral filler" cards each), and Tech has 6 matches + 111 filler. All 14 robot, alien, drone, mech, cyborg and android cards are only in SciFi. Keyword false positives: Badlands Boar is in the Lands pool ("land"); Sky Eagle and Lantern Guard count as Tech ("watch"), as does Mole Engineer ("engine"); Bomb, War Horn and Heavy Armor count as Tech (their cardType "Artifact").~~ | ~~1) Add an explicit pack theme per card, so Alien and Robot actually contain aliens and robots. **This changes pack odds.** 2) Re-label the packs to match the real `theme` field (Nature, City, …). 3) Keep as is.~~ Option 1 was taken. |
 | B | **Rarity is inferred, not authored.** `inferRarity` never produces `uncommon` (204 common / 41 rare / 14 epic / 9 legendary). The basic land Ancient Grove is "rare" because its name contains "ancient". Legendaries by colour: fire 4, water 3, earth 1, swamp 1, light 0. The SciFi pool has no legendaries. | 1) Author an explicit `rarity` per card (changes pack odds and copy limits where values differ). 2) Only pin basic lands to common. 3) Keep. |
 | C | **3 free artifacts** (cost `{}`): DNA Sequence (draw a card), **Fingerprint Scanner (+1 mana every turn for 0)**, Footsteps (all your creatures gain haste). Similar sci-fi artifacts cost 1–3 colourless. All three are in **all 15 starter decks** (2 copies each). | 1) Give them colourless costs. This regenerates every starter for new players; existing saved decks keep their lists. 2) Keep them as deliberate 0-drops. |
 | D | **Duplicate names**: "Signal Tower" and "Chrono Watch" each exist as both a creature and an artifact, with the same emoji. | 1) Rename the creature versions, with a save alias so owned copies carry over. Renaming changes ids, and the check blocks a bare rename. 2) Keep. |
@@ -266,8 +295,99 @@ Code and design intent are treated as the source of truth; these are documentati
 | Named example cards (Dragon … Protective Amulet) | CHANGELOG | All present ("Crocodile" is *Swamp Croc*). |
 | 13 keywords, including Flash at instant speed | CHANGELOG | 13 of the 14 keywords in the catalog are implemented (`unblockable` isn't listed in the CHANGELOG). Flash is not; see RULES.md §8. |
 | Rarity tiers common, uncommon, rare, epic, legendary | README | 4 are produced; there is **no uncommon** (B). |
-| 6 themed packs; "cards selected from inferred theme pools" | README | ✓ 6, but Alien and Robot hold no themed cards (A). |
-| 5 cards per pack; Lands packs prioritise lands | README | ✓ Lands are weighted ×3. The Lands pool is 8 lands + Badlands Boar. |
+| 6 themed packs; "cards selected from inferred theme pools" | README | ✓ 6. Pools now come from the reviewed `PACK_MEMBERSHIP`, not inference (A, resolved). README updated. |
+| 5 cards per pack; Lands packs prioritise lands | README | ✓ 5. Lands packs now hold only the 8 lands (the ×3 weighting and Badlands Boar are gone). README updated. |
 | Dual starters: 10 lands per colour, `NON_LAND_COUNT = 40` | README | **11 per colour**: 22 lands + 38 non-lands. |
 | Dual starter keys (5 listed) | README | **10** (every pair). |
 | Copy limits: 2, or 1 for legendary | README | ✓ for non-lands. Basic lands are now limited only by land caps; special lands have 2. |
+
+## 7. Pack membership (pack pass)
+
+Decision A is resolved. `PACK_MEMBERSHIP` in `index.js` lists, for every catalog card id, the packs that can
+contain it. A card can be in several packs. It replaces `inferTheme` and its keyword lists. Those mapped every
+Science Fiction card to `scifi` before looking at anything else, so Alien and Robot had no matching cards, and
+"land" pulled Badlands Boar into the Lands pack.
+
+**Unchanged:**
+- prices (60, Lands 40);
+- 5 cards per pack, all different;
+- a pack on every win, with the same theme weights;
+- the rarity of every card (`inferRarity`);
+- the slot order (three Common, one Rare, one Epic or Legendary);
+- the save format (`collection`, `lastPack { themeKey, cardIds, openedAt }`).
+
+The manifest diff shows that only the pack fields changed. Stats, rarity, starter contents, AI availability and
+deck legality are identical for all 268 cards.
+
+### How each card was assigned
+
+Every card was looked at by name, emoji, text and `theme`. The rules below came out of that review, and the
+literal list in `index.js` is the record.
+
+| Pack | Contains | Cards |
+|---|---|---|
+| Fantasy | Every Fantasy-theme card. Every Nature-theme non-land (the elemental wildlife: Fire Fox, Crystal Swan, Leviathan Whale…). City folklore: Santa Claus, Phantom Train, Dread Clown, Temple Cat, Holy Hamster, Grave Digger, War Horn. | 187 |
+| Science Fiction | Every Science Fiction card, including its two lands | 56 |
+| Tech | Science Fiction devices, machines, drones and gear (scanners, signal and radar, power cells, watches, AI Core, Neon Panther, the 11 gadget artifacts…), plus the City "modern life" cards (Fireman, Police Officer, Welder, Bomb, Heavy Armor, Surf…). Phantom Train is in both Fantasy and Tech. | 60 |
+| Alien | Aliens, UFOs, spacecraft, space travel and the cosmos: Alien Invader, Grey Alien, UFO Saucer, Men in Black, Astronaut Explorer, Space Marine, Pixel Monster (👾), Satellite Drone, Orbital Scanner, rockets, Comet Strike, Meteor Strike, Aether Lens, Void Compass, Repair Drone (🛸), Distant Planet | 17 |
+| Robot | Robots, androids, cyborgs, mechs, drones, AI and machine parts: Combat Robot, Android Guardian, Cyborg Soldier, Battle Mech, Hydrobot, Healer Bot, Repair Bot, Attack/Recorder/Satellite Drone, AI Core, Cyber Brain, Med Capsule (nanobot), Mech Part, Mech Claw, Repair Drone | 16 |
+| Lands | All 8 lands and nothing else | 8 |
+
+**Overlaps:**
+- 209 cards are in one pack, 44 in two, 13 in three, and 2 in four (Satellite Drone and Repair Drone: Science
+  Fiction, Tech, Alien and Robot).
+- The broad Science Fiction pack keeps all 56 Science Fiction cards. The Alien and Robot packs are separate lists,
+  so Science Fiction never overrides them.
+
+**Judgement calls you may want to revisit:**
+- **Nature wildlife goes to Fantasy.** No pack is called Nature, and the old route (filler in Tech, Alien and
+  Robot) was the defect.
+- **City cards go to Tech as "modern life".** This includes Wild West Cowboy, Farmer and Loyal Hound; folklore
+  City cards go to Fantasy instead.
+- **Meteor Strike** (Nature) is also in Alien, as a cosmic card.
+- **Pixel Monster** (👾) is in Alien.
+- **Distant Planet** is in Alien, Science Fiction and Lands.
+
+### Slots and the fallback rules
+
+These are the same in code, tests and the shop:
+1. **Slots:** cards 1–3 prefer Common, card 4 Rare, card 5 Epic or Legendary. Each slot takes a uniform pick from
+   the first group of tiers that still has cards left in this pack (`getPackSlotPlan`, `generatePack`).
+2. **Tiny tier:** a tier with fewer than 2 cards in a pack (`PACK_MIN_TIER_CHOICES`) is merged with the next tier
+   for that slot, so no card is guaranteed in every pack. Today this only affects the **Robot** pack's card 5.
+   It has one Epic (Battle Mech), so card 5 is Epic or Rare: Battle Mech is in 33% of Robot packs, not 100%.
+   The shop says so.
+3. **Missing tier:** a tier with no cards in a pack works the same way: the slot falls to the next tier.
+4. **Small pool:** if a pool had fewer than 5 cards, the rest of the pack would come from the whole catalog, in
+   the same tier order, still with no duplicates. No pool is that small today (the smallest is Lands, with 8);
+   the audit fails if one becomes so, and `tests/packs.test.mjs` exercises the rule with a 3-card pool.
+
+`getPackOdds` follows the same plan exactly. It gives the expected number of cards per tier and the chance that
+a given card is in a pack; the shop's "What's inside" shows those numbers. In 3000 seeded packs per pack, the
+tests find the observed rates within a few hundredths of them.
+
+### What changed for players
+
+These are intentional probability changes. The chance is that of a given card being in one pack, by tier:
+Common / Rare / Epic or Legendary.
+
+| Pack | Before: pool (C/R/E+) | Before: what was in it | Before: chance | After: pool (C/R/E+) | After: chance |
+|---|---|---|---|---|---|
+| Fantasy | 90 (64/12/14) | 83 Fantasy + 7 others | 4.7% / 8.3% / 7.1% | 187 (143/25/19) | 2.1% / 4.0% / 5.3% |
+| Science Fiction | 56 (40/13/3) | all Science Fiction | 7.5% / 7.7% / 33% | unchanged | unchanged |
+| Tech | 117 (97/15/5) | 6 matches + 111 Nature/City filler | 3.1% / 6.7% / 20% | 60 (50/8/2) | 6.0% / 13% / 50% |
+| Alien | 111 (92/14/5) | **0 aliens**, 111 Nature/City filler | 3.3% / 7.1% / 20% | 17 (7/8/2) | 43% / 13% / 50% |
+| Robot | 111 (92/14/5) | **0 robots**, 111 Nature/City filler | 3.3% / 7.1% / 20% | 16 (12/3/1) | 25% / 56% / 33% (card 5 Epic or Rare) |
+| Lands | 9 (5/2/2) | 8 lands + Badlands Boar; lands weighted ×3 | each basic land ≈68%, Boar ≈29% / 50% / 50% | 8 (4/2/2), lands only | 75% / 50% / 50% |
+
+**What this means:**
+- Alien, Robot and Tech packs now give the cards their names promise. Because their pools are small, their Rare
+  and Epic/Legendary cards come round much more often. For example, Phantom Train (Legendary) is in half of all
+  Tech packs. Before, it was in 20% of Tech, Alien and Robot packs.
+- The Nature and City cards that used to fill those packs now come from Fantasy (wildlife and folklore) and Tech
+  (modern life). Fantasy's pool roughly doubles, so each Fantasy card is about half as likely per pack.
+- Win packs still pick their theme with the same weights. The win-pack odds change only through these pools.
+- **Availability:**
+  - all 268 cards are in at least one pack (before: 268, but through filler);
+  - 115 are pack-only (unchanged);
+  - no card lost its last pack.

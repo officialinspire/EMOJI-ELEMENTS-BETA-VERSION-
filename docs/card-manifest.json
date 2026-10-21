@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "source": "index.js CARD_DATABASE (ids: `${category}-${slug(name)}`; saved collections/decks key on these ids)",
   "counts": {
     "total": 268,
@@ -50,12 +50,19 @@
       "Science Fiction": 56,
       "City": 28
     },
-    "byPackTheme": {
-      "lands": 5,
-      "fantasy": 90,
+    "byPack": {
+      "lands": 8,
+      "fantasy": 187,
       "scifi": 56,
-      "(none: neutral filler)": 111,
-      "tech": 6
+      "alien": 17,
+      "tech": 60,
+      "robot": 16
+    },
+    "byPackCount": {
+      "in 1 pack": 209,
+      "in 2 packs": 44,
+      "in 3 packs": 13,
+      "in 4 packs": 2
     },
     "byRarity": {
       "common": 204,
@@ -116,40 +123,94 @@
     },
     "packPools": {
       "fantasy": {
-        "size": 90,
-        "themed": 90,
-        "padded": 0,
-        "cost": 60
+        "cost": 60,
+        "size": 187,
+        "byTier": {
+          "common": 143,
+          "rare": 25,
+          "epic+": 19
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.021,
+          "rare": 0.04,
+          "epic+": 0.0526
+        }
       },
       "scifi": {
+        "cost": 60,
         "size": 56,
-        "themed": 56,
-        "padded": 0,
-        "cost": 60
+        "byTier": {
+          "common": 40,
+          "rare": 13,
+          "epic+": 3
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.075,
+          "rare": 0.0769,
+          "epic+": 0.3333
+        }
       },
       "tech": {
-        "size": 117,
-        "themed": 6,
-        "padded": 111,
-        "cost": 60
+        "cost": 60,
+        "size": 60,
+        "byTier": {
+          "common": 50,
+          "rare": 8,
+          "epic+": 2
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.06,
+          "rare": 0.125,
+          "epic+": 0.5
+        }
       },
       "alien": {
-        "size": 111,
-        "themed": 0,
-        "padded": 111,
-        "cost": 60
+        "cost": 60,
+        "size": 17,
+        "byTier": {
+          "common": 7,
+          "rare": 8,
+          "epic+": 2
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.4286,
+          "rare": 0.125,
+          "epic+": 0.5
+        }
       },
       "robot": {
-        "size": 111,
-        "themed": 0,
-        "padded": 111,
-        "cost": 60
+        "cost": 60,
+        "size": 16,
+        "byTier": {
+          "common": 12,
+          "rare": 3,
+          "epic+": 1
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary or Rare",
+        "chancePerCard": {
+          "common": 0.25,
+          "rare": 0.5556,
+          "epic+": 0.3333
+        }
       },
       "lands": {
-        "size": 9,
-        "themed": 5,
-        "padded": 4,
-        "cost": 40
+        "cost": 40,
+        "size": 8,
+        "byTier": {
+          "common": 4,
+          "rare": 2,
+          "epic+": 2
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.75,
+          "rare": 0.5,
+          "epic+": 0.5
+        }
       }
     },
     "availability": {
@@ -170,7 +231,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Nature",
-      "packTheme": "lands",
       "rarity": "common",
       "colors": [
         "fire"
@@ -210,7 +270,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Nature",
-      "packTheme": "lands",
       "rarity": "common",
       "colors": [
         "water"
@@ -250,7 +309,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Nature",
-      "packTheme": "lands",
       "rarity": "rare",
       "colors": [
         "earth"
@@ -290,7 +348,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -331,7 +388,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -372,7 +428,6 @@
       "type": "land",
       "cardType": "Land",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "colorless"
@@ -401,7 +456,6 @@
       "type": "land",
       "cardType": "Land - Dual",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "epic",
       "colors": [
         "swamp",
@@ -416,6 +470,7 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
+          "alien",
           "lands"
         ],
         "inAiDecks": false,
@@ -441,7 +496,6 @@
       "type": "land",
       "cardType": "Land - Universal",
       "theme": "Nature",
-      "packTheme": "lands",
       "rarity": "epic",
       "colors": [
         "fire",
@@ -489,7 +543,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "legendary",
       "colors": [
         "fire"
@@ -531,7 +584,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "fire"
@@ -573,7 +625,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "legendary",
       "colors": [
         "fire"
@@ -615,7 +666,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -637,9 +687,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -660,7 +708,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -686,9 +733,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -709,7 +754,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -729,9 +773,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -752,7 +794,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -778,9 +819,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -801,7 +840,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -825,9 +863,7 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -848,7 +884,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -868,9 +903,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -891,7 +924,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -913,9 +945,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -936,7 +966,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -958,9 +987,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -981,7 +1008,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1007,9 +1033,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1030,7 +1054,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "fire"
@@ -1051,9 +1074,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1074,7 +1095,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1100,9 +1120,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1123,7 +1141,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1147,9 +1164,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1170,7 +1185,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1194,9 +1208,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1217,7 +1229,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1243,9 +1254,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1266,7 +1275,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "legendary",
       "colors": [
         "fire"
@@ -1308,7 +1316,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "legendary",
       "colors": [
         "fire"
@@ -1350,7 +1357,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -1372,9 +1378,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1395,7 +1399,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "fire"
@@ -1437,7 +1440,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "legendary",
       "colors": [
         "water"
@@ -1458,9 +1460,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1481,7 +1481,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1501,9 +1500,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1524,7 +1521,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "water"
@@ -1545,9 +1541,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1568,7 +1562,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1591,9 +1584,7 @@
           "WATER_SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1614,7 +1605,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1638,9 +1628,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1661,7 +1649,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1685,9 +1672,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1708,7 +1693,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1730,9 +1714,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1753,7 +1735,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1777,9 +1758,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1800,7 +1779,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1826,9 +1804,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1849,7 +1825,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1871,9 +1846,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1894,7 +1867,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1920,9 +1892,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1943,7 +1913,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -1963,9 +1932,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1986,7 +1953,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "fantasy",
       "rarity": "legendary",
       "colors": [
         "water"
@@ -2028,7 +1994,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -2052,9 +2017,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2075,7 +2038,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "water"
@@ -2098,9 +2060,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2121,7 +2081,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -2147,9 +2106,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2170,7 +2127,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -2196,9 +2152,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2219,7 +2173,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -2262,7 +2215,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "legendary",
       "colors": [
         "water"
@@ -2283,9 +2235,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2306,7 +2256,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "legendary",
       "colors": [
         "earth"
@@ -2327,9 +2276,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2350,7 +2297,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2370,9 +2316,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2393,7 +2337,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2413,9 +2356,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2436,7 +2377,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2462,9 +2402,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2485,7 +2423,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "earth"
@@ -2528,7 +2465,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2548,9 +2484,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2571,7 +2505,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "epic",
       "colors": [
         "earth"
@@ -2591,9 +2524,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2614,7 +2545,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "earth"
@@ -2634,9 +2564,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2657,7 +2585,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2683,9 +2610,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2706,7 +2631,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2732,9 +2656,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2755,7 +2677,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2781,9 +2702,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2804,7 +2723,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "earth"
@@ -2825,9 +2743,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2848,7 +2764,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2870,9 +2785,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2893,7 +2806,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2915,9 +2827,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2938,7 +2848,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -2958,9 +2867,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2981,7 +2888,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3003,9 +2909,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3026,7 +2930,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3048,9 +2951,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3071,7 +2972,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3091,9 +2991,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3114,7 +3012,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3134,9 +3031,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3157,7 +3052,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3177,9 +3071,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3200,7 +3092,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -3224,9 +3115,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3247,7 +3136,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "swamp"
@@ -3289,7 +3177,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3332,7 +3219,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3376,7 +3262,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3420,7 +3305,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3464,7 +3348,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3508,7 +3391,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3549,7 +3431,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3592,7 +3473,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3639,7 +3519,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3682,7 +3561,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3726,7 +3604,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3773,7 +3650,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3814,7 +3690,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3856,7 +3731,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -3897,7 +3771,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -3944,7 +3817,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "swamp"
@@ -3985,7 +3857,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "swamp"
@@ -4027,7 +3898,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "light"
@@ -4069,7 +3939,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "light"
@@ -4111,7 +3980,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "tech",
       "rarity": "rare",
       "colors": [
         "light"
@@ -4132,7 +4000,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4153,7 +4021,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "light"
@@ -4197,7 +4064,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4223,9 +4089,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4246,7 +4110,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "light"
@@ -4288,7 +4151,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "light"
@@ -4332,7 +4194,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -4379,7 +4240,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4402,9 +4262,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4425,7 +4283,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "light"
@@ -4446,9 +4303,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4469,7 +4324,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "light"
@@ -4496,9 +4350,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4519,7 +4371,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -4564,7 +4415,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4586,9 +4436,7 @@
           "LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4609,7 +4457,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4631,9 +4478,7 @@
           "LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4654,7 +4499,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4674,9 +4518,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4697,7 +4539,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -4723,9 +4564,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4746,7 +4585,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -4793,7 +4631,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -4815,7 +4652,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4832,7 +4670,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "water",
@@ -4855,7 +4692,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4872,7 +4710,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -4894,7 +4731,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4911,7 +4749,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "water",
@@ -4934,7 +4771,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4951,7 +4789,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "light"
@@ -4972,7 +4809,10 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4993,7 +4833,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "epic",
       "colors": [
         "fire"
@@ -5014,7 +4853,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5035,7 +4876,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth",
@@ -5057,7 +4897,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5074,7 +4915,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -5096,7 +4936,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5113,7 +4954,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "water",
@@ -5135,7 +4975,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5152,7 +4993,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "epic",
       "colors": [
         "fire",
@@ -5174,7 +5014,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5191,7 +5032,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "fire",
@@ -5214,7 +5054,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5231,7 +5073,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "water",
@@ -5254,7 +5095,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5271,7 +5114,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "water",
@@ -5293,7 +5135,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5310,7 +5154,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth",
@@ -5330,7 +5173,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5347,7 +5191,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -5373,7 +5216,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5394,7 +5238,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "water",
@@ -5416,7 +5259,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5433,7 +5278,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -5455,7 +5299,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5472,7 +5317,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -5497,7 +5341,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5518,7 +5363,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "light"
@@ -5539,7 +5383,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5560,7 +5406,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -5582,7 +5427,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5599,7 +5445,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth"
@@ -5620,7 +5465,8 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5641,7 +5487,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -5663,7 +5508,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5684,7 +5530,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "water"
@@ -5706,7 +5551,8 @@
           "WATER"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5727,7 +5573,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire"
@@ -5747,7 +5592,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5768,7 +5614,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth"
@@ -5794,7 +5639,9 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5815,7 +5662,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth"
@@ -5837,7 +5683,9 @@
           "EARTH"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5858,7 +5706,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -5880,7 +5727,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5897,7 +5745,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "swamp",
@@ -5920,7 +5767,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5937,7 +5785,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire"
@@ -5963,7 +5810,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5984,7 +5832,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "earth"
@@ -6010,7 +5857,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6031,7 +5879,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -6057,7 +5904,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6078,7 +5926,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -6104,7 +5951,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6125,7 +5973,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -6147,7 +5994,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6168,7 +6016,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -6190,7 +6037,9 @@
           "LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6211,7 +6060,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "swamp",
@@ -6234,7 +6082,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6251,7 +6100,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -6272,7 +6120,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6293,7 +6142,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "swamp",
@@ -6316,7 +6164,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6333,7 +6182,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth",
@@ -6355,9 +6203,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6374,7 +6220,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "fire",
@@ -6397,9 +6242,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6416,7 +6259,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "water",
@@ -6439,9 +6281,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6458,7 +6298,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water",
@@ -6480,9 +6319,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6499,7 +6336,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth",
@@ -6521,9 +6357,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6540,7 +6374,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -6560,9 +6393,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6583,7 +6414,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "earth",
@@ -6606,9 +6436,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6625,7 +6453,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -6649,9 +6476,7 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6672,7 +6497,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -6698,9 +6522,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6721,7 +6543,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -6743,9 +6564,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6766,7 +6585,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -6809,7 +6627,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "fire"
@@ -6830,9 +6647,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6853,7 +6668,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -6894,7 +6708,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "fire"
@@ -6917,7 +6730,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6938,7 +6752,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -6960,9 +6773,7 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6983,7 +6794,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -7003,9 +6813,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7026,7 +6834,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "rare",
       "colors": [
         "fire"
@@ -7047,7 +6854,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7068,7 +6876,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -7115,7 +6922,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7137,9 +6943,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7160,7 +6964,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7184,9 +6987,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7207,7 +7008,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7227,9 +7027,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7250,7 +7048,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7270,9 +7067,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7293,7 +7088,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -7334,7 +7128,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7356,9 +7149,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7379,7 +7170,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "water"
@@ -7399,7 +7189,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7420,7 +7211,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -7467,7 +7257,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -7489,9 +7278,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7512,7 +7299,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "tech",
       "rarity": "common",
       "colors": [
         "earth"
@@ -7535,7 +7321,7 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "tech"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7556,7 +7342,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -7578,9 +7363,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7601,7 +7384,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "earth"
@@ -7642,7 +7424,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -7662,9 +7443,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7685,7 +7464,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "earth"
@@ -7705,9 +7483,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7728,7 +7504,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -7754,9 +7529,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7777,7 +7550,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -7803,9 +7575,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7826,7 +7596,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": "lands",
       "rarity": "common",
       "colors": [
         "earth"
@@ -7848,7 +7617,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "lands"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7869,7 +7638,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -7892,9 +7660,7 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7915,7 +7681,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "earth"
@@ -7956,7 +7721,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8003,7 +7767,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8029,9 +7792,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8052,7 +7813,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8095,7 +7855,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8140,7 +7899,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8183,7 +7941,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8224,7 +7981,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8246,9 +8002,7 @@
           "SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8269,7 +8023,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "legendary",
       "colors": [
         "swamp"
@@ -8290,9 +8043,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8313,7 +8065,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8335,9 +8086,7 @@
           "SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8358,7 +8107,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "swamp"
@@ -8384,9 +8132,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8407,7 +8153,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -8450,7 +8195,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": "tech",
       "rarity": "common",
       "colors": [
         "light"
@@ -8496,7 +8240,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -8537,7 +8280,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "light"
@@ -8579,7 +8321,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "light"
@@ -8621,7 +8362,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "light"
@@ -8641,7 +8381,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "robot"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8662,7 +8403,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -8688,9 +8428,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8711,7 +8449,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "epic",
       "colors": [
         "light"
@@ -8752,7 +8489,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -8772,9 +8508,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8795,7 +8529,6 @@
       "type": "creature",
       "cardType": "Creature",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -8836,7 +8569,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -8883,7 +8615,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -8926,7 +8657,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -8969,7 +8699,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -8991,9 +8720,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9014,7 +8742,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -9061,7 +8788,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire"
@@ -9089,9 +8815,7 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9112,7 +8836,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -9136,9 +8859,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9159,7 +8880,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -9179,9 +8899,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9202,7 +8920,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -9248,7 +8965,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -9274,9 +8990,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9297,7 +9011,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "water"
@@ -9317,9 +9030,7 @@
           "WATER"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9340,7 +9051,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -9385,7 +9095,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -9414,9 +9123,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9437,7 +9144,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "water"
@@ -9463,9 +9169,7 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9486,7 +9190,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9509,9 +9212,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9532,7 +9233,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9558,9 +9258,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9581,7 +9279,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9607,9 +9304,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9630,7 +9325,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9653,9 +9347,7 @@
           "EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9676,7 +9368,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9702,9 +9393,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9725,7 +9414,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "City",
-      "packTheme": null,
       "rarity": "rare",
       "colors": [
         "earth"
@@ -9746,9 +9434,7 @@
           "FIRE_EARTH"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9769,7 +9455,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -9795,9 +9480,7 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9818,7 +9501,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -9860,7 +9542,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -9907,7 +9588,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -9952,7 +9632,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -9993,7 +9672,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -10038,7 +9716,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10085,7 +9762,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10130,7 +9806,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10177,7 +9852,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10220,7 +9894,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10261,7 +9934,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10311,7 +9983,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "City",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -10338,9 +10009,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10361,7 +10030,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "light"
@@ -10390,9 +10058,7 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10413,7 +10079,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -10458,7 +10123,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -10502,7 +10166,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "earth"
@@ -10527,9 +10190,7 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10550,7 +10211,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Nature",
-      "packTheme": null,
       "rarity": "common",
       "colors": [
         "fire",
@@ -10570,9 +10230,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech",
-          "alien",
-          "robot"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10589,7 +10247,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [
         "fire",
@@ -10611,7 +10268,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "alien"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10628,7 +10286,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -10675,7 +10332,6 @@
       "type": "instant",
       "cardType": "Instant/Spell",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "rare",
       "colors": [
         "swamp"
@@ -10718,7 +10374,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -10764,7 +10419,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "earth"
@@ -10810,7 +10464,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10851,7 +10504,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "water"
@@ -10892,7 +10544,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "City",
-      "packTheme": "tech",
       "rarity": "common",
       "colors": [
         "fire"
@@ -10933,7 +10584,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -10974,7 +10624,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -11021,7 +10670,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "swamp"
@@ -11062,7 +10710,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "City",
-      "packTheme": "tech",
       "rarity": "common",
       "colors": [
         "earth"
@@ -11084,7 +10731,7 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "fantasy"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11105,7 +10752,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -11147,7 +10793,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire",
@@ -11186,7 +10831,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "City",
-      "packTheme": "tech",
       "rarity": "common",
       "colors": [
         "earth"
@@ -11227,7 +10871,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "fire"
@@ -11269,7 +10912,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "earth",
@@ -11312,7 +10954,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -11353,7 +10994,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [
         "light"
@@ -11398,7 +11038,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {},
@@ -11430,7 +11069,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11461,7 +11101,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {},
@@ -11493,7 +11132,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11524,7 +11164,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {},
@@ -11591,7 +11230,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11609,7 +11247,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11640,7 +11279,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11666,7 +11304,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11697,7 +11336,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11715,7 +11353,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11746,7 +11385,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11764,7 +11402,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11795,7 +11434,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11813,7 +11451,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11844,7 +11483,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11863,7 +11501,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "robot"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11894,7 +11534,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11928,7 +11567,9 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11959,7 +11600,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -11977,7 +11617,10 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien",
+          "robot"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -12008,7 +11651,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Science Fiction",
-      "packTheme": "scifi",
       "rarity": "common",
       "colors": [],
       "cost": {
@@ -12042,7 +11684,9 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "tech",
+          "alien"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -12073,7 +11717,6 @@
       "type": "artifact",
       "cardType": "Artifact",
       "theme": "Fantasy",
-      "packTheme": "fantasy",
       "rarity": "common",
       "colors": [],
       "cost": {

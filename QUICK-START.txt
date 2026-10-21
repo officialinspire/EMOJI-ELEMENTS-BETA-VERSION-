@@ -21,7 +21,7 @@
    ✅ 268 cards: lands, creatures, instants and artifacts
    ✅ 15 ready decks: 5 single-colour, 10 two-colour
    ✅ 3 AI difficulty levels, all playing by your rules
-   ✅ Pack Shop, free pack on every win, Binder, Deck Builder
+   ✅ Pack Shop, free pack on every win, Collection, Deck Builder
    ✅ Phone, tablet and desktop; touch, mouse and keyboard
    ✅ Progress saved in your browser (damaged saves are repaired
       and backed up)

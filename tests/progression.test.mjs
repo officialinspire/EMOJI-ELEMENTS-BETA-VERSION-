@@ -377,18 +377,24 @@ describe('credits, packs and the binder', () => {
         assert.equal(await page.evaluate(() => document.getElementById('packOpeningOverlay').classList.contains('show')), false);
     });
 
-    test('duplicate pulls stack in the collection and the Binder; each pack has 3 common, 1 rare and 1 epic-or-better slot', { timeout: 120000 }, async t => {
+    test('duplicate pulls stack in the collection and the Binder; each pack fills its 3 Common, 1 Rare and 1 Epic-or-better slots', { timeout: 120000 }, async t => {
         const page = await open(t, { seed: 9 });
         const result = await page.evaluate(() => {
             gameMeta.wallet.credits = 2000;
             const packs = [];
             for (let i = 0; i < 30; i++) {
                 const r = purchasePack(['fantasy', 'scifi', 'tech', 'alien', 'robot', 'lands'][i % 6]);
-                packs.push({ theme: r.themeKey, rarities: r.cardIds.map(id => __CARD_BY_ID[id].__rarity) });
+                // Each card's slot tier, and the tiers that slot may give in this pack (getPackSlotPlan)
+                const plan = getPackSlotPlan(r.themeKey);
+                packs.push({ theme: r.themeKey, tiers: r.cardIds.map(id => packTierOf(__CARD_BY_ID[id])), allowed: plan.slots.map(groups => groups[0]) });
                 closePackOpeningOverlay();
             }
             document.getElementById('startModal').style.display = 'flex';
             showBinder();
+            // The Binder lists the whole catalog; the owned-only view is the collection itself
+            const ownedFilter = document.querySelector('#binderFilters [data-filter="owned"]');
+            ownedFilter.value = 'owned';
+            ownedFilter.dispatchEvent(new Event('change'));
             const rows = [...document.querySelectorAll('#binderList .binder-row')].map(r => ({
                 name: r.querySelector('.binder-row-name').firstChild.textContent.trim(),
                 count: Number(r.querySelector('.binder-row-count').textContent.slice(1))
@@ -397,6 +403,7 @@ describe('credits, packs and the binder', () => {
             return {
                 packs, rows,
                 badge: document.getElementById('binderSummaryBadge').textContent,
+                catalog: window.__ALL_CARDS.length,
                 unique: owned.length,
                 totalCards: owned.reduce((s, [, n]) => s + n, 0),
                 duplicates: owned.filter(([, n]) => n >= 3).length,
@@ -408,12 +415,15 @@ describe('credits, packs and the binder', () => {
         assert.equal(result.credits, 2000 - result.spent);
         assert.equal(result.rows.length, result.unique);
         assert.equal(result.rows.reduce((s, r) => s + r.count, 0), result.totalCards);
-        assert.equal(result.badge, `🗂️ ${result.unique} unique cards • ${result.totalCards} total cards`);
+        assert.equal(result.badge, `🗂️ ${result.unique} of ${result.catalog} unique cards • ${result.totalCards} total cards`);
         assert.ok(result.sorted, 'binder sorted by name');
         assert.ok(result.duplicates > 0, 'duplicates accumulate');
-        for (const pack of result.packs.filter(p => p.theme !== 'lands')) {
-            const tier = r => (r === 'common' ? 'common' : r === 'rare' ? 'rare' : 'epic+');
-            assert.deepEqual(pack.rarities.map(tier), ['common', 'common', 'common', 'rare', 'epic+'], `${pack.theme} pack slots`);
+        // 3 Common, 1 Rare, 1 Epic/Legendary; the Robot pack's single Epic widens its last slot to Rare too
+        // (CARD_AUDIT.md §7). Lands packs follow the same slots now that they hold only lands.
+        for (const pack of result.packs) {
+            assert.deepEqual(pack.allowed.slice(0, 4), [['common'], ['common'], ['common'], ['rare']], `${pack.theme} slots 1-4`);
+            assert.deepEqual(pack.allowed[4], pack.theme === 'robot' ? ['epic+', 'rare'] : ['epic+'], `${pack.theme} slot 5`);
+            pack.tiers.forEach((tier, i) => assert.ok(pack.allowed[i].includes(tier), `${pack.theme} card ${i + 1} is ${tier}`));
         }
     });
 

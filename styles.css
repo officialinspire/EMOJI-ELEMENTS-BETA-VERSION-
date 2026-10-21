@@ -996,13 +996,6 @@ body::after {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
-@media (min-width: 768px) {
-    .element-btn {
-        padding: 25px;
-        font-size: 48px;
-    }
-}
-
 .element-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
@@ -1381,17 +1374,7 @@ body::after {
 
 .shop-pack-btn {
     width: 100%;
-    font-size: 13px;
-    padding: 12px 10px;
-    letter-spacing: 0.5px;
 }
-
-.shop-pack-btn[data-theme="fantasy"] { background: linear-gradient(135deg, #ffd86e 0%, #b88cff 100%); }
-.shop-pack-btn[data-theme="scifi"] { background: linear-gradient(135deg, #6df1ff 0%, #6787ff 100%); }
-.shop-pack-btn[data-theme="tech"] { background: linear-gradient(135deg, #b8c0cc 0%, #7d8fa4 100%); }
-.shop-pack-btn[data-theme="alien"] { background: linear-gradient(135deg, #9dff89 0%, #2f8a67 100%); }
-.shop-pack-btn[data-theme="robot"] { background: linear-gradient(135deg, #cfd6df 0%, #8a95a8 100%); }
-.shop-pack-btn[data-theme="lands"] { background: linear-gradient(135deg, #9fdd84 0%, #d8b16a 100%); }
 
 .pack-shop-message {
     min-height: 24px;
@@ -1611,47 +1594,6 @@ body::after {
     }
 }
 
-.card-stack {
-    position: relative;
-    min-width: 60px;
-    height: 80px;
-    margin-right: 10px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.card-stack:hover {
-    transform: translateY(-5px);
-}
-
-.stack-count {
-    position: absolute;
-    bottom: -5px;
-    right: -5px;
-    background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-    color: #2a1a0a;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    font-family: 'Cinzel', serif;
-    border: 2px solid #8b7355;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-    z-index: 100;
-    pointer-events: none;
-}
-
-.stack-count-enemy {
-    background: linear-gradient(135deg, #dc143c 0%, #ff6b6b 100%);
-    color: #fff;
-    border-color: #8b0000;
-}
-
 /* Land stack representative card */
 .land-stack-card {
     position: relative;
@@ -1770,35 +1712,8 @@ body::after {
     -webkit-tap-highlight-color: transparent;
 }
 
-.land-stack-card:hover .land-stack-tap-all,
-.land-stack-card.show-tap-all .land-stack-tap-all {
+.land-stack-card:hover .land-stack-tap-all {
     display: flex;
-}
-
-@media (min-width: 768px) {
-    .card-stack {
-        min-width: 60px;
-        height: 80px;
-    }
-
-    .stack-count {
-        width: 26px;
-        height: 26px;
-        font-size: 13px;
-    }
-
-    .land-stack-card {
-        min-width: 70px;
-        height: 90px;
-    }
-
-    .land-stack-emoji {
-        font-size: 32px;
-    }
-
-    .land-stack-count {
-        font-size: 12px;
-    }
 }
 
 .pause-modal {
@@ -2683,13 +2598,6 @@ body.no-scroll {
         font-size: 56px;
     }
 
-    /* Larger card stack counters */
-    .stack-count {
-        width: 30px;
-        height: 30px;
-        font-size: 14px;
-    }
-
     .land-stack-card {
         min-width: 80px;
         height: 100px;
@@ -2716,13 +2624,6 @@ body.no-scroll {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
-}
-
-/* Better loading states */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-    filter: grayscale(0.5);
 }
 
 /* Improved focus states for accessibility and keyboard navigation */
@@ -3065,10 +2966,6 @@ html {
     transform-origin: center;
 }
 
-.juice-shake {
-    animation: juiceQuickShake 0.28s ease-in-out;
-}
-
 .juice-glow-common {
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.18), 0 0 14px rgba(255, 255, 255, 0.12);
 }
@@ -3095,62 +2992,6 @@ html {
 .card.rarity-epic,
 .card.rarity-legendary {
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.card.rarity-common {
-    border-color: rgba(230, 230, 230, 0.75);
-}
-
-.card.rarity-uncommon {
-    border-color: rgba(126, 242, 159, 0.78);
-}
-
-.card.rarity-rare {
-    border-color: rgba(96, 181, 255, 0.82);
-}
-
-.card.rarity-epic {
-    border-color: rgba(183, 121, 255, 0.84);
-}
-
-.card.rarity-legendary {
-    border-color: rgba(255, 206, 96, 0.96);
-    animation: legendaryAuraPulse 1.8s ease-in-out infinite;
-}
-
-.card.rarity-legendary::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 12px;
-    pointer-events: none;
-    background: radial-gradient(circle, rgba(255, 238, 168, 0.48) 0%, rgba(255, 180, 86, 0.22) 42%, rgba(255, 126, 34, 0) 72%);
-    filter: blur(5px);
-    opacity: 0.82;
-    mix-blend-mode: screen;
-    animation: legendaryHaloSpin 2.8s linear infinite;
-}
-
-@keyframes legendaryAuraPulse {
-    0%,
-    100% {
-        box-shadow: 0 0 12px rgba(255, 220, 122, 0.45), 0 0 24px rgba(255, 169, 60, 0.26);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(255, 232, 157, 0.76), 0 0 42px rgba(255, 169, 60, 0.48), 0 0 60px rgba(255, 112, 18, 0.28);
-    }
-}
-
-@keyframes legendaryHaloSpin {
-    0% {
-        transform: rotate(0deg) scale(0.98);
-    }
-    50% {
-        transform: rotate(180deg) scale(1.03);
-    }
-    100% {
-        transform: rotate(360deg) scale(0.98);
-    }
 }
 
 .screen-shake {
@@ -3189,15 +3030,6 @@ html {
         transform: scale(1);
         opacity: 1;
     }
-}
-
-@keyframes juiceQuickShake {
-    0%,
-    100% { transform: translateX(0); }
-    20% { transform: translateX(-3px); }
-    40% { transform: translateX(3px); }
-    60% { transform: translateX(-2px); }
-    80% { transform: translateX(2px); }
 }
 
 @keyframes screenShakeFx {
@@ -3673,5 +3505,2904 @@ html {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* =====================================================================================================
+   MENU REFRESH: main menu and battle setup. Everything is scoped to #startModal, so the match screen and
+   in-game dialogs keep their look. Type scale: Uncial Antiqua for the logo, Cinzel for headings and button
+   labels, Inter for supporting text. Spacing uses the --space-* steps; element colours use --el-*.
+   ===================================================================================================== */
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --font-display: 'Uncial Antiqua', cursive;
+    --font-heading: 'Cinzel', serif;
+    --font-body: 'Inter', sans-serif;
+    --panel-tile: linear-gradient(150deg, rgba(62, 40, 106, 0.78) 0%, rgba(30, 18, 52, 0.9) 100%);
+    --panel-inset: rgba(9, 6, 17, 0.5);
+    --gold-line: rgba(242, 207, 114, 0.42);
+    --text-dim: rgba(234, 223, 184, 0.86);
+    --gold-fill: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 50%, var(--gold-1) 100%);
+    --ink: #2a1a0a;
+}
+
+#startModal [data-element="fire"] { --el: #ff6a3d; --el-soft: rgba(255, 106, 61, 0.16); --el-glow: rgba(255, 106, 61, 0.5); }
+#startModal [data-element="water"] { --el: #45b0ff; --el-soft: rgba(69, 176, 255, 0.16); --el-glow: rgba(69, 176, 255, 0.5); }
+#startModal [data-element="earth"] { --el: #62d46f; --el-soft: rgba(98, 212, 111, 0.16); --el-glow: rgba(98, 212, 111, 0.45); }
+#startModal [data-element="swamp"] { --el: #b383ff; --el-soft: rgba(179, 131, 255, 0.18); --el-glow: rgba(179, 131, 255, 0.5); }
+#startModal [data-element="light"] { --el: #ffd84a; --el-soft: rgba(255, 216, 74, 0.15); --el-glow: rgba(255, 216, 74, 0.45); }
+
+/* ---- Panel */
+#startModal .modal-content {
+    position: relative;
+    isolation: isolate;
+    max-width: 600px;
+    padding: var(--space-5);
+    border-color: var(--gold-line);
+    background:
+        radial-gradient(ellipse at 50% 0%, rgba(138, 125, 255, 0.16) 0%, transparent 55%),
+        linear-gradient(160deg, rgba(36, 21, 62, 0.97) 0%, rgba(20, 12, 36, 0.98) 100%);
+}
+
+/* Faint arcane circle behind the logo */
+#startModal .modal-content::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: -24px;
+    left: 50%;
+    width: 280px;
+    height: 280px;
+    transform: translateX(-50%);
+    background: var(--gold-1);
+    -webkit-mask: url('menu-sigil.svg') center / contain no-repeat;
+    mask: url('menu-sigil.svg') center / contain no-repeat;
+    opacity: 0.07;
+    pointer-events: none;
+}
+
+#startModal .modal-content[data-screen="elementSelectionScreen"],
+#startModal .modal-content[data-screen="deckBuilderScreen"] {
+    max-width: 760px;
+}
+
+#startModal .modal-title {
+    margin-bottom: var(--space-2);
+    font-size: clamp(18px, 5vw, 30px);
+}
+
+#startModal .modal-intro {
+    margin: 0 0 var(--space-4);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+#startModal .modal-intro::after,
+#startModal .modal-subtitle::after {
+    content: '';
+    display: block;
+    height: 12px;
+    margin: var(--space-2) auto 0;
+    max-width: 220px;
+    background: url('menu-divider.svg') center / contain no-repeat;
+}
+
+/* Sub-screens keep the logo but drop the tagline, so their content starts higher */
+#startModal .modal-content:not([data-screen="mainMenu"]) .modal-intro {
+    display: none;
+}
+
+#startModal .modal-content:not([data-screen="mainMenu"]) .modal-title {
+    font-size: clamp(16px, 4vw, 22px);
+}
+
+#startModal .modal-subtitle {
+    margin: 0 0 var(--space-4);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+    line-height: 1.3;
+}
+
+#startModal .modal-subtitle[tabindex="-1"]:focus {
+    outline: none;
+}
+
+/* ---- Buttons: primary (gold), secondary (violet tile), back (ghost), danger */
+#startModal .menu-btn {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    min-height: 44px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+#startModal .menu-btn:not(.menu-primary):not(.menu-danger):not(.menu-back):not(.shop-pack-btn) {
+    background: var(--panel-tile);
+    border: 1px solid var(--gold-line);
+    color: var(--gold-2);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 241, 186, 0.08);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+}
+
+#startModal .menu-btn:focus-visible,
+#startModal .deck-mode-btn:focus-visible,
+#startModal .difficulty-btn:focus-visible,
+#startModal .element-btn:focus-visible,
+#startModal .setup-start:focus-visible {
+    outline: 3px solid var(--gold-2);
+    outline-offset: 3px;
+}
+
+@media (hover: hover) {
+    #startModal .menu-btn:not(.menu-primary):not(.menu-danger):not(.menu-back):not(.shop-pack-btn):hover {
+        border-color: var(--gold-1);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 16px rgba(242, 207, 114, 0.22);
+    }
+}
+
+#startModal .menu-back {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-4);
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid rgba(242, 207, 114, 0.32);
+    color: var(--gold-2);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    box-shadow: none;
+}
+
+#startModal .menu-back:hover {
+    transform: none;
+    background: rgba(242, 207, 114, 0.08);
+    box-shadow: none;
+}
+
+#startModal .menu-danger {
+    background: linear-gradient(135deg, #a3172e 0%, #5a0612 100%);
+    border: 1px solid rgba(255, 140, 140, 0.55);
+    color: #fff;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+#startModal .stats-danger-zone {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px dashed rgba(242, 207, 114, 0.25);
+}
+
+/* ---- Main menu */
+#startModal .menu-buttons {
+    gap: var(--space-3);
+    margin: 0;
+}
+
+#startModal .menu-status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+#startModal .menu-status-chip {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 6px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    background: var(--panel-inset);
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+#startModal .menu-status-chip strong {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--gold-1);
+}
+
+#startModal .menu-status-icon {
+    font-size: 16px;
+}
+
+#startModal .menu-status-meter {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 4px;
+    height: 3px;
+    border-radius: 3px;
+    background: rgba(242, 207, 114, 0.16);
+}
+
+#startModal .menu-status-meter span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--gold-1));
+}
+
+#startModal .menu-tile {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: 10px 14px;
+    text-align: left;
+    text-transform: none;
+}
+
+#startModal .menu-tile-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(242, 207, 114, 0.35);
+    background: radial-gradient(circle at 35% 30%, rgba(183, 175, 255, 0.25), rgba(9, 6, 17, 0.6));
+    font-size: 20px;
+}
+
+#startModal .menu-tile-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+#startModal .menu-tile-label {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+#startModal .menu-tile-desc {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 12.5px;
+    letter-spacing: 0;
+    line-height: 1.35;
+    color: var(--text-dim);
+}
+
+/* NEW GAME: the one gold, full-width, larger entry */
+#startModal .menu-primary {
+    position: relative;
+    overflow: hidden;
+    min-height: 84px;
+    padding: 14px 18px;
+    background: var(--gold-fill);
+    border: 2px solid #8b7355;
+    color: var(--ink);
+    box-shadow: 0 8px 26px rgba(242, 207, 114, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#startModal .menu-primary::after {
+    content: '';
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    width: 112px;
+    height: 112px;
+    transform: translateY(-50%);
+    background: rgba(90, 50, 10, 0.28);
+    -webkit-mask: url('menu-sigil.svg') center / contain no-repeat;
+    mask: url('menu-sigil.svg') center / contain no-repeat;
+    pointer-events: none;
+}
+
+#startModal .menu-primary .menu-tile-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 26px;
+    border-color: rgba(42, 26, 10, 0.45);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.5), rgba(139, 115, 85, 0.35));
+}
+
+#startModal .menu-primary .menu-tile-label {
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+}
+
+#startModal .menu-primary .menu-tile-desc {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #4a2e0c;
+}
+
+#startModal .menu-primary:hover {
+    box-shadow: 0 10px 30px rgba(242, 207, 114, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#startModal .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+}
+
+/* Odd tile out spans the row instead of leaving a hole */
+#startModal .menu-grid .menu-tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+
+#startModal .modal-footer-credit {
+    margin-top: var(--space-4);
+}
+
+#startModal .modal-footer-credit a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 10px;
+}
+
+/* ---- Battle setup */
+#startModal .setup-layout {
+    display: grid;
+    gap: var(--space-4);
+    text-align: left;
+}
+
+#startModal .setup-choices,
+#startModal .setup-summary {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+    min-width: 0;
+}
+
+#startModal .setup-step {
+    margin: 0;
+}
+
+#startModal .setup-step-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+#startModal .setup-step-num {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-line);
+    background: var(--panel-inset);
+    font-family: var(--font-body);
+    font-size: 12px;
+    letter-spacing: 0;
+    color: var(--gold-2);
+}
+
+#startModal .deck-mode-selector,
+#startModal .difficulty-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+}
+
+#startModal .difficulty-selector {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#startModal .deck-mode-btn,
+#startModal .difficulty-btn {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-tile);
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    box-shadow: none;
+}
+
+#startModal .deck-mode-btn.selected,
+#startModal .difficulty-btn.selected {
+    background: var(--gold-fill);
+    border-color: #8b7355;
+    color: var(--ink);
+    box-shadow: 0 0 16px rgba(242, 207, 114, 0.35);
+}
+
+#startModal .deck-mode-btn.selected::before,
+#startModal .difficulty-btn.selected::before {
+    content: '✓ ';
+}
+
+#startModal .element-pick-hint {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--accent-soft);
+}
+
+#startModal .element-selector {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: 0;
+}
+
+#startModal .element-selector .element-btn {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    max-width: none;
+    min-width: 0;
+    min-height: 82px;
+    padding: 10px 4px 8px;
+    border: 2px solid rgba(242, 207, 114, 0.28);
+    border-radius: var(--radius-md);
+    background: linear-gradient(170deg, var(--el-soft) 0%, rgba(14, 9, 26, 0.85) 75%);
+    box-shadow: inset 0 -3px 0 var(--el-soft);
+    font-size: inherit;
+    transform: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+}
+
+#startModal .element-btn-emoji {
+    font-size: 30px;
+    line-height: 1;
+}
+
+#startModal .element-btn-name {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-main);
+}
+
+@media (hover: hover) {
+    #startModal .element-selector .element-btn:hover {
+        transform: none;
+        border-color: var(--el);
+    }
+}
+
+#startModal .element-selector .element-btn.selected {
+    transform: none;
+    border-color: var(--el);
+    background: linear-gradient(170deg, var(--el-glow) 0%, rgba(14, 9, 26, 0.75) 85%);
+    box-shadow: 0 0 0 1px var(--el), 0 0 20px var(--el-glow);
+}
+
+/* The ✓ marks the choice without relying on colour */
+#startModal .element-selector .element-btn.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--gold-1);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+}
+
+#startModal .element-selector.is-full .element-btn:not(.selected) {
+    opacity: 0.45;
+}
+
+#startModal .difficulty-info {
+    margin: var(--space-2) 0 0;
+    padding: 10px 12px;
+    border-left: 3px solid var(--gold-1);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+#startModal .difficulty-info strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .difficulty-info-common {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary {
+    min-height: 120px;
+    padding: 14px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-tile);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+#startModal .deck-summary.is-empty {
+    display: grid;
+    place-items: center;
+    border-style: dashed;
+    background: var(--panel-inset);
+}
+
+#startModal .deck-summary-placeholder {
+    margin: 0;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+#startModal .deck-summary-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 17px;
+}
+
+#startModal .deck-summary-element {
+    color: var(--el);
+}
+
+#startModal .deck-summary-plus {
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-tag {
+    padding: 3px 9px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-2);
+}
+
+#startModal .deck-summary-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    list-style: none;
+}
+
+#startModal .deck-summary-counts li {
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-counts strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .deck-summary-line {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+}
+
+#startModal .deck-summary-line strong {
+    color: var(--gold-1);
+}
+
+#startModal .deck-summary-keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+#startModal .deck-summary-card {
+    padding: 3px 8px;
+    border: 1px solid rgba(183, 175, 255, 0.35);
+    border-radius: 999px;
+    color: var(--text-main);
+}
+
+#startModal .deck-summary-note {
+    margin: var(--space-2) 0 0;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+#startModal .setup-start {
+    width: 100%;
+    min-height: 56px;
+    padding: 12px 16px;
+    border: 2px solid #8b7355;
+    border-radius: var(--radius-md);
+    background: var(--gold-fill);
+    color: var(--ink);
+    font-family: var(--font-heading);
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    text-shadow: none;
+    box-shadow: 0 8px 26px rgba(242, 207, 114, 0.35);
+}
+
+#startModal .setup-start:disabled {
+    opacity: 1;
+    filter: none;
+    background: var(--panel-inset);
+    border: 1px dashed var(--gold-line);
+    color: var(--text-dim);
+    box-shadow: none;
+    font-size: 15px;
+}
+
+#startModal .setup-summary .menu-back {
+    margin-top: 0;
+}
+
+/* ---- Other menu screens: matching chips and panels */
+#startModal .shop-credits-badge,
+#startModal .binder-summary-badge {
+    border: 1px solid var(--gold-line);
+    background: var(--panel-inset);
+    color: var(--gold-2);
+    font-family: var(--font-body);
+    font-size: 13px;
+}
+
+#startModal .stats-display {
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-inset);
+}
+
+#startModal .stat-row {
+    font-size: 15px;
+    color: var(--text-main);
+}
+
+#startModal .stat-label {
+    color: var(--gold-1);
+}
+
+#startModal .howto-page:focus-visible {
+    outline: 2px solid var(--gold-1);
+    outline-offset: 2px;
+}
+
+/* ---- Narrow phones: one column of entries, compact element tiles */
+@media (max-width: 519px) {
+    #startModal .modal-content {
+        padding: var(--space-4);
+    }
+
+    #startModal .menu-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #startModal .menu-tile {
+        padding: 8px 12px;
+    }
+
+    #startModal .menu-primary {
+        min-height: 92px;
+    }
+
+    #startModal .menu-status-long {
+        display: none;
+    }
+
+    #startModal .menu-status-chip {
+        padding-bottom: 9px;
+    }
+
+    #startModal .deck-mode-btn,
+    #startModal .difficulty-btn {
+        padding: 6px 4px;
+        font-size: 13px;
+        letter-spacing: 0;
+    }
+
+    #startModal .element-selector .element-btn {
+        padding-top: 14px;
+    }
+
+    #startModal .element-selector .element-btn.selected::after {
+        top: 2px;
+        right: 2px;
+        width: 16px;
+        height: 16px;
+        font-size: 11px;
+    }
+
+    #startModal .menu-primary .menu-tile-label {
+        font-size: 20px;
+    }
+
+    #startModal .menu-status-chip {
+        padding: 6px 8px;
+        font-size: 12px;
+        gap: 6px;
+    }
+
+    #startModal .element-selector {
+        gap: 6px;
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 72px;
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 26px;
+    }
+
+    #startModal .element-btn-name {
+        font-size: 11px;
+        letter-spacing: 0.02em;
+    }
+}
+
+/* ---- Wide screens: battle setup in two columns (choices | deck and START) */
+@media (min-width: 900px) and (min-height: 501px) {
+    #startModal .modal-content[data-screen="elementSelectionScreen"] {
+        max-width: 940px;
+    }
+
+    #startModal .setup-layout {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        gap: var(--space-5);
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 34px;
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 92px;
+    }
+}
+
+/* ---- Short landscape (phones on their side): compact logo, entries in three columns, setup in two */
+@media (orientation: landscape) and (max-height: 500px) {
+    #startModal.modal {
+        padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    }
+
+    #startModal .modal-content {
+        max-width: min(860px, 100%);
+        max-height: calc(100dvh - 16px);
+        padding: var(--space-3) var(--space-4);
+    }
+
+    #startModal .modal-content::before {
+        width: 200px;
+        height: 200px;
+    }
+
+    #startModal .modal-content[data-screen] .modal-title {
+        margin-bottom: var(--space-2);
+        font-size: 20px;
+    }
+
+    #startModal .modal-intro {
+        display: none;
+    }
+
+    #startModal .menu-buttons {
+        gap: var(--space-2);
+    }
+
+    #startModal .menu-status-chip {
+        min-height: 36px;
+    }
+
+    #startModal .menu-primary {
+        min-height: 60px;
+        padding: 8px 16px;
+    }
+
+    #startModal .menu-primary .menu-tile-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 22px;
+    }
+
+    #startModal .menu-primary .menu-tile-label {
+        font-size: 19px;
+    }
+
+    /* Five entries: three on the first row, two wider ones on the second */
+    #startModal .menu-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    #startModal .menu-grid .menu-tile {
+        grid-column: span 2;
+    }
+
+    #startModal .menu-grid .menu-tile:nth-child(n + 4),
+    #startModal .menu-grid .menu-tile:last-child:nth-child(odd) {
+        grid-column: span 3;
+    }
+
+    /* Sub-screens: the screen heading replaces the logo, so the content fits the short screen */
+    #startModal .modal-content:not([data-screen="mainMenu"]) .modal-title,
+    #startModal .modal-content:not([data-screen="mainMenu"])::before,
+    #startModal .modal-subtitle::after,
+    #startModal .deck-summary-note,
+    #startModal .deck-summary-keys {
+        display: none;
+    }
+
+    #startModal .menu-tile {
+        padding: 6px 10px;
+        gap: var(--space-2);
+    }
+
+    #startModal .menu-tile-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 17px;
+    }
+
+    #startModal .menu-tile-desc {
+        font-size: 12px;
+    }
+
+    #startModal .modal-subtitle {
+        margin-bottom: var(--space-2);
+        font-size: 16px;
+    }
+
+    #startModal .modal-subtitle::after {
+        margin-top: var(--space-1);
+    }
+
+    #startModal .setup-layout {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        gap: var(--space-4);
+    }
+
+    #startModal .setup-choices,
+    #startModal .setup-summary {
+        gap: var(--space-3);
+    }
+
+    #startModal .element-selector .element-btn {
+        min-height: 64px;
+        padding: 6px 2px;
+    }
+
+    #startModal .element-btn-emoji {
+        font-size: 24px;
+    }
+
+    #startModal .difficulty-info {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    #startModal .deck-summary {
+        min-height: 0;
+        padding: 10px 12px;
+    }
+
+    #startModal .setup-start {
+        min-height: 48px;
+        font-size: 16px;
+    }
+}
+
+/* =====================================================================================================
+   CARD FACES: one presentation for the hand, both battlefields, card details and pack reveals.
+   The emoji stays the artwork. Around it: an element-coloured window (--card-el-1/--card-el-2, set by
+   applyCardIdentity: mono, dual split, rainbow, or neutral steel for colorless), a rarity border with no
+   animation, cost pips top-left (hand), keywords or the type icon top-right, a state marker bottom-left and
+   power/toughness bottom-right. States never rely on colour alone: tapped turns sideways, summoning sickness
+   has a dashed border and 💤, damage reads 💔N, attackers lift with an outline and ⚔️, playable hand cards
+   lift, and unplayable ones sit flat and dimmed.
+   ===================================================================================================== */
+:root {
+    --elc-fire: #ff6a3d;
+    --elc-water: #45b0ff;
+    --elc-earth: #62d46f;
+    --elc-swamp: #b383ff;
+    --elc-light: #ffd84a;
+    --elc-colorless: #aab2c0;
+    --rarity-common: rgba(214, 200, 170, 0.62);
+    --rarity-uncommon: #7ef29f;
+    --rarity-rare: #5fb0ff;
+    --rarity-epic: #b77bff;
+    --rarity-legendary: #ffce60;
+    --card-ink: #fff8e6;
+    --card-chip: rgba(10, 6, 18, 0.88);
+}
+
+/* Element backgrounds, shared by faces, land stacks, the detail art window and the pack reveal */
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art) {
+    --card-face-bg:
+        radial-gradient(90% 60% at 50% 42%, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, transparent) 0%, transparent 72%),
+        linear-gradient(165deg, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, #1b1030) 0%, #140b22 80%);
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art).is-multicolor {
+    /* Dual cards: a diagonal split between their two colours */
+    --card-face-bg:
+        radial-gradient(80% 55% at 50% 42%, rgba(255, 255, 255, 0.1) 0%, transparent 70%),
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--card-el-1) 46%, #1b1030) 0%,
+            color-mix(in srgb, var(--card-el-1) 20%, #160c26) 49%,
+            color-mix(in srgb, var(--card-el-2) 20%, #160c26) 51%,
+            color-mix(in srgb, var(--card-el-2) 46%, #1b1030) 100%);
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art).is-rainbow {
+    --card-face-bg:
+        radial-gradient(circle at 50% 45%, rgba(20, 11, 34, 0.25) 0%, rgba(20, 11, 34, 0.75) 75%),
+        conic-gradient(from 200deg, var(--elc-fire), var(--elc-light), var(--elc-earth), var(--elc-water), var(--elc-swamp), var(--elc-fire));
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport, .card-row-art)[data-elements="colorless"] {
+    --card-face-bg:
+        radial-gradient(80% 55% at 50% 40%, rgba(220, 228, 240, 0.18) 0%, transparent 70%),
+        linear-gradient(165deg, #434957 0%, #1c1f28 82%);
+}
+
+/* ---- The face */
+.card {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    color: var(--card-ink);
+    border-width: 2px;
+    border-radius: 9px;
+    justify-content: center;
+}
+
+/* Browsers without color-mix() keep the previous card backgrounds */
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+    .card,
+    .card.land,
+    .card.scifi,
+    .card.enemy-card {
+        background: var(--card-face-bg);
+    }
+
+    /* Sci-fi cards keep a faint scanline instead of their own cyan colour scheme */
+    .card.scifi {
+        background:
+            repeating-linear-gradient(0deg, rgba(160, 240, 255, 0.05) 0 1px, transparent 1px 4px),
+            var(--card-face-bg);
+    }
+
+    .land-stack-card,
+    .card-detail-popup .card-detail-emoji,
+    .pack-card-viewport,
+    .card-row-art {
+        background: var(--card-face-bg);
+    }
+}
+
+.card,
+.card.land,
+.card.scifi,
+.card.enemy-card {
+    box-shadow: var(--card-shadow);
+}
+
+/* Enemy cards: a thin red rim outside the rarity border */
+.card.enemy-card {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(220, 20, 60, 0.6);
+}
+
+.card-art {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* Type treatment: instants get a rune ring, artifacts a steel bevel, lands an earthen base */
+.card.type-instant .card-art {
+    background: radial-gradient(circle at 50% 50%, transparent 52%, rgba(255, 241, 186, 0.22) 55%, transparent 60%);
+}
+
+.card.type-artifact {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(200, 210, 225, 0.22);
+}
+
+.card.type-land {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 -10px 12px -6px rgba(120, 84, 40, 0.55);
+}
+
+/* Rarity: border colour only, never animated */
+.card.rarity-common { border-color: var(--rarity-common); }
+.card.rarity-uncommon { border-color: var(--rarity-uncommon); }
+.card.rarity-rare { border-color: var(--rarity-rare); }
+.card.rarity-epic { border-color: var(--rarity-epic); }
+
+.card.rarity-legendary {
+    border-color: var(--rarity-legendary);
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 206, 96, 0.55), 0 0 8px rgba(255, 206, 96, 0.3);
+}
+
+/* ---- Cost pips (faces, details, pack reveal) */
+.cost-pip {
+    --pip: var(--elc-colorless);
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    height: 16px;
+    padding: 0 4px 0 2px;
+    border: 1px solid var(--pip);
+    border-radius: 8px;
+    background: var(--card-chip);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.cost-pip-icon {
+    font-size: 11px;
+}
+
+.cost-pip[data-element="fire"] { --pip: var(--elc-fire); }
+.cost-pip[data-element="water"] { --pip: var(--elc-water); }
+.cost-pip[data-element="earth"] { --pip: var(--elc-earth); }
+.cost-pip[data-element="swamp"] { --pip: var(--elc-swamp); }
+.cost-pip[data-element="light"] { --pip: var(--elc-light); }
+
+/* Colorless and free have a square pip, so they differ from the colours by shape too */
+.cost-pip[data-element="colorless"],
+.cost-pip-free {
+    border-radius: 3px;
+}
+
+.cost-pip-free {
+    --pip: rgba(242, 207, 114, 0.7);
+    padding: 0 5px;
+}
+
+.card .card-cost {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 0;
+    background: none;
+    border: 0;
+    font-size: inherit;
+}
+
+.card .cost-pip {
+    height: 15px;
+    padding: 0 3px 0 1px;
+    font-size: 11px;
+}
+
+.card .cost-pip-icon {
+    font-size: 10px;
+}
+
+/* ---- Corner badges */
+.card-type-icon,
+.card-state,
+.card .ability-icon,
+.ability-more {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border-radius: 4px;
+    background: var(--card-chip);
+    border: 1px solid rgba(242, 207, 114, 0.45);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.card-type-icon {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    border-radius: 50%;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.card .card-abilities {
+    top: 2px;
+    right: 2px;
+    gap: 2px;
+}
+
+.card .ability-icon:nth-child(n + 4) {
+    display: none;
+}
+
+.ability-more {
+    font-weight: 700;
+}
+
+/* Flash does nothing yet: its badge is dimmed and struck through */
+.ability-icon.is-inactive {
+    position: relative;
+    opacity: 0.6;
+    filter: grayscale(0.8);
+}
+
+.ability-icon.is-inactive::after {
+    content: '';
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 50%;
+    height: 2px;
+    background: #ff8a8a;
+    transform: rotate(-45deg);
+}
+
+.card-state {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    border-radius: 50%;
+}
+
+.card-state-sick {
+    border-style: dashed;
+    border-color: rgba(200, 210, 230, 0.8);
+}
+
+.card-state-attacking {
+    border-color: #ff6b6b;
+}
+
+.card .card-power {
+    bottom: 2px;
+    right: 2px;
+    padding: 1px 4px;
+    border: 1px solid rgba(242, 207, 114, 0.75);
+    border-radius: 5px;
+    background: var(--card-chip);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.card .card-damage {
+    top: 2px;
+    left: 2px;
+    background: var(--card-chip);
+    color: #ffb3b3;
+    font-size: 11px;
+}
+
+/* ---- States */
+.card.summoning-sick .card-art {
+    opacity: 0.6;
+}
+
+#playerHand .card.playable {
+    animation: none;
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow), 0 0 0 2px rgba(120, 255, 170, 0.6);
+}
+
+#playerHand .card.unplayable {
+    transform: none;
+    opacity: 0.55;
+    filter: saturate(0.45);
+}
+
+.card.attacking {
+    animation: none;
+    transform: translateY(-6px);
+    outline: 2px solid #ff6b6b;
+    outline-offset: 2px;
+    box-shadow: var(--card-shadow), 0 0 14px rgba(220, 20, 60, 0.55);
+}
+
+@media (hover: hover) and (min-width: 768px) {
+    #playerHand .card.playable:hover {
+        transform: translateY(-10px) scale(1.06);
+    }
+
+    #playerHand .card.unplayable:hover {
+        transform: translateY(-4px);
+    }
+}
+
+/* Land stacks get the same element backgrounds (in @supports above); their borders still show
+   tapped / partly tapped / ready. */
+
+/* ---- Bigger faces where there is room (not on short landscape phones, whose cards stay 52 px wide) */
+@media (min-width: 768px) and (min-height: 501px) {
+    .card-art {
+        font-size: 40px;
+    }
+
+    .card .cost-pip {
+        height: 17px;
+        font-size: 12px;
+    }
+
+    .card .cost-pip-icon {
+        font-size: 11px;
+    }
+
+    .card-type-icon,
+    .card-state,
+    .card .ability-icon,
+    .ability-more {
+        width: 19px;
+        height: 19px;
+        font-size: 12px;
+    }
+
+    .card .card-power {
+        font-size: 13px;
+    }
+}
+
+/* ---- Card details */
+.card-detail-popup {
+    border-color: var(--rarity-common);
+}
+
+.card-detail-popup[data-rarity="rare"] { border-color: var(--rarity-rare); }
+.card-detail-popup[data-rarity="epic"] { border-color: var(--rarity-epic); }
+.card-detail-popup[data-rarity="legendary"] { border-color: var(--rarity-legendary); }
+
+.card-detail-popup .card-detail-emoji {
+    margin: 0 0 10px;
+    padding: 8px 0;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.card-detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin: -4px 0 10px;
+}
+
+.detail-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border: 1px solid rgba(242, 207, 114, 0.4);
+    border-radius: 999px;
+    background: var(--card-chip);
+    color: var(--card-ink);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.detail-tag-rarity.rarity-common { border-color: var(--rarity-common); }
+.detail-tag-rarity.rarity-uncommon { border-color: var(--rarity-uncommon); color: var(--rarity-uncommon); }
+.detail-tag-rarity.rarity-rare { border-color: var(--rarity-rare); color: var(--rarity-rare); }
+.detail-tag-rarity.rarity-epic { border-color: var(--rarity-epic); color: #d4b3ff; }
+.detail-tag-rarity.rarity-legendary { border-color: var(--rarity-legendary); color: var(--rarity-legendary); }
+
+.detail-tag-element[data-element="fire"] { border-color: var(--elc-fire); }
+.detail-tag-element[data-element="water"] { border-color: var(--elc-water); }
+.detail-tag-element[data-element="earth"] { border-color: var(--elc-earth); }
+.detail-tag-element[data-element="swamp"] { border-color: var(--elc-swamp); }
+.detail-tag-element[data-element="light"] { border-color: var(--elc-light); }
+.detail-tag-element[data-element="colorless"] { border-color: var(--elc-colorless); }
+
+.card-detail-popup .card-detail-info {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--card-ink);
+}
+
+.card-detail-popup .card-detail-label {
+    font-family: 'Cinzel', serif;
+    color: var(--gold-1);
+}
+
+.detail-cost {
+    display: inline-flex;
+    gap: 4px;
+    vertical-align: middle;
+}
+
+.detail-cost-text,
+.detail-printed {
+    color: var(--text-soft);
+    font-size: 12px;
+}
+
+.detail-pt {
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+}
+
+.card-detail-subtitle {
+    margin-bottom: 4px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+.card-detail-keyword {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 6px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--card-ink);
+    text-align: left;
+}
+
+.kw-badge {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(242, 207, 114, 0.45);
+    background: var(--card-chip);
+    font-size: 14px;
+}
+
+.kw-body strong {
+    color: var(--gold-1);
+}
+
+.card-detail-keyword.is-inactive .kw-badge {
+    opacity: 0.6;
+    filter: grayscale(0.8);
+}
+
+.card-detail-keyword.is-inactive .kw-body {
+    color: var(--text-soft);
+}
+
+.kw-tag {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid #ff8a8a;
+    border-radius: 999px;
+    color: #ffb3b3;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.card-detail-state {
+    border-color: rgba(255, 107, 107, 0.4);
+}
+
+.card-detail-flavour {
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-soft);
+}
+
+/* ---- Pack reveal */
+.pack-card-viewport {
+    border: 2px solid var(--rarity-common);
+}
+
+.pack-card-viewport[data-rarity="rare"] { border-color: var(--rarity-rare); }
+.pack-card-viewport[data-rarity="epic"] { border-color: var(--rarity-epic); }
+.pack-card-viewport[data-rarity="legendary"] { border-color: var(--rarity-legendary); }
+
+.pack-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.pack-card-viewport:not(.is-revealed) .pack-card-meta {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.pack-card-cost {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.pack-card-meta .card-power {
+    position: static;
+    padding: 1px 6px;
+    border: 1px solid rgba(242, 207, 114, 0.75);
+    border-radius: 5px;
+    background: var(--card-chip);
+    color: #fff;
+    font-size: 13px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .card-detail-tags {
+        margin-bottom: 6px;
+    }
+
+    .card-detail-keyword {
+        margin: 3px 0;
+        font-size: 12px;
+    }
+
+    .pack-card-meta {
+        margin-top: 4px;
+    }
+}
+
+/* =====================================================================================================
+   COLLECTION AND DECK BUILDER: search and filters, card previews in list rows, the deck summary with its
+   mana curve, actionable deck issues and the unsaved-changes marker. Shares the card-face helpers (element
+   art tile, cost pips, type and rarity) and the menu tokens. Text never relies on opacity, so contrast holds.
+   ===================================================================================================== */
+#startModal .card-filters {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    text-align: left;
+}
+
+#startModal .card-filter-search,
+#startModal .card-filter-selects select,
+#startModal .deck-builder-controls select {
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 14px;
+}
+
+#startModal .card-filter-search {
+    width: 100%;
+}
+
+#startModal .card-filter-search::placeholder {
+    color: var(--text-dim);
+}
+
+#startModal .card-filter-selects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 6px;
+}
+
+#startModal .card-filter-selects select {
+    min-width: 0;
+    font-size: 13px;
+}
+
+#startModal .card-filter-reset {
+    min-height: 44px;
+    border: 1px solid rgba(242, 207, 114, 0.32);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--gold-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#startModal .card-filters.is-filtered .card-filter-reset {
+    border-color: var(--gold-1);
+    background: rgba(242, 207, 114, 0.1);
+}
+
+#startModal .card-list-showing {
+    margin: 0 0 6px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: left;
+}
+
+/* ---- The element art tile used by list rows */
+.card-row-art {
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 22px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* ---- Row meta: cost, type, stats, keywords, rarity */
+#startModal .binder-row-meta,
+#startModal .deck-builder-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin-top: 3px;
+    opacity: 1;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+/* Shared by the Collection, the Deck Builder and the Pack Shop's "What's inside" (outside #startModal) */
+:is(#startModal, .pack-contents-modal) .row-cost {
+    display: inline-flex;
+    gap: 3px;
+}
+
+:is(#startModal, .pack-contents-modal) .row-pt {
+    padding: 0 5px;
+    border: 1px solid rgba(242, 207, 114, 0.6);
+    border-radius: 4px;
+    background: var(--card-chip);
+    color: #fff;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+:is(#startModal, .pack-contents-modal) .row-keyword.is-inactive {
+    text-decoration: line-through;
+}
+
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-common { color: #d6c8aa; }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-rare { color: var(--rarity-rare); }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-epic { color: #c9a2ff; }
+:is(#startModal, .pack-contents-modal) .row-rarity.rarity-legendary { color: var(--rarity-legendary); }
+
+#startModal .row-unowned {
+    padding: 0 6px;
+    border: 1px dashed rgba(234, 223, 184, 0.7);
+    border-radius: 999px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+/* ---- Binder rows */
+#startModal .binder-list {
+    max-height: min(56vh, 520px);
+    gap: 6px;
+}
+
+#startModal .binder-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 7px 10px;
+    text-align: left;
+}
+
+#startModal .binder-row-name {
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#startModal .binder-row.is-unowned {
+    border-style: dashed;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#startModal .binder-row.is-unowned .card-row-art {
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+#startModal .binder-row.is-unowned .binder-row-count {
+    color: var(--text-dim);
+}
+
+/* ---- Deck Builder */
+#startModal .deck-builder-controls {
+    flex-wrap: wrap;
+}
+
+#startModal .deck-builder-unsaved {
+    padding: 4px 10px;
+    border: 1px solid #ffb35a;
+    border-radius: 999px;
+    color: #ffc98a;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#startModal .deck-summary-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin: var(--space-2) 0;
+    padding: 10px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-md);
+    background: var(--panel-inset);
+    text-align: left;
+}
+
+#startModal .deck-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#startModal .deck-stat {
+    padding: 4px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+#startModal .deck-stat strong {
+    font-family: var(--font-heading);
+    color: var(--gold-1);
+}
+
+#startModal .deck-stat-size {
+    border: 1px dashed rgba(255, 179, 90, 0.8);
+}
+
+#startModal .deck-stat-size.is-complete {
+    border: 1px solid rgba(120, 255, 170, 0.7);
+}
+
+#startModal .deck-stat-cap {
+    font-size: 11.5px;
+}
+
+#startModal .mana-curve {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 74px;
+}
+
+#startModal .mana-curve-bar {
+    display: grid;
+    grid-template-rows: 14px 42px 14px;
+    justify-items: center;
+    align-items: end;
+    width: 24px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+#startModal .mana-curve-fill {
+    display: block;
+    width: 16px;
+    min-height: 2px;
+    align-self: end;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, var(--gold-2), var(--gold-1));
+}
+
+#startModal .mana-curve-n {
+    color: var(--text-main);
+}
+
+#startModal .mana-curve-cost {
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+#startModal .deck-issues {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 var(--space-2);
+    text-align: left;
+}
+
+#startModal .deck-issue {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding: 6px 10px;
+    border-left: 3px solid #ff9a7a;
+    border-radius: 6px;
+    background: rgba(255, 120, 90, 0.1);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--text-main);
+}
+
+#startModal .deck-issue-text::before {
+    content: '⚠ ';
+}
+
+#startModal .deck-issue-action {
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid #ff9a7a;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #ffc2ae;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+#startModal .deck-builder-column-title {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#startModal .deck-builder-list {
+    max-height: min(52vh, 460px);
+}
+
+#startModal .deck-group-title {
+    margin: 6px 0 0;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+    text-align: left;
+}
+
+#startModal .deck-builder-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    gap: 6px;
+    padding: 6px;
+    text-align: left;
+}
+
+#startModal .deck-builder-row .deck-builder-add,
+#startModal .deck-builder-row .deck-builder-remove,
+#startModal .deck-builder-row .deck-builder-info-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-line);
+    background: rgba(242, 207, 114, 0.14);
+    color: var(--gold-2);
+    font-size: 20px;
+    line-height: 1;
+}
+
+#startModal .deck-builder-row .deck-builder-info-btn {
+    background: transparent;
+    font-size: 18px;
+}
+
+#startModal .deck-builder-row .deck-builder-add[aria-disabled="true"] {
+    border-style: dashed;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+#startModal .deck-builder-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#startModal .deck-builder-name .card-row-art {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+}
+
+#startModal .deck-builder-row.is-unowned .card-row-art {
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+#startModal .deck-builder-reason {
+    margin-top: 3px;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: #ffc2ae;
+}
+
+#startModal .deck-builder-count {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 0;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+}
+
+#startModal .deck-builder-count b {
+    color: var(--gold-1);
+}
+
+@media (max-width: 519px) {
+    #startModal .card-filter-selects {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #startModal .deck-builder-row {
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+    }
+
+    /* The counts move under the card name on narrow phones */
+    #startModal .deck-builder-count {
+        grid-column: 2;
+        grid-row: 2;
+        flex-direction: row;
+        gap: 10px;
+        align-items: center;
+    }
+
+    #startModal .deck-builder-info-btn {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    #startModal .deck-summary-panel {
+        justify-content: center;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    #startModal .binder-list,
+    #startModal .deck-builder-list {
+        max-height: 62dvh;
+    }
+
+    #startModal .card-filter-selects {
+        grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    }
+
+    #startModal .mana-curve {
+        height: 60px;
+    }
+
+    #startModal .mana-curve-bar {
+        grid-template-rows: 14px 30px 14px;
+    }
+}
+
+#startModal .card-filter-more {
+    margin: 0;
+}
+
+#startModal .card-filter-summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: var(--radius-sm);
+    background: var(--panel-inset);
+    color: var(--gold-2);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    list-style-position: inside;
+}
+
+#startModal .card-filter-more[open] .card-filter-summary {
+    margin-bottom: 6px;
+}
+
+#startModal .card-filters.is-filtered .card-filter-summary {
+    border-color: var(--gold-1);
+}
+
+#startModal .mana-curve-figure {
+    margin: 0;
+}
+
+#startModal .mana-curve-caption {
+    margin-bottom: 2px;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+/* =====================================================================================================
+   GAMEPLAY FEEDBACK: turn banner with the AI's status, attack selection states (CONFIRM n / CANCEL), why a
+   card can't be played or can't attack, the attack preview, and the match history dialog. Feedback is brief
+   (one short pulse when the turn changes) and the global reduced-motion rule stills it.
+   ===================================================================================================== */
+.turn-banner {
+    position: relative;
+    z-index: 30;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0 auto;
+    width: min(100%, 640px);
+    padding: 4px 10px;
+    border: 1px solid rgba(242, 207, 114, 0.55);
+    border-radius: 10px;
+    background: linear-gradient(140deg, rgba(36, 22, 60, 0.95), rgba(20, 12, 34, 0.95));
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    font-family: 'Inter', sans-serif;
+    color: var(--text-main);
+}
+
+.turn-banner[data-turn="enemy"] {
+    border-color: rgba(255, 107, 107, 0.7);
+    background: linear-gradient(140deg, rgba(60, 18, 30, 0.95), rgba(30, 10, 22, 0.95));
+}
+
+.turn-banner-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 22px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.turn-banner-round {
+    flex: 0 0 auto;
+    padding: 1px 7px;
+    border: 1px solid rgba(242, 207, 114, 0.45);
+    border-radius: 999px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--gold-2);
+}
+
+.turn-banner-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* One short pulse when the turn passes; no looping */
+.turn-banner.turn-changed {
+    animation: turnBannerPulse 0.6s ease-out 1;
+}
+
+@keyframes turnBannerPulse {
+    0% { box-shadow: 0 0 0 0 rgba(242, 207, 114, 0.7); }
+    100% { box-shadow: 0 0 0 10px rgba(242, 207, 114, 0); }
+}
+
+/* The ⚔️ divider ornament would sit under the banner's dropdown */
+.battlefield::after {
+    z-index: 0;
+}
+
+/* ---- Attack preview, inside the banner */
+.combat-preview[hidden] {
+    display: none;
+}
+
+.combat-preview {
+    border-top: 1px dashed rgba(242, 207, 114, 0.35);
+    padding-top: 3px;
+    font-size: 12px;
+    text-align: left;
+}
+
+.combat-preview-head {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.cp-tag {
+    flex: 0 0 auto;
+    padding: 0 6px;
+    border: 1px dashed rgba(183, 175, 255, 0.9);
+    border-radius: 4px;
+    color: #d4ceff;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.combat-preview-summary {
+    min-width: 0;
+    color: var(--text-main);
+}
+
+.combat-preview-details {
+    margin-top: 2px;
+}
+
+.combat-preview:not(.has-preview) .combat-preview-details {
+    display: none;
+}
+
+.combat-preview-details summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    color: var(--gold-2);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* The full list drops over the board instead of pushing the layout down */
+.combat-preview-details[open] .combat-preview-drop {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: calc(100% - 4px);
+    max-height: 45vh;
+    overflow-y: auto;
+    padding: 6px 10px;
+    border: 1px solid rgba(242, 207, 114, 0.55);
+    border-radius: 8px;
+    background: rgba(18, 10, 32, 0.97);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+}
+
+.combat-preview-list {
+    margin: 4px 0;
+    padding-left: 18px;
+    line-height: 1.45;
+}
+
+.combat-preview-note {
+    margin: 4px 0 0;
+    color: var(--text-soft);
+    font-size: 11.5px;
+}
+
+/* Predicted part on the cards themselves: ✓ survives, ☠ dies, 🛡 blocks */
+.preview-mark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    padding: 1px 5px;
+    border-radius: 999px;
+    border: 1px dashed rgba(255, 255, 255, 0.85);
+    background: rgba(10, 6, 18, 0.82);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.preview-mark.preview-dies {
+    border-color: #ff8a8a;
+}
+
+.preview-mark.preview-survives {
+    border-color: #8affb5;
+}
+
+.card.preview-blocker {
+    outline: 2px dashed rgba(255, 138, 138, 0.9);
+    outline-offset: 2px;
+}
+
+/* ---- Attack selection: who can attack, who can't and why */
+.card.can-attack {
+    outline: 2px dashed rgba(242, 207, 114, 0.85);
+    outline-offset: 2px;
+}
+
+.card.cannot-attack .card-art {
+    opacity: 0.55;
+}
+
+/* A short reason across the middle of a card that can't attack or can't be played */
+.card-reason {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    padding: 1px 2px;
+    border-radius: 4px;
+    background: rgba(10, 6, 18, 0.86);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#playerHand .card.unplayable .card-reason {
+    border: 1px dashed rgba(234, 223, 184, 0.6);
+}
+
+@media (min-width: 768px) and (min-height: 501px) {
+    .card-reason {
+        font-size: 11px;
+    }
+}
+
+/* ATTACK → CONFIRM n, END TURN → CANCEL during selection */
+#attackBtn.is-confirm {
+    background: linear-gradient(135deg, #ffe08a 0%, #8affb5 100%);
+    border-color: #2f7a4f;
+}
+
+#endTurnBtn.is-cancel {
+    background: linear-gradient(135deg, #3a2240 0%, #241430 100%);
+    border-color: #ff8a8a;
+    color: #ffd0d0;
+    text-shadow: none;
+}
+
+/* ---- Match history */
+.history-btn {
+    position: relative;
+}
+
+.history-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #c0283c;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.history-badge[hidden] {
+    display: none;
+}
+
+.history-content {
+    max-height: min(82vh, 640px);
+    max-height: min(82dvh, 640px);
+    display: flex;
+    flex-direction: column;
+}
+
+.history-note {
+    margin: 0 0 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: var(--text-soft);
+}
+
+.history-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.history-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: left;
+    color: var(--text-main);
+}
+
+.history-round {
+    margin: 10px 0 4px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+.history-item {
+    margin: 4px 0;
+    padding: 6px 10px;
+    border-left: 3px solid rgba(242, 207, 114, 0.6);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.history-item.history-enemy {
+    border-left-color: rgba(255, 107, 107, 0.8);
+}
+
+.history-details {
+    margin: 3px 0 0;
+    padding-left: 18px;
+    color: var(--text-soft);
+    font-size: 12.5px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .turn-banner {
+        padding: 2px 8px;
+    }
+
+    .turn-banner-main {
+        min-height: 18px;
+        font-size: 12px;
+    }
+
+    .combat-preview-summary {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .combat-preview-details summary {
+        min-height: 24px;
+    }
+}
+
+#attackBtn.is-confirm {
+    color: #16301f;
+    text-shadow: none;
+}
+
+/* On narrow phones the turn banner carries the phase, so the header keeps room for the title */
+@media (max-width: 519px) {
+    .header .phase-indicator {
+        display: none;
+    }
+}
+
+/* =====================================================================================================
+   PACK SHOP AND PACK OPENING
+   Pack tiles (art, price, affordability, contents), the "What's inside" dialog, themed sealed packs, the
+   fuller card reveal and the five-card summary. The art is CSS and emoji only. Colours per pack key.
+   ===================================================================================================== */
+:is(.shop-pack, .pack-opening-overlay)[data-theme="fantasy"] { --pack-a: #ffd86e; --pack-b: #8f5bff; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="scifi"] { --pack-a: #6df1ff; --pack-b: #3c4fd8; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="tech"] { --pack-a: #d4dbe4; --pack-b: #4f6378; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="alien"] { --pack-a: #9dff89; --pack-b: #1d6b50; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="robot"] { --pack-a: #e3e8ee; --pack-b: #5b6577; }
+:is(.shop-pack, .pack-opening-overlay)[data-theme="lands"] { --pack-a: #9fdd84; --pack-b: #a5782f; }
+
+#startModal .shop-intro {
+    margin: 0 0 12px;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text-soft);
+}
+
+#startModal .pack-shop-grid {
+    gap: 12px;
+    text-align: left;
+}
+
+.shop-pack {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--gold-line, rgba(242, 207, 114, 0.4));
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel-inset, rgba(12, 8, 22, 0.6));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* The pack wrapper: two theme colours, foil stripes and a soft glow; the icon and a few of its cards */
+.shop-pack-art {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 84px;
+    padding: 10px 14px;
+    background:
+        radial-gradient(circle at 18% 30%, rgba(255, 255, 255, 0.45) 0%, transparent 42%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 18px),
+        linear-gradient(135deg, var(--pack-a) 0%, var(--pack-b) 100%);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+.shop-pack-art::after {
+    /* the crimped top edge of a booster */
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.28) 0 4px, transparent 4px 8px);
+}
+
+.shop-pack-art-icon {
+    font-size: 46px;
+    line-height: 1;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+
+.shop-pack-art-strip {
+    display: flex;
+    gap: 4px;
+    font-size: 22px;
+}
+
+.shop-pack-art-strip span {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.shop-pack-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px 12px;
+    flex: 1;
+}
+
+.shop-pack-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.shop-pack-name {
+    margin: 0;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-size: 17px;
+    color: var(--gold-2);
+}
+
+.shop-pack-price {
+    flex: 0 0 auto;
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--gold-1);
+    background: rgba(242, 207, 114, 0.14);
+    color: var(--gold-2);
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.shop-pack-tagline,
+.shop-pack-slots,
+.shop-pack-owned,
+.shop-pack-afford {
+    margin: 0;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--text-soft);
+}
+
+.shop-pack-slots {
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.shop-pack-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+#startModal #packShopGrid .shop-pack-btn {
+    background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 100%);
+    color: #2a1a06;
+    border: 1px solid #8b6a1f;
+    font-size: 13px;
+    padding: 8px 10px;
+    letter-spacing: 0.04em;
+}
+
+#startModal #packShopGrid .shop-pack.is-unaffordable .shop-pack-btn {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0c3c3;
+    border: 1px dashed rgba(255, 160, 160, 0.6);
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.shop-pack-info {
+    min-height: 44px;
+    padding: 6px 12px;
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--gold-line, rgba(242, 207, 114, 0.4));
+    background: transparent;
+    color: var(--gold-2);
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.shop-pack-info:focus-visible,
+.pack-summary-card:focus-visible,
+.pack-contents-buy:focus-visible {
+    outline: 3px solid var(--gold-2);
+    outline-offset: 2px;
+}
+
+.shop-pack.is-unaffordable .shop-pack-afford {
+    color: #ffc2c2;
+}
+
+.shop-pack.is-unaffordable .shop-pack-art {
+    filter: saturate(0.55) brightness(0.85);
+}
+
+/* ---- What's inside */
+.pack-contents-content {
+    width: min(620px, 100%);
+    max-height: 88dvh;
+}
+
+.pack-contents-summary {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-soft);
+}
+
+.pack-contents-summary p {
+    margin: 0 0 6px;
+}
+
+.pack-contents-tagline {
+    color: var(--gold-2);
+}
+
+.pack-odds {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+}
+
+.pack-odds-tier {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.pack-odds-tier.tier-rare { color: var(--rarity-rare, #6fb7ff); }
+.pack-odds-tier.tier-epicplus { color: #d4b2ff; }
+
+.pack-contents-note {
+    padding: 6px 8px;
+    border-left: 3px solid var(--gold-1);
+    background: rgba(242, 207, 114, 0.08);
+}
+
+.pack-contents-scroll {
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+    min-height: 120px;
+}
+
+.pack-contents-heading {
+    position: sticky;
+    top: 0;
+    margin: 8px 0 4px;
+    padding: 4px 0;
+    background: #2e1f44;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-size: 14px;
+    color: var(--gold-2);
+}
+
+.pack-contents-heading span {
+    color: var(--text-soft);
+    font-weight: 400;
+}
+
+.pack-contents-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-contents-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pack-contents-row.is-unowned {
+    border-style: dashed;
+}
+
+.pack-contents-row.is-unowned .card-row-art {
+    filter: grayscale(0.7);
+    opacity: 0.75;
+}
+
+.pack-contents-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.pack-contents-name {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.pack-contents-modal .card-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 8px;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 11.5px;
+    color: var(--text-soft);
+}
+
+
+.pack-contents-owned {
+    font-family: var(--font-body, 'Inter', sans-serif);
+    font-size: 12px;
+    color: var(--gold-2);
+    white-space: nowrap;
+}
+
+.pack-contents-row.is-unowned .pack-contents-owned {
+    color: var(--text-soft);
+}
+
+.pack-contents-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.pack-contents-buy {
+    min-height: 44px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: 1px solid #8b6a1f;
+    background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 100%);
+    color: #2a1a06;
+    font-family: var(--font-heading, 'Cinzel', serif);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pack-contents-buy.is-unaffordable {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f0c3c3;
+    border: 1px dashed rgba(255, 160, 160, 0.6);
+    cursor: not-allowed;
+}
+
+/* ---- Sealed pack in its theme's colours */
+.pack-opening-overlay[data-theme]:not([data-theme=""]) .pack-sealed-shell {
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.55);
+    background:
+        radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.4) 0%, transparent 45%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 18px),
+        linear-gradient(135deg, var(--pack-a) 0%, var(--pack-b) 100%);
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-sealed-label {
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(20, 12, 32, 0.78);
+    color: var(--gold-2);
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.pack-sealed-label:empty {
+    display: none;
+}
+
+.pack-open-btn,
+.pack-summary-btn {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 10px;
+}
+
+.pack-summary-btn.is-ready {
+    box-shadow: 0 0 0 2px var(--gold-2), 0 0 16px rgba(255, 215, 0, 0.45);
+}
+
+/* ---- Reveal: rules, keywords and ownership */
+.pack-card-text {
+    max-width: 34em;
+    margin-top: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #fff4cf;
+}
+
+.pack-card-text p {
+    margin: 4px 0 0;
+}
+
+.pack-card-flavour {
+    font-style: italic;
+    color: #f0e2b8;
+}
+
+.pack-card-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 6px;
+}
+
+.pack-card-keyword {
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.35);
+    font-size: 12px;
+}
+
+.pack-card-keyword.is-inactive {
+    opacity: 0.75;
+    text-decoration: line-through;
+}
+
+.pack-card-owned {
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold-2);
+}
+
+.pack-owned-before {
+    font-weight: 400;
+    color: #eadfb8;
+}
+
+.pack-new-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #7dffb0, #2fbf71);
+    color: #062a14;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+
+.pack-card-viewport:not(.is-revealed) .pack-card-text,
+.pack-card-viewport:not(.is-revealed) .pack-card-owned {
+    opacity: 0;
+}
+
+.pack-card-text,
+.pack-card-owned {
+    transition: opacity 0.22s ease;
+}
+
+/* ---- Summary: the five cards */
+.pack-summary-title {
+    text-align: center;
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gold-2);
+}
+
+.pack-summary-stats {
+    margin: 4px 0 10px;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #eadfb8;
+}
+
+.pack-summary-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pack-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--rarity-common, #b9b0a0);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff8d1;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pack-summary-card.rarity-rare { border-color: var(--rarity-rare, #6fb7ff); }
+.pack-summary-card.rarity-epic { border-color: var(--rarity-epic, #b17cff); }
+.pack-summary-card.rarity-legendary { border-color: var(--rarity-legendary, #ffcf5a); }
+
+.pack-summary-body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0 8px;
+    flex: 1;
+    min-width: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.pack-summary-name {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.pack-summary-rarity {
+    font-size: 12px;
+}
+
+.pack-summary-rarity.rarity-rare { color: var(--rarity-rare, #6fb7ff); }
+.pack-summary-rarity.rarity-epic { color: #d4b2ff; }
+.pack-summary-rarity.rarity-legendary { color: var(--rarity-legendary, #ffcf5a); }
+
+.pack-summary-owned {
+    font-size: 12px;
+    color: var(--gold-2);
+    text-align: right;
+}
+
+@media (min-width: 900px) {
+    #startModal .pack-shop-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #startModal .modal-content[data-screen="packShopScreen"] {
+        max-width: min(980px, 96vw);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .shop-pack-art { min-height: 60px; padding: 6px 12px; }
+    .shop-pack-art-icon { font-size: 34px; }
+    .pack-card-text { font-size: 12px; margin-top: 2px; }
+    .pack-card-owned { margin-top: 4px; }
+    .pack-summary-card { min-height: 44px; padding: 4px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pack-card-text,
+    .pack-card-owned {
+        transition: none;
     }
 }

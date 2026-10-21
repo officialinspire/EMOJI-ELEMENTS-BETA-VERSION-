@@ -922,6 +922,84 @@
         return rule ? `${rule.label}: ${rule.text}` : ability;
     }
 
+    // ---- Card presentation helpers, shared by the hand, the battlefield, card details and pack reveals.
+    // They only read card data; ids, stats, costs, rarity and rules stay where they are.
+    const ELEMENT_LABELS = { fire: 'Fire', water: 'Water', earth: 'Earth', swamp: 'Swamp', light: 'Light', colorless: 'Colorless' };
+    const elementLabel = element => `${ELEMENTS[element]?.emoji || ''} ${ELEMENT_LABELS[element] || element}`.trim();
+    const CARD_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    // The rarity glyph gives each rarity a shape as well as a colour
+    const RARITY_INFO = {
+        common: { label: 'Common', glyph: '●' },
+        uncommon: { label: 'Uncommon', glyph: '◆' },
+        rare: { label: 'Rare', glyph: '◆' },
+        epic: { label: 'Epic', glyph: '⬢' },
+        legendary: { label: 'Legendary', glyph: '★' }
+    };
+    const CARD_TYPE_INFO = {
+        creature: { label: 'Creature', icon: '🐾' },
+        instant: { label: 'Instant', icon: '✨' },
+        artifact: { label: 'Artifact', icon: '⚙️' },
+        land: { label: 'Land', icon: '⛰️' }
+    };
+
+    function getCardRarity(card) {
+        return CARD_RARITIES.includes(card?.__rarity) ? card.__rarity : 'common';
+    }
+
+    // The colours a card face shows: a land's mana colours, otherwise its cost colours (largest first, as
+    // written); cards with neither are colorless.
+    function getCardIdentity(card) {
+        const source = card?.type === 'land'
+            ? (Array.isArray(card.elements) ? card.elements : [card.element])
+            : Object.keys(card?.cost || {});
+        const colours = [...new Set(source)].filter(element => element !== 'colorless' && ELEMENTS[element]);
+        return colours.length ? colours : ['colorless'];
+    }
+
+    // Element colours for a face or panel: --card-el-1/--card-el-2 drive its background (styles.css "CARD FACES")
+    function applyCardIdentity(el, card) {
+        const identity = getCardIdentity(card);
+        el.dataset.elements = identity.join(' ');
+        el.classList.toggle('is-multicolor', identity.length === 2);
+        el.classList.toggle('is-rainbow', identity.length > 2);
+        el.style.setProperty('--card-el-1', `var(--elc-${identity[0]})`);
+        el.style.setProperty('--card-el-2', `var(--elc-${identity[1] || identity[0]})`);
+        return identity;
+    }
+
+    // Mana cost as pips: one per colour with its count, colorless as ◇. A free card shows 0.
+    function renderCostPips(cost) {
+        const entries = Object.entries(cost || {}).filter(([, n]) => n > 0);
+        if (!entries.length) return '<span class="cost-pip cost-pip-free" title="Free">0</span>';
+        return entries.map(([element, n]) => `<span class="cost-pip" data-element="${element}" title="${n} ${ELEMENT_LABELS[element] || element}">`
+            + `<span class="cost-pip-icon" aria-hidden="true">${ELEMENTS[element]?.emoji || '◇'}</span><span class="cost-pip-n">${n}</span></span>`).join('');
+    }
+
+    function describeCost(cost) {
+        const entries = Object.entries(cost || {}).filter(([, n]) => n > 0);
+        return entries.length ? entries.map(([element, n]) => `${n} ${ELEMENT_LABELS[element] || element}`).join(' + ') : 'Free';
+    }
+
+    // Keyword badge for a card face. Flash has no effect in this version, so its badge is marked inactive.
+    function createKeywordBadge(ability) {
+        const badge = document.createElement('div');
+        badge.className = 'ability-icon';
+        badge.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
+        badge.title = describeKeyword(ability);
+        if (ability === 'flash') badge.classList.add('is-inactive');
+        return badge;
+    }
+
+    // One keyword in card details: badge, name and the KEYWORD_RULES text
+    function renderKeywordDetail(ability) {
+        const rule = KEYWORD_RULES[ability];
+        if (!rule) return `<div class="card-detail-keyword">${ability}</div>`;
+        const inactive = ability === 'flash';
+        return `<div class="card-detail-keyword${inactive ? ' is-inactive' : ''}">`
+            + `<span class="kw-badge" aria-hidden="true">${rule.badge}</span>`
+            + `<span class="kw-body"><strong>${rule.label}</strong>${inactive ? ' <span class="kw-tag">No effect</span>' : ''}: ${rule.text}</span></div>`;
+    }
+
     // Token creatures made by token spells (tokenType). `default` is for a token spell without a type.
     const TOKEN_TYPES = {
         spirit: { name: 'Spirit Token', emoji: '👻', power: 1, toughness: 1, abilities: ['flying'] },
@@ -2270,13 +2348,15 @@
     };
     }
 
+    // Packs for the Pack Shop and win rewards. Prices, pack size and the win-reward theme weights are the
+    // same as before (PROGRESSION.md P3); the art colours for each key are in styles.css ("PACK SHOP").
     const PACK_THEMES = [
-        { key: 'fantasy', label: 'Fantasy', weight: 24 },
-        { key: 'scifi', label: 'Science Fiction', weight: 18 },
-        { key: 'tech', label: 'Tech', weight: 16 },
-        { key: 'alien', label: 'Alien', weight: 14 },
-        { key: 'robot', label: 'Robot', weight: 14 },
-        { key: 'lands', label: 'Lands', weight: 14 }
+        { key: 'fantasy', label: 'Fantasy', weight: 24, icon: '🧙', tagline: 'Myth, magic and the wild creatures of the five elements' },
+        { key: 'scifi', label: 'Science Fiction', weight: 18, icon: '🚀', tagline: 'Space, science and the future' },
+        { key: 'tech', label: 'Tech', weight: 16, icon: '⚙️', tagline: 'Gadgets, machines and modern life' },
+        { key: 'alien', label: 'Alien', weight: 14, icon: '👽', tagline: 'Aliens, spacecraft and the cosmos' },
+        { key: 'robot', label: 'Robot', weight: 14, icon: '🤖', tagline: 'Robots, drones, mechs and machine minds' },
+        { key: 'lands', label: 'Lands', weight: 14, icon: '🌍', tagline: 'Only lands: basic, dual and special' }
     ];
 
     const PACK_SHOP_COSTS = {
@@ -2289,69 +2369,342 @@
     };
 
     const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
-    const THEME_KEYWORDS = {
-        fantasy: ['wizard', 'mage', 'witch', 'sorcer', 'knight', 'dragon', 'demon', 'angel', 'temple', 'wand', 'relic', 'ancient', 'holy', 'cursed'],
-        scifi: ['science fiction', 'space', 'star', 'cosmic', 'quantum', 'galaxy', 'void', 'planet', 'orbital', 'aether', 'chrono', 'nano', 'signal'],
-        tech: ['tech', 'artifact', 'engine', 'device', 'scanner', 'battery', 'core', 'prism', 'watch', 'lens', 'compass', 'tower'],
-        alien: ['alien', 'ufo', 'planet', 'void', 'cosmic', 'xeno', 'martian', 'nebula'],
-        robot: ['robot', 'drone', 'mech', 'android', 'cyber', 'machine', 'construct', 'automaton'],
-        lands: ['land', 'wasteland', 'grove', 'bog', 'peak', 'springs', 'temple', 'planet', 'rainbow']
+    const PACK_SIZE = 5;
+
+    // Which packs each card can come from, reviewed card by card and keyed by card id (CARD_AUDIT.md §7).
+    // A card may be in several packs. In short:
+    // - fantasy: every Fantasy- and Nature-theme card (the elemental wildlife), plus City folklore
+    //   (Santa Claus, Phantom Train, Dread Clown, Temple Cat, Holy Hamster, Grave Digger, War Horn);
+    // - scifi: every Science Fiction card;
+    // - tech: Science Fiction devices, machines, drones and gear, plus the other City (modern life) cards;
+    // - alien: aliens, spacecraft, space travel and cosmic cards (Meteor Strike too);
+    // - robot: robots, androids, cyborgs, mechs, drones, AI and machine parts;
+    // - lands: all 8 lands and nothing else.
+    // tests/card-audit.mjs fails if a card is missing, an id is unknown or a pack breaks these limits.
+    const PACK_MEMBERSHIP = {
+        // Lands
+        'lands-volcanic-peak': ['lands'],
+        'lands-mystic-springs': ['lands'],
+        'lands-ancient-grove': ['lands'],
+        'lands-cursed-bog': ['fantasy', 'lands'],
+        'lands-sacred-temple': ['fantasy', 'lands'],
+        'lands-crystal-wasteland': ['scifi', 'lands'],
+        'lands-distant-planet': ['scifi', 'alien', 'lands'],
+        'lands-rainbow': ['lands'],
+        // Creatures
+        'creatures-ancient-dragon': ['fantasy'],
+        'creatures-phoenix': ['fantasy'],
+        'creatures-infernal-demon': ['fantasy'],
+        'creatures-blazing-tiger': ['fantasy'],
+        'creatures-fire-fox': ['fantasy'],
+        'creatures-fire-lion': ['fantasy'],
+        'creatures-fire-salamander': ['fantasy'],
+        'creatures-magma-monkey': ['fantasy'],
+        'creatures-raging-bull': ['fantasy'],
+        'creatures-flame-steed': ['fantasy'],
+        'creatures-wild-boar': ['fantasy'],
+        'creatures-fire-ram': ['fantasy'],
+        'creatures-lava-scorpion': ['fantasy'],
+        'creatures-magma-crab': ['fantasy'],
+        'creatures-fire-lobster': ['fantasy'],
+        'creatures-ember-beetle': ['fantasy'],
+        'creatures-fire-ladybug': ['fantasy'],
+        'creatures-raging-oni': ['fantasy'],
+        'creatures-fire-djinn': ['fantasy'],
+        'creatures-fireman': ['tech'],
+        'creatures-phoenix-firebird': ['fantasy'],
+        'creatures-leviathan-whale': ['fantasy'],
+        'creatures-great-shark': ['fantasy'],
+        'creatures-giant-octopus': ['fantasy'],
+        'creatures-mystic-dolphin': ['fantasy'],
+        'creatures-school-fish': ['fantasy'],
+        'creatures-arctic-seal': ['fantasy'],
+        'creatures-river-otter': ['fantasy'],
+        'creatures-ice-penguin': ['fantasy'],
+        'creatures-swamp-frog': ['fantasy'],
+        'creatures-giant-squid': ['fantasy'],
+        'creatures-mantis-shrimp': ['fantasy'],
+        'creatures-swamp-croc': ['fantasy'],
+        'creatures-ancient-turtle': ['fantasy'],
+        'creatures-sea-horse': ['fantasy'],
+        'creatures-stinging-jellyfish': ['fantasy'],
+        'creatures-armored-snail': ['fantasy'],
+        'creatures-crystal-swan': ['fantasy'],
+        'creatures-enchanting-mermaid': ['fantasy'],
+        'creatures-great-white-shark': ['fantasy'],
+        'creatures-elder-elephant': ['fantasy'],
+        'creatures-silverback-gorilla': ['fantasy'],
+        'creatures-forest-bear': ['fantasy'],
+        'creatures-swift-rabbit': ['fantasy'],
+        'creatures-noble-deer': ['fantasy'],
+        'creatures-pack-wolf': ['fantasy'],
+        'creatures-armored-rhino': ['fantasy'],
+        'creatures-river-hippo': ['fantasy'],
+        'creatures-forest-squirrel': ['fantasy'],
+        'creatures-spiky-hedgehog': ['fantasy'],
+        'creatures-fierce-badger': ['fantasy'],
+        'creatures-tall-giraffe': ['fantasy'],
+        'creatures-striped-zebra': ['fantasy'],
+        'creatures-desert-camel': ['fantasy'],
+        'creatures-strong-ox': ['fantasy'],
+        'creatures-bamboo-panda': ['fantasy'],
+        'creatures-sleepy-koala': ['fantasy'],
+        'creatures-wild-west-cowboy': ['tech'],
+        'creatures-weightlifter': ['tech'],
+        'creatures-bengal-tiger': ['fantasy'],
+        'creatures-garden-ladybug': ['fantasy'],
+        'creatures-ancient-vampire': ['fantasy'],
+        'creatures-risen-zombie': ['fantasy'],
+        'creatures-restless-ghost': ['fantasy'],
+        'creatures-vampire-bat': ['fantasy'],
+        'creatures-giant-spider': ['fantasy'],
+        'creatures-skeleton-warrior': ['fantasy'],
+        'creatures-dark-wizard': ['fantasy'],
+        'creatures-swamp-witch': ['fantasy'],
+        'creatures-plague-rat': ['fantasy'],
+        'creatures-venom-snake': ['fantasy'],
+        'creatures-death-scorpion': ['fantasy'],
+        'creatures-death-crow': ['fantasy'],
+        'creatures-werewolf': ['fantasy'],
+        'creatures-stone-gargoyle': ['fantasy'],
+        'creatures-ancient-mummy': ['fantasy'],
+        'creatures-goblin-raider': ['fantasy'],
+        'creatures-swamp-troll': ['fantasy'],
+        'creatures-demonic-clown': ['fantasy'],
+        'creatures-sacred-unicorn': ['fantasy'],
+        'creatures-guardian-angel': ['fantasy'],
+        'creatures-sky-eagle': ['fantasy'],
+        'creatures-peace-dove': ['fantasy'],
+        'creatures-light-butterfly': ['fantasy'],
+        'creatures-winged-pegasus': ['fantasy'],
+        'creatures-forest-fairy': ['fantasy'],
+        'creatures-temple-cat': ['fantasy'],
+        'creatures-loyal-hound': ['tech'],
+        'creatures-wise-owl': ['fantasy'],
+        'creatures-golden-bee': ['fantasy'],
+        'creatures-holy-chicken': ['fantasy'],
+        'creatures-sun-parrot': ['fantasy'],
+        'creatures-pink-flamingo': ['fantasy'],
+        'creatures-royal-peacock': ['fantasy'],
+        'creatures-baby-chick': ['fantasy'],
+        'creatures-holy-hamster': ['fantasy'],
+        'creatures-combat-robot': ['scifi', 'robot'],
+        'creatures-alien-invader': ['scifi', 'alien'],
+        'creatures-pixel-monster': ['scifi', 'alien'],
+        'creatures-ufo-saucer': ['scifi', 'alien'],
+        'creatures-satellite-drone': ['scifi', 'tech', 'alien', 'robot'],
+        'creatures-battle-rocket': ['scifi', 'tech', 'alien'],
+        'creatures-space-marine': ['scifi', 'alien'],
+        'creatures-cyborg-soldier': ['scifi', 'robot'],
+        'creatures-android-guardian': ['scifi', 'robot'],
+        'creatures-battle-mech': ['scifi', 'robot'],
+        'creatures-attack-drone': ['scifi', 'tech', 'robot'],
+        'creatures-ai-core': ['scifi', 'tech', 'robot'],
+        'creatures-cyber-brain': ['scifi', 'tech', 'robot'],
+        'creatures-gene-splice': ['scifi', 'tech'],
+        'creatures-nano-virus': ['scifi', 'tech'],
+        'creatures-med-capsule': ['scifi', 'tech', 'robot'],
+        'creatures-bio-injector': ['scifi', 'tech'],
+        'creatures-lab-scanner': ['scifi', 'tech'],
+        'creatures-orbital-scanner': ['scifi', 'tech', 'alien'],
+        'creatures-power-cell': ['scifi', 'tech'],
+        'creatures-magnetic-trap': ['scifi', 'tech'],
+        'creatures-signal-tower': ['scifi', 'tech'],
+        'creatures-radar-array': ['scifi', 'tech'],
+        'creatures-plasma-bomb': ['scifi', 'tech'],
+        'creatures-mech-part': ['scifi', 'tech', 'robot'],
+        'creatures-repair-bot': ['scifi', 'tech', 'robot'],
+        'creatures-forge-hammer': ['scifi', 'tech'],
+        'creatures-time-device': ['scifi', 'tech'],
+        'creatures-alert-system': ['scifi', 'tech'],
+        'creatures-chrono-watch': ['scifi', 'tech'],
+        'creatures-data-disc': ['scifi', 'tech'],
+        'creatures-comm-device': ['scifi', 'tech'],
+        'creatures-spy-camera': ['scifi', 'tech'],
+        'creatures-recorder-drone': ['scifi', 'tech', 'robot'],
+        'creatures-men-in-black': ['scifi', 'alien'],
+        'creatures-grey-alien': ['scifi', 'alien'],
+        'creatures-astronaut-explorer': ['scifi', 'alien'],
+        'creatures-poop': ['fantasy'],
+        'creatures-santa-claus': ['fantasy'],
+        'creatures-police-officer': ['tech'],
+        'creatures-crooked-cop': ['tech'],
+        'creatures-farmer': ['tech'],
+        'creatures-welder': ['tech'],
+        'creatures-sunflower': ['fantasy'],
+        'creatures-lantern-koi': ['fantasy'],
+        'creatures-hot-pepper-sprite': ['fantasy'],
+        'creatures-torch-runner': ['tech'],
+        'creatures-forge-hound': ['fantasy'],
+        'creatures-comet-hawk': ['fantasy'],
+        'creatures-volcano-golem': ['fantasy'],
+        'creatures-rocket-imp': ['scifi', 'alien'],
+        'creatures-ember-chef': ['tech'],
+        'creatures-war-drummer': ['tech'],
+        'creatures-neon-panther': ['scifi', 'tech'],
+        'creatures-jelly-knight': ['fantasy'],
+        'creatures-otter-scout': ['fantasy'],
+        'creatures-moonfish': ['fantasy'],
+        'creatures-tidal-turtle': ['fantasy'],
+        'creatures-snow-owl': ['fantasy'],
+        'creatures-harbor-mage': ['fantasy'],
+        'creatures-dolphin-rider': ['fantasy'],
+        'creatures-hydrobot': ['scifi', 'robot'],
+        'creatures-ice-gargoyle': ['fantasy'],
+        'creatures-wave-skater': ['tech'],
+        'creatures-mole-engineer': ['fantasy'],
+        'creatures-bison-guard': ['fantasy'],
+        'creatures-stone-serpent': ['fantasy'],
+        'creatures-garden-giant': ['fantasy'],
+        'creatures-lumber-mammoth': ['fantasy'],
+        'creatures-cactus-guardian': ['fantasy'],
+        'creatures-trail-hiker': ['tech'],
+        'creatures-badlands-boar': ['fantasy'],
+        'creatures-mountain-ram': ['fantasy'],
+        'creatures-temple-keeper': ['fantasy'],
+        'creatures-grim-crow': ['fantasy'],
+        'creatures-blood-leech': ['fantasy'],
+        'creatures-bone-hound': ['fantasy'],
+        'creatures-grave-digger': ['fantasy'],
+        'creatures-witch-cat': ['fantasy'],
+        'creatures-night-reaper': ['fantasy'],
+        'creatures-toxic-frog': ['fantasy'],
+        'creatures-phantom-train': ['fantasy', 'tech'],
+        'creatures-dread-clown': ['fantasy'],
+        'creatures-night-moth': ['fantasy'],
+        'creatures-sun-monk': ['fantasy'],
+        'creatures-lantern-guard': ['tech'],
+        'creatures-dove-rider': ['fantasy'],
+        'creatures-paladin-captain': ['fantasy'],
+        'creatures-choir-angel': ['fantasy'],
+        'creatures-healer-bot': ['scifi', 'robot'],
+        'creatures-beacon-keeper': ['tech'],
+        'creatures-solar-drake': ['fantasy'],
+        'creatures-daybreak-stag': ['fantasy'],
+        'creatures-mirror-knight': ['fantasy'],
+        // Instants
+        'spells-fireball': ['fantasy'],
+        'spells-explosion': ['fantasy'],
+        'spells-inferno': ['fantasy'],
+        'spells-meteor-strike': ['fantasy', 'alien'],
+        'spells-flame-jet': ['fantasy'],
+        'spells-anger': ['tech'],
+        'spells-freeze': ['fantasy'],
+        'spells-tsunami': ['fantasy'],
+        'spells-bubble-shield': ['fantasy'],
+        'spells-healing-rain': ['fantasy'],
+        'spells-whirlpool': ['fantasy'],
+        'spells-deep-freeze': ['fantasy'],
+        'spells-surf': ['tech'],
+        'spells-coral-shield': ['fantasy'],
+        'spells-earthquake': ['fantasy'],
+        'spells-growth': ['fantasy'],
+        'spells-tangling-roots': ['fantasy'],
+        'spells-avalanche': ['fantasy'],
+        'spells-harvest': ['fantasy'],
+        'spells-wrestle': ['tech'],
+        'spells-mushroom-power': ['fantasy'],
+        'spells-curse': ['fantasy'],
+        'spells-drain-life': ['fantasy'],
+        'spells-poison': ['fantasy'],
+        'spells-necromancy': ['fantasy'],
+        'spells-terror': ['fantasy'],
+        'spells-heal': ['fantasy'],
+        'spells-divine-smite': ['fantasy'],
+        'spells-blessing': ['fantasy'],
+        'spells-light-beam': ['fantasy'],
+        'spells-resurrection': ['fantasy'],
+        'spells-in-the-clouds': ['fantasy'],
+        'spells-meditate': ['tech'],
+        'spells-feather': ['fantasy'],
+        'spells-summon-spirits': ['fantasy'],
+        'spells-raise-army': ['fantasy'],
+        'spells-call-of-the-forest': ['fantasy'],
+        'spells-web-trap': ['fantasy'],
+        'spells-comet-strike': ['scifi', 'alien'],
+        'spells-mind-rot': ['fantasy'],
+        'spells-thought-steal': ['fantasy'],
+        // Artifacts
+        'artifacts-flaming-sword': ['fantasy'],
+        'artifacts-earth-shield': ['fantasy'],
+        'artifacts-crown-of-power': ['fantasy'],
+        'artifacts-mana-gem': ['fantasy'],
+        'artifacts-bomb': ['tech'],
+        'artifacts-holy-chalice': ['fantasy'],
+        'artifacts-dark-scroll': ['fantasy'],
+        'artifacts-cursed-orb': ['fantasy'],
+        'artifacts-war-horn': ['fantasy'],
+        'artifacts-protective-amulet': ['fantasy'],
+        'artifacts-magic-ring': ['fantasy'],
+        'artifacts-heavy-armor': ['tech'],
+        'artifacts-battle-axe': ['fantasy'],
+        'artifacts-elven-bow': ['fantasy'],
+        'artifacts-magic-wand': ['fantasy'],
+        'artifacts-halo': ['fantasy'],
+        'artifacts-dna-sequence': ['scifi', 'tech'],
+        'artifacts-fingerprint-scanner': ['scifi', 'tech'],
+        'artifacts-footsteps': ['scifi'],
+        'artifacts-prism-core': ['scifi', 'tech'],
+        'artifacts-gravity-boots': ['scifi', 'tech'],
+        'artifacts-chrono-watch': ['scifi', 'tech'],
+        'artifacts-nano-shield': ['scifi', 'tech'],
+        'artifacts-signal-tower': ['scifi', 'tech'],
+        'artifacts-mech-claw': ['scifi', 'tech', 'robot'],
+        'artifacts-aether-lens': ['scifi', 'tech', 'alien'],
+        'artifacts-repair-drone': ['scifi', 'tech', 'alien', 'robot'],
+        'artifacts-void-compass': ['scifi', 'tech', 'alien'],
+        'artifacts-relic-cache': ['fantasy']
     };
 
-    function inferTheme(card) {
-        if (!card) return null;
-
-        const explicitTheme = String(card.theme || '').trim().toLowerCase();
-        if (explicitTheme) {
-            if (explicitTheme.includes('fantasy')) return 'fantasy';
-            if (explicitTheme.includes('science')) return 'scifi';
-            if (explicitTheme.includes('tech')) return 'tech';
-            if (explicitTheme.includes('alien')) return 'alien';
-            if (explicitTheme.includes('robot')) return 'robot';
-            if (explicitTheme.includes('land')) return 'lands';
-        }
-
-        if ((card.type || '').toLowerCase() === 'land') {
-            return 'lands';
-        }
-
-        const haystack = `${card._category || ''} ${card.name || ''} ${card.desc || ''} ${card.cardType || ''}`.toLowerCase();
-        const matches = {};
-
-        Object.entries(THEME_KEYWORDS).forEach(([themeKey, keywords]) => {
-            matches[themeKey] = keywords.reduce((sum, keyword) => (
-                haystack.includes(keyword) ? sum + 1 : sum
-            ), 0);
-        });
-
-        const sorted = Object.entries(matches)
-            .filter(([, count]) => count > 0)
-            .sort((a, b) => b[1] - a[1]);
-
-        return sorted[0]?.[0] || null;
+    function getPackMemberships(cardOrId) {
+        const id = typeof cardOrId === 'string' ? cardOrId : cardOrId?.__id;
+        return PACK_MEMBERSHIP[id] || [];
     }
 
+    // Every card a pack can contain, in catalog order
     function getThemePool(themeKey) {
-        const normalizedTheme = String(themeKey || '').trim().toLowerCase();
-        const themedCards = __ALL_CARDS.filter(card => inferTheme(card) === normalizedTheme);
+        const key = String(themeKey || '').trim().toLowerCase();
+        return __ALL_CARDS.filter(card => getPackMemberships(card).includes(key));
+    }
 
-        if (normalizedTheme === 'lands') {
-            const landCards = __ALL_CARDS.filter(card => (card.type || '').toLowerCase() === 'land');
-            const nonLands = themedCards.filter(card => (card.type || '').toLowerCase() !== 'land');
-            const prioritizedLands = [...landCards, ...nonLands];
-            return prioritizedLands.length > 0 ? prioritizedLands : __ALL_CARDS;
-        }
+    // Pack slots use three rarity tiers. Rarities are unchanged (inferRarity has no uncommon, so Rare fills
+    // the second-best slot, as before).
+    const PACK_TIER_OF_RARITY = { common: 'common', uncommon: 'rare', rare: 'rare', epic: 'epic+', legendary: 'epic+' };
+    const PACK_TIER_LABELS = { common: 'Common', rare: 'Rare', 'epic+': 'Epic/Legendary' };
+    // Each slot's tiers in order of preference: three Common, one Rare, one Epic or Legendary (as before)
+    const PACK_SLOT_TIERS = [
+        ['common', 'rare', 'epic+'],
+        ['common', 'rare', 'epic+'],
+        ['common', 'rare', 'epic+'],
+        ['rare', 'common', 'epic+'],
+        ['epic+', 'rare', 'common']
+    ];
+    // A tier with fewer cards than this in a pack is merged with the next tier for that slot, so no card
+    // turns up in every pack (the Robot pack has a single Epic, Battle Mech).
+    const PACK_MIN_TIER_CHOICES = 2;
 
-        if (themedCards.length >= 16) {
-            return themedCards;
-        }
+    const packTierOf = card => PACK_TIER_OF_RARITY[card?.__rarity] || 'common';
 
-        const neutralCards = __ALL_CARDS.filter(card => {
-            const cardThemeKey = inferTheme(card);
-            return !cardThemeKey || !PACK_THEME_KEYS.has(cardThemeKey);
+    // A pack's pool, its tier counts, and for each slot the groups of tiers it tries in order. A slot takes
+    // one card, uniformly, from the first group that still has cards left in this pack.
+    function getPackSlotPlan(themeKey) {
+        const pool = getThemePool(themeKey);
+        const counts = { common: 0, rare: 0, 'epic+': 0 };
+        pool.forEach(card => { counts[packTierOf(card)]++; });
+        const slots = PACK_SLOT_TIERS.map(tiers => {
+            const groups = [];
+            let group = [];
+            tiers.forEach((tier, i) => {
+                group.push(tier);
+                const size = group.reduce((sum, t) => sum + counts[t], 0);
+                if (size >= PACK_MIN_TIER_CHOICES || i === tiers.length - 1) {
+                    groups.push(group);
+                    group = [];
+                }
+            });
+            return groups;
         });
-
-        return [...themedCards, ...neutralCards];
+        return { themeKey: String(themeKey || '').trim().toLowerCase(), pool, counts, slots };
     }
 
     function choosePackThemeByWeight() {
@@ -2371,66 +2724,105 @@
         return PACK_THEMES[PACK_THEMES.length - 1]?.key || 'fantasy';
     }
 
+    // Five different cards. If a pack's pool ever ran out (fewer than PACK_SIZE cards), the rest would come
+    // from the whole catalog in the same tier order; the card audit keeps every pool large enough.
     function generatePack(themeKey) {
-        const requestedTheme = String(themeKey || '').trim().toLowerCase();
-        const sourcePool = getThemePool(requestedTheme);
-        const isLandsPack = requestedTheme === 'lands';
-        const remaining = [...sourcePool];
+        const plan = getPackSlotPlan(themeKey);
+        const remaining = [...plan.pool];
+        const picked = [];
+        const pickOne = candidates => candidates[Math.floor(Math.random() * candidates.length)];
 
-        const tierByRarity = {
-            common: 'common',
-            rare: 'uncommon',
-            epic: 'rare_plus',
-            legendary: 'rare_plus'
-        };
-
-        function drawFromTiers(preferredTiers) {
-            for (const tier of preferredTiers) {
-                const candidates = remaining.filter(card => tierByRarity[card.__rarity] === tier);
-                if (candidates.length > 0) {
-                    const weighted = candidates.map(card => ({
-                        card,
-                        weight: isLandsPack && (card.type || '').toLowerCase() === 'land' ? 3 : 1
-                    }));
-                    const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
-                    let roll = Math.random() * totalWeight;
-                    let pick = weighted[0].card;
-
-                    for (const option of weighted) {
-                        roll -= option.weight;
-                        if (roll <= 0) {
-                            pick = option.card;
-                            break;
-                        }
-                    }
-
-                    for (let i = remaining.length - 1; i >= 0; i--) {
-                        if (remaining[i].__id === pick.__id) {
-                            remaining.splice(i, 1);
-                        }
-                    }
-                    return pick.__id;
+        plan.slots.forEach((groups, slot) => {
+            for (const group of groups) {
+                const candidates = remaining.filter(card => group.includes(packTierOf(card)));
+                if (candidates.length) {
+                    const pick = pickOne(candidates);
+                    remaining.splice(remaining.indexOf(pick), 1);
+                    picked.push(pick.__id);
+                    return;
                 }
             }
-
-            if (remaining.length > 0) {
-                const fallbackIndex = Math.floor(Math.random() * remaining.length);
-                const [pick] = remaining.splice(fallbackIndex, 1);
-                return pick.__id;
+            for (const tier of PACK_SLOT_TIERS[slot]) {
+                const candidates = __ALL_CARDS.filter(card => !picked.includes(card.__id) && packTierOf(card) === tier);
+                if (candidates.length) {
+                    picked.push(pickOne(candidates).__id);
+                    return;
+                }
             }
+        });
 
-            return null;
+        return picked;
+    }
+
+    // Exact odds for a pack, following generatePack slot by slot: the expected number of cards from each
+    // tier, and the chance that one given card of that tier is in a pack. Used by the shop preview.
+    function getPackOdds(themeKey) {
+        const plan = getPackSlotPlan(themeKey);
+        const expected = { common: 0, rare: 0, 'epic+': 0 };
+        const walk = (slot, left, p) => {
+            if (slot === plan.slots.length) return;
+            for (const group of plan.slots[slot]) {
+                const total = group.reduce((sum, t) => sum + left[t], 0);
+                if (!total) continue;
+                group.forEach(tier => {
+                    if (!left[tier]) return;
+                    const q = p * left[tier] / total;
+                    expected[tier] += q;
+                    walk(slot + 1, { ...left, [tier]: left[tier] - 1 }, q);
+                });
+                return;
+            }
+            walk(slot + 1, left, p); // the catalog fallback: never reached while pools hold 5+ cards
+        };
+        walk(0, { ...plan.counts }, 1);
+        const perCard = {};
+        Object.keys(expected).forEach(tier => { perCard[tier] = plan.counts[tier] ? expected[tier] / plan.counts[tier] : 0; });
+        return { ...plan, expected, perCard };
+    }
+
+    // What each slot gives, for the shop: consecutive slots with the same first group are merged
+    // ("3 × Common"). A merged tier (see PACK_MIN_TIER_CHOICES) is explained in `notes`.
+    function describePackSlots(themeKey) {
+        const plan = getPackSlotPlan(themeKey);
+        const slots = [];
+        const notes = [];
+        plan.slots.forEach((groups, i) => {
+            const group = groups[0];
+            const label = group.map(tier => PACK_TIER_LABELS[tier]).join(' or ');
+            const last = slots[slots.length - 1];
+            if (last && last.label === label) last.count++;
+            else slots.push({ label, tiers: group, count: 1 });
+            const wanted = PACK_SLOT_TIERS[i][0];
+            if (group.length > 1) {
+                const n = plan.counts[wanted];
+                notes.push(`Card ${i + 1}: this pack has ${n === 0 ? 'no' : `only ${n}`} ${PACK_TIER_LABELS[wanted]} card${n === 1 ? '' : 's'}, so it can also be ${group.slice(1).map(t => PACK_TIER_LABELS[t]).join(' or ')}.`);
+            }
+        });
+        return { slots, notes };
+    }
+
+    // Copies of each card owned just before the latest pack was added. Kept in memory only (the save format is
+    // unchanged), so the reveal can mark NEW cards and show "had N".
+    let lastPackOwnedBefore = null;
+
+    function addPackToCollection(cardIds, openedAt) {
+        const before = {};
+        cardIds.forEach(cardId => { before[cardId] = gameMeta.collection[cardId] || 0; });
+        cardIds.forEach(cardId => {
+            gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+        });
+        lastPackOwnedBefore = { openedAt, counts: before };
+    }
+
+    // Copies owned before the shown pack: recorded at acquisition, or (for a pack from before a reload) the
+    // current count minus that pack's copy, as a pack never holds a card twice.
+    function getPackOwnedBefore(cardId) {
+        const owned = gameMeta?.collection?.[cardId] || 0;
+        if (lastPackOwnedBefore && lastPackOwnedBefore.openedAt === gameMeta?.lastPack?.openedAt && cardId in lastPackOwnedBefore.counts) {
+            return lastPackOwnedBefore.counts[cardId];
         }
-
-        const cardIds = [
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['common', 'uncommon', 'rare_plus']),
-            drawFromTiers(['uncommon', 'common']),
-            drawFromTiers(['rare_plus', 'uncommon', 'common'])
-        ].filter(Boolean);
-
-        return cardIds;
+        const inPack = (gameMeta?.lastPack?.cardIds || []).filter(id => id === cardId).length;
+        return Math.max(0, owned - inPack);
     }
 
     let openModalCount = 0;
@@ -2450,6 +2842,12 @@
             if (pauseButton && pauseButton.offsetParent !== null) {
                 return pauseButton;
             }
+        }
+
+        // The entry that opened the screen we just left, else NEW GAME
+        const returnButton = menuReturnTarget && document.querySelector(`#mainMenu [data-menu-target="${menuReturnTarget}"]`);
+        if (returnButton && returnButton.offsetParent !== null) {
+            return returnButton;
         }
 
         const mainMenuButton = document.querySelector('#mainMenu .menu-btn');
@@ -2618,6 +3016,85 @@
         }
     }
 
+    // The rest of a revealed card: keywords and rules, as in card details
+    function renderPackCardText(card) {
+        if (card.type === 'land') {
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            return `<p class="pack-card-rules">Tap to add ${colours.map(e => `${ELEMENTS[e]?.emoji || '◇'} ${ELEMENT_LABELS[e] || e}`).join(' or ')} mana</p>`;
+        }
+        if (card.type === 'creature') {
+            const keywords = (card.abilities || []).map(a => {
+                const rule = KEYWORD_RULES[a];
+                return `<span class="pack-card-keyword${a === 'flash' ? ' is-inactive' : ''}" title="${describeKeyword(a)}">${rule?.badge || ''} ${rule?.label || a}</span>`;
+            }).join('');
+            return (keywords ? `<div class="pack-card-keywords">${keywords}</div>` : '')
+                + `<p class="pack-card-flavour">${card.desc || ''}</p>`;
+        }
+        return `<p class="pack-card-rules">${describeEffect(card)}</p>`;
+    }
+
+    // NEW when you had none before this pack; otherwise how many you have now
+    function renderPackOwned(card) {
+        const before = getPackOwnedBefore(card.__id);
+        const now = gameMeta?.collection?.[card.__id] || 0;
+        return before === 0
+            ? `<span class="pack-new-badge">✨ NEW</span> <span>First copy</span>`
+            : `<span>You own ${now} <span class="pack-owned-before">(had ${before})</span></span>`;
+    }
+
+    function setPackStage(stage) {
+        packOpeningState.stage = stage;
+        const stages = { sealed: 'packSealedStage', opening: 'packSealedStage', reveal: 'packRevealStage', summary: 'packSummaryStage' };
+        ['packSealedStage', 'packRevealStage', 'packSummaryStage'].forEach(id => {
+            document.getElementById(id)?.classList.toggle('pack-stage-active', stages[stage] === id);
+        });
+    }
+
+    // The whole pack at a glance once the cards are revealed
+    function showPackSummary() {
+        if (packOpeningState.stage !== 'reveal' || !packOpeningState.cards.length) return;
+        setPackStage('summary');
+        const cards = packOpeningState.cards;
+        const grid = document.getElementById('packSummaryGrid');
+        grid.innerHTML = '';
+        cards.forEach((card, index) => {
+            const rarity = getCardRarity(card);
+            const isNew = getPackOwnedBefore(card.__id) === 0;
+            const owned = gameMeta?.collection?.[card.__id] || 0;
+            const li = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `pack-summary-card rarity-${rarity}${isNew ? ' is-new' : ''}`;
+            button.dataset.index = String(index);
+            const art = createCardRowArt(card);
+            art.classList.add('pack-summary-art');
+            button.appendChild(art);
+            const body = document.createElement('span');
+            body.className = 'pack-summary-body';
+            body.innerHTML = `<span class="pack-summary-name">${card.name}</span>`
+                + `<span class="pack-summary-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`
+                + `<span class="pack-summary-owned">${isNew ? '<span class="pack-new-badge">✨ NEW</span>' : `Own ${owned}`}</span>`;
+            button.appendChild(body);
+            button.setAttribute('aria-label', `${card.name}, ${RARITY_INFO[rarity].label}${isNew ? ', new' : `, you own ${owned}`}. Show this card`);
+            button.addEventListener('click', () => {
+                setPackStage('reveal');
+                setPackOpeningCard(index);
+                revealCurrentPackCard();
+                document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+            });
+            li.appendChild(button);
+            grid.appendChild(li);
+        });
+        const newCount = cards.filter(card => getPackOwnedBefore(card.__id) === 0).length;
+        const rank = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+        const best = cards.reduce((a, b) => (rank[getCardRarity(b)] > rank[getCardRarity(a)] ? b : a));
+        document.getElementById('packSummaryTitle').textContent = `Your ${cards.length} cards`;
+        document.getElementById('packSummaryStats').textContent =
+            `${newCount ? `${newCount} new to your collection` : 'No new cards: all duplicates'} · Best: ${best.name} (${RARITY_INFO[getCardRarity(best)].label})`;
+        document.getElementById('packDoneBtn')?.focus({ preventScroll: true });
+        updatePackOpeningDebug();
+    }
+
     function setPackOpeningCard(index) {
         if (!packOpeningState.cards.length) return;
 
@@ -2625,8 +3102,7 @@
         packOpeningState.currentIndex = boundedIndex;
 
         const card = packOpeningState.cards[boundedIndex];
-        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-        const rarity = validRarities.has(card?.__rarity) ? card.__rarity : 'common';
+        const rarity = getCardRarity(card);
         const packCardEmoji = document.getElementById('packCardEmoji');
         const packCardName = document.getElementById('packCardName');
         const packCardType = document.getElementById('packCardType');
@@ -2639,7 +3115,25 @@
         if (packCardEmoji) packCardEmoji.textContent = card.emoji || '✨';
         if (packCardName) packCardName.textContent = card.name || 'Unknown Card';
         if (packCardType) packCardType.textContent = card.cardType || card.type || '';
+        const packCardMeta = document.getElementById('packCardMeta');
+        if (packCardMeta) {
+            const parts = [`<span class="detail-tag detail-tag-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`];
+            if (card.type !== 'land') parts.push(`<span class="pack-card-cost">${renderCostPips(card.cost)}</span>`);
+            if (card.type === 'creature') parts.push(`<span class="card-power pack-card-power">${card.power}/${card.toughness}</span>`);
+            packCardMeta.innerHTML = parts.join('');
+        }
+        const packCardText = document.getElementById('packCardText');
+        if (packCardText) packCardText.innerHTML = renderPackCardText(card);
+        const packCardOwned = document.getElementById('packCardOwned');
+        if (packCardOwned) packCardOwned.innerHTML = renderPackOwned(card);
+        if (packViewport) {
+            applyCardIdentity(packViewport, card);
+            packViewport.dataset.rarity = rarity;
+            packViewport.classList.toggle('is-new', getPackOwnedBefore(card.__id) === 0);
+        }
         if (packCardCounter) packCardCounter.textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
+        const packSummaryBtn = document.getElementById('packSummaryBtn');
+        packSummaryBtn?.classList.toggle('is-ready', boundedIndex === packOpeningState.cards.length - 1);
         if (packPrevBtn) packPrevBtn.disabled = boundedIndex === 0;
         if (packNextBtn) packNextBtn.disabled = boundedIndex === packOpeningState.cards.length - 1;
 
@@ -2674,10 +3168,14 @@
     }
 
     function showPackRevealStage() {
-        packOpeningState.stage = 'reveal';
-        document.getElementById('packSealedStage').classList.remove('pack-stage-active');
-        document.getElementById('packRevealStage').classList.add('pack-stage-active');
+        const overlay = document.getElementById('packOpeningOverlay');
+        const focusWasOnSealed = document.getElementById('packSealedStage')?.contains(document.activeElement);
+        setPackStage('reveal');
         setPackOpeningCard(0);
+        // The OPEN PACK button is gone now: keep keyboard focus in the dialog
+        if (focusWasOnSealed || document.activeElement === document.body) {
+            if (overlay?.classList.contains('show')) document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+        }
         setTimeout(() => revealCurrentPackCard(), 200);
         updatePackOpeningDebug();
     }
@@ -2710,8 +3208,10 @@
 
             sealedStage?.classList.add('pack-stage-active');
             revealStage?.classList.remove('pack-stage-active');
+            document.getElementById('packSummaryStage')?.classList.remove('pack-stage-active');
             shell?.classList.remove('opened');
             if (instruction) instruction.textContent = 'Slide to rip open';
+            updatePackShopTiles();
             if (progress) progress.style.width = '0%';
             if (tearLine) tearLine.style.left = '0%';
 
@@ -2804,13 +3304,21 @@
             const progress = document.getElementById('packProgressFill');
             const tearLine = document.getElementById('packTearLine');
             const title = overlay.querySelector('.pack-opening-title');
-            const themeLabel = PACK_THEMES.find(theme => theme.key === gameMeta?.lastPack?.themeKey)?.label;
-            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : '🎁 Victory Pack';
+            const theme = getPackTheme(gameMeta?.lastPack?.themeKey);
+            const themeLabel = theme?.label;
+            if (title) title.textContent = source === 'shop' && themeLabel ? `🛒 ${themeLabel} Pack` : `🎁 Victory Pack${themeLabel ? ` · ${themeLabel}` : ''}`;
+            // The sealed pack wears its theme's art (styles.css "PACK SHOP")
+            overlay.dataset.theme = theme?.key || '';
+            const sealedEmoji = document.getElementById('packSealedEmoji');
+            if (sealedEmoji) sealedEmoji.textContent = theme?.icon || '📦';
+            const sealedLabel = document.getElementById('packSealedLabel');
+            if (sealedLabel) sealedLabel.textContent = themeLabel ? `${themeLabel} Pack` : 'Booster Pack';
 
             sealedStage.classList.add('pack-stage-active');
             revealStage.classList.remove('pack-stage-active');
+            document.getElementById('packSummaryStage')?.classList.remove('pack-stage-active');
             shell.classList.remove('opened');
-            instruction.textContent = 'Slide to rip open';
+            instruction.textContent = 'Slide across the pack to rip it open, or press OPEN PACK';
             progress.style.width = '0%';
             tearLine.style.left = '0%';
 
@@ -2872,6 +3380,19 @@
         closeBtn.addEventListener('click', () => {
             closePackOpeningOverlay();
         });
+
+        // Button alternatives to the gestures: open the pack, see all five cards, finish
+        document.getElementById('packOpenBtn')?.addEventListener('click', () => {
+            if (packOpeningState.active) triggerPackOpenAnimation();
+        });
+        document.getElementById('packSummaryBtn')?.addEventListener('click', () => showPackSummary());
+        document.getElementById('packSummaryBackBtn')?.addEventListener('click', () => {
+            setPackStage('reveal');
+            setPackOpeningCard(packOpeningState.currentIndex);
+            revealCurrentPackCard();
+            document.getElementById('packNextBtn')?.focus({ preventScroll: true });
+        });
+        document.getElementById('packDoneBtn')?.addEventListener('click', () => closePackOpeningOverlay());
 
         prevBtn.addEventListener('click', () => {
             setPackOpeningCard(packOpeningState.currentIndex - 1);
@@ -2941,6 +3462,7 @@
         gameState.matchFinalized = true;
 
         const normalizedResult = result === 'win' ? 'win' : 'loss';
+        recordHistory(normalizedResult === 'win' ? 'player' : 'enemy', normalizedResult === 'win' ? '🏆 Victory: the enemy is defeated' : '💀 Defeat');
 
         if (normalizedResult === 'win') {
             gameStats.wins++;
@@ -2964,9 +3486,7 @@
 
                     gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened + 1 : 1;
 
-                    cardIds.forEach(cardId => {
-                        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-                    });
+                    addPackToCollection(cardIds, openedAt);
 
                     gameMeta.lastPack = { themeKey, cardIds, openedAt };
                     metaSave(gameMeta);
@@ -3085,14 +3605,28 @@
                 particles.push(new Particle(x, y, color));
             }
         }
+        startParticleLoop();
     }
 
-    // Performance: Use requestAnimationFrame more efficiently
+    // Performance: Use requestAnimationFrame more efficiently. The loop runs only while particles are alive;
+    // it used to clear the full-screen canvas 60 times a second forever, menus included.
     let lastParticleFrame = 0;
     const particleFPS = 60;
     const particleFrameInterval = 1000 / particleFPS;
+    let particleLoopRunning = false;
+
+    function startParticleLoop() {
+        if (particleLoopRunning) return;
+        particleLoopRunning = true;
+        requestAnimationFrame(animateParticles);
+    }
 
     function animateParticles(currentTime) {
+        if (!particles.length) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particleLoopRunning = false;
+            return;
+        }
         requestAnimationFrame(animateParticles);
 
         // Throttle particle updates for better performance
@@ -3110,8 +3644,6 @@
             p.draw();
         });
     }
-
-    animateParticles(0);
 
     // Game Log System
     // One message at a time. A message shown with `hold` (combat reports) stays up for that long; messages
@@ -3164,6 +3696,363 @@
 
     // After combat: who blocked whom and what died, in one message (blocks are automatic, so this is the
     // only place the player sees them).
+    // ---- Match history: a bounded record of what happened this match, for review after the temporary messages
+    // are gone. Events are recorded once, where the game acts (never while rendering), and only say what both
+    // players can see: cards are named once they are played, revealed or in a graveyard; draws are counted.
+    const MATCH_HISTORY_LIMIT = 80;
+    let matchHistory = [];
+    let matchHistorySeq = 0;
+    let matchHistoryDropped = 0;
+    let matchHistoryUnread = 0;
+
+    const cardLabel = card => `${card.emoji} ${card.name}`;
+    const sideName = side => (side === 'player' ? 'You' : 'Enemy');
+
+    function resetMatchHistory() {
+        matchHistory = [];
+        matchHistorySeq = 0;
+        matchHistoryDropped = 0;
+        matchHistoryUnread = 0;
+        updateHistoryButton();
+    }
+
+    function recordHistory(side, text, details = []) {
+        matchHistory.push({ seq: ++matchHistorySeq, round: gameState.round || 1, side, text, details: details.filter(Boolean) });
+        if (matchHistory.length > MATCH_HISTORY_LIMIT) {
+            matchHistoryDropped += matchHistory.length - MATCH_HISTORY_LIMIT;
+            matchHistory.splice(0, matchHistory.length - MATCH_HISTORY_LIMIT);
+        }
+        const modal = document.getElementById('historyModal');
+        if (modal?.classList.contains('show')) {
+            renderMatchHistory();
+        } else {
+            matchHistoryUnread++;
+        }
+        updateHistoryButton();
+    }
+
+    // What is visible before an action, so its results can be described afterwards
+    function snapshotForHistory() {
+        const board = list => new Map(list.map(c => [c.id, { card: c, power: c.power, toughness: c.toughness, tapped: !!c.tapped }]));
+        return {
+            life: { player: gameState.playerLife, enemy: gameState.enemyLife },
+            boards: { player: board(gameState.playerBoard), enemy: board(gameState.enemyBoard) },
+            hands: { player: gameState.playerHand.length, enemy: gameState.enemyHand.length },
+            graves: { player: gameState.playerGraveyard.length, enemy: gameState.enemyGraveyard.length }
+        };
+    }
+
+    // The visible results of an action since a snapshot: life, cards destroyed, returned to hand, created or
+    // changed, cards drawn (counted) and discarded (named: the graveyard is public). playedFrom: the side whose
+    // hand the action's own card came from, and that card's id, so playing it isn't reported twice.
+    function describeChangesSince(snap, { playedFrom = null, playedId = null } = {}) {
+        const out = [];
+        ['player', 'enemy'].forEach(side => {
+            const now = side === 'player' ? gameState.playerLife : gameState.enemyLife;
+            if (now !== snap.life[side]) out.push(`${sideName(side)}: ❤️ ${snap.life[side]} → ${now}`);
+        });
+        ['player', 'enemy'].forEach(side => {
+            const board = side === 'player' ? gameState.playerBoard : gameState.enemyBoard;
+            const hand = side === 'player' ? gameState.playerHand : gameState.enemyHand;
+            const grave = side === 'player' ? gameState.playerGraveyard : gameState.enemyGraveyard;
+            const owner = side === 'player' ? '' : 'enemy ';
+            const ids = new Set(board.map(c => c.id));
+            snap.boards[side].forEach(({ card }, id) => {
+                if (ids.has(id) || card.type === 'land') return;
+                if (hand.some(c => c.id === id)) out.push(`↩️ ${owner}${cardLabel(card)} returns to hand`);
+                else if (card.type === 'artifact') out.push(`⚙️ ${owner}${cardLabel(card)} is used up`);
+                else out.push(`💀 ${owner}${cardLabel(card)} is destroyed`);
+            });
+            board.forEach(card => {
+                const before = snap.boards[side].get(card.id);
+                if (!before) {
+                    if (card.id !== playedId && card.type !== 'land') out.push(`✨ ${owner}${cardLabel(card)} enters the battlefield`);
+                    return;
+                }
+                if (card.type === 'creature' && (card.power !== before.power || card.toughness !== before.toughness)) {
+                    out.push(`${owner}${cardLabel(card)} becomes ${card.power}/${card.toughness}`);
+                }
+                if (card.type === 'creature' && card.tapped && !before.tapped) out.push(`${owner}${cardLabel(card)} is tapped`);
+            });
+            const handChange = hand.length - (snap.hands[side] - (playedFrom === side ? 1 : 0));
+            const graveGain = grave.length - snap.graves[side];
+            if (handChange > 0) out.push(`${sideName(side)} ${side === 'player' ? 'draw' : 'draws'} ${handChange} card${handChange === 1 ? '' : 's'}`);
+            if (handChange < 0 && graveGain > 0) {
+                const discarded = grave.slice(-Math.min(graveGain, -handChange)).map(cardLabel).join(', ');
+                out.push(`${sideName(side)} ${side === 'player' ? 'discard' : 'discards'} ${discarded}`);
+            }
+        });
+        return out;
+    }
+
+    // One attacker's combat, in words. Used for the live result (history, from the real totals) and for the
+    // preview (from previewCombat), so both read the same way.
+    function describeCombatPair({ attacker, blockers, attackerDies, blockersDie, lifeChange }, isPlayerAttacking) {
+        const defender = isPlayerAttacking ? 'enemy' : 'player';
+        const attackerSide = isPlayerAttacking ? 'player' : 'enemy';
+        const parts = [];
+        if (blockers.length) {
+            parts.push(`blocked by ${blockers.map(cardLabel).join(' + ')}`);
+            const dead = blockers.filter(b => blockersDie.includes(b.id));
+            if (dead.length) parts.push(`${dead.map(b => b.name).join(' and ')} ${dead.length === 1 ? 'dies' : 'die'}`);
+            parts.push(attackerDies ? `${attacker.name} dies` : `${attacker.name} survives`);
+        } else {
+            parts.push('unblocked');
+        }
+        if (lifeChange[defender]) parts.push(`${sideName(defender)} ❤️ ${lifeChange[defender] > 0 ? '+' : ''}${lifeChange[defender]}`);
+        if (lifeChange[attackerSide]) parts.push(`${sideName(attackerSide)} ❤️ ${lifeChange[attackerSide] > 0 ? '+' : ''}${lifeChange[attackerSide]}`);
+        return `${cardLabel(attacker)}: ${parts.join(' · ')}`;
+    }
+
+    // Resolves one side's attack with the live rules, recording each attacker's real result once
+    function resolveAttackersWithHistory(attackers, blockersFor, isPlayerAttacking) {
+        const results = attackers.map(attacker => {
+            const blockers = blockersFor(attacker);
+            const before = { player: gameState.playerLife, enemy: gameState.enemyLife };
+            if (!hasAbility(attacker, 'vigilance')) {
+                attacker.tapped = true;
+            }
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, isPlayerAttacking);
+            } else {
+                dealUnblockedDamage(attacker, isPlayerAttacking);
+            }
+            return { attacker, blockers, lifeChange: { player: gameState.playerLife - before.player, enemy: gameState.enemyLife - before.enemy } };
+        });
+        checkStateBasedActions();
+        const alive = new Set([...gameState.playerBoard, ...gameState.enemyBoard].map(c => c.id));
+        const side = isPlayerAttacking ? 'player' : 'enemy';
+        const details = results.map(r => describeCombatPair({
+            ...r,
+            attackerDies: !alive.has(r.attacker.id),
+            blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id)
+        }, isPlayerAttacking));
+        recordHistory(side, `⚔️ ${sideName(side)} ${isPlayerAttacking ? 'attack' : 'attacks'} with ${attackers.length} creature${attackers.length === 1 ? '' : 's'}`, details);
+        return results;
+    }
+
+    // Why a hand card can't be played right now, or null. The same checks playCard makes, in the same order.
+    function getPlayRestriction(card) {
+        if (!card) return null;
+        if (gameState.matchFinalized) return { code: 'over', text: 'The match is over' };
+        if (gameState.turn !== 'player' || gameState.phase === 'enemy') return { code: 'turn', text: "Wait for your turn" };
+        if (card.type === 'land') {
+            return gameState.landsPlayedThisTurn >= 1 ? { code: 'land', text: 'One land per turn: you have played one' } : null;
+        }
+        if (canPayCost(card.cost || {}, gameState.playerMana)) return null;
+        const missing = getMissingMana(card.cost || {}, gameState.playerMana);
+        const untapped = gameState.playerBoard.filter(c => c.type === 'land' && !c.tapped).length;
+        const need = Object.entries(missing).map(([el, n]) => `${n} ${ELEMENTS[el]?.emoji || '◇'}`).join(' + ') || 'more mana';
+        return { code: 'mana', text: `Needs ${need} more in your mana pool${untapped ? ` (${untapped} untapped land${untapped === 1 ? '' : 's'})` : ''}` };
+    }
+
+    // What canPayCost finds short: coloured mana first (colourless in the pool can stand in), then the generic part
+    function getMissingMana(cost, mana) {
+        const missing = {};
+        let spareColorless = mana.colorless || 0;
+        let paid = 0;
+        Object.entries(cost).forEach(([element, required]) => {
+            if (element === 'colorless') return;
+            const available = mana[element] || 0;
+            const fromColour = Math.min(required, available);
+            const fromColorless = Math.min(required - fromColour, spareColorless);
+            spareColorless -= fromColorless;
+            paid += fromColour + fromColorless;
+            if (required - fromColour - fromColorless > 0) missing[element] = required - fromColour - fromColorless;
+        });
+        const total = Object.values(mana).reduce((sum, n) => sum + (n || 0), 0);
+        const generic = cost.colorless || 0;
+        const genericShort = generic - Math.max(0, total - paid);
+        if (genericShort > 0) missing.colorless = genericShort;
+        return missing;
+    }
+
+    // ---- Turn banner and AI status (what the AI is doing, in words; never what is in its hand)
+    let aiStatusText = '';
+
+    function setAiStatus(text) {
+        aiStatusText = text;
+        updateTurnBanner();
+    }
+
+    function updateTurnBanner() {
+        const banner = document.getElementById('turnBanner');
+        if (!banner) return;
+        const enemyTurn = gameState.turn === 'enemy' || gameState.phase === 'enemy';
+        const turn = enemyTurn ? 'enemy' : 'player';
+        let phase;
+        if (gameState.matchFinalized) phase = 'Match over';
+        else if (enemyTurn) phase = aiStatusText || 'Thinking…';
+        else if (attackPhase) phase = 'Choose attackers';
+        else phase = gameState.hasAttackedThisTurn ? 'Main phase · attacked' : 'Main phase';
+        const label = enemyTurn ? '🤖 Enemy turn' : '⚔️ Your turn';
+        const text = `${label} · ${phase}`;
+        if (banner.dataset.turn !== turn) {
+            banner.dataset.turn = turn;
+            banner.classList.remove('turn-changed');
+            void banner.offsetWidth;
+            banner.classList.add('turn-changed');
+        }
+        banner.querySelector('.turn-banner-round').textContent = `Turn ${gameState.round || 1}`;
+        const textEl = banner.querySelector('.turn-banner-text');
+        if (textEl.textContent !== text) textEl.textContent = text;
+    }
+
+    // ---- Attack preview. Kept outside gameState and recomputed (previewCombat) only when something it depends on
+    // changes: the chosen attackers, any creature's stats, damage, tapped state or keywords, or a life total.
+    let combatPreviewState = { key: '', preview: null };
+
+    function combatPreviewKey() {
+        const creature = c => [c.id, c.power, c.toughness, c.damage || 0, c.tapped ? 1 : 0, (c.abilities || []).join('+')].join(':');
+        const creatures = board => board.filter(c => c.type === 'creature').map(creature);
+        return JSON.stringify([gameState.attackers, creatures(gameState.playerBoard), creatures(gameState.enemyBoard), gameState.playerLife, gameState.enemyLife]);
+    }
+
+    function refreshCombatPreview() {
+        if (!attackPhase || gameState.turn !== 'player' || gameState.matchFinalized) {
+            combatPreviewState = { key: '', preview: null };
+            return null;
+        }
+        const key = combatPreviewKey();
+        if (key !== combatPreviewState.key) {
+            const attackers = gameState.attackers.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
+            combatPreviewState = { key, preview: attackers.length ? previewCombat(attackers, gameState.enemyBoard, true) : null };
+        }
+        return combatPreviewState.preview;
+    }
+
+    // Marks a card with its predicted part in the attack (✓ survives, ☠ dies, 🛡 blocks); returns words for its name
+    function markPreviewOutcome(cardEl, cardId) {
+        const preview = combatPreviewState.preview;
+        if (!preview) return '';
+        const asAttacker = preview.pairs.find(p => p.attackerId === cardId);
+        const asBlocker = preview.pairs.find(p => p.blockerIds.includes(cardId));
+        if (!asAttacker && !asBlocker) return '';
+        const dies = asAttacker ? asAttacker.attackerDies : asBlocker.blockersDie.includes(cardId);
+        const mark = document.createElement('div');
+        mark.className = `preview-mark ${dies ? 'preview-dies' : 'preview-survives'}`;
+        mark.textContent = asBlocker ? (dies ? '🛡☠' : '🛡') : (dies ? '☠' : '✓');
+        mark.setAttribute('aria-hidden', 'true');
+        cardEl.appendChild(mark);
+        cardEl.classList.add(asBlocker ? 'preview-blocker' : 'preview-attacker');
+        if (asBlocker) {
+            const attacker = gameState.playerBoard.find(c => c.id === asBlocker.attackerId);
+            return `, preview: blocks ${attacker?.name || 'an attacker'}${dies ? ' and dies' : ''}`;
+        }
+        return dies ? ', preview: dies' : ', preview: survives';
+    }
+
+    function renderCombatPreviewPanel() {
+        const panel = document.getElementById('combatPreview');
+        if (!panel) return;
+        const active = attackPhase && gameState.turn === 'player' && !gameState.matchFinalized;
+        panel.hidden = !active;
+        if (!active) {
+            panel.dataset.previewKey = '';
+            return;
+        }
+        if (panel.dataset.previewKey === combatPreviewState.key) return;
+        panel.dataset.previewKey = combatPreviewState.key;
+        const summary = panel.querySelector('.combat-preview-summary');
+        const list = panel.querySelector('.combat-preview-list');
+        const preview = combatPreviewState.preview;
+        list.innerHTML = '';
+        if (!preview) {
+            summary.textContent = 'Tap creatures to attack. Blocks are automatic: each attacker meets the toughest creature that can block it.';
+            panel.classList.remove('has-preview');
+            return;
+        }
+        panel.classList.add('has-preview');
+        const find = id => [...gameState.playerBoard, ...gameState.enemyBoard].find(c => c.id === id);
+        const lost = board => preview.deaths.filter(id => board.some(c => c.id === id)).length;
+        const parts = [`Enemy ❤️ ${gameState.enemyLife} → ${preview.life.enemy}`];
+        if (preview.life.player !== gameState.playerLife) parts.push(`You ❤️ ${gameState.playerLife} → ${preview.life.player}`);
+        parts.push(`Enemy loses ${lost(gameState.enemyBoard)}`, `You lose ${lost(gameState.playerBoard)}`);
+        if (preview.result === 'win') parts.push('🏆 Wins the match');
+        summary.textContent = parts.join(' · ');
+        preview.pairs.forEach(pair => {
+            const item = document.createElement('li');
+            item.textContent = describeCombatPair({
+                attacker: find(pair.attackerId),
+                blockers: pair.blockerIds.map(find).filter(Boolean),
+                attackerDies: pair.attackerDies,
+                blockersDie: pair.blockersDie,
+                lifeChange: pair.lifeChange
+            }, true);
+            list.appendChild(item);
+        });
+    }
+
+    // ---- Match history dialog
+    function updateHistoryButton() {
+        const button = document.getElementById('historyBtn');
+        const badge = document.getElementById('historyBadge');
+        if (!button || !badge) return;
+        badge.hidden = matchHistoryUnread === 0;
+        badge.textContent = matchHistoryUnread > 9 ? '9+' : String(matchHistoryUnread);
+        button.setAttribute('aria-label', matchHistoryUnread ? `Match history, ${matchHistoryUnread} new` : 'Match history');
+    }
+
+    function renderMatchHistory() {
+        const list = document.getElementById('historyList');
+        const note = document.getElementById('historyNote');
+        if (!list) return;
+        list.innerHTML = '';
+        let round = null;
+        matchHistory.forEach(entry => {
+            if (entry.round !== round) {
+                round = entry.round;
+                const heading = document.createElement('li');
+                heading.className = 'history-round';
+                heading.textContent = `Turn ${round}`;
+                list.appendChild(heading);
+            }
+            const item = document.createElement('li');
+            item.className = `history-item history-${entry.side}`;
+            const text = document.createElement('div');
+            text.className = 'history-text';
+            text.textContent = entry.text;
+            item.appendChild(text);
+            if (entry.details.length) {
+                const details = document.createElement('ul');
+                details.className = 'history-details';
+                entry.details.forEach(line => {
+                    const li = document.createElement('li');
+                    li.textContent = line;
+                    details.appendChild(li);
+                });
+                item.appendChild(details);
+            }
+            list.appendChild(item);
+        });
+        if (!matchHistory.length) {
+            const empty = document.createElement('li');
+            empty.className = 'history-item';
+            empty.textContent = 'Nothing has happened yet.';
+            list.appendChild(empty);
+        }
+        if (note) {
+            note.textContent = matchHistoryDropped
+                ? `The last ${MATCH_HISTORY_LIMIT} events of this match (${matchHistoryDropped} older not kept).`
+                : `Everything that happened this match, oldest first (up to ${MATCH_HISTORY_LIMIT} events).`;
+        }
+        const scroller = document.getElementById('historyScroll');
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    }
+
+    function showMatchHistory() {
+        if (document.getElementById('gameContainer').style.display !== 'flex') return;
+        matchHistoryUnread = 0;
+        updateHistoryButton();
+        renderMatchHistory();
+        playSFX('menuOpen');
+        document.getElementById('historyModal').classList.add('show');
+    }
+
+    function hideMatchHistory() {
+        document.getElementById('historyModal').classList.remove('show');
+    }
+
     function reportCombat(pairs, attackerSide) {
         if (!pairs.length) return;
         const alive = card => [...gameState.playerBoard, ...gameState.enemyBoard].some(c => c.id === card.id);
@@ -3229,6 +4118,8 @@
         playSFX('menuOpen');
         setStartMenuScreen('elementSelectionScreen');
         resetElementSelection();
+        restoreSavedDeckSelection();
+        syncDifficultyUI();
     }
 
     function setHowToPlayPage(n) {
@@ -3276,8 +4167,173 @@
     function updatePackShopCreditsBadge() {
         const creditsEl = document.getElementById('shopCreditsBadge');
         if (!creditsEl) return;
-        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const credits = getShopCredits();
         creditsEl.textContent = `💳 Credits: ${credits}`;
+        updatePackShopTiles();
+    }
+
+    const getShopCredits = () => (Number.isFinite(gameMeta?.wallet?.credits) ? Math.max(0, Math.floor(gameMeta.wallet.credits)) : 0);
+    const getPackTheme = themeKey => PACK_THEMES.find(theme => theme.key === themeKey) || null;
+    const formatPackChance = p => `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
+
+    // "3 × Common · 1 × Rare · 1 × Epic/Legendary", from the same slot plan generatePack uses
+    function describePackSlotsShort(themeKey) {
+        return describePackSlots(themeKey).slots.map(slot => `${slot.count} × ${slot.label}`).join(' · ');
+    }
+
+    // A few of a pack's rarest cards for its art, without repeating an emoji
+    function getPackArtSample(themeKey, count = 4) {
+        const order = { 'epic+': 0, rare: 1, common: 2 };
+        const seen = new Set();
+        return getThemePool(themeKey)
+            .slice()
+            .sort((a, b) => order[packTierOf(a)] - order[packTierOf(b)])
+            .filter(card => !seen.has(card.emoji) && seen.add(card.emoji))
+            .slice(0, count)
+            .map(card => card.emoji);
+    }
+
+    // The shop tiles are built once; prices, affordability and owned counts are refreshed in place so focus
+    // stays on the button that was pressed.
+    function renderPackShop() {
+        const grid = document.getElementById('packShopGrid');
+        if (!grid) return;
+        if (!grid.children.length) {
+            PACK_THEMES.forEach(theme => {
+                const key = theme.key;
+                const cost = PACK_SHOP_COSTS[key];
+                const tile = document.createElement('article');
+                tile.className = 'shop-pack';
+                tile.dataset.theme = key;
+                tile.setAttribute('aria-labelledby', `shopPackName-${key}`);
+                tile.innerHTML = `
+                    <div class="shop-pack-art" aria-hidden="true">
+                        <span class="shop-pack-art-icon">${theme.icon}</span>
+                        <span class="shop-pack-art-strip">${getPackArtSample(key).map(e => `<span>${e}</span>`).join('')}</span>
+                    </div>
+                    <div class="shop-pack-body">
+                        <div class="shop-pack-head">
+                            <h3 class="shop-pack-name" id="shopPackName-${key}">${theme.label} Pack</h3>
+                            <span class="shop-pack-price" id="shopPackPrice-${key}" aria-label="Price: ${cost} credits">💳 ${cost}</span>
+                        </div>
+                        <p class="shop-pack-tagline">${theme.tagline}</p>
+                        <p class="shop-pack-slots">${describePackSlotsShort(key)}</p>
+                        <p class="shop-pack-owned" data-role="owned"></p>
+                        <div class="shop-pack-actions">
+                            <button type="button" class="menu-btn shop-pack-btn" data-theme="${key}" aria-describedby="shopPackPrice-${key} shopPackAfford-${key}"></button>
+                            <button type="button" class="shop-pack-info" data-theme="${key}" aria-haspopup="dialog">What’s inside</button>
+                        </div>
+                        <p class="shop-pack-afford" id="shopPackAfford-${key}" data-role="afford"></p>
+                    </div>`;
+                tile.querySelector('.shop-pack-btn').addEventListener('click', () => purchasePack(key));
+                tile.querySelector('.shop-pack-info').addEventListener('click', () => showPackContents(key));
+                grid.appendChild(tile);
+            });
+        }
+        updatePackShopTiles();
+    }
+
+    function updatePackShopTiles() {
+        const grid = document.getElementById('packShopGrid');
+        if (!grid || !grid.children.length) return;
+        const credits = getShopCredits();
+        const collection = gameMeta?.collection || {};
+        grid.querySelectorAll('.shop-pack').forEach(tile => {
+            const key = tile.dataset.theme;
+            const theme = getPackTheme(key);
+            const cost = PACK_SHOP_COSTS[key];
+            const pool = getThemePool(key);
+            const owned = pool.filter(card => (collection[card.__id] || 0) > 0).length;
+            const affordable = credits >= cost;
+            const buy = tile.querySelector('.shop-pack-btn');
+            tile.classList.toggle('is-unaffordable', !affordable);
+            buy.textContent = affordable ? `BUY · 💳 ${cost}` : `NEED ${cost - credits} MORE`;
+            buy.setAttribute('aria-label', affordable ? `Buy ${theme.label} Pack for ${cost} credits` : `${theme.label} Pack: you need ${cost - credits} more credits`);
+            // Still pressable when short of credits: pressing says how many more are needed
+            buy.classList.toggle('is-unaffordable', !affordable);
+            tile.querySelector('[data-role="owned"]').textContent = `${pool.length} cards · you have ${owned}`;
+            tile.querySelector('[data-role="afford"]').textContent = affordable
+                ? `You have 💳 ${credits}`
+                : `You have 💳 ${credits} of ${cost}. Win or play matches to earn more.`;
+        });
+    }
+
+    // ---- What's inside a pack: every card it can contain, grouped by rarity tier, with exact odds
+    let packContentsTheme = null;
+
+    function renderPackContents(themeKey) {
+        const theme = getPackTheme(themeKey);
+        if (!theme) return false;
+        const odds = getPackOdds(themeKey);
+        const { notes } = describePackSlots(themeKey);
+        const collection = gameMeta?.collection || {};
+        const cost = PACK_SHOP_COSTS[themeKey];
+        const credits = getShopCredits();
+
+        document.getElementById('packContentsTitle').textContent = `${theme.icon} ${theme.label} Pack`;
+        const chances = ['common', 'rare', 'epic+']
+            .filter(tier => odds.counts[tier])
+            .map(tier => `<li><span class="pack-odds-tier tier-${tier.replace('+', 'plus')}">${PACK_TIER_LABELS[tier]}</span>: ${odds.counts[tier]} card${odds.counts[tier] === 1 ? '' : 's'}, each in <strong>${formatPackChance(odds.perCard[tier])}</strong> of packs</li>`)
+            .join('');
+        document.getElementById('packContentsSummary').innerHTML = `
+            <p class="pack-contents-tagline">${theme.tagline}.</p>
+            <p><strong>${odds.pool.length} cards</strong> can be in this pack. Each pack has ${PACK_SIZE} different cards: ${describePackSlotsShort(themeKey)}.</p>
+            <ul class="pack-odds">${chances}</ul>
+            ${notes.map(note => `<p class="pack-contents-note">${note}</p>`).join('')}`;
+
+        const order = ['epic+', 'rare', 'common'];
+        const list = document.getElementById('packContentsList');
+        list.innerHTML = '';
+        order.forEach(tier => {
+            const cards = odds.pool.filter(card => packTierOf(card) === tier);
+            if (!cards.length) return;
+            const section = document.createElement('section');
+            section.className = 'pack-contents-group';
+            section.innerHTML = `<h3 class="pack-contents-heading">${PACK_TIER_LABELS[tier]} <span>(${cards.length})</span></h3>`;
+            const ul = document.createElement('ul');
+            ul.className = 'pack-contents-rows';
+            cards.forEach(card => {
+                const n = collection[card.__id] || 0;
+                const li = document.createElement('li');
+                li.className = `pack-contents-row${n ? '' : ' is-unowned'}`;
+                li.dataset.cardId = card.__id;
+                li.appendChild(createCardRowArt(card));
+                const body = document.createElement('span');
+                body.className = 'pack-contents-body';
+                body.innerHTML = `<span class="pack-contents-name">${card.name}</span><span class="card-row-meta">${renderCardRowMeta(card)}</span>`;
+                li.appendChild(body);
+                const ownedEl = document.createElement('span');
+                ownedEl.className = 'pack-contents-owned';
+                ownedEl.textContent = n ? `Owned ×${n}` : 'Not owned';
+                li.appendChild(ownedEl);
+                ul.appendChild(li);
+            });
+            section.appendChild(ul);
+            list.appendChild(section);
+        });
+
+        const buy = document.getElementById('packContentsBuyBtn');
+        const affordable = credits >= cost;
+        buy.textContent = affordable ? `BUY · 💳 ${cost}` : `NEED ${cost - credits} MORE CREDITS`;
+        buy.classList.toggle('is-unaffordable', !affordable);
+        buy.onclick = () => {
+            hidePackContents();
+            purchasePack(themeKey);
+        };
+        return true;
+    }
+
+    function showPackContents(themeKey) {
+        if (!renderPackContents(themeKey)) return;
+        packContentsTheme = themeKey;
+        playSFX('menuOpen');
+        document.getElementById('packContentsScroll').scrollTop = 0;
+        document.getElementById('packContentsModal').classList.add('show');
+    }
+
+    function hidePackContents() {
+        packContentsTheme = null;
+        document.getElementById('packContentsModal')?.classList.remove('show');
     }
 
     function setPackShopMessage(message = '', type = '') {
@@ -3293,8 +4349,9 @@
     function showPackShop() {
         playSFX('menuOpen');
         setStartMenuScreen('packShopScreen');
+        renderPackShop();
         updatePackShopCreditsBadge();
-        setPackShopMessage('Choose a themed pack to buy with credits.');
+        setPackShopMessage('Choose a pack to buy with credits.');
     }
 
     function hidePackShop() {
@@ -3303,48 +4360,201 @@
         focusSafeElement();
     }
 
+    // ---- Card lists: search, combinable filters and sorting shared by the Binder and the Deck Builder pool.
+    // Filters only change what is shown; they never touch the collection or a deck being edited.
+    const CARD_FILTER_OPTIONS = {
+        element: [['all', 'All elements'], ['fire', '🔥 Fire'], ['water', '💧 Water'], ['earth', '🌍 Earth'], ['swamp', '💀 Swamp'],
+            ['light', '☀️ Light'], ['multicolor', 'Two or more colours'], ['colorless', '◇ Colorless']],
+        type: [['all', 'All types'], ['creature', '🐾 Creatures'], ['instant', '✨ Instants'], ['artifact', '⚙️ Artifacts'], ['land', '⛰️ Lands']],
+        cost: [['all', 'Any cost'], ['0', 'Cost 0'], ['1', 'Cost 1'], ['2', 'Cost 2'], ['3', 'Cost 3'], ['4', 'Cost 4'], ['5', 'Cost 5'], ['6+', 'Cost 6+']],
+        rarity: [['all', 'Any rarity'], ['common', '● Common'], ['rare', '◆ Rare'], ['epic', '⬢ Epic'], ['legendary', '★ Legendary']],
+        sort: [['name', 'Sort: name'], ['cost', 'Sort: mana value'], ['rarity', 'Sort: rarest first'], ['type', 'Sort: type'], ['owned', 'Sort: most owned']]
+    };
+    const CARD_OWNED_OPTIONS = {
+        binderFilters: [['all', 'All cards'], ['owned', 'Owned'], ['unowned', 'Not owned']],
+        deckBuilderFilters: [['owned', 'Owned cards'], ['all', 'All legal cards'], ['unowned', 'Not owned']]
+    };
+    const CARD_FILTER_DEFAULTS = {
+        binderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'all', sort: 'name' },
+        deckBuilderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'owned', sort: 'name' }
+    };
+    const cardFilterState = {
+        binderFilters: { ...CARD_FILTER_DEFAULTS.binderFilters },
+        deckBuilderFilters: { ...CARD_FILTER_DEFAULTS.deckBuilderFilters }
+    };
+    const CARD_TYPE_ORDER = ['creature', 'instant', 'artifact', 'land'];
+
+    const getCardManaValue = card => Object.values(card?.cost || {}).reduce((sum, n) => sum + n, 0);
+
+    function cardMatchesFilters(card, filters, ownedCount) {
+        const identity = getCardIdentity(card);
+        if (filters.query) {
+            const keywords = (card.abilities || []).map(a => KEYWORD_RULES[a]?.label || a).join(' ');
+            if (!`${card.name} ${card.desc || ''} ${keywords}`.toLowerCase().includes(filters.query.toLowerCase())) return false;
+        }
+        if (filters.element === 'multicolor' && identity.length < 2) return false;
+        if (filters.element !== 'all' && filters.element !== 'multicolor' && !identity.includes(filters.element)) return false;
+        if (filters.type !== 'all' && card.type !== filters.type) return false;
+        if (filters.cost !== 'all') {
+            const mv = getCardManaValue(card);
+            if (filters.cost === '6+' ? mv < 6 : mv !== Number(filters.cost)) return false;
+        }
+        if (filters.rarity !== 'all' && getCardRarity(card) !== filters.rarity) return false;
+        if (filters.owned === 'owned' && ownedCount <= 0) return false;
+        if (filters.owned === 'unowned' && ownedCount > 0) return false;
+        return true;
+    }
+
+    function sortCardsForList(cards, sort, ownedOf) {
+        const byName = (a, b) => (a.name || '').localeCompare(b.name || '') || a.__id.localeCompare(b.__id);
+        const compare = {
+            name: byName,
+            cost: (a, b) => getCardManaValue(a) - getCardManaValue(b) || byName(a, b),
+            rarity: (a, b) => CARD_RARITIES.indexOf(getCardRarity(b)) - CARD_RARITIES.indexOf(getCardRarity(a)) || byName(a, b),
+            type: (a, b) => CARD_TYPE_ORDER.indexOf(a.type) - CARD_TYPE_ORDER.indexOf(b.type) || byName(a, b),
+            owned: (a, b) => ownedOf(b) - ownedOf(a) || byName(a, b)
+        }[sort] || byName;
+        return [...cards].sort(compare);
+    }
+
+    // Builds the search box and selects once; afterwards it only syncs their values with the state.
+    function buildCardFilterBar(scopeId, onChange) {
+        const container = document.getElementById(scopeId);
+        if (!container) return;
+        const filters = cardFilterState[scopeId];
+        if (!container.dataset.built) {
+            container.dataset.built = 'true';
+            const search = document.createElement('input');
+            search.type = 'search';
+            search.className = 'card-filter-search';
+            search.dataset.filter = 'query';
+            search.placeholder = 'Search names, text, keywords';
+            search.setAttribute('aria-label', 'Search cards');
+            search.addEventListener('input', () => { filters.query = search.value.trim(); container.onFilterChange?.(); });
+            container.appendChild(search);
+            // The selects fold away on narrow screens (search stays visible); open by default elsewhere
+            const more = document.createElement('details');
+            more.className = 'card-filter-more';
+            more.open = !window.matchMedia('(max-width: 519px)').matches;
+            const summary = document.createElement('summary');
+            summary.className = 'card-filter-summary';
+            summary.textContent = 'Filters & sort';
+            more.appendChild(summary);
+            const selects = document.createElement('div');
+            selects.className = 'card-filter-selects';
+            const fields = { element: 'Element', type: 'Card type', cost: 'Mana value', rarity: 'Rarity', owned: 'Ownership', sort: 'Sort order' };
+            Object.entries(fields).forEach(([name, label]) => {
+                const select = document.createElement('select');
+                select.dataset.filter = name;
+                select.setAttribute('aria-label', label);
+                const options = name === 'owned' ? CARD_OWNED_OPTIONS[scopeId] : CARD_FILTER_OPTIONS[name];
+                options.forEach(([value, text]) => select.add(new Option(text, value)));
+                select.addEventListener('change', () => { filters[name] = select.value; container.onFilterChange?.(); });
+                selects.appendChild(select);
+            });
+            const reset = document.createElement('button');
+            reset.type = 'button';
+            reset.className = 'card-filter-reset';
+            reset.textContent = 'Clear';
+            reset.setAttribute('aria-label', 'Clear search and filters');
+            reset.addEventListener('click', () => resetCardFilters(scopeId));
+            selects.appendChild(reset);
+            more.appendChild(selects);
+            container.appendChild(more);
+        }
+        container.onFilterChange = onChange;
+        container.querySelectorAll('[data-filter]').forEach(el => { el.value = filters[el.dataset.filter]; });
+        const active = Object.entries(filters).filter(([k, v]) => !['sort', 'query'].includes(k) && v !== CARD_FILTER_DEFAULTS[scopeId][k]).length;
+        container.classList.toggle('is-filtered', active > 0 || !!filters.query);
+        const summary = container.querySelector('.card-filter-summary');
+        if (summary) summary.textContent = active ? `Filters & sort (${active} on)` : 'Filters & sort';
+    }
+
+    function resetCardFilters(scopeId) {
+        Object.assign(cardFilterState[scopeId], CARD_FILTER_DEFAULTS[scopeId]);
+        const container = document.getElementById(scopeId);
+        container?.querySelectorAll('[data-filter]').forEach(el => { el.value = cardFilterState[scopeId][el.dataset.filter]; });
+        container?.onFilterChange?.();
+    }
+
+    // One-line card preview for list rows: cost pips, type, power/toughness and rarity, from the face helpers
+    function renderCardRowMeta(card) {
+        const type = CARD_TYPE_INFO[card.type];
+        const rarity = getCardRarity(card);
+        const parts = [];
+        if (card.type !== 'land') parts.push(`<span class="row-cost">${renderCostPips(card.cost)}</span>`);
+        parts.push(`<span class="row-type">${type ? `${type.icon} ${type.label}` : card.type}</span>`);
+        if (card.type === 'creature') parts.push(`<span class="row-pt">${card.power}/${card.toughness}</span>`);
+        if (card.type === 'land') {
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            parts.push(`<span class="row-mana">Tap: ${colours.map(e => ELEMENTS[e]?.emoji || '◇').join(' or ')}</span>`);
+        }
+        (card.abilities || []).slice(0, 3).forEach(a => {
+            parts.push(`<span class="row-keyword${a === 'flash' ? ' is-inactive' : ''}" title="${describeKeyword(a)}">${KEYWORD_RULES[a]?.badge || ''} ${KEYWORD_RULES[a]?.label || a}</span>`);
+        });
+        parts.push(`<span class="row-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`);
+        return parts.join('');
+    }
+
+    // The emoji in its element-coloured tile, as on card faces
+    function createCardRowArt(card, className = 'card-row-art') {
+        const art = document.createElement('span');
+        art.className = className;
+        art.textContent = card.emoji || '✨';
+        art.setAttribute('aria-hidden', 'true');
+        applyCardIdentity(art, card);
+        return art;
+    }
+
+    // The Binder lists the whole catalog: owned cards with their count, the rest marked "Not owned".
     function renderBinderCollection() {
         const listEl = document.getElementById('binderList');
         const summaryEl = document.getElementById('binderSummaryBadge');
         if (!listEl || !summaryEl) return;
 
         const collection = gameMeta?.collection || {};
-        const entries = Object.entries(collection)
-            .filter(([, count]) => Number.isFinite(count) && count > 0)
-            .map(([cardId, count]) => ({
-                cardId,
-                count,
-                card: __CARD_BY_ID[cardId]
-            }))
-            .filter(entry => entry.card)
-            .sort((a, b) => (a.card.name || '').localeCompare(b.card.name || ''));
+        const ownedOf = card => (Number.isFinite(collection[card.__id]) ? collection[card.__id] : 0);
+        const ownedCards = __ALL_CARDS.filter(card => ownedOf(card) > 0);
+        const totalCards = ownedCards.reduce((sum, card) => sum + ownedOf(card), 0);
+        summaryEl.textContent = `🗂️ ${ownedCards.length} of ${__ALL_CARDS.length} unique cards • ${totalCards} total cards`;
 
-        const totalCards = entries.reduce((sum, entry) => sum + entry.count, 0);
-        summaryEl.textContent = `🗂️ ${entries.length} unique cards • ${totalCards} total cards`;
+        buildCardFilterBar('binderFilters', renderBinderCollection);
+        const filters = cardFilterState.binderFilters;
+        const shown = sortCardsForList(__ALL_CARDS.filter(card => cardMatchesFilters(card, filters, ownedOf(card))), filters.sort, ownedOf);
+        const showingEl = document.getElementById('binderShowing');
+        if (showingEl) showingEl.textContent = `Showing ${shown.length} of ${__ALL_CARDS.length} cards`;
 
         listEl.innerHTML = '';
-        if (!entries.length) {
+        if (!shown.length) {
             const empty = document.createElement('div');
             empty.className = 'deck-builder-empty';
-            empty.textContent = 'No cards in your binder yet. Open a few packs!';
+            empty.textContent = ownedCards.length ? 'No cards match these filters.' : 'No cards in your binder yet. Open a few packs!';
             listEl.appendChild(empty);
             return;
         }
 
-        entries.forEach(({ card, count }) => {
+        shown.forEach(card => {
+            const count = ownedOf(card);
             const row = document.createElement('div');
             row.className = 'binder-row';
-            row.innerHTML = `
-                <div class="binder-row-emoji">${card.emoji || '✨'}</div>
-                <div class="binder-row-name">
-                    ${card.name || 'Unknown Card'}
-                    <div class="binder-row-meta">${card.type || 'card'}${card.element ? ` • ${card.element}` : ''}</div>
-                </div>
-                <div class="binder-row-count">x${count}</div>
-            `;
+            row.dataset.cardId = card.__id;
+            row.classList.toggle('is-unowned', count === 0);
+            row.appendChild(createCardRowArt(card, 'binder-row-emoji card-row-art'));
+            const nameEl = document.createElement('div');
+            nameEl.className = 'binder-row-name';
+            nameEl.appendChild(document.createTextNode(card.name || 'Unknown Card'));
+            const meta = document.createElement('div');
+            meta.className = 'binder-row-meta';
+            meta.innerHTML = renderCardRowMeta(card) + (count === 0 ? '<span class="row-unowned">Not owned</span>' : '');
+            nameEl.appendChild(meta);
+            row.appendChild(nameEl);
+            const countEl = document.createElement('div');
+            countEl.className = 'binder-row-count';
+            countEl.textContent = `x${count}`;
+            row.appendChild(countEl);
             row.title = getCardTooltipText(card);
             bindCardPress(row, {
-                label: row.textContent.trim().replace(/\s+/g, ' '),
+                label: `${card.name}, ${count ? `${count} owned` : 'not owned'}. Press for details.`,
                 onTap: () => showCardDetail(card),
                 onLongPress: () => showCardDetail(card)
             });
@@ -3374,6 +4584,11 @@
                 return { ok: false, reason: 'unknown_theme' };
             }
 
+            // One purchase at a time: a second tap or Enter while the pack is open buys nothing
+            if (packOpeningState.active) {
+                return { ok: false, reason: 'pack_open' };
+            }
+
             if (!gameMeta.wallet || !Number.isFinite(gameMeta.wallet.credits)) {
                 gameMeta.wallet = { credits: STARTER_CREDITS };
             }
@@ -3395,9 +4610,7 @@
 
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
-            cardIds.forEach(cardId => {
-                gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
-            });
+            addPackToCollection(cardIds, openedAt);
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
@@ -3407,7 +4620,7 @@
                 console.warn('Pack Shop metaSave failed; continuing with in-memory purchase state.', saveError);
             }
 
-            setPackShopMessage(`Purchased ${normalizedTheme.toUpperCase()} pack!`, 'success');
+            setPackShopMessage(`Bought a ${getPackTheme(normalizedTheme)?.label || normalizedTheme} Pack for 💳 ${cost}.`, 'success');
             updatePackShopCreditsBadge();
             openPackOpeningOverlayFromMeta('shop');
             return { ok: true, themeKey: normalizedTheme, cardIds, cost };
@@ -3438,16 +4651,126 @@
         });
 
         const deckColors = Array.isArray(deck?.colors) ? deck.colors : getDeckColorsFromKey(deckKey);
-        const eligibleCardIds = Object.keys(gameMeta.collection || {})
-            .filter(cardId => {
-                const card = __CARD_BY_ID[cardId];
-                if (!card) return false;
-                if ((gameMeta.collection[cardId] || 0) <= 0) return false;
-                return isCardEligibleForDeck(card, deckColors);
-            })
-            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b));
+        // Every catalog card legal for the deck's colours; the ownership filter decides which are listed
+        const eligibleCardIds = __ALL_CARDS
+            .filter(card => isCardEligibleForDeck(card, deckColors))
+            .map(card => card.__id);
 
         return { deck, counts, deckColors, eligibleCardIds };
+    }
+
+    const deckDisplayName = deckKey => getDeckColorsFromKey(deckKey).map(elementLabel).join(' + ') || deckKey;
+
+    function isDeckBuilderDirty() {
+        const saved = gameMeta?.decks?.[deckBuilderState.deckKey]?.cardIds;
+        if (!deckBuilderState.deckKey || !Array.isArray(saved)) return false;
+        return !sameCardMultiset(deckBuilderState.workingCardIds || [], saved);
+    }
+
+    // Asks before throwing away unsaved deck edits; runs onDiscard straight away when there are none
+    function confirmDiscardDeckEdits(onDiscard, onKeep) {
+        if (!isDeckBuilderDirty()) {
+            onDiscard();
+            return;
+        }
+        showConfirmModal('💾 UNSAVED DECK', `Your changes to ${deckDisplayName(deckBuilderState.deckKey)} aren't saved. Discard them?`, onDiscard, onKeep);
+    }
+
+    // Why a card can't be added right now, or null. Same limits saveDeckBuilderDeck enforces (validateDeckBuild).
+    function getAddBlockReason(card, inDeck, owned, deckSize, targetSize) {
+        const limit = getDeckBuilderCopyLimit(card);
+        if (owned <= 0) return { code: 'not-owned', text: 'Not owned yet: win or buy packs to collect it' };
+        if (inDeck >= limit) {
+            return { code: 'copy-limit', text: limit === 1 ? 'Copy limit: 1 per deck (legendary)' : `Copy limit: ${limit} per deck` };
+        }
+        if (inDeck >= owned) return { code: 'no-copies', text: `All ${owned} owned ${owned === 1 ? 'copy is' : 'copies are'} in the deck` };
+        if (deckSize >= targetSize) return { code: 'deck-full', text: `Deck is full (${deckSize}/${targetSize}): remove a card first` };
+        return null;
+    }
+
+    function removeFromWorkingDeck(cardId, copies = 1) {
+        for (let i = 0; i < copies; i++) {
+            const idx = deckBuilderState.workingCardIds.lastIndexOf(cardId);
+            if (idx < 0) break;
+            deckBuilderState.workingCardIds.splice(idx, 1);
+        }
+    }
+
+    // Removes lands, the most numerous basic land first (of one colour when given)
+    function removeLandsFromWorkingDeck(count, colour = null) {
+        for (let i = 0; i < count; i++) {
+            const tally = {};
+            deckBuilderState.workingCardIds.forEach(id => {
+                const card = __CARD_BY_ID[id];
+                if (card?.type !== 'land') return;
+                if (colour && !inferLandElements(card).includes(colour)) return;
+                tally[id] = (tally[id] || 0) + (card.element && card.element !== 'colorless' ? 1000 : 0) + 1;
+            });
+            const pick = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0];
+            if (!pick) break;
+            removeFromWorkingDeck(pick, 1);
+        }
+    }
+
+    // What stops the working deck from saving, each with an action that fixes it where one is clear.
+    // validateDeckBuild stays the rule: a deck it accepts has no issues, and any error it reports is listed.
+    function getDeckIssues(deckKey, cardIds) {
+        const verdict = validateDeckBuild(deckKey, cardIds, gameMeta);
+        if (verdict.ok) return [];
+        const deck = gameMeta?.decks?.[deckKey];
+        const target = getDeckTargetSize(deck);
+        const deckColors = Array.isArray(deck?.colors) && deck.colors.length ? deck.colors : getDeckColorsFromKey(deckKey);
+        const issues = [];
+        const counts = {};
+        cardIds.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
+        const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+        if (cardIds.length < target) {
+            issues.push({ kind: 'size', text: `Add ${plural(target - cardIds.length, 'more card')}: a deck has exactly ${target}.` });
+        } else if (cardIds.length > target) {
+            issues.push({ kind: 'size', text: `Remove ${plural(cardIds.length - target, 'card')}: a deck has exactly ${target}.` });
+        }
+        Object.entries(counts).forEach(([id, used]) => {
+            const card = __CARD_BY_ID[id];
+            if (!card) {
+                issues.push({ kind: 'unknown', text: `Unknown card "${id}" in the deck.`, action: { label: 'Remove it', run: () => removeFromWorkingDeck(id, used) } });
+                return;
+            }
+            if (!isCardEligibleForDeck(card, deckColors)) {
+                issues.push({ kind: 'identity', text: `${card.name} isn't legal in a ${deckDisplayName(deckKey)} deck.`, action: { label: `Remove ${card.name}`, run: () => removeFromWorkingDeck(id, used) } });
+            }
+            const owned = Number.isFinite(gameMeta.collection?.[id]) ? gameMeta.collection[id] : 0;
+            const limit = getDeckBuilderCopyLimit(card);
+            const allowed = Math.min(owned, limit);
+            if (used > allowed) {
+                const why = owned < limit || !Number.isFinite(limit) ? `you own ${owned}` : `the limit is ${limit}${limit === 1 ? ' (legendary)' : ''}`;
+                issues.push({ kind: 'copies', text: `${card.name}: ${used} in the deck, but ${why}. Remove ${used - allowed}.`,
+                    action: { label: `Remove ${used - allowed}`, run: () => removeFromWorkingDeck(id, used - allowed) } });
+            }
+        });
+
+        const covered = [/^Deck must contain exactly/, /^Unknown card id/, / is not valid for /, / exceeds owned copies /, / exceeds max copies /, / is not a valid land color /];
+        verdict.errors.forEach(error => {
+            let m = /^Deck can contain at most (\d+) lands \(currently (\d+)\)/.exec(error);
+            if (m) {
+                const excess = Number(m[2]) - Number(m[1]);
+                issues.push({ kind: 'too-many-lands', text: `Too many lands: ${m[2]} (at most ${m[1]}). Remove ${plural(excess, 'land')}.`,
+                    action: { label: `Remove ${plural(excess, 'land')}`, run: () => removeLandsFromWorkingDeck(excess) } });
+                return;
+            }
+            m = /can contain at most (\d+) (\w+) lands \(currently (\d+)\)/.exec(error);
+            // A one-colour deck's colour cap is its land cap, already listed as "too many lands"
+            if (m && deckColors.length === 1) return;
+            if (m) {
+                const excess = Number(m[3]) - Number(m[1]);
+                const name = ELEMENT_LABELS[m[2]] || m[2];
+                issues.push({ kind: 'too-many-colour-lands', text: `Too many ${name} lands: ${m[3]} (at most ${m[1]}). Remove ${excess}.`,
+                    action: { label: `Remove ${plural(excess, `${name} land`)}`, run: () => removeLandsFromWorkingDeck(excess, m[2]) } });
+                return;
+            }
+            if (!covered.some(re => re.test(error))) issues.push({ kind: 'other', text: error });
+        });
+        return issues;
     }
 
     function renderDeckBuilderListRows(container, rows, emptyText) {
@@ -3471,7 +4794,7 @@
         const ready = current === targetSize;
         const baseMessage = `Deck size: ${current}/${targetSize}${ready ? ' ✅ Ready to save' : ' ❗ Must be exact to save'}`;
         if (Array.isArray(deckBuilderState.validationErrors) && deckBuilderState.validationErrors.length > 0) {
-            status.textContent = `${baseMessage} | ${deckBuilderState.validationErrors.join(' ')}`;
+            status.textContent = `${baseMessage} | Not saved: ${deckBuilderState.validationErrors.join(' ')}`;
             return;
         }
         if (deckBuilderState.debugWarning) {
@@ -3479,6 +4802,113 @@
             return;
         }
         status.textContent = baseMessage;
+    }
+
+    // Cards out of the deck size, type counts and a mana curve, all from the working deck
+    function renderDeckBuilderSummary(deck) {
+        const panel = document.getElementById('deckBuilderSummary');
+        if (!panel) return;
+        const cards = deckBuilderState.workingCardIds.map(id => __CARD_BY_ID[id]).filter(Boolean);
+        const target = getDeckTargetSize(deck);
+        const count = type => cards.filter(card => card.type === type).length;
+        const caps = getDeckLandCaps(Array.isArray(deck?.colors) ? deck.colors : getDeckColorsFromKey(deckBuilderState.deckKey));
+        const curve = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, '6+': 0 };
+        cards.filter(card => card.type !== 'land').forEach(card => {
+            const mv = getCardManaValue(card);
+            curve[mv >= 6 ? '6+' : mv] += 1;
+        });
+        const peak = Math.max(1, ...Object.values(curve));
+        const stat = (key, n, label) => `<div class="deck-stat"><strong data-count="${key}">${n}</strong> ${label}</div>`;
+        const size = cards.length;
+        panel.innerHTML = `
+            <div class="deck-stats">
+                <div class="deck-stat deck-stat-size${size === target ? ' is-complete' : ''}"><strong data-count="cards">${size}</strong> <span>/ ${target} cards</span></div>
+                ${stat('lands', count('land'), `lands <span class="deck-stat-cap">(max ${caps.maxLands})</span>`)}
+                ${stat('creatures', count('creature'), 'creatures')}
+                ${stat('spells', count('instant'), 'spells')}
+                ${stat('artifacts', count('artifact'), 'artifacts')}
+            </div>
+            <figure class="mana-curve-figure">
+            <figcaption class="mana-curve-caption">Mana curve (non-land cards)</figcaption>
+            <div class="mana-curve" role="img" aria-label="Mana curve of non-land cards: ${Object.entries(curve).map(([cost, n]) => `cost ${cost}: ${n}`).join(', ')}">
+                ${Object.entries(curve).map(([cost, n]) => `
+                    <div class="mana-curve-bar" data-cost="${cost}" data-count="${n}">
+                        <span class="mana-curve-n">${n}</span>
+                        <span class="mana-curve-fill" style="height:${Math.round((n / peak) * 100)}%"></span>
+                        <span class="mana-curve-cost">${cost}</span>
+                    </div>`).join('')}
+            </div>
+            </figure>`;
+    }
+
+    function renderDeckIssues() {
+        const container = document.getElementById('deckBuilderIssues');
+        if (!container) return;
+        const issues = getDeckIssues(deckBuilderState.deckKey, deckBuilderState.workingCardIds);
+        container.innerHTML = '';
+        container.classList.toggle('has-issues', issues.length > 0);
+        issues.forEach(issue => {
+            const item = document.createElement('div');
+            item.className = 'deck-issue';
+            item.dataset.issue = issue.kind;
+            const text = document.createElement('span');
+            text.className = 'deck-issue-text';
+            text.textContent = issue.text;
+            item.appendChild(text);
+            if (issue.action) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'deck-issue-action';
+                button.textContent = issue.action.label;
+                button.addEventListener('click', () => {
+                    issue.action.run();
+                    deckBuilderState.validationErrors = [];
+                    deckBuilderState.debugWarning = '';
+                    renderDeckBuilder();
+                });
+                item.appendChild(button);
+            }
+            container.appendChild(item);
+        });
+    }
+
+    function createDeckBuilderRow(card, { button, count, reason }) {
+        const row = document.createElement('div');
+        row.className = 'deck-builder-row';
+        row.dataset.cardId = card.__id;
+        row.appendChild(button);
+        const body = document.createElement('div');
+        body.className = 'deck-builder-card';
+        const name = document.createElement('div');
+        name.className = 'deck-builder-name';
+        name.appendChild(createCardRowArt(card));
+        name.appendChild(document.createTextNode(` ${card.name}`));
+        body.appendChild(name);
+        const meta = document.createElement('div');
+        meta.className = 'deck-builder-meta';
+        meta.innerHTML = renderCardRowMeta(card);
+        body.appendChild(meta);
+        if (reason) {
+            const why = document.createElement('div');
+            why.className = 'deck-builder-reason';
+            why.id = `reason-${card.__id}`;
+            why.textContent = reason.text;
+            body.appendChild(why);
+            button.setAttribute('aria-describedby', why.id);
+        }
+        row.appendChild(body);
+        const countEl = document.createElement('div');
+        countEl.className = 'deck-builder-count';
+        countEl.innerHTML = count;
+        row.appendChild(countEl);
+        const info = document.createElement('button');
+        info.type = 'button';
+        info.className = 'deck-builder-info-btn';
+        info.textContent = 'ⓘ';
+        info.setAttribute('aria-label', `Rules for ${card.name}`);
+        info.addEventListener('click', () => showCardDetail(card));
+        row.appendChild(info);
+        return row;
     }
 
     function renderDeckBuilder() {
@@ -3489,70 +4919,127 @@
 
         const { deck, counts, eligibleCardIds } = getDeckBuilderDeckEntries(deckBuilderState.deckKey);
         if (!deck) return;
+        const savedFocus = captureDeckBuilderFocus();
 
         const targetSize = getDeckTargetSize(deck);
+        const ownedOf = card => gameMeta.collection[card.__id] || 0;
+        buildCardFilterBar('deckBuilderFilters', renderDeckBuilder);
+        const filters = cardFilterState.deckBuilderFilters;
+        const eligible = eligibleCardIds.map(id => __CARD_BY_ID[id]);
+        const shown = sortCardsForList(eligible.filter(card => cardMatchesFilters(card, filters, ownedOf(card))), filters.sort, ownedOf);
+        const showingEl = document.getElementById('deckBuilderShowing');
+        if (showingEl) showingEl.textContent = `Showing ${shown.length} of ${eligible.length} legal cards`;
 
-        const poolRows = eligibleCardIds.map(cardId => {
-            const card = __CARD_BY_ID[cardId];
-            const owned = gameMeta.collection[cardId] || 0;
+        const poolRows = shown.map(card => {
+            const cardId = card.__id;
+            const owned = ownedOf(card);
             const inDeck = counts[cardId] || 0;
-            const remaining = Math.max(0, owned - inDeck);
-            const atLimit = inDeck >= getDeckBuilderCopyLimit(card);
-            const row = document.createElement('div');
-            row.className = 'deck-builder-row';
-            row.innerHTML = `<button type="button" aria-label="Add ${card.name}">+</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">${inDeck}/${owned}</div>`;
-            const btn = row.querySelector('button');
-            btn.disabled = deckBuilderState.workingCardIds.length >= targetSize;
+            const reason = getAddBlockReason(card, inDeck, owned, deckBuilderState.workingCardIds.length, targetSize);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'deck-builder-add';
+            btn.textContent = '+';
+            btn.setAttribute('aria-label', `Add ${card.name}`);
+            if (reason) {
+                // Not the disabled attribute: a blocked button still explains itself when pressed
+                btn.setAttribute('aria-disabled', 'true');
+                btn.dataset.reason = reason.code;
+                btn.title = reason.text;
+            }
             btn.addEventListener('click', () => {
-                if (owned <= 0) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: unowned card.`;
-                    renderDeckBuilder();
+                const blocked = getAddBlockReason(card, counts[cardId] || 0, owned, deckBuilderState.workingCardIds.length, targetSize);
+                if (blocked) {
+                    deckBuilderState.debugWarning = blocked.code === 'no-copies'
+                        ? `Cannot add ${card.name}: no owned copies remaining (${owned} owned).`
+                        : `Cannot add ${card.name}: ${blocked.text.charAt(0).toLowerCase()}${blocked.text.slice(1)}.`;
+                    updateDeckBuilderStatus(deck);
                     return;
                 }
-                if (remaining <= 0) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: no owned copies remaining.`;
-                    renderDeckBuilder();
-                    return;
-                }
-                if (atLimit) {
-                    deckBuilderState.debugWarning = `Cannot add ${card.name}: copy limit reached (${getDeckBuilderCopyLimit(card)}).`;
-                    renderDeckBuilder();
-                    return;
-                }
-                if (deckBuilderState.workingCardIds.length >= targetSize) return;
                 deckBuilderState.debugWarning = '';
                 deckBuilderState.validationErrors = [];
                 deckBuilderState.workingCardIds.push(cardId);
                 renderDeckBuilder();
             });
+            const row = createDeckBuilderRow(card, {
+                button: btn,
+                reason,
+                count: `<span>In deck <b>${inDeck}</b></span><span>Owned <b>${owned}</b></span>`
+            });
+            row.classList.toggle('is-blocked', !!reason);
+            row.classList.toggle('is-unowned', owned === 0);
             return row;
         });
 
-        const deckRows = Object.keys(counts)
-            .sort((a, b) => (__CARD_BY_ID[a]?.name || a).localeCompare(__CARD_BY_ID[b]?.name || b))
-            .map(cardId => {
+        // The deck list, grouped by type, cheapest first within each group
+        const deckRows = [];
+        CARD_TYPE_ORDER.forEach(type => {
+            const ids = Object.keys(counts)
+                .filter(id => (__CARD_BY_ID[id]?.type || 'unknown') === type)
+                .sort((a, b) => getCardManaValue(__CARD_BY_ID[a]) - getCardManaValue(__CARD_BY_ID[b]) || __CARD_BY_ID[a].name.localeCompare(__CARD_BY_ID[b].name));
+            if (!ids.length) return;
+            const title = document.createElement('div');
+            title.className = 'deck-group-title';
+            const copies = ids.reduce((sum, id) => sum + counts[id], 0);
+            title.textContent = `${CARD_TYPE_INFO[type].icon} ${type === 'instant' ? 'Spells' : `${CARD_TYPE_INFO[type].label}s`} · ${copies}`;
+            deckRows.push(title);
+            ids.forEach(cardId => {
                 const card = __CARD_BY_ID[cardId];
-                const row = document.createElement('div');
-                row.className = 'deck-builder-row';
-                row.innerHTML = `<button type="button" aria-label="Remove ${card.name}">-</button><div class="deck-builder-name">${card.emoji} ${card.name}</div><div class="deck-builder-count">x${counts[cardId]}</div>`;
-                row.querySelector('button').addEventListener('click', () => {
-                    const idx = deckBuilderState.workingCardIds.findIndex(id => id === cardId);
-                    if (idx >= 0) {
-                        deckBuilderState.workingCardIds.splice(idx, 1);
-                        deckBuilderState.validationErrors = [];
-                        renderDeckBuilder();
-                    }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'deck-builder-remove';
+                btn.textContent = '−';
+                btn.setAttribute('aria-label', `Remove one ${card.name}`);
+                btn.addEventListener('click', () => {
+                    removeFromWorkingDeck(cardId, 1);
+                    deckBuilderState.validationErrors = [];
+                    deckBuilderState.debugWarning = '';
+                    renderDeckBuilder();
                 });
-                return row;
+                deckRows.push(createDeckBuilderRow(card, { button: btn, count: `x${counts[cardId]}` }));
             });
+        });
 
-        renderDeckBuilderListRows(poolContainer, poolRows, 'No eligible owned cards for this deck.');
+        renderDeckBuilderListRows(poolContainer, poolRows, filters.owned === 'owned' && !eligible.some(card => ownedOf(card) > 0)
+            ? 'No owned cards are legal for this deck.' : 'No cards match these filters.');
         renderDeckBuilderListRows(deckContainer, deckRows, 'Deck is empty.');
 
         if (saveBtn) {
             saveBtn.disabled = deckBuilderState.workingCardIds.length !== targetSize;
         }
+        const unsaved = document.getElementById('deckBuilderUnsaved');
+        if (unsaved) unsaved.style.display = isDeckBuilderDirty() ? '' : 'none';
+        renderDeckBuilderSummary(deck);
+        renderDeckIssues();
         updateDeckBuilderStatus(deck);
+        restoreDeckBuilderFocus(savedFocus);
+    }
+
+    // + and − rebuild both lists, which dropped keyboard focus to the page. Keep it on the same card's button,
+    // or on the row that took its place when the card left the list.
+    function captureDeckBuilderFocus() {
+        const active = document.activeElement;
+        const row = active?.closest?.('#deckBuilderPool .deck-builder-row, #deckBuilderDeck .deck-builder-row');
+        if (!row) return null;
+        const rows = [...row.parentElement.querySelectorAll('.deck-builder-row')];
+        return { listId: row.parentElement.id, cardId: row.dataset.cardId, index: rows.indexOf(row), button: [...row.querySelectorAll('button')].indexOf(active) };
+    }
+
+    function restoreDeckBuilderFocus(saved) {
+        if (!saved) return;
+        const rows = [...(document.getElementById(saved.listId)?.querySelectorAll('.deck-builder-row') || [])];
+        const row = rows.find(r => r.dataset.cardId === saved.cardId) || rows[Math.min(saved.index, rows.length - 1)];
+        const target = row?.querySelectorAll('button')[Math.max(saved.button, 0)] || document.querySelector('#deckBuilderFilters .card-filter-search');
+        target?.focus({ preventScroll: true });
+    }
+
+    function loadDeckIntoBuilder(deckKey) {
+        const select = document.getElementById('deckBuilderDeckKey');
+        if (select) select.value = deckKey;
+        deckBuilderState.deckKey = deckKey;
+        deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
+        deckBuilderState.debugWarning = '';
+        deckBuilderState.validationErrors = [];
+        renderDeckBuilder();
     }
 
     function initializeDeckBuilder() {
@@ -3568,26 +5055,23 @@
         deckKeys.forEach(deckKey => {
             const option = document.createElement('option');
             option.value = deckKey;
-            option.textContent = deckKey;
+            option.textContent = deckDisplayName(deckKey);
             option.selected = deckKey === preferredDeckKey;
             select.appendChild(option);
         });
 
-        deckBuilderState.deckKey = preferredDeckKey || null;
-        deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
-        deckBuilderState.debugWarning = '';
-        deckBuilderState.validationErrors = [];
-
+        // Switching decks with unsaved edits asks first; until then the selector stays on the edited deck
         select.onchange = (event) => {
             const deckKey = event.target.value;
-            deckBuilderState.deckKey = deckKey;
-            deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
-            deckBuilderState.debugWarning = '';
-            deckBuilderState.validationErrors = [];
-            renderDeckBuilder();
+            if (isDeckBuilderDirty()) {
+                select.value = deckBuilderState.deckKey;
+                confirmDiscardDeckEdits(() => loadDeckIntoBuilder(deckKey));
+                return;
+            }
+            loadDeckIntoBuilder(deckKey);
         };
 
-        renderDeckBuilder();
+        loadDeckIntoBuilder(preferredDeckKey || null);
     }
 
     function resetDeckBuilderDeck() {
@@ -3633,14 +5117,28 @@
     }
 
     function backToMenu() {
+        // Leaving the Deck Builder with unsaved edits asks first
+        if (currentMenuScreen === 'deckBuilderScreen' && isDeckBuilderDirty()) {
+            confirmDiscardDeckEdits(() => {
+                deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckBuilderState.deckKey]?.cardIds || [])];
+                backToMenu();
+            });
+            return;
+        }
         playSFX('menuClose');
         closeDeckBuilderGuide();
         setStartMenuScreen('mainMenu');
         focusSafeElement();
     }
 
+    // The menu screen that was open last, so BACK/Esc can return focus to the entry that opened it
+    let menuReturnTarget = null;
+    let currentMenuScreen = 'mainMenu';
+
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
         const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
+        if (activeScreenId === 'mainMenu' && currentMenuScreen !== 'mainMenu') menuReturnTarget = currentMenuScreen;
+        currentMenuScreen = activeScreenId;
         menuScreens.forEach(id => {
             const element = document.getElementById(id);
             if (!element) return;
@@ -3651,9 +5149,37 @@
                 element.style.display = 'none';
             }
         });
-        // Scroll modal content to top when switching screens
+        // Scroll modal content to top when switching screens; data-screen lets the panel size itself per screen
         const modalContent = document.querySelector('.modal-content');
-        if (modalContent) modalContent.scrollTop = 0;
+        if (modalContent) {
+            modalContent.scrollTop = 0;
+            modalContent.dataset.screen = activeScreenId;
+        }
+        if (activeScreenId === 'mainMenu') {
+            updateMenuStatus();
+        } else {
+            // Move focus to the new screen's heading so keyboard and screen-reader users start there
+            document.getElementById(activeScreenId)?.querySelector('.modal-subtitle[tabindex="-1"]')?.focus({ preventScroll: true });
+        }
+    }
+
+    // Credits, collection progress and record on the main menu, from the saved profile
+    function updateMenuStatus() {
+        const credits = Number.isFinite(gameMeta?.wallet?.credits) ? Math.floor(gameMeta.wallet.credits) : 0;
+        const owned = Object.entries(gameMeta?.collection || {}).filter(([cardId, count]) => __CARD_BY_ID[cardId] && count > 0).length;
+        const total = Object.keys(__CARD_BY_ID).length;
+        const creditsEl = document.getElementById('menuCredits');
+        const collectionEl = document.getElementById('menuCollection');
+        const meterEl = document.getElementById('menuCollectionMeter');
+        const recordEl = document.getElementById('menuRecord');
+        if (creditsEl) creditsEl.textContent = credits;
+        if (collectionEl) collectionEl.textContent = `${owned} / ${total}`;
+        if (meterEl) meterEl.style.width = `${total ? Math.round((owned / total) * 100) : 0}%`;
+        if (recordEl) {
+            const wins = Math.max(0, Number(gameStats.wins) || 0);
+            const losses = Math.max(0, Number(gameStats.losses) || 0);
+            recordEl.textContent = wins + losses > 0 ? `${wins} won · ${losses} lost` : 'No battles yet';
+        }
     }
 
     function initializeStartMenuState() {
@@ -3678,6 +5204,117 @@
             startBtn.disabled = true;
             startBtn.textContent = required === 1 ? 'Select 1 Element' : 'Select 2 Elements';
         }
+        updateElementPickHint();
+        renderDeckSummary();
+    }
+
+    // Deck-type and element buttons follow gameState (selected class, aria-pressed, "full" state)
+    function syncElementSelectionUI() {
+        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.deckMode === gameState.deckMode);
+            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === gameState.deckMode));
+        });
+
+        document.querySelectorAll('.element-btn').forEach(btn => {
+            const selected = gameState.selectedElements.includes(btn.dataset.element);
+            btn.classList.toggle('selected', selected);
+            btn.setAttribute('aria-pressed', String(selected));
+        });
+
+        const selector = document.getElementById('elementSelector');
+        if (selector) {
+            // Two-colour deck with both picked: the others are dimmed until one is removed
+            const full = gameState.deckMode === 'dual' && gameState.selectedElements.length >= 2;
+            selector.classList.toggle('is-full', full);
+        }
+
+        updateStartButtonState();
+    }
+
+    function updateElementPickHint() {
+        const hint = document.getElementById('elementPickHint');
+        if (!hint) return;
+        const picked = gameState.selectedElements.map(e => ELEMENT_LABELS[e]);
+        if (gameState.deckMode === 'single') {
+            hint.textContent = picked.length ? `${picked[0]} deck · tap another element to switch` : 'Choose 1 element';
+        } else if (picked.length === 0) {
+            hint.textContent = 'Choose 2 elements';
+        } else if (picked.length === 1) {
+            hint.textContent = `${picked[0]} chosen · choose 1 more`;
+        } else {
+            hint.textContent = `${picked.join(' + ')} · tap a chosen element to change it`;
+        }
+    }
+
+    // What the saved deck for these elements holds: the deck START BATTLE will use (createPlayerDeck)
+    function getDeckSummary(deckKey) {
+        const deck = gameMeta?.decks?.[deckKey];
+        const cardIds = Array.isArray(deck?.cardIds) ? deck.cardIds : [];
+        if (!isMetaRuntimeEnabled() || cardIds.length === 0 || !cardIds.every(id => __CARD_BY_ID[id])) return null;
+        const cards = cardIds.map(id => __CARD_BY_ID[id]);
+        const counts = { land: 0, creature: 0, instant: 0, artifact: 0 };
+        cards.forEach(card => { counts[card.type] = (counts[card.type] || 0) + 1; });
+        const manaValue = card => Object.values(card.cost || {}).reduce((sum, n) => sum + n, 0);
+        const nonLands = cards.filter(card => card.type !== 'land');
+        const averageCost = nonLands.length ? nonLands.reduce((sum, card) => sum + manaValue(card), 0) / nonLands.length : 0;
+        const rarityRank = { legendary: 3, epic: 2, rare: 1 };
+        const seen = new Set();
+        const keyCards = nonLands
+            .filter(card => !seen.has(card.__id) && seen.add(card.__id))
+            .sort((a, b) => (rarityRank[b.__rarity] || 0) - (rarityRank[a.__rarity] || 0) || manaValue(b) - manaValue(a) || a.name.localeCompare(b.name))
+            .slice(0, 3);
+        const starter = Array.isArray(deck.starterCardIds) ? deck.starterCardIds : [];
+        const customized = starter.length > 0 && !sameCardMultiset(cardIds, starter);
+        return { size: cards.length, counts, averageCost, keyCards, customized };
+    }
+
+    function renderDeckSummary() {
+        const container = document.getElementById('deckSummary');
+        if (!container) return;
+        const required = getRequiredElementCount();
+        const picked = gameState.selectedElements;
+        container.classList.toggle('is-empty', picked.length !== required);
+        if (picked.length !== required) {
+            const missing = required - picked.length;
+            container.innerHTML = `<p class="deck-summary-placeholder">Choose ${missing} ${picked.length ? 'more ' : ''}element${missing === 1 ? '' : 's'} to see the deck you'll play.</p>`;
+            return;
+        }
+
+        const deckKey = getDeckKeyFromElements(picked);
+        const colors = getDeckColorsFromKey(deckKey);
+        const accents = colors.map(color => `<span class="deck-summary-element" data-element="${color}">${elementLabel(color)}</span>`).join('<span class="deck-summary-plus" aria-hidden="true">+</span>');
+        const summary = getDeckSummary(deckKey);
+        if (!summary) {
+            container.innerHTML = `<div class="deck-summary-head"><span class="deck-summary-name">${accents}</span></div>
+                <p class="deck-summary-placeholder">No saved deck for these elements, so a ${STANDARD_DECK_SIZE}-card deck will be built for this match.</p>`;
+            return;
+        }
+
+        const plural = (n, word) => `<li><strong>${n}</strong> ${n === 1 ? word : `${word}s`}</li>`;
+        const keyCards = summary.keyCards.map(card => `<span class="deck-summary-card">${card.emoji} ${card.name}</span>`).join('');
+        container.innerHTML = `
+            <div class="deck-summary-head">
+                <span class="deck-summary-name">${accents}</span>
+                <span class="deck-summary-tag">${summary.customized ? 'Customized' : 'Starter list'}</span>
+            </div>
+            <ul class="deck-summary-counts">
+                ${plural(summary.size, 'card')}${plural(summary.counts.land, 'land')}${plural(summary.counts.creature, 'creature')}${plural(summary.counts.instant, 'instant')}${plural(summary.counts.artifact, 'artifact')}
+            </ul>
+            <p class="deck-summary-line">Average cost of non-land cards: <strong>${summary.averageCost.toFixed(1)}</strong></p>
+            ${keyCards ? `<div class="deck-summary-line deck-summary-keys"><span>Rarest cards:</span> ${keyCards}</div>` : ''}
+            <p class="deck-summary-note">Your saved deck for these elements. Change it in Deck Builder.</p>`;
+    }
+
+    // NEW GAME starts from the deck you last took into battle (gameMeta.selectedDeckKey, saved by startGame)
+    function restoreSavedDeckSelection() {
+        if (!isMetaRuntimeEnabled()) return;
+        const deckKey = gameMeta?.selectedDeckKey;
+        if (!deckKey || !gameMeta?.decks?.[deckKey]) return;
+        const colors = getDeckColorsFromKey(deckKey);
+        if (colors.length < 1 || colors.length > 2) return;
+        gameState.deckMode = colors.length === 1 ? 'single' : 'dual';
+        gameState.selectedElements = [...colors];
+        syncElementSelectionUI();
     }
 
     function setDeckMode(mode) {
@@ -3692,35 +5329,13 @@
         playSFX('select');
         gameState.deckMode = mode;
         gameState.selectedElements = [];
-
-        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.deckMode === mode);
-            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === mode));
-        });
-
-        document.querySelectorAll('.element-btn').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.setAttribute('aria-pressed', 'false');
-        });
-
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     function resetElementSelection() {
         gameState.selectedElements = [];
         gameState.deckMode = 'dual';
-
-        document.querySelectorAll('.deck-mode-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.dataset.deckMode === 'dual');
-            btn.setAttribute('aria-pressed', String(btn.dataset.deckMode === 'dual'));
-        });
-
-        document.querySelectorAll('.element-btn').forEach(btn => {
-            btn.classList.remove('selected');
-            btn.setAttribute('aria-pressed', 'false');
-        });
-
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     function returnToMainMenu() {
@@ -3754,6 +5369,14 @@
         // Reset processing lock and attack phase to clean state
         attackPhase = false;
         releaseProcessingLock();
+        setAttackControls('idle');
+
+        // Drop the left match's cards (and their listeners) from the hidden board; startGame rebuilds the rows.
+        // A UI update already queued for the next frame would fill them again from the old match, so cancel it.
+        if (uiUpdateRafId && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(uiUpdateRafId);
+        uiUpdateRafId = 0;
+        isUIUpdateScheduled = false;
+        ['playerHand', 'playerBoard', 'enemyBoard'].forEach(id => { document.getElementById(id).innerHTML = ''; });
 
         initializeStartMenuState();
 
@@ -3857,13 +5480,31 @@
         });
     }
 
-    function selectDifficulty(difficulty) {
-        playSFX('select');
-        gameState.difficulty = difficulty;
+    // Battle setup's explanation of each level. Keep in step with AI_PROFILES (and AI.md §3).
+    const DIFFICULTY_INFO = {
+        easy: 'Plays 1 card a turn, never casts instants, and attacks with about 70% of its ready creatures at random.',
+        medium: 'Plays up to 2 cards a turn and casts instants. Spots lethal damage and avoids attacks that would lose a creature for nothing.',
+        hard: 'Plays as many cards as its mana allows. Plays like Medium, and keeps blockers home when your board could kill it next turn.'
+    };
+    const DIFFICULTY_COMMON = 'Every level plays by the same rules as you, with a legal 60-card deck in 1 or 2 random elements.';
+
+    function syncDifficultyUI() {
+        const difficulty = DIFFICULTY_INFO[gameState.difficulty] ? gameState.difficulty : 'easy';
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.classList.toggle('selected', btn.dataset.difficulty === difficulty);
             btn.setAttribute('aria-pressed', String(btn.dataset.difficulty === difficulty));
         });
+        const info = document.getElementById('difficultyInfo');
+        if (info) {
+            const name = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+            info.innerHTML = `<strong>${name}:</strong> ${DIFFICULTY_INFO[difficulty]} <span class="difficulty-info-common">${DIFFICULTY_COMMON}</span>`;
+        }
+    }
+
+    function selectDifficulty(difficulty) {
+        playSFX('select');
+        gameState.difficulty = difficulty;
+        syncDifficultyUI();
     }
 
     // Card Detail Popup
@@ -3876,108 +5517,75 @@
         emoji.textContent = card.emoji;
         name.textContent = card.name;
 
-        let html = '';
+        // Same element colours, type and rarity treatment as the card face
+        const identity = applyCardIdentity(popup, card);
+        const rarity = getCardRarity(card);
+        const typeInfo = CARD_TYPE_INFO[card.type] || { label: card.cardType || card.type, icon: '' };
+        popup.dataset.type = card.type;
+        popup.dataset.rarity = rarity;
+
+        const row = (label, value) => `<div class="card-detail-info"><span class="card-detail-label">${label}:</span> ${value}</div>`;
+        const tags = [
+            `<span class="detail-tag detail-tag-type">${typeInfo.icon} ${card.type === 'instant' ? 'Instant Spell' : typeInfo.label}</span>`,
+            `<span class="detail-tag detail-tag-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`,
+            ...identity.map(element => `<span class="detail-tag detail-tag-element" data-element="${element}">${elementLabel(element)}</span>`)
+        ];
+        let html = `<div class="card-detail-tags">${tags.join('')}</div>`;
 
         if (card.type === 'land') {
-            // Handle both single-color lands and dual lands
-            let effectText;
-            if (card.elements && card.elements.length > 1) {
-                // Dual land
-                const manaOptions = card.elements.map(el => ELEMENTS[el].emoji).join(' or ');
-                effectText = `Tap to add ${manaOptions} to your mana pool`;
-            } else if (card.element) {
-                // Single color land
-                effectText = `Tap to add ${ELEMENTS[card.element].emoji} to your mana pool`;
-            } else {
-                effectText = card.desc || 'Tap for mana';
+            // Single-colour, dual, rainbow and colorless lands
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            const mana = colours.map(element => `${ELEMENTS[element]?.emoji || '◇'} ${ELEMENT_LABELS[element] || element}`).join(' or ');
+            html += `<div class="card-detail-section">${row('Mana', `Tap to add ${mana} to your mana pool`)}</div>`;
+        } else {
+            const stats = [row('Cost', `<span class="detail-cost">${renderCostPips(card.cost)}</span> <span class="detail-cost-text">${describeCost(card.cost)}</span>`)];
+            if (card.type === 'creature') {
+                // Current power/toughness, with the printed values when an effect changed them
+                const printed = __CARD_BY_ID[card.__id];
+                const changed = printed && (printed.power !== card.power || printed.toughness !== card.toughness);
+                stats.push(row('Power/Toughness', `<strong class="detail-pt">${card.power}/${card.toughness}</strong>${changed ? ` <span class="detail-printed">(printed ${printed.power}/${printed.toughness})</span>` : ''}`));
             }
+            html += `<div class="card-detail-section">${stats.join('')}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Land
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${effectText}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'creature') {
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ');
-            
-            const abilitiesStr = card.abilities && card.abilities.length > 0
-                ? card.abilities.map(a => `<div class="card-detail-keyword">${describeKeyword(a)}</div>`).join('')
-                : 'None';
+        // In your hand: whether it can be played now, and why not (the checks playCard makes)
+        if (gameState.playerHand.includes(card)) {
+            const restriction = getPlayRestriction(card);
+            html += `<div class="card-detail-section card-detail-state">${row('In your hand', restriction ? `Can't play now: ${restriction.text}` : 'Can be played now')}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Creature
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Power/Toughness:</span> ${card.power}/${card.toughness}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Abilities:</span> ${abilitiesStr}
-                    </div>
-                </div>
-                <div class="card-detail-section">
-                    <div class="card-detail-info" style="font-style: italic;">
-                        ${card.desc || 'A mighty creature'}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'instant') {
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ');
+        // Where it stands on the battlefield right now
+        const onBoard = gameState.playerBoard.includes(card) || gameState.enemyBoard.includes(card);
+        if (onBoard) {
+            const state = [];
+            if (card.tapped) state.push('Tapped');
+            if (card.type === 'creature') {
+                const attackRestriction = gameState.playerBoard.includes(card) && gameState.turn === 'player' ? getAttackRestriction(card) : null;
+                if (attackRestriction && !card.tapped && !card.summoningSick) state.push(`Can't attack: it ${attackRestriction}`);
+                if (card.damage > 0) state.push(`💔 ${card.damage} damage this turn`);
+                if (card.summoningSick && !card.abilities?.includes('haste')) state.push('💤 Summoning sick: can attack next turn');
+                if (gameState.attackers.includes(card.id)) state.push('⚔️ Attacking');
+            }
+            const owner = gameState.enemyBoard.includes(card) ? 'Enemy battlefield' : 'Your battlefield';
+            html += `<div class="card-detail-section card-detail-state">${row(owner, state.length ? state.join(' · ') : 'Ready')}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Instant Spell
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Magical effect'}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'artifact') {
-            const costStr = Object.entries(card.cost || {})
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ') || 'Free';
+        if (card.type === 'creature') {
+            const keywords = (card.abilities || []).map(renderKeywordDetail).join('');
+            html += `<div class="card-detail-section"><div class="card-detail-subtitle">Abilities</div>${keywords || '<div class="card-detail-info">None</div>'}</div>`;
+        } else if (card.type === 'instant' || card.type === 'artifact') {
+            html += `<div class="card-detail-section card-detail-rules">${row('Rules', describeEffect(card))}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Artifact
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Powerful artifact'}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
-                    </div>
-                </div>
-            `;
+        const flavour = card.type === 'creature' ? (card.desc || 'A mighty creature')
+            : card.type === 'land' ? '' : (card.desc || '');
+        if (flavour) {
+            html += `<div class="card-detail-section card-detail-flavour">${card.type === 'creature' ? flavour : row('Effect', flavour)}</div>`;
         }
 
         content.innerHTML = html;
         popup.classList.add('show');
+        cardDetailOpenedAt = performance.now();
         hoverTooltipPinned = true;
         hideCardHoverTooltip();
     }
@@ -4038,8 +5646,11 @@
     }
 
     // Close popup when clicking outside
+    // A click on the backdrop closes details, but not the click that ends the long-press which opened them
+    // (on phones the popup opens under the finger).
+    let cardDetailOpenedAt = 0;
     document.getElementById('cardDetailPopup').addEventListener('click', function(e) {
-        if (e.target === this) {
+        if (e.target === this && performance.now() - cardDetailOpenedAt > 500) {
             hideCardDetail();
         }
     });
@@ -4047,6 +5658,18 @@
     document.getElementById('graveyardModal').addEventListener('click', function(e) {
         if (e.target === this) {
             hideGraveyard();
+        }
+    });
+
+    document.getElementById('historyModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideMatchHistory();
+        }
+    });
+
+    document.getElementById('packContentsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hidePackContents();
         }
     });
 
@@ -4061,19 +5684,19 @@
         }
 
         playSFX('select');
-        const btn = document.querySelector(`[data-element="${element}"]`);
+        const btn = document.querySelector(`.element-btn[data-element="${element}"]`);
         if (!btn) return;
 
         if (gameState.selectedElements.includes(element)) {
             gameState.selectedElements = gameState.selectedElements.filter(e => e !== element);
-            btn.classList.remove('selected');
         } else if (gameState.selectedElements.length < getRequiredElementCount()) {
             gameState.selectedElements.push(element);
-            btn.classList.add('selected');
+        } else if (gameState.deckMode === 'single') {
+            // A single-colour deck has one element, so picking another switches to it
+            gameState.selectedElements = [element];
         }
-        btn.setAttribute('aria-pressed', String(btn.classList.contains('selected')));
 
-        updateStartButtonState();
+        syncElementSelectionUI();
     }
 
     // Deck Generation with improved shuffling
@@ -4301,6 +5924,7 @@
         document.getElementById('mulliganBtn').style.opacity = '0.5';
 
         showGameLog('🔄 Mulligan - Drew 6 new cards', false);
+        recordHistory('player', '🔄 You mulligan: a new hand of 6');
         updateUI();
         updateDeckCounters();
     }
@@ -4366,6 +5990,10 @@
         gameState.playerDeckedOut = false;
         gameState.enemyDeckedOut = false;
         gameState.matchFinalized = false;
+        gameState.round = 1;
+        aiStatusText = '';
+        resetMatchHistory();
+        recordHistory('player', '🔔 Turn 1: your turn');
         pendingMatchResultOverlay = null;
         matchSerial++;
 
@@ -4417,8 +6045,7 @@
         // Reset attack phase variable and processing lock
         attackPhase = false;
         releaseProcessingLock();
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         updateUI();
         updateDeckCounters();
@@ -4484,6 +6111,7 @@
         applyJuice(clickedHandCardEl, 'juice-pop');
 
         let playedBoardCardId = null;
+        const historySnap = snapshotForHistory();
 
         // Set processing lock to prevent rapid clicking (with 3 second failsafe)
         setProcessingLock(3000);
@@ -4527,6 +6155,10 @@
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             castInstant(card, 'player');
         }
+
+        const verb = { land: 'play', creature: 'summon', artifact: 'play', instant: 'cast' }[card.type] || 'play';
+        recordHistory('player', `${card.emoji} You ${verb} ${card.name}`,
+            describeChangesSince(historySnap, { playedFrom: 'player', playedId: playedBoardCardId ?? card.id }));
 
         // Particles
         const handEl = document.getElementById('playerHand');
@@ -5336,8 +6968,46 @@
         gameState.attackers = [];
         gameState.phase = 'attack';
         document.getElementById('phaseIndicator').textContent = 'DECLARE ATTACKERS';
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">✓ CONFIRM</span>';
-        document.getElementById('attackBtn').onclick = confirmAttackers;
+        setAttackControls('select');
+        updateUI();
+    }
+
+    // The two controls that change during attacker selection: ATTACK becomes CONFIRM (with the count) and
+    // END TURN, which can't be used mid-attack, becomes CANCEL.
+    function setAttackControls(mode) {
+        const attackBtn = document.getElementById('attackBtn');
+        const endTurnBtn = document.getElementById('endTurnBtn');
+        if (!attackBtn || !endTurnBtn) return;
+        const selecting = mode === 'select';
+        attackBtn.classList.toggle('is-confirm', selecting);
+        endTurnBtn.classList.toggle('is-cancel', selecting);
+        if (selecting) {
+            const n = gameState.attackers.length;
+            attackBtn.innerHTML = `<span class="btn-text">✓ CONFIRM ${n}</span>`;
+            attackBtn.setAttribute('aria-label', n ? `Confirm attack with ${n} creature${n === 1 ? '' : 's'}` : 'Confirm: no attack');
+            attackBtn.onclick = confirmAttackers;
+            endTurnBtn.innerHTML = '<span class="btn-text">✕ CANCEL</span>';
+            endTurnBtn.setAttribute('aria-label', 'Cancel the attack');
+            endTurnBtn.onclick = cancelAttack;
+        } else {
+            attackBtn.innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
+            attackBtn.removeAttribute('aria-label');
+            attackBtn.onclick = enterAttackPhase;
+            endTurnBtn.innerHTML = '<span class="btn-text">END TURN</span>';
+            endTurnBtn.removeAttribute('aria-label');
+            endTurnBtn.onclick = endTurn;
+        }
+    }
+
+    // Leave attacker selection without attacking: the attack is still available this turn
+    function cancelAttack() {
+        if (!attackPhase || gameState.turn !== 'player' || isProcessingAction) return;
+        attackPhase = false;
+        gameState.attackers = [];
+        gameState.phase = 'main';
+        document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
+        setAttackControls('idle');
+        showGameLog('↩️ Attack cancelled', false);
         updateUI();
     }
 
@@ -5388,9 +7058,9 @@
             attackPhase = false;
             gameState.phase = 'main';
             document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-            document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-            document.getElementById('attackBtn').onclick = enterAttackPhase;
+            setAttackControls('idle');
             showGameLog('🛡️ You choose not to attack', false);
+            updateUI();
             return;
         }
 
@@ -5420,8 +7090,7 @@
         attackPhase = false;
         gameState.phase = 'main';
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         checkGameOver();
         updateUI();
@@ -5464,13 +7133,20 @@
         return blockers;
     }
 
-    function applyDamage(attacker, blockers, isPlayerAttacking) {
+    // Where combat life changes go. Real combat uses the live totals; previewCombat passes its own copy, so the
+    // preview runs these exact damage rules without touching the game.
+    const LIVE_COMBAT_LIFE = {
+        player: amount => changePlayerLife(amount),
+        enemy: amount => changeEnemyLife(amount)
+    };
+
+    function applyDamage(attacker, blockers, isPlayerAttacking, life = LIVE_COMBAT_LIFE) {
         const adjustLifeByController = (isPlayerControlled, amount) => {
             if (amount <= 0) return;
             if (isPlayerControlled) {
-                changePlayerLife(amount);
+                life.player(amount);
             } else {
-                changeEnemyLife(amount);
+                life.enemy(amount);
             }
         };
 
@@ -5530,9 +7206,9 @@
 
                 if (remainingAttackDamage > 0 && hasAbility(attacker, 'trample')) {
                     if (isPlayerAttacking) {
-                        changeEnemyLife(-remainingAttackDamage);
+                        life.enemy(-remainingAttackDamage);
                     } else {
-                        changePlayerLife(-remainingAttackDamage);
+                        life.player(-remainingAttackDamage);
                     }
 
                     if (hasAbility(attacker, 'lifelink')) {
@@ -5559,23 +7235,73 @@
     }
 
     // An unblocked attacker hits the defending player; Double Strike hits twice (RULES.md C4, C6).
-    function dealUnblockedDamage(attacker, isPlayerAttacking) {
+    function dealUnblockedDamage(attacker, isPlayerAttacking, life = LIVE_COMBAT_LIFE) {
         const hits = hasAbility(attacker, 'double_strike') ? 2 : 1;
         const power = attacker.power || 0;
         for (let i = 0; i < hits; i++) {
             if (isPlayerAttacking) {
-                changeEnemyLife(-power);
+                life.enemy(-power);
             } else {
-                changePlayerLife(-power);
+                life.player(-power);
             }
             if (hasAbility(attacker, 'lifelink')) {
                 if (isPlayerAttacking) {
-                    changePlayerLife(power);
+                    life.player(power);
                 } else {
-                    changeEnemyLife(power);
+                    life.enemy(power);
                 }
             }
         }
+    }
+
+    // What an attack would do, by the same rules as the real thing: the automatic blocks (assignAutoBlockers),
+    // then applyDamage / dealUnblockedDamage for each attacker in declared order, deaths checked afterwards
+    // (as checkStateBasedActions does). It works on copies of the creatures and of the life totals, so it never
+    // changes cards, life, mana, randomness, timers or rewards. The life copies follow the live life rules:
+    // never below 0, and nothing changes once a side has lost (the match would be over).
+    function previewCombat(attackers, defendingBoard, isPlayerAttacking) {
+        const copy = card => ({ ...card, abilities: [...(card.abilities || [])] });
+        const attackerCopies = attackers.filter(Boolean).map(copy);
+        const blockerCopies = defendingBoard.filter(c => c.type === 'creature' && !c.tapped).map(copy);
+        const blocks = assignAutoBlockers(attackerCopies, blockerCopies);
+        const totals = { player: gameState.playerLife, enemy: gameState.enemyLife, result: gameState.matchFinalized ? 'over' : null };
+        const change = (side, amount) => {
+            if (totals.result) return;
+            totals[side] = Math.max(0, totals[side] + amount);
+            // checkGameOver looks at the player first
+            if (totals.player <= 0) totals.result = 'loss';
+            else if (totals.enemy <= 0) totals.result = 'win';
+        };
+        const life = { player: amount => change('player', amount), enemy: amount => change('enemy', amount) };
+        const dies = card => (card.damage || 0) >= card.toughness;
+
+        const pairs = attackerCopies.map(attacker => {
+            const blockers = (blocks[attacker.id] || []).map(id => blockerCopies.find(b => b.id === id)).filter(Boolean);
+            const before = { player: totals.player, enemy: totals.enemy };
+            if (blockers.length > 0) {
+                applyDamage(attacker, blockers, isPlayerAttacking, life);
+            } else {
+                dealUnblockedDamage(attacker, isPlayerAttacking, life);
+            }
+            return { attacker, blockers, lifeChange: { player: totals.player - before.player, enemy: totals.enemy - before.enemy } };
+        });
+
+        return {
+            isPlayerAttacking,
+            blocks,
+            pairs: pairs.map(({ attacker, blockers, lifeChange }) => ({
+                attackerId: attacker.id,
+                blockerIds: blockers.map(b => b.id),
+                attackerDies: dies(attacker),
+                attackerDamage: attacker.damage || 0,
+                blockersDie: blockers.filter(dies).map(b => b.id),
+                blockerDamage: Object.fromEntries(blockers.map(b => [b.id, b.damage || 0])),
+                lifeChange
+            })),
+            life: { player: totals.player, enemy: totals.enemy },
+            deaths: [...attackerCopies, ...blockerCopies].filter(dies).map(c => c.id),
+            result: totals.result === 'over' ? null : totals.result
+        };
     }
 
     function aiDeclareBlockers() {
@@ -5592,25 +7318,9 @@
     }
 
     function resolveCombat() {
-        gameState.attackers.forEach(attackerId => {
-            const attacker = gameState.playerBoard.find(c => c.id === attackerId);
-            if (!attacker) return;
-
-            if (!hasAbility(attacker, 'vigilance')) {
-                attacker.tapped = true;
-            }
-
-            const blockerIds = gameState.blockers[attackerId] || [];
-            const blockers = blockerIds.map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean);
-
-            if (blockers.length > 0) {
-                applyDamage(attacker, blockers, true);
-            } else {
-                dealUnblockedDamage(attacker, true);
-            }
-        });
-
-        checkStateBasedActions();
+        const attackers = gameState.attackers.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
+        resolveAttackersWithHistory(attackers, attacker => (gameState.blockers[attacker.id] || [])
+            .map(id => gameState.enemyBoard.find(c => c.id === id)).filter(Boolean), true);
         gameState.attackers = [];
         gameState.blockers = {};
     }
@@ -5668,6 +7378,7 @@
 
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
+        aiStatusText = 'Starting its turn';
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
         document.getElementById('gameContainer').classList.add('enemy-turn');
 
@@ -5686,6 +7397,7 @@
         const artifacts = board.filter(c => c.type === 'artifact');
 
         artifacts.forEach(artifact => {
+            const snap = snapshotForHistory();
             switch(artifact.effect) {
                 case 'draw':
                     // Artifacts like Crown of Power or Dark Scroll
@@ -5715,6 +7427,8 @@
                     showGameLog(`${artifact.emoji} ${artifact.name} deals ${artifact.value || 1} damage!`, !isPlayer);
                     break;
             }
+            const changes = describeChangesSince(snap);
+            if (changes.length) recordHistory(isPlayer ? 'player' : 'enemy', `${cardLabel(artifact)} at the start of the turn`, changes);
         });
     }
 
@@ -5729,13 +7443,15 @@
 
         gameState.turn = 'player';
         gameState.phase = 'main';
+        gameState.round = (gameState.round || 1) + 1;
+        aiStatusText = '';
+        recordHistory('player', `🔔 Turn ${gameState.round}: your turn`);
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
 
         // CRITICAL FIX: Ensure attack phase is reset and button is restored
         attackPhase = false;
         gameState.attackers = [];
-        document.getElementById('attackBtn').innerHTML = '<span class="btn-text">⚔️ ATTACK</span>';
-        document.getElementById('attackBtn').onclick = enterAttackPhase;
+        setAttackControls('idle');
 
         // Draw card at start of turn
         drawCard('player');
@@ -5764,26 +7480,30 @@
     // The AI plays a creature, artifact or instant from its hand, through the same resolution as the player.
     // Returns the id of the permanent it put on the battlefield, if any.
     function aiPlayCard(card) {
+        const snap = snapshotForHistory();
         payCost(card.cost, gameState.enemyMana);
         gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== card.id);
+        setAiStatus(`${card.type === 'instant' ? 'Casting' : 'Playing'} ${cardLabel(card)}`);
+        let playedId = null;
 
         if (card.type === 'creature') {
             gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
-            return card.id;
-        }
-
-        if (card.type === 'artifact') {
+            playedId = card.id;
+        } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.enemyBoard.push(artifactOnBoard);
             showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
             resolveArtifactOnPlay(artifactOnBoard, 'enemy');
-            return artifactOnBoard.id;
+            playedId = artifactOnBoard.id;
+        } else {
+            showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+            castInstant(card, 'enemy');
         }
 
-        showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
-        castInstant(card, 'enemy');
-        return null;
+        const verb = { creature: 'summons', artifact: 'plays', instant: 'casts' }[card.type] || 'plays';
+        recordHistory('enemy', `${card.emoji} Enemy ${verb} ${card.name}`, describeChangesSince(snap, { playedFrom: 'enemy', playedId: playedId ?? card.id }));
+        return playedId;
     }
 
     // The AI holds a two-sided sweeper (Earthquake, Avalanche) unless it kills more of your creatures than
@@ -5964,6 +7684,9 @@
         }, 12000); // 12 seconds maximum for AI turn
 
         try {
+            setAiStatus('Drawing a card');
+            recordHistory('enemy', '🤖 Enemy turn');
+
             // Untap enemy permanents
             gameState.enemyBoard.forEach(untapAtTurnStart);
             gameState.enemyMana = {};
@@ -5979,10 +7702,12 @@
             if (turnIsStale()) return;
             // Play lands
             const landInHand = aiChooseLand();
+            setAiStatus(landInHand ? `Playing a land: ${cardLabel(landInHand)}` : 'No land to play');
             if (landInHand) {
                 gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== landInHand.id);
                 gameState.enemyBoard.push({...landInHand, tapped: false});
                 showGameLog(`🌍 Enemy plays ${landInHand.name}`, true);
+                recordHistory('enemy', `🌍 Enemy plays ${landInHand.name}`);
                 updateUI();
                 const enemyLandEl = document.querySelector(`#enemyBoard .card[data-card-id="${landInHand.id}"]`) ||
                     document.querySelector(`#enemyBoard .card[data-id="${landInHand.id}"]`) ||
@@ -5993,7 +7718,9 @@
             setTimeout(() => {
                 if (turnIsStale()) return;
                 // Tap lands and mana artifacts for mana
+                setAiStatus('Tapping mana');
                 const manaTapped = aiTapManaSources();
+                if (!manaTapped) setAiStatus('Choosing what to play');
 
                 if (manaTapped) {
                     showGameLog('⚡ Enemy taps lands for mana', true);
@@ -6026,6 +7753,7 @@
                                 gameState.enemyBoard.push({...creature, tapped: false, summoningSick: !creature.abilities?.includes('haste'), damage: 0});
                                 playedEnemyCreatureIds.push(creature.id);
                                 showGameLog(`${creature.emoji} Enemy summons ${creature.name}`, true, creature.theme === 'scifi');
+                                recordHistory('enemy', `${creature.emoji} Enemy summons ${creature.name}`);
                                 creaturePlayed = true;
                             }
                         });
@@ -6053,8 +7781,10 @@
                                 gameState.enemyBoard.push(artifactOnBoard);
                                 playedEnemyArtifactIds.push(artifactOnBoard.id);
                                 showGameLog(`${artifact.emoji} Enemy plays ${artifact.name}`, true);
+                                const artifactSnap = snapshotForHistory();
 
                                 resolveArtifactOnPlay(artifactOnBoard, 'enemy');
+                                recordHistory('enemy', `${artifact.emoji} Enemy plays ${artifact.name}`, describeChangesSince(artifactSnap));
 
                                 artifactPlayed = true;
                             }
@@ -6080,7 +7810,9 @@
                                     payCost(spell.cost, gameState.enemyMana);
                                     gameState.enemyHand = gameState.enemyHand.filter(c => c.id !== spell.id);
                                     showGameLog(`${spell.emoji} Enemy casts ${spell.name}`, true);
+                                    const spellSnap = snapshotForHistory();
                                     castInstant(spell, 'enemy');
+                                    recordHistory('enemy', `${spell.emoji} Enemy casts ${spell.name}`, describeChangesSince(spellSnap));
                                     spellPlayed = true;
                                 }
                             });
@@ -6115,6 +7847,7 @@
                         }
 
                         mainPhaseActed = playsMade > 0;
+                        if (!playsMade) setAiStatus('Plays nothing this turn');
                         if (playsMade > 0) {
                             updateUI();
                             playedEnemyCardIds.forEach(playedId => {
@@ -6145,10 +7878,14 @@
                                 }
                             }
 
+                            setAiStatus(attackingCreatures.length
+                                ? `Attacking with ${attackingCreatures.length} creature${attackingCreatures.length === 1 ? '' : 's'}`
+                                : 'Not attacking');
                             resolveEnemyAttackPhase(attackingCreatures);
 
                             updateUI();
                             checkGameOver();
+                            // The attack status stays up through the pause before the player's turn
 
                             setTimeout(() => {
                                 if (turnIsStale()) return;
@@ -6281,6 +8018,7 @@
             playSFX('attack');
         } else {
             showGameLog('🛡️ Enemy does not attack', true);
+            recordHistory('enemy', '🛡️ Enemy does not attack');
             return;
         }
 
@@ -6293,26 +8031,11 @@
             blockers: (playerBlockers[attacker.id] || []).map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean)
         }));
 
-        attackingCreatures.forEach(attacker => {
-            if (!hasAbility(attacker, 'vigilance')) {
-                attacker.tapped = true;
-            }
-
-            const blockerIds = playerBlockers[attacker.id] || [];
-            const blockers = blockerIds.map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean);
-
-            if (blockers.length > 0) {
-                applyDamage(attacker, blockers, false);
-            } else {
-                dealUnblockedDamage(attacker, false);
-            }
-
-            const playerArea = document.querySelector('.player-area:not(.enemy-area)');
-            const rect = playerArea.getBoundingClientRect();
-            createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30);
-        });
-
-        checkStateBasedActions();
+        resolveAttackersWithHistory(attackingCreatures, attacker => (playerBlockers[attacker.id] || [])
+            .map(id => gameState.playerBoard.find(c => c.id === id)).filter(Boolean), false);
+        const playerArea = document.querySelector('.player-area:not(.enemy-area)');
+        const rect = playerArea.getBoundingClientRect();
+        attackingCreatures.forEach(() => createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#dc143c', 30));
         reportCombat(combatPairs, 'enemy');
     }
 
@@ -6449,6 +8172,9 @@
 
     // Update UI
     function performUIUpdate() {
+        // The attack preview first: board cards show their predicted part in it
+        refreshCombatPreview();
+
         // Update life totals
         document.getElementById('playerLife').textContent = gameState.playerLife;
         document.getElementById('enemyLife').textContent = gameState.enemyLife;
@@ -6468,24 +8194,26 @@
             const cardEl = createCardElement(card, false);
             attachDesktopTooltip(cardEl, card);
 
-            if (card.type === 'land') {
-                if (gameState.landsPlayedThisTurn < 1) {
-                    cardEl.classList.add('playable');
+            // Playable or not, by the same checks playCard makes (getPlayRestriction); the reason is on the card
+            const restriction = getPlayRestriction(card);
+            cardEl.classList.add(restriction ? 'unplayable' : 'playable');
+            if (restriction) {
+                cardEl.dataset.restriction = restriction.code;
+                cardEl.title = `Can't play now: ${restriction.text}`;
+                if (restriction.code === 'mana' || restriction.code === 'land') {
+                    const chip = document.createElement('div');
+                    chip.className = 'card-reason';
+                    chip.setAttribute('aria-hidden', 'true');
+                    const missing = getMissingMana(card.cost || {}, gameState.playerMana);
+                    chip.textContent = restriction.code === 'land' ? 'Land used'
+                        : `🔒${Object.entries(missing).map(([el, n]) => `${ELEMENTS[el]?.emoji || '◇'}${n}`).join('') || ''}`;
+                    cardEl.appendChild(chip);
                 }
-            } else if (canPayCost(card.cost, gameState.playerMana)) {
-                cardEl.classList.add('playable');
             }
 
-            if (card.type !== 'land' && !canPayCost(card.cost, gameState.playerMana)) {
-                cardEl.classList.add('unplayable');
-            }
-            if (card.type === 'land' && gameState.landsPlayedThisTurn >= 1) {
-                cardEl.classList.add('unplayable');
-            }
-            
             // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
             bindCardPress(cardEl, {
-                label: describeCardForA11y(card, 'hand'),
+                label: describeCardForA11y(card, 'hand') + (restriction ? `, can't play now: ${restriction.text}` : ''),
                 onTap: () => playCard(card.id),
                 onLongPress: () => showCardDetail(card)
             });
@@ -6525,6 +8253,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card';
+            applyCardIdentity(stackCard, representativeCard);
             attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
@@ -6602,8 +8331,28 @@
             const cardEl = createCardElement(card, true);
             attachDesktopTooltip(cardEl, card);
             
+            let attackNote = '';
             if (card.type === 'creature' && attackPhase && gameState.attackers.includes(card.id)) {
                 cardEl.classList.add('attacking');
+                const marker = document.createElement('div');
+                marker.className = 'card-state card-state-attacking';
+                marker.textContent = '⚔️';
+                marker.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(marker);
+                attackNote = markPreviewOutcome(cardEl, card.id);
+            } else if (card.type === 'creature' && attackPhase) {
+                // Why it can't attack (getAttackRestriction), on the card and in its name
+                const restriction = getAttackRestriction(card);
+                cardEl.classList.add(restriction ? 'cannot-attack' : 'can-attack');
+                if (restriction) {
+                    const chip = document.createElement('div');
+                    chip.className = 'card-reason';
+                    chip.setAttribute('aria-hidden', 'true');
+                    chip.textContent = card.tapped ? 'Tapped' : hasAbility(card, 'defender') ? 'Defender' : 'Next turn';
+                    cardEl.appendChild(chip);
+                    cardEl.title = `Can't attack: it ${restriction}`;
+                    attackNote = `, can't attack: it ${restriction}`;
+                }
             }
 
             // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
@@ -6616,7 +8365,7 @@
             }
             bindCardPress(cardEl, {
                 label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
-                    ? (gameState.attackers.includes(card.id) ? ', attacking' : ', press to attack') : ''),
+                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : ''),
                 onTap: boardAction,
                 onLongPress: () => showCardDetail(card)
             });
@@ -6655,6 +8404,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card enemy-land-stack';
+            applyCardIdentity(stackCard, representativeCard);
             attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
@@ -6706,9 +8456,10 @@
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
+            const blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
 
             bindCardPress(cardEl, {
-                label: `Enemy ${describeCardForA11y(card, 'board')}`,
+                label: `Enemy ${describeCardForA11y(card, 'board')}${blockNote}`,
                 onTap: () => showCardDetail(card),
                 onLongPress: () => showCardDetail(card)
             });
@@ -6717,6 +8468,9 @@
         });
 
         restoreRowFocus(savedRowFocus);
+        renderCombatPreviewPanel();
+        updateTurnBanner();
+        if (attackPhase) setAttackControls('select');
 
         // Manage button states - disable during enemy turn and when processing actions
         const attackBtn = document.getElementById('attackBtn');
@@ -6744,7 +8498,8 @@
         }
 
         if (endTurnBtn) {
-            const shouldDisableEndTurn = !isPlayerTurn || isProcessingAction || attackPhase;
+            // During attacker selection this button is CANCEL, so it stays usable
+            const shouldDisableEndTurn = !isPlayerTurn || isProcessingAction;
             endTurnBtn.disabled = shouldDisableEndTurn;
 
             // Visual feedback for disabled state
@@ -6786,17 +8541,20 @@
         }
     }
 
+    // One card face for the hand and both battlefields. The art (emoji) is the first child; around it: cost pips
+    // (hand) or damage (board) top-left, keywords or the type icon top-right, a state marker bottom-left and
+    // power/toughness bottom-right. Element colours, type and rarity are classes and data attributes styled in
+    // styles.css ("CARD FACES").
     function createCardElement(card, onBoard, isEnemy = false) {
         const cardEl = document.createElement('div');
         cardEl.className = 'card';
         cardEl.dataset.cardId = card.id;
         cardEl.id = `card-${isEnemy ? 'enemy' : 'player'}-${card.id}`;
 
-        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-        const rarity = validRarities.has(card.__rarity) ? card.__rarity : 'common';
-        cardEl.classList.add(`rarity-${rarity}`);
-        cardEl.classList.add(`juice-glow-${rarity}`);
-        
+        cardEl.classList.add(`rarity-${getCardRarity(card)}`, `type-${card.type}`);
+        cardEl.dataset.type = card.type;
+        applyCardIdentity(cardEl, card);
+
         if (card.type === 'land') {
             cardEl.classList.add('land');
         }
@@ -6809,33 +8567,36 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
-        if (onBoard && !isEnemy && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste')) {
+        const sick = onBoard && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste');
+        if (sick) {
             cardEl.classList.add('summoning-sick');
-            cardEl.title = 'Summoning sick: can attack next turn';
+            cardEl.title = isEnemy ? 'Summoning sick: can attack on its next turn' : 'Summoning sick: can attack next turn';
         }
-        // Emoji - centered
+
+        // Art: the emoji, centred in an element-coloured window
         const emojiEl = document.createElement('div');
+        emojiEl.className = 'card-art';
         emojiEl.textContent = card.emoji;
-        emojiEl.style.fontSize = '32px';
-        emojiEl.style.display = 'flex';
-        emojiEl.style.alignItems = 'center';
-        emojiEl.style.justifyContent = 'center';
-        emojiEl.style.flex = '1';
-        emojiEl.style.width = '100%';
         cardEl.appendChild(emojiEl);
 
-        // Cost
-        if (card.cost && !onBoard && Object.keys(card.cost).length > 0) {
+        // Cost, in hand only (the board has no use for it)
+        if (!onBoard && card.type !== 'land') {
             const costEl = document.createElement('div');
             costEl.className = 'card-cost';
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji}${val}`)
-                .join(' ');
-            costEl.textContent = costStr;
+            costEl.innerHTML = renderCostPips(card.cost);
             cardEl.appendChild(costEl);
         }
 
-        // Power/Toughness
+        // Type icon for everything but creatures (their power/toughness already says what they are)
+        if (card.type !== 'creature' && CARD_TYPE_INFO[card.type]) {
+            const typeEl = document.createElement('div');
+            typeEl.className = 'card-type-icon';
+            typeEl.textContent = CARD_TYPE_INFO[card.type].icon;
+            typeEl.title = CARD_TYPE_INFO[card.type].label;
+            typeEl.setAttribute('aria-hidden', 'true');
+            cardEl.appendChild(typeEl);
+        }
+
         if (card.type === 'creature') {
             const powerEl = document.createElement('div');
             powerEl.className = 'card-power';
@@ -6850,17 +8611,27 @@
                 cardEl.appendChild(damageEl);
             }
 
-            // Abilities
+            // Summoning sickness as a marker, not only the dashed border
+            if (sick) {
+                const stateEl = document.createElement('div');
+                stateEl.className = 'card-state card-state-sick';
+                stateEl.textContent = '💤';
+                stateEl.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(stateEl);
+            }
+
+            // Keywords: up to three badges show; the rest are counted (+N) and listed in card details
             if (card.abilities && card.abilities.length > 0) {
                 const abilitiesEl = document.createElement('div');
                 abilitiesEl.className = 'card-abilities';
-                card.abilities.forEach(ability => {
-                    const abilityEl = document.createElement('div');
-                    abilityEl.className = 'ability-icon';
-                    abilityEl.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
-                    abilityEl.title = describeKeyword(ability);
-                    abilitiesEl.appendChild(abilityEl);
-                });
+                card.abilities.forEach(ability => abilitiesEl.appendChild(createKeywordBadge(ability)));
+                if (card.abilities.length > 3) {
+                    const moreEl = document.createElement('div');
+                    moreEl.className = 'ability-more';
+                    moreEl.textContent = `+${card.abilities.length - 3}`;
+                    moreEl.title = card.abilities.slice(3).map(describeKeyword).join('\n');
+                    abilitiesEl.appendChild(moreEl);
+                }
                 cardEl.appendChild(abilitiesEl);
             }
         }
@@ -6887,11 +8658,13 @@
         { id: 'mulliganConfirmModal', close: () => document.getElementById('mulliganNoBtn')?.click() },
         { id: 'manaChoiceModal', close: () => document.querySelector('#manaChoiceModal .cancel-btn')?.click() },
         { id: 'cardDetailPopup', close: () => hideCardDetail() },
+        { id: 'packContentsModal', close: () => hidePackContents() },
         { id: 'packOpeningOverlay', close: () => closePackOpeningOverlay() },
         { id: 'matchRewardOverlay', close: null },   // the only way on is OPEN BOOSTER
         { id: 'victoryOverlay', close: null },       // PLAY AGAIN or MAIN MENU (Esc used to strand the board)
         { id: 'loseOverlay', close: null },
         { id: 'graveyardModal', close: () => hideGraveyard() },
+        { id: 'historyModal', close: () => hideMatchHistory() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 
@@ -6993,6 +8766,15 @@
                 hideBinder();
                 return;
             }
+
+            // Battle setup, How to Play and Stats go back to the menu too
+            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen']
+                .find(id => document.getElementById(id)?.style.display === 'block');
+            if (startModal?.classList.contains('modal-visible') && backScreen) {
+                e.preventDefault();
+                backToMenu();
+                return;
+            }
         }
 
         // Only enable keyboard shortcuts during active gameplay (not in menus)
@@ -7018,6 +8800,13 @@
             return;
         }
 
+        // H = match history, on either side's turn
+        if (e.key === 'h' || e.key === 'H') {
+            e.preventDefault();
+            showMatchHistory();
+            return;
+        }
+
         // Only allow shortcuts during player's turn
         if (gameState.turn !== 'player' || isProcessingAction) {
             return;
@@ -7028,7 +8817,9 @@
             case 'e': // E = End Turn
                 e.preventDefault();
                 const endTurnBtn = document.getElementById('endTurnBtn');
-                if (endTurnBtn && !endTurnBtn.disabled) {
+                if (attackPhase) {
+                    endTurn(); // still END TURN, which is refused mid-attack (the button itself is CANCEL now)
+                } else if (endTurnBtn && !endTurnBtn.disabled) {
                     endTurnBtn.click();
                 }
                 break;

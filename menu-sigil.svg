@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="#f2cf72" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Arcane circle: five element nodes joined by a pentagram, ringed by runic ticks -->
+  <circle cx="100" cy="100" r="94" stroke-width="1.5" stroke-opacity="0.7"/>
+  <circle cx="100" cy="100" r="84" stroke-width="1" stroke-opacity="0.5" stroke-dasharray="2 6"/>
+  <circle cx="100" cy="100" r="62" stroke-width="1" stroke-opacity="0.45"/>
+  <path d="M100 20 L147 165 L23.9 75.3 H176.1 L53 165 Z" stroke-width="1.4" stroke-opacity="0.75"/>
+  <g fill="#f2cf72" fill-opacity="0.9" stroke="none">
+    <circle cx="100" cy="20" r="5"/>
+    <circle cx="176.1" cy="75.3" r="5"/>
+    <circle cx="147" cy="165" r="5"/>
+    <circle cx="53" cy="165" r="5"/>
+    <circle cx="23.9" cy="75.3" r="5"/>
+  </g>
+  <circle cx="100" cy="100" r="10" stroke-width="1.4" stroke-opacity="0.8"/>
+</svg>

@@ -132,6 +132,8 @@ Already fine, confirmed by the audit:
 | Card details | long-press (400 ms), or tap a card with no action | right-click, or click a card with no action | I (or the context-menu key) |
 | Tap all lands in a stack | long-press the stack | right-click, or the ⚡ corner button | I on the stack |
 | End turn / attack / mulligan | buttons | buttons | Space or E / A / M |
+| Cancel attacker selection | ✕ CANCEL | ✕ CANCEL | Tab to it, Enter |
+| Match history | 📜 | 📜 | H |
 | Close a window / pause | ✕ | ✕ | Esc |
 
 ## 5. Implementation notes
@@ -168,3 +170,517 @@ screen reader and no H.264.
 | R7 | Tablet with a keyboard, and iPad landscape (1024×768+) | Keyboard play end to end. The ≥768 px layout on a short landscape tablet. |
 | R8 | Manual contrast review | Gold text on gradient panels, red P/T badges, disabled MULLIGAN. axe can't measure text over gradients. |
 | R9 | Orientation change mid-match, split screen | Layout switches with no lost state. |
+
+## 7. Main menu and battle setup refresh
+
+A focused visual and UX pass on the main menu and battle setup. It keeps the dark arcane purple-and-gold look,
+the vanilla HTML/CSS/JS structure, and every existing id, `data-*` attribute, `onclick` route and handler. The
+match screen, in-game dialogs and rules are unchanged.
+
+### What changed
+
+| # | Before | After |
+|---|---|---|
+| M1 | Six identical gold buttons. Nothing marked NEW GAME as the main action. | NEW GAME is one large gold tile with a line of supporting text. The other five entries are violet tiles in a grid, each with an icon, a label and a short description. |
+| M2 | Labels "BINDER / COLLECTION" and "GAME STATS". No hint of what each screen does. | New Game, Deck Builder, Collection, Pack Shop, How to Play, Stats, each with a one-line description. Stats shows your win/loss record. |
+| M3 | Credits only showed inside the Pack Shop. Collection size only showed inside the Binder. | A status row shows credits, and collection progress as "owned / 268" with a meter. Both come from the saved profile (`updateMenuStatus`). |
+| M4 | Setup order was deck type, "Select elements" (heading with nothing under it), difficulty, then the elements. | Four numbered steps: 1 Deck type, 2 Elements, 3 AI difficulty, 4 Your deck. |
+| M5 | Element buttons were emoji only. Their names were in `aria-label` and invisible. Selection was a pink glow and a scale-up. | Each element shows its name in its own colour. A ✓ badge marks a pick (no reliance on colour alone). A live hint says how many picks are left, and unpicked elements dim when a two-colour deck is full. In a single-colour deck, tapping another element switches to it. |
+| M6 | No explanation of the difficulties. | The selected level is explained from `DIFFICULTY_INFO`, which matches `AI_PROFILES` and AI.md §3. One shared line says every level plays by your rules with a legal 60-card deck in 1 or 2 random elements. |
+| M7 | Nothing showed which deck you were about to play. | A summary of the saved deck for those colours: card counts by type, average cost of non-land cards, its rarest cards, and "Starter list" or "Customized". It is computed from `gameMeta.decks[key]`, the same deck `createPlayerDeck` will use. |
+| M8 | NEW GAME always reset to "Two Colors" with nothing picked. The last deck was saved (`gameMeta.selectedDeckKey`) but never shown. | NEW GAME, PLAY AGAIN and TRY AGAIN start with the saved deck picked, also after a reload. |
+| M9 | Short landscape (863×360): the desktop sizes applied, and only two entries showed without scrolling. The setup needed a long scroll. | Compact logo, entries in a 3 + 2 grid, setup in two columns. NEW GAME and START BATTLE are on screen without scrolling. |
+| M10 | The desktop title was clipped at the right edge (the panel overflowed by 5 px). | The panel is wider (600 px; 760–940 px for setup and Deck Builder) and the title is sized to fit. |
+| M11 | Esc did nothing on setup, How to Play and Stats. After BACK, focus always went to NEW GAME. | Esc returns from every menu screen. Focus returns to the entry that opened the screen, and each screen's heading is focused when it opens. |
+| M12 | The footer link was 37 px tall. The How to Play pages could scroll but not take focus (axe `scrollable-region-focusable`). | 44 px link. The pages are focusable regions. |
+
+Design system, in the "MENU REFRESH" block at the end of `styles.css`, scoped to `#startModal`:
+- **Spacing:** steps of 4, 8, 12, 16 and 24 px (`--space-*`); radii of 8, 12 and 16 px.
+- **Type:** Uncial Antiqua for the logo only, Cinzel for headings and labels, Inter for supporting text.
+- **Buttons:** primary (gold fill: NEW GAME and START BATTLE), secondary (violet tile with a gold hairline), back
+  (ghost) and danger (the two resets).
+- **Element accents:** `--el`, `--el-soft` and `--el-glow`, set per `[data-element]`.
+- **Decoration:** two local SVGs (`menu-sigil.svg`, a five-node arcane circle, 1 KB; `menu-divider.svg`, a gold
+  filigree rule, 1 KB), used as CSS masks and backgrounds.
+
+### Evidence
+
+`tests/menu-audit.mjs` (`npm run menu`, also in CI) runs on a fresh profile at desktop 1366×768 (mouse and
+keyboard), narrow phone 360×740, short landscape 863×360 and tablet 712×1138 (touch). It checks:
+- layout and touch target size;
+- text size;
+- hierarchy and labels;
+- that the status values match `gameMeta`;
+- setup: element names, the ✓ marker, difficulty text against the AI settings, and deck summary numbers against
+  the saved deck;
+- saved-deck restore, including after a reload;
+- routing and keyboard;
+- axe (contrast included) on every menu screen.
+
+The same final version of the audit was run on `main` before the change and on this branch after it:
+
+| Area | `main` (before): failing / checks | This branch (after): failing / checks |
+|---|---|---|
+| Layout (overflow, 44 px controls, 11 px text, NEW GAME and START on screen) | 56 / 115 | 0 / 115 |
+| Accessibility (axe, contrast included) | 4 / 36 | 0 / 36 |
+| Hierarchy (NEW GAME first and largest) | 4 / 8 | 0 / 8 |
+| Labels and supporting text | 8 / 8 | 0 / 8 |
+| Credits and collection progress | 8 / 8 | 0 / 8 |
+| Setup (names, ✓ marker, difficulty text, deck summary) | 40 / 64 | 0 / 64 |
+| Saved deck restored (and after a reload) | 8 / 8 | 0 / 8 |
+| Keyboard (Tab, Enter/Space, Esc, focus return) | 6 / 10 | 0 / 10 |
+| Routing, audio start, page errors | 0 / 32 | 0 / 32 |
+| **Total** | **134 / 289** | **0 / 289** |
+
+Regression on this branch:
+- card catalog: passed;
+- rules, combat, progression, effects and AI: 337/337;
+- smoke: 204/204;
+- UI audit: 469/469.
+
+The smoke, release and UI audits now open Collection and Stats by their new labels, and the UI audit chooses
+"Two Colors" before picking an element, because NEW GAME now restores the saved deck.
+
+Before/after screenshots (real Chromium):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/menu-desktop.jpg](docs/ui-evidence/menu-desktop.jpg) | Desktop 1366×768: menu and battle setup |
+| [docs/ui-evidence/menu-phone.jpg](docs/ui-evidence/menu-phone.jpg) | Phone 360×740: the full menu and setup panels |
+| [docs/ui-evidence/menu-landscape.jpg](docs/ui-evidence/menu-landscape.jpg) | Phone landscape 863×360: menu and setup |
+
+### Limitations
+
+- Only Chromium was run (desktop size and emulated touch devices). Safari/WebKit, Firefox and real phones are
+  untested (§6). That includes CSS `mask` on the SVG decorations, which has been supported since Safari 15.4 and
+  Firefox 53; where it is missing, the decoration just doesn't draw.
+- The difficulty explanations describe `AI_PROFILES` as written. If those settings change, `DIFFICULTY_INFO` must
+  change with them. The audit catches it only for the phrases it checks.
+- On a fresh profile, NEW GAME starts with FIRE picked: `gameMeta.selectedDeckKey` defaults to `FIRE`, and the
+  save can't tell "never chosen" from "chose FIRE".
+- Difficulty is still not saved between sessions. It never was, and it is outside this pass.
+
+## 8. Card presentation
+
+One card presentation across the hand, both battlefields, card details and pack reveals. The emoji stays the
+artwork. Catalog ids, stats, costs, inferred rarity, rules, saved data and `bindCardPress` (tap, long-press,
+right-click, keyboard) are unchanged. The card catalog check and its manifest are unchanged.
+
+### The face
+
+| Part | Hand | Battlefield | Notes |
+|---|---|---|---|
+| Art | the emoji in an element-coloured window | same | **Mono:** that element's colour. **Dual:** a diagonal split between both colours (29 two-colour cards and Distant Planet). **Rainbow:** all five. **Colorless:** neutral steel (10 colorless artifacts, 3 free artifacts, Crystal Wasteland). |
+| Cost (top-left) | one pip per colour with its count. Colorless is ◇N and free is 0, both on a square pip, so they differ by shape as well as colour. | hidden; the damage badge 💔N goes here | |
+| Top-right | keywords (up to 3, then +N) or the type icon (✨ instant, ⚙️ artifact, ⛰️ land) | same | Instants also get a rune ring, artifacts a steel bevel, lands an earthen base. |
+| Bottom-left | — | state marker: 💤 summoning sick, ⚔️ attacking | |
+| Bottom-right | power/toughness on a dark chip | same | |
+| Border | rarity colour: common bronze, rare blue, epic purple, legendary gold. Nothing animates. | same; enemy cards add a thin red rim | The legendary pulse, the spinning halo and the per-rarity glow are gone. |
+
+The sizes are unchanged: 58×78 on phones (62×82 with borders), 52×68 in short landscape and 80×105 on desktop.
+The larger badges apply only where the cards are larger.
+
+### States, without relying on colour
+
+| State | Cue |
+|---|---|
+| Tapped | Turned sideways (as before) and dimmed |
+| Summoning sick | Dashed border, 💤 marker, faded art. Now also on **enemy** creatures, which previously had no mark. |
+| Damaged | 💔N badge |
+| Attacking (selected) | Lifted, with an outline and the ⚔️ marker. The looping glow is gone. |
+| Playable / unplayable (hand) | Playable cards lift, with a ring. Unplayable cards sit flat, dimmed and desaturated. The looping green glow is gone. |
+| Flash (any card with it) | The badge is greyed and struck through, and details label it "No effect" with the `KEYWORD_RULES` text. Flash is never shown as working. |
+
+### Details and pack reveals
+
+- **Card details:**
+  - The art window uses the same element background, and the border shows the rarity.
+  - Tags show type, rarity (●/◆/⬢/★) and element names.
+  - Cost appears as pips plus text ("4 Fire + 1 Earth", "2 Colorless", "Free").
+  - Power/toughness is current, with the printed values when an effect has changed them.
+  - On a battlefield card, its state: tapped, damage this turn, summoning sick, attacking.
+  - Each keyword shows its badge, name and the `KEYWORD_RULES` text.
+  - Instants and artifacts keep the "Rules:" line from `describeEffect`, and lands list the mana they make.
+- **Pack reveals:** the same element background and rarity border, with a rarity tag, cost pips and
+  power/toughness.
+
+### Implementation
+
+- **`index.js`:** small shared helpers next to `KEYWORD_RULES`:
+  - `getCardRarity`, `getCardIdentity` and `applyCardIdentity`;
+  - `renderCostPips` and `describeCost`;
+  - `createKeywordBadge` and `renderKeywordDetail`;
+  - `CARD_TYPE_INFO` and `RARITY_INFO`.
+  
+  `createCardElement`, the land stacks, `showCardDetail` and `setPackOpeningCard` all use them. The art stays
+  the card's first child, so existing rules that target it still apply.
+- **`styles.css`:** the "CARD FACES" block at the end. Element colours are `--elc-*`, rarity colours are
+  `--rarity-*`, and backgrounds use `color-mix()`.
+- **Fix:** on phones, the card-details popup opens under the finger. The click that ends the long-press then
+  landed on the popup and closed it at once (the new audit caught this). The popup now ignores clicks for 0.5 s
+  after opening. `bindCardPress` is unchanged.
+
+### Evidence
+
+`tests/card-faces.mjs` (`npm run cards:ui`, also in CI) renders the following through the game's own renderers,
+at phone 360×740, short landscape 863×360 and desktop 1366×768:
+- representative cards of every type × element, plus dual, colorless, free, rainbow, and each rarity;
+- a crowded board with every state;
+- card details;
+- pack reveals.
+
+The same test was run before and after this change:
+
+| Area | Before: failing / checks | After: failing / checks |
+|---|---|---|
+| Faces (exact cost incl. colorless and free, P/T, element identity, distinct and dual backgrounds, type marker) | 18 / 21 | 0 / 21 |
+| Rarity (distinct borders, nothing animating forever) | 3 / 6 | 0 / 6 |
+| States (non-colour cues, enemy summoning sickness) | 3 / 18 | 0 / 18 |
+| Keywords (badge + label + rules text in details; Flash inactive) | 6 / 9 | 0 / 9 |
+| Details (type, rarity, elements, cost, P/T, board state) | 9 / 15 | 0 / 15 |
+| Pack reveal (rarity, type, cost, P/T; colorless ◇) | 6 / 6 | 0 / 6 |
+| Layout (overflow, badges inside cards, ≥ 10 px text, compact phone cards, controls on screen) | 0 / 13 | 0 / 13 |
+| Input (long-press inspects without playing; one tap plays one land) | 1 / 4 | 0 / 4 |
+| Page errors | 0 / 3 | 0 / 3 |
+| **Total** | **46 / 95** | **0 / 95** |
+
+Screenshots (before | after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/cards-phone.jpg](docs/ui-evidence/cards-phone.jpg) | Phone: the hand-face gallery, and a crowded board |
+| [docs/ui-evidence/cards-desktop.jpg](docs/ui-evidence/cards-desktop.jpg) | Desktop: a crowded board with tapped, sick, damaged and attacking creatures, dual, rainbow and colorless lands, and a mixed hand |
+| [docs/ui-evidence/cards-landscape.jpg](docs/ui-evidence/cards-landscape.jpg) | Phone landscape board |
+| [docs/ui-evidence/cards-details.jpg](docs/ui-evidence/cards-details.jpg) | Details: keywords and board state; pack reveal |
+
+**Limitations:**
+- Chromium only. `color-mix()` needs Safari 16.2+ or Firefox 113+. Older browsers fall back to the previous flat
+  card background, and every marker and badge still shows.
+- Crowded rows still scroll sideways on phones, as before.
+- The audit's representative cards are chosen from the live catalog by rule (first match), not hand-picked.
+- The graveyard list, Binder and Deck Builder rows keep their old list layout. This pass covers the hand,
+  battlefield, details and pack reveal.
+
+## 9. Collection (Binder) and Deck Builder
+
+Usability for the two list screens. Deck legality (`validateDeckBuild`), copy limits, land caps, progression,
+collection counts, card ids, all 15 decks and the save format are unchanged. Browsing and unsaved edits never
+write to the save.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Binder contents | Owned cards only, sorted by name | All 268 cards. Unowned ones have a dashed row, a grey art tile, a "Not owned" tag and `x0`. Ownership views: all, owned, not owned. |
+| Binder totals | "153 unique cards • 300 total cards" | "153 of 268 unique cards • 300 total cards", plus "Showing N of 268 cards" for the current filters |
+| Search, filter, sort | none | **Search:** name, card text and keyword names. **Filters:** element (each colour, "two or more colours", colorless), type, mana value (0–5, 6+), rarity, ownership. **Sort:** name, mana value, rarity, type, copies owned. The filters combine, and "Clear" resets them. On narrow phones the selects fold under "Filters & sort (N on)" while search stays visible. |
+| Deck Builder pool | Owned eligible cards, name only | Every card legal for the deck, filtered as above (owned by default). Each row has the element art tile, cost pips, type, power/toughness, keywords, rarity, "In deck N · Owned M" and an ⓘ button for the full card details. |
+| Disabled Add | Enabled until the deck was full; a blocked press showed a reason afterwards | A greyed (`aria-disabled`) + with the reason under the card and in its tooltip: **not owned**, **all owned copies in the deck**, **copy limit** (2, or 1 legendary), or **deck full**. Pressing it repeats the reason in the status line. The reasons are the same limits the save checks. |
+| Deck list | Name and count, sorted by name | Grouped into creatures, spells, artifacts and lands, cheapest first, with the same row preview and ⓘ |
+| Summary | "Deck size: 60/60" | Cards out of 60, lands (with the cap), creatures, spells, artifacts, and a mana curve (0–5, 6+, non-land cards), all from the working deck |
+| Errors | The validator's sentences in the status line after a failed save | A live list of what stops the save, each with a fix where one is clear: "Add 1 more card", "Too many lands: 21 (at most 20). Remove 1 land" [Remove 1 land], "X: 3 in the deck, but you own 2. Remove 1" [Remove 1], "X isn't legal in a Fire deck" [Remove X]. A one-colour deck shows its single land cap once. |
+| Unsaved edits | Leaving or switching decks dropped them silently | A "● Unsaved changes" marker. BACK, Esc or switching decks asks "Discard them?": No keeps the draft (and the deck picker), Yes discards. Filters never touch the draft. |
+| Deck picker | Keys (`FIRE_WATER`) | Names ("🔥 Fire + 💧 Water"); the option values are still the keys |
+
+### Implementation
+
+- **`index.js`:**
+  - Shared list helpers before `renderBinderCollection`: `CARD_FILTER_OPTIONS`, `cardFilterState`,
+    `cardMatchesFilters`, `sortCardsForList`, `buildCardFilterBar`, `resetCardFilters`, `renderCardRowMeta`
+    and `createCardRowArt`. They reuse the card-face helpers from §8 (`getCardIdentity`, `renderCostPips`,
+    `CARD_TYPE_INFO`, `RARITY_INFO`).
+  - Deck Builder: `getAddBlockReason`, `getDeckIssues`, `isDeckBuilderDirty`, `confirmDiscardDeckEdits`,
+    `renderDeckBuilderSummary` and `loadDeckIntoBuilder`, plus a guard in `backToMenu`.
+  - `getDeckIssues` runs `validateDeckBuild` first and returns nothing when it accepts the deck. Every error
+    it reports becomes an issue; one it doesn't recognise is shown verbatim.
+- **`styles.css`:** the "COLLECTION AND DECK BUILDER" block. Controls are 44 px. Text contrast doesn't rely on
+  opacity: only the decorative art tile of unowned cards is faded.
+- **DOM contracts kept:**
+  - `#binderList .binder-row` with `.binder-row-name` (the name first) and `.binder-row-count` (`xN`);
+  - `#deckBuilderPool` / `#deckBuilderDeck .deck-builder-row`, where the first button adds or removes and
+    `.deck-builder-name` reads "emoji name";
+  - `#deckBuilderStatus` "Deck size: N/60";
+  - SAVE disabled until the size is right;
+  - `#binderSummaryBadge` and `#deckBuilderDeckKey`.
+- **Fixed during the pass:** the battle-setup summary from §7 is also named `renderDeckSummary`. Function
+  declarations with the same name override each other silently, so the Deck Builder's summary uses
+  `renderDeckBuilderSummary`.
+
+### Evidence
+
+`tests/collection.test.mjs` (`npm run collection`, in CI with the rules suites) has 11 browser tests:
+- **Binder:**
+  - full catalog, unowned rows marked, totals, owned and not-owned views;
+  - 11 filter combinations, each checked against an independent computation from the catalog, plus the 4
+    sort orders;
+  - a row opens its rules.
+- **Pool:** 7 filter combinations over the deck's legal cards, with the draft unchanged after each.
+- **Rows:** in-deck and owned counts, cost and stats. Every Add reason (not owned, no copies left, copy limit
+  including legendary, deck full). A blocked press adds nothing and explains itself.
+- **Summary and curve:** they match the working deck before and after edits.
+- **Invalid deck:** 21 lands. The save is refused, the save data stays byte-identical, and the issue's action
+  fixes it. The issues agree with `validateDeckBuild`.
+- **Unsaved edits:** BACK, Esc and switching decks ask. No keeps the draft, Yes discards it.
+- **Saving:** a saved edit survives a reload and reopens clean.
+- **Existing save** (`tests/fixtures/saves/existing.json`): browsing plus unsaved edits never change the stored
+  save; totals match the fixture; all 15 decks open legal at 60 cards with no issues.
+
+| Suite | Before (`42040ff`) | After |
+|---|---|---|
+| `tests/collection.test.mjs` | 0 / 11 | 11 / 11 |
+| Card catalog | pass | pass |
+| Rules, combat, progression, collection, effects, AI (node) | 337 / 337 (without collection) | 348 / 348 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit | 469 / 469 | 469 / 469 |
+| Menu audit (Collection and Deck Builder screens at 4 sizes: 44 px controls, 11 px text, axe including contrast) | 289 / 289 | 289 / 289 |
+| Card faces | 95 / 95 | 95 / 95 |
+| Release playthroughs | 97 / 97 | 97 / 97 |
+
+Two existing tests changed with the new screens:
+- The progression test's Binder check uses the "Owned" view and the new summary text. The counts it asserts are
+  the same.
+- The smoke Deck Builder check targets a row's first button (add/remove), since rows now also have ⓘ.
+
+Screenshots (`npm run collection:shots` for the states; before | after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/collection-phone.jpg](docs/ui-evidence/collection-phone.jpg) | Phone 360×740. **Collection:** before, after, and filtered by Fire, rarest first, with unowned cards. **Deck Builder:** before; after with an edit over the land cap (unsaved marker, summary and curve, the issue and its fix); the unsaved-changes question. |
+| [docs/ui-evidence/collection-deckbuilder-desktop.jpg](docs/ui-evidence/collection-deckbuilder-desktop.jpg) | Desktop: the same Deck Builder state, with creature filters and blocked-Add reasons |
+
+### Limitations
+
+- Chromium only, as for the other UI passes. `<details>` and `aria-disabled` are widely supported.
+- The pool's ownership filter defaults to "Owned cards", as before. "All legal cards" shows unowned ones with
+  the not-owned reason.
+- Filter choices are kept for the session, not saved.
+- The "Remove N lands" fix removes the most numerous basic land (of that colour, for a colour cap). Players who
+  want a specific land can remove it themselves.
+- Land caps are not checked when a land is added (the validator only checks them on save, as before). They show
+  up at once in the issue list instead.
+
+## 10. Gameplay feedback
+
+Clearer information during a match. Combat rules, random targeting, automatic blocking, mana, rewards and
+timers are unchanged. Nothing here reveals the AI's hand.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Whose turn | A small header pill ("MAIN PHASE", "ENEMY TURN"), hidden on phones by the title | A banner above the battlefield: **Turn N**, "⚔️ Your turn · Main phase / Choose attackers" or "🤖 Enemy turn · *what the AI is doing*". It pulses once (0.6 s) when the turn changes, and not at all under reduced motion. It is a polite live region. The header pill stays on wider screens. |
+| AI status | Toasts only | The banner names each paced AI step: starting its turn, drawing a card, playing a land (named, since it is now public) or none, tapping mana / choosing what to play, the card it plays, plays nothing, attacking with N / not attacking. |
+| Attacker selection | ATTACK became CONFIRM; END TURN was disabled | **✓ CONFIRM n** (the count, with a matching accessible name) and **✕ CANCEL**, which leaves without attacking and keeps the attack available. `Space`/`E` still mean END TURN, which waits until you confirm or cancel. |
+| Why a creature can't attack | Logged after a click | In attack selection, eligible creatures get a dashed outline; the others say why on the card ("Tapped", "Defender", "Next turn"), in the tooltip and in the accessible name. The text comes from `getAttackRestriction`, which `canAttack` uses. |
+| Why a hand card can't be played | Logged after a click | Unplayable cards are dimmed with a reason chip ("Land used", "🔒🔥2") and the full reason in the tooltip, accessible name and card details: "Wait for your turn", "One land per turn: you have played one", "Needs 2 🔥 more in your mana pool (1 untapped land)". `getPlayRestriction` makes the same checks as `playCard`, in the same order. |
+| Combat preview | none | While attackers are chosen, a **Preview** strip under the banner: "Enemy ❤️ 20 → 15 · Enemy loses 5 · You lose 0" (or "🏆 Wins the match"). "Blocks and results" opens one line per attacker ("🦁 Fire Lion: blocked by 🪲 Ember Beetle · Ember Beetle dies · Fire Lion survives · Enemy ❤️ -2"), with the note "Not final. Blocking is automatic and uses the board as it is when you confirm." Cards are marked ✓ survives / ☠ dies / 🛡 blocks, also in their accessible names. |
+| Match history | none (toasts disappear) | **📜** in the header (or `H`) opens a dialog listing the last 80 events, grouped by turn: turns, plays and what they did (life, damage, stats, destroyed / returned / entered cards, draws, discards), upkeep effects, each attack with its per-attacker blocks, damage, deaths and life change, "Enemy does not attack", mulligans and the result. A badge counts entries since it was last opened. It uses the shared dialog handling (focus moves into it; `Esc`, ✕ or the backdrop closes it). |
+
+### How the preview stays pure and exact
+
+- `applyDamage` and `dealUnblockedDamage` take a life target that defaults to the live one
+  (`changePlayerLife`/`changeEnemyLife`).
+- `previewCombat(attackers, defendingBoard, isPlayerAttacking)` copies the creatures, calls the same
+  `assignAutoBlockers` on the copies, and runs the same damage code into its own life ledger. That ledger follows
+  the live rules: life stops at 0, nothing changes after a loss, and the player is checked first.
+- It never touches `gameState`, the save, `Math.random`, timers, sounds, particles or rewards. The tests check
+  this with a fingerprint of the state plus spies on randomness and timers.
+- Combat deals no random damage and has no death triggers, so the prediction is exact for the current board.
+- The preview is keyed on the chosen attackers, each creature's power, toughness, damage, tapped state and
+  abilities, and both life totals. It is recomputed only when that key changes, at the start of each UI update.
+  Outside attacker selection it is hidden and cleared.
+
+### Match history, recorded once
+
+- `recordHistory` is called from the engine where things resolve: `playCard`, `aiPlayCard` and the AI's
+  land / fallback plays, upkeep, `resolveAttackersWithHistory` (both sides' combat), turn starts, mulligan and
+  `finalizeMatch`.
+- Rendering only reads `matchHistory`, so opening, closing or re-rendering never adds entries.
+- Each per-attacker line comes from `describeCombatPair`, the same function the preview uses. The parity tests
+  compare the two texts directly.
+- Only public information is written: cards as they are played or revealed, and counts for draws.
+
+### Implementation
+
+- **`index.js`:**
+  - Match history: `recordHistory`, `describeChangesSince`, `describeCombatPair`, `resolveAttackersWithHistory`,
+    `renderMatchHistory`, `showMatchHistory` / `hideMatchHistory` (registered in `GAME_DIALOGS`).
+  - Reasons and status: `getPlayRestriction` / `getMissingMana`, `setAiStatus` / `updateTurnBanner`.
+  - Preview: `previewCombat`, `refreshCombatPreview`, `renderCombatPreviewPanel`, `markPreviewOutcome`.
+  - Attack controls: `setAttackControls`, `cancelAttack`.
+  - A turn counter, `gameState.round`.
+- **`index.html`:** `#turnBanner` (with `#combatPreview`), `#historyBtn` with `#historyBadge`, and the
+  `#historyModal` dialog.
+- **`styles.css`:** the "GAMEPLAY FEEDBACK" block. Below 520 px the header phase pill is hidden (the banner
+  replaces it). Animations stop under `prefers-reduced-motion`.
+- **Kept:** END TURN / ATTACK ids and shortcuts, and `#phaseIndicator` (no longer a live region, so the banner
+  isn't announced twice).
+
+### Evidence
+
+`tests/feedback.test.mjs` (`npm run feedback`, in CI with the rules suites) has 55 browser tests:
+- **Parity, 21 scenarios × both sides (42 tests):**
+  - first strike (attacker, blocker, both);
+  - double strike (unblocked, into a tough blocker, with trample);
+  - trample (over a chump, into a damaged blocker, against deathtouch);
+  - deathtouch (attacker, blocker, with first strike);
+  - menace (one blocker left so it is unblocked, two blockers, against a first striker);
+  - lifelink (blocked, unblocked, blocked and dying);
+  - and a mixed three-attacker board.
+  Each one is previewed, checked to have changed nothing, then the real attack resolves and the result is
+  compared: both life totals, which creatures died, damage left on survivors, and the history line for each
+  attacker.
+- **Lethal (2 × both sides):** the match ends part-way. Lifelink after the killing blow is ignored and life stops
+  at 0, in the preview and in the game.
+- **Selection:** CONFIRM count / CANCEL, `Space` refused mid-attack, the attack still available after CANCEL.
+- **Reasons:** creature reasons match `getAttackRestriction`. Each hand-card reason predicts whether `playCard`
+  plays it (2 Fire mana with no land played, then with a land already played).
+- **Staleness:** the only blocker tapping, a life change and selecting or deselecting an attacker each refresh
+  the preview; it is hidden outside attacker selection and on the enemy turn.
+- **Banner, AI status, motion:** the turn number and side, the AI steps seen during a real enemy turn, a single
+  short pulse, and no animation under reduced motion.
+- **History:** recorded once (re-rendering adds nothing), bounded at 80, opened from the header and `H`,
+  focus inside the dialog, closed with `Esc`, and no AI hand card named before it is played (over several real AI turns).
+
+| Suite | Before (`aa5c31a`) | After |
+|---|---|---|
+| `tests/feedback.test.mjs` | 0 / 55 | 55 / 55 |
+| Card catalog | pass | pass |
+| Rules, combat, progression, collection, effects, AI (node) | 348 / 348 | 348 / 348 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit (the battle screen with the banner, at 4 sizes) | 469 / 469 | 469 / 469 |
+| Menu audit | 289 / 289 | 289 / 289 |
+| Card faces | 95 / 95 | 95 / 95 |
+| Release playthroughs (on the code commit, in a clean worktree) | 97 / 97 | 96 / 97 on the full run, then 5 / 5 on a long-match re-run (see below) |
+| `tests/feedback-shots.mjs`: page errors and serious axe violations (including contrast), with the preview open and in the history dialog, at desktop, phone and phone-landscape | n/a | none |
+
+**The one release failure.** On the first full run, the long-match check "event listeners don't accumulate"
+failed: 251 → 801, against a limit of 1.5 × the turn-10 count + 200. That run's board grew to 124 permanents
+(22 + 102); earlier runs had 64–80. Listeners follow board size (about 4–5 per permanent), as QA_REPORT.md
+notes, and the check compares against turn 10, not against the board. Three things show it isn't a leak from
+this pass:
+- **Fixed board, new interactions:** 40 rounds of selecting attackers, cancelling, re-rendering and opening and
+  closing the history keep listeners flat (225 → 225; the old code: 222 → 222).
+- **Old and new code side by side (long match only):** old 237 → 479 with 71 permanents; new 229 → 438 with 66
+  permanents. Both pass all 5 performance checks.
+- **Heap and time:** both stayed bounded in every run.
+
+The check's limit can still be crossed by an unusually large board. It is unchanged in this pass.
+
+Screenshots (`npm run feedback:shots`): before, then after (selection, preview details, enemy turn, history).
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/feedback-phone.jpg](docs/ui-evidence/feedback-phone.jpg) | Phone 360×740 |
+| [docs/ui-evidence/feedback-landscape.jpg](docs/ui-evidence/feedback-landscape.jpg) | Phone landscape |
+| [docs/ui-evidence/feedback-desktop.jpg](docs/ui-evidence/feedback-desktop.jpg) | Desktop 1366×768 |
+
+### Limitations
+
+- The preview covers the attack the player is choosing. The AI's attacks are recorded in the history, not
+  previewed: the AI confirms at once.
+- The preview predicts combat only. Nothing else can happen between CONFIRM and damage today; if instant-speed
+  responses are ever added, the preview's note would need to say so.
+- The history keeps the last 80 events of the current match only, in memory. It is not saved and resets with a
+  new match. Older entries are dropped and the dialog says how many.
+- Chromium only, as for the other UI passes. Real-device checks are still listed in §6.
+
+## 11. Pack Shop and pack opening
+
+Pack membership, pools and odds are in [CARD_AUDIT.md](CARD_AUDIT.md) §7. This section covers the screens.
+
+**Unchanged:**
+- prices, pack size, rewards and the save format;
+- `purchasePack`, `openPackOpeningOverlayFromMeta`;
+- the rip gesture and the swipe between cards;
+- the ids the existing tests use: `.shop-pack-btn[data-theme]`, `#packTearSurface`, `#packPrevBtn`,
+  `#packNextBtn`, `#packCloseBtn`, `#packCardName`, `#packCardCounter`.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Shop tiles | Six gradient buttons, "🧙 Fantasy Pack · 60 Credits". Nothing said what was inside or whether you could afford it. | One tile per pack: <ul><li>CSS-and-emoji art in the pack's colours, with foil stripes, a crimped edge and four of its rarest cards;</li><li>the name and a price chip ("💳 60");</li><li>a one-line description;</li><li>the slots ("3 × Common · 1 × Rare · 1 × Epic/Legendary");</li><li>"N cards · you have M";</li><li>BUY and What's inside.</li></ul> Three columns on wide screens, one on phones. |
+| Affordability | Learnt only after pressing | Short of credits, a tile shows "NEED 20 MORE" on a dashed button, a muted wrapper and "You have 💳 40 of 60". The button's accessible name says the same. It stays pressable and explains in the status line; nothing is charged. It updates whenever credits change. |
+| Contents preview | none | **What's inside** (dialog): <ul><li>the description;</li><li>how many cards the pack can contain and its slots;</li><li>for each rarity, how many cards there are and the exact chance of each one being in a pack (from `getPackOdds`);</li><li>any fallback note ("Card 5: this pack has only 1 Epic/Legendary card, so it can also be Rare.");</li><li>every card, rarest first, with art tile, cost, type, power/toughness, keywords, rarity, and "Owned ×N" or "Not owned".</li></ul> BUY inside it closes it and buys. Esc, ✕ or the backdrop closes it, with the same focus handling as other dialogs. |
+| Sealed pack | 📦 on an orange panel; drag only | The pack's own art, icon and name. The instruction says "Slide across the pack to rip it open, or press OPEN PACK", and there is an **OPEN PACK** button. A win pack's title names its theme: "🎁 Victory Pack · Robot". |
+| Card reveal | Emoji, name, type, rarity, cost and power/toughness | Also the keywords as chips (Flash marked inactive), the rules line for instants and artifacts (`describeEffect`), the mana for lands, the creature's flavour line, and **✨ NEW · First copy** or **You own 3 (had 2)**. NEW compares with ownership **before** the pack (§ below). The counter is a polite live region. |
+| Summary | none | **ALL 5 CARDS** (always there, highlighted on the last card) shows the five cards with their rarity and NEW or "Own N", plus a line such as "2 new to your collection · Best: Battle Mech (Epic)". Each card jumps back to its reveal. Focus moves to **DONE**, which closes the pack, as ✕ does. NEXT still stops at the last card. |
+
+### NEW, and purchases charged once
+
+- `addPackToCollection` records each card's count just before the pack is added. That record is in memory only,
+  so the save keeps `lastPack { themeKey, cardIds, openedAt }` exactly.
+- After a reload, `getPackOwnedBefore` works the count out as "owned now − 1", because a pack never holds a card
+  twice.
+- `purchasePack` refuses while a pack is open (`pack_open`): a second click, tap or Enter buys nothing. Win
+  rewards were already recorded once (`matchFinalized`).
+
+### Evidence
+
+`tests/packs.test.mjs` (`npm run packs`, in CI with the rules suites) has 16 browser tests:
+- **Pools:**
+  - membership covers exactly the 268 catalog ids, and every card is in a pack;
+  - the Alien and Robot pools hold the alien and robot cards and no Nature/City filler;
+  - Science Fiction keeps all 56 Science Fiction cards;
+  - Lands is exactly the 8 lands, without Badlands Boar.
+- **Generation:**
+  - 3000 seeded packs per pack: 5 different cards, all from the pool, each slot from its planned tiers, and
+    every pool card pulled at least once;
+  - tier rates match `getPackOdds`;
+  - per-card rates for Robot, Lands and Alien match it too (6000 packs each).
+- **Fallbacks:** Robot's widened slot 5 and its note, a 3-card pool completed from the catalog, an unknown pack.
+- **Unchanged:** prices, pack size, win credits and theme weights.
+- **Shop:**
+  - each tile's price, slots, owned count and art;
+  - affordability at 50 and at 60 credits;
+  - What's inside for all six packs: exactly the pool, owned counts, every percentage and note; Esc closes only
+    the dialog;
+  - one charge for a double click, Enter twice in the dialog, and a call while the pack is open;
+  - short of credits: nothing saved, the message, "NEED 10 MORE".
+- **Opening:**
+  - NEW only for cards owned 0 before the pack, and "You own 3 (had 2)" for the rest; the summary agrees;
+  - after a reload, NEW is still right and `lastPack` keeps its three keys;
+  - OPEN PACK with the keyboard; full information for a creature, an artifact, a land, an instant and a
+    legendary; DONE closes;
+  - win reward: +25 and one pack, once; the title names the theme; the cards come from that pool.
+- **Saves:** the existing-save fixture buys, reloads and keeps its keys, collection, `lastPack`, credits and
+  decks.
+
+| Suite | Before (`82612af`) | After |
+|---|---|---|
+| `tests/packs.test.mjs` | 1 / 16 (only the existing-save test) | 16 / 16 |
+| Card catalog (with the new membership checks) | pass | pass |
+| Rules, combat, progression, collection, effects, AI, feedback (node) | 403 / 403 | 403 / 403 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit | 469 / 469 | 469 / 469 |
+| Menu audit (the Pack Shop at 4 sizes: 44 px controls, 11 px text, axe including contrast) | 289 / 289 | 289 / 289 |
+| Card faces (pack reveal checks) | 95 / 95 | 95 / 95 |
+| Release playthroughs (on the code commit, in a clean worktree; packs bought with a duplicate tap, win packs ripped) | 97 / 97 | 97 / 97 |
+| `tests/pack-shots.mjs`: page errors and serious axe violations (including contrast) in the shop, What's inside and the summary, at desktop, phone and phone-landscape | n/a | none |
+
+**Existing tests changed:**
+- The progression test's pack-slot check now reads the slot plan. It expects 3 Common, 1 Rare and 1 Epic+ for
+  every pack, including Lands now that it holds only lands, and Epic or Rare for Robot's card 5.
+
+**Fixed during the pass:**
+- The first version marked unaffordable BUY buttons `aria-disabled`. Playwright then refused to press them, and
+  the smoke test caught it.
+- Pressing an unaffordable BUY is meant to explain, so the button is no longer marked disabled. Its label says
+  how many credits are missing.
+
+Screenshots (`npm run packs:shots`; before, then after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/packs-phone.jpg](docs/ui-evidence/packs-phone.jpg) | Phone 360×740. **Before:** the shop and a "Robot" pack that revealed Growth. **After:** the shop at 50 credits, What's inside (Robot), the sealed Robot pack, a reveal with NEW, and the summary. |
+| [docs/ui-evidence/packs-desktop.jpg](docs/ui-evidence/packs-desktop.jpg) | Desktop 1366×900: the same, with three tile columns |
+| [docs/ui-evidence/packs-landscape.jpg](docs/ui-evidence/packs-landscape.jpg) | Phone landscape: the shop, What's inside, a reveal and the summary |
+
+### Limitations
+
+- In phone landscape the fuller reveal is taller than the screen. The panel scrolls to PREV/NEXT, as it did for
+  the shorter reveal.
+- The odds shown are exact for the pack's slots; they don't include the win-pack theme weights.
+- The art is CSS and emoji, so it depends on the device's emoji font, like the cards.
+- Chromium only, as for the other UI passes.
