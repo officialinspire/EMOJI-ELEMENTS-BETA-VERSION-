@@ -3,7 +3,7 @@
 **Repository state (2026-10-21):**
 - **`main`** is at `c2aba7a`, the merge of PR #117 (2026-10-20, on the owner's instruction). It holds the eight QA
   passes and the release-QA pass (`ea286e4`, `e1e8dbc`). Whatever GitHub Pages serves comes from `main`.
-- **Branch `claude/compassionate-albattani-aabox6`** is `main` plus 10 commits that are **not merged or
+- **Branch `claude/compassionate-albattani-aabox6`** is `main` plus the commits in §4 that are **not merged or
   deployed**:
   - menu refresh;
   - card presentation;
