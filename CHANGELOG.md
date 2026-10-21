@@ -16,8 +16,12 @@ Under the hood:
 - **New suites:**
   - `tests/regression.test.mjs` (11 tests, in CI);
   - `tests/cross-browser.mjs`, which reports engines that aren't installed as NOT TESTED.
-- **QA_REPORT:** brought up to date. `main` holds the release pass (PR #117); the five newer passes and this
-  one are on the branch, not merged.
+- **QA_REPORT:** brought up to date. `main` now holds everything: the release pass came in through PR #117,
+  the five newer passes and this one through PR #118.
+- **CI:**
+  - the shared `act()` test helper waits out short action locks on slow runners (this fixed an intermittent
+    combat-test failure);
+  - the workflows use the Node 24 majors of checkout, setup-node and upload-artifact.
 
 ## Unreleased: Pack Shop and pack opening
 
