@@ -61,7 +61,9 @@ test('pause stops the AI turn where it is; resume finishes it in the same match'
     assert.equal(await page.evaluate(() => gameState.round), 2);
 });
 
-test('the remaining time carries over: a step 1 s from firing still waits 1 s after resume', { timeout: 60000 }, async t => {
+// The fake clock also moves with real time, so the margins are ±300 ms: enough to tell "the 1 s it had left"
+// from both "at once" and "the full 1.5 s again".
+test('the remaining time carries over: a step 1 s from firing waits about 1 s after resume', { timeout: 60000 }, async t => {
     const page = await openGame(t);
     await startMatch(page);
     await setup(page, { ...QUIET_ENEMY, playerBoard: [PEAK], playerHand: [] });
@@ -71,10 +73,10 @@ test('the remaining time carries over: a step 1 s from firing still waits 1 s af
     await page.clock.runFor(5000);
     assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn');
     await page.evaluate(() => resumeGame());
-    await page.clock.runFor(900);
-    assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn', 'not before the 1 s it had left');
-    await page.clock.runFor(200);
-    assert.notEqual(await page.evaluate(() => aiStatusText), 'Starting its turn');
+    await page.clock.runFor(700);
+    assert.equal(await page.evaluate(() => aiStatusText), 'Starting its turn', 'not at once');
+    await page.clock.runFor(600);
+    assert.notEqual(await page.evaluate(() => aiStatusText), 'Starting its turn', 'before the full 1.5 s again');
 });
 
 test('while paused the board takes no input: keys, clicks and direct calls do nothing', { timeout: 60000 }, async t => {
@@ -255,16 +257,19 @@ test('the AI\'s activity is marked: new cards, its attackers, and your automatic
     });
     await page.evaluate(() => endTurn());
     // Run the AI up to its attack (the attack pause keeps the marks up)
-    let marks = null;
-    for (let i = 0; i < 80 && !marks; i++) {
+    let attacked = false;
+    for (let i = 0; i < 80 && !attacked; i++) {
         await page.clock.runFor(100);
-        marks = await page.evaluate(() => enemyCombatMarks.attackers.size ? {
+        attacked = await page.evaluate(() => enemyCombatMarks.attackers.size > 0);
+    }
+    // The board redraws on the next frame after the attack (updateUI is scheduled)
+    await page.clock.runFor(50);
+    const marks = await page.evaluate(() => enemyCombatMarks.attackers.size ? {
             newCards: [...document.querySelectorAll('#enemyBoard .card.ai-new')].map(c => c.querySelector('.ai-new-chip')?.textContent),
             attackers: document.querySelectorAll('#enemyBoard .card.enemy-attacking').length,
             blockers: document.querySelectorAll('#playerBoard .card.auto-blocked').length,
             banner: document.querySelector('.turn-banner-text').textContent
         } : null);
-    }
     assert.ok(marks, 'the enemy attacked');
     assert.deepEqual(marks.newCards, ['New'], 'the creature it just played');
     assert.ok(marks.attackers >= 1);

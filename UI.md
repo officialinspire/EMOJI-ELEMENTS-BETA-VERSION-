@@ -785,7 +785,40 @@ With reduced motion, the one-off entrances (start panel, result text) are also o
 
 ### Evidence
 
-EVIDENCE_PLACEHOLDER
+All suites were run on the battle-pause branch, which contains this pass, in headless Chromium.
+
+| Check | Result |
+|---|---|
+| `npm run themes` (`tests/theme-audit.mjs`): 3 themes × desktop 1366×900, phone 360×740, landscape 740×360; 10 screens each, axe including contrast, measured label contrast, overflow, clipping, logo fit, looping animations; storage, keyboard and reduced-motion checks | **1209 / 1209** |
+| Menu audit, once per theme (`--theme=`) | 289 / 289 × 3 |
+| UI audit, once per theme | 469 / 469 × 3 |
+| Card faces, once per theme | 95 / 95 × 3 |
+| Smoke | 204 / 204 |
+| Release playthroughs | 97 / 97 |
+| Node suites (rules, combat, effects, progression, collection, feedback, packs, regression, AI) | 430 / 430 |
+| Cross-browser | Chromium 20 / 20; Firefox and WebKit not installed (NOT TESTED) |
+
+**Contrast and layout failures found, and fixed in the pass:**
+- **MAIN MENU on the victory and defeat banners:** white on cornflower blue, 3.27:1. It is now a themed
+  secondary button, 12:1 or better.
+- **MULLIGAN:** light text on royal blue when enabled. It is now a panel button.
+- **The theme picker in short landscape:** the selected option opened below the fold, half hidden. It now scrolls
+  into view, and the options are compact.
+
+**Contrast that axe can't judge:** axe marks text over gradients as "needs review". The theme audit therefore
+also measures key labels against the pixels behind them; 621 measurements, the lowest 6.04:1 (ATTACK in Deep Space on a phone; AA needs 4.5).
+
+**Remaining limits:**
+- Logo text uses a gradient fill, so it is checked by eye only.
+- Firefox, WebKit and real devices are not tested.
+
+Screenshots (theme audit):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/themes-desktop.jpg](docs/ui-evidence/themes-desktop.jpg) | Desktop: start, menu, picker and match in each theme |
+| [docs/ui-evidence/themes-phone.jpg](docs/ui-evidence/themes-phone.jpg) | Phone 360×740: start, menu, picker, match and pause in each theme |
+| [docs/ui-evidence/themes-landscape.jpg](docs/ui-evidence/themes-landscape.jpg) | Phone landscape 740×360: menu, match and attack preview in each theme |
 
 ## 13. Battle screen and pause
 
@@ -870,4 +903,48 @@ nothing needs scrolling.
 
 ### Evidence
 
-BATTLE_EVIDENCE_PLACEHOLDER
+**New suite.** `tests/battle.test.mjs` (`npm run battle`, in CI) has 14 tests:
+- **Pause stops the match:** 30 s paused right after END TURN changes nothing; resume finishes the AI turn in
+  the same match.
+- **Remaining time:** a step 1 s from firing still waits about 1 s after RESUME.
+- **No input while paused:** keys, clicks and direct calls do nothing.
+- **Focus:** it returns to the card that had it.
+- **Settings:** switches are saved apart from the profile and come back after a reload.
+- **Theme from pause:** the picker opens on top, and Esc closes only it.
+- **Leaving:** MAIN MENU → NO keeps the match paused; YES leaves with no timers left, and the next match plays.
+- **Hidden page:** the match pauses itself.
+- **Toasts:** with 21 cards on screen they sit on the turn banner and overlap none.
+- **AI activity marks:** NEW, its attackers and your automatic blockers.
+- **Outlines:** attacker, could-attack and predicted-blocker outlines are solid, dashed and dotted.
+- **Counters:** labelled, with the enemy's hand size.
+- **A 15-turn session with a pause each turn:** at most a few timers pending, no errors.
+
+**Theme audit.** It now also checks the docked toasts (yours and the enemy's), the pause panel's rows and the
+counters, in every theme and size.
+
+**Results**, the same run as §12:
+
+| Suite | Result |
+|---|---|
+| Battle | 14 / 14 |
+| Theme audit (with the battle screens) | 1209 / 1209 |
+| Smoke (pause → RESUME, pause → MAIN MENU → YES) | 204 / 204 |
+| Release playthroughs (quits through the new pause panel 15 times) | 97 / 97 |
+| UI audit (pause dialog focus trap and Esc) | 469 / 469 per theme |
+
+**Two test races fixed** (the game was right both times):
+- **"The AI's activity is marked":** the test read the board in the same instant the attack was recorded,
+  before the scheduled redraw. It now waits one frame.
+- **"Remaining time":** under heavy machine load the fake clock also moved with real time. The margins are now
+  ±300 ms, which still tells "the time left" from "at once" and from "the full 1.5 s again".
+
+Screenshots, before (`claude/visual-themes`) and after:
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/battle-desktop.jpg](docs/ui-evidence/battle-desktop.jpg) | Deep Space, 1366×900, crowded late game: attack preview, a toast, pause |
+| [docs/ui-evidence/battle-phone.jpg](docs/ui-evidence/battle-phone.jpg) | Neon, 360×740: attack preview, a toast, the enemy turn, pause; after, also the enemy's attack with NEW marks |
+| [docs/ui-evidence/battle-landscape.jpg](docs/ui-evidence/battle-landscape.jpg) | Arcane, 640×360: attack preview, a toast over the enemy board, pause |
+
+**Real devices:** not tested here. Touch was emulated in Chromium at phone sizes; haptics need an Android
+phone.
