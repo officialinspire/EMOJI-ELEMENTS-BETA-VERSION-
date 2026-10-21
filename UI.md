@@ -257,3 +257,104 @@ Before/after screenshots (real Chromium):
 - On a fresh profile, NEW GAME starts with FIRE picked: `gameMeta.selectedDeckKey` defaults to `FIRE`, and the
   save can't tell "never chosen" from "chose FIRE".
 - Difficulty is still not saved between sessions. It never was, and it is outside this pass.
+
+## 8. Card presentation
+
+One card presentation across the hand, both battlefields, card details and pack reveals. The emoji stays the
+artwork. Catalog ids, stats, costs, inferred rarity, rules, saved data and `bindCardPress` (tap, long-press,
+right-click, keyboard) are unchanged. The card catalog check and its manifest are unchanged.
+
+### The face
+
+| Part | Hand | Battlefield | Notes |
+|---|---|---|---|
+| Art | the emoji in an element-coloured window | same | **Mono:** that element's colour. **Dual:** a diagonal split between both colours (29 two-colour cards and Distant Planet). **Rainbow:** all five. **Colorless:** neutral steel (10 colorless artifacts, 3 free artifacts, Crystal Wasteland). |
+| Cost (top-left) | one pip per colour with its count. Colorless is ◇N and free is 0, both on a square pip, so they differ by shape as well as colour. | hidden; the damage badge 💔N goes here | |
+| Top-right | keywords (up to 3, then +N) or the type icon (✨ instant, ⚙️ artifact, ⛰️ land) | same | Instants also get a rune ring, artifacts a steel bevel, lands an earthen base. |
+| Bottom-left | — | state marker: 💤 summoning sick, ⚔️ attacking | |
+| Bottom-right | power/toughness on a dark chip | same | |
+| Border | rarity colour: common bronze, rare blue, epic purple, legendary gold. Nothing animates. | same; enemy cards add a thin red rim | The legendary pulse, the spinning halo and the per-rarity glow are gone. |
+
+The sizes are unchanged: 58×78 on phones (62×82 with borders), 52×68 in short landscape and 80×105 on desktop.
+The larger badges apply only where the cards are larger.
+
+### States, without relying on colour
+
+| State | Cue |
+|---|---|
+| Tapped | Turned sideways (as before) and dimmed |
+| Summoning sick | Dashed border, 💤 marker, faded art. Now also on **enemy** creatures, which previously had no mark. |
+| Damaged | 💔N badge |
+| Attacking (selected) | Lifted, with an outline and the ⚔️ marker. The looping glow is gone. |
+| Playable / unplayable (hand) | Playable cards lift, with a ring. Unplayable cards sit flat, dimmed and desaturated. The looping green glow is gone. |
+| Flash (any card with it) | The badge is greyed and struck through, and details label it "No effect" with the `KEYWORD_RULES` text. Flash is never shown as working. |
+
+### Details and pack reveals
+
+- **Card details:**
+  - The art window uses the same element background, and the border shows the rarity.
+  - Tags show type, rarity (●/◆/⬢/★) and element names.
+  - Cost appears as pips plus text ("4 Fire + 1 Earth", "2 Colorless", "Free").
+  - Power/toughness is current, with the printed values when an effect has changed them.
+  - On a battlefield card, its state: tapped, damage this turn, summoning sick, attacking.
+  - Each keyword shows its badge, name and the `KEYWORD_RULES` text.
+  - Instants and artifacts keep the "Rules:" line from `describeEffect`, and lands list the mana they make.
+- **Pack reveals:** the same element background and rarity border, with a rarity tag, cost pips and
+  power/toughness.
+
+### Implementation
+
+- **`index.js`:** small shared helpers next to `KEYWORD_RULES`:
+  - `getCardRarity`, `getCardIdentity` and `applyCardIdentity`;
+  - `renderCostPips` and `describeCost`;
+  - `createKeywordBadge` and `renderKeywordDetail`;
+  - `CARD_TYPE_INFO` and `RARITY_INFO`.
+  
+  `createCardElement`, the land stacks, `showCardDetail` and `setPackOpeningCard` all use them. The art stays
+  the card's first child, so existing rules that target it still apply.
+- **`styles.css`:** the "CARD FACES" block at the end. Element colours are `--elc-*`, rarity colours are
+  `--rarity-*`, and backgrounds use `color-mix()`.
+- **Fix:** on phones, the card-details popup opens under the finger. The click that ends the long-press then
+  landed on the popup and closed it at once (the new audit caught this). The popup now ignores clicks for 0.5 s
+  after opening. `bindCardPress` is unchanged.
+
+### Evidence
+
+`tests/card-faces.mjs` (`npm run cards:ui`, also in CI) renders the following through the game's own renderers,
+at phone 360×740, short landscape 863×360 and desktop 1366×768:
+- representative cards of every type × element, plus dual, colorless, free, rainbow, and each rarity;
+- a crowded board with every state;
+- card details;
+- pack reveals.
+
+The same test was run before and after this change:
+
+| Area | Before: failing / checks | After: failing / checks |
+|---|---|---|
+| Faces (exact cost incl. colorless and free, P/T, element identity, distinct and dual backgrounds, type marker) | 18 / 21 | 0 / 21 |
+| Rarity (distinct borders, nothing animating forever) | 3 / 6 | 0 / 6 |
+| States (non-colour cues, enemy summoning sickness) | 3 / 18 | 0 / 18 |
+| Keywords (badge + label + rules text in details; Flash inactive) | 6 / 9 | 0 / 9 |
+| Details (type, rarity, elements, cost, P/T, board state) | 9 / 15 | 0 / 15 |
+| Pack reveal (rarity, type, cost, P/T; colorless ◇) | 6 / 6 | 0 / 6 |
+| Layout (overflow, badges inside cards, ≥ 10 px text, compact phone cards, controls on screen) | 0 / 13 | 0 / 13 |
+| Input (long-press inspects without playing; one tap plays one land) | 1 / 4 | 0 / 4 |
+| Page errors | 0 / 3 | 0 / 3 |
+| **Total** | **46 / 95** | **0 / 95** |
+
+Screenshots (before | after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/cards-phone.jpg](docs/ui-evidence/cards-phone.jpg) | Phone: the hand-face gallery, and a crowded board |
+| [docs/ui-evidence/cards-desktop.jpg](docs/ui-evidence/cards-desktop.jpg) | Desktop: a crowded board with tapped, sick, damaged and attacking creatures, dual, rainbow and colorless lands, and a mixed hand |
+| [docs/ui-evidence/cards-landscape.jpg](docs/ui-evidence/cards-landscape.jpg) | Phone landscape board |
+| [docs/ui-evidence/cards-details.jpg](docs/ui-evidence/cards-details.jpg) | Details: keywords and board state; pack reveal |
+
+**Limitations:**
+- Chromium only. `color-mix()` needs Safari 16.2+ or Firefox 113+. Older browsers fall back to the previous flat
+  card background, and every marker and badge still shows.
+- Crowded rows still scroll sideways on phones, as before.
+- The audit's representative cards are chosen from the live catalog by rule (first match), not hand-picked.
+- The graveyard list, Binder and Deck Builder rows keep their old list layout. This pass covers the hand,
+  battlefield, details and pack reveal.

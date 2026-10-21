@@ -1,5 +1,41 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: card presentation
+
+For players:
+- **Cards look like their element.**
+  - Every card frames its emoji in its element's colour.
+  - Two-colour cards are split between both colours, and Rainbow shows all five.
+  - Colorless artifacts and Crystal Wasteland are steel grey.
+- **Clear costs.**
+  - One pip per colour with its number. Colorless costs read ◇N, and free artifacts read 0.
+  - Instants, artifacts and lands carry a type icon (✨ ⚙️ ⛰️).
+  - Power/toughness sits on a dark chip that's easy to read.
+- **Calmer rarity.** Common, rare, epic and legendary borders are bronze, blue, purple and gold. Nothing pulses or
+  spins any more.
+- **States you can see without relying on colour:**
+  - Tapped cards turn sideways.
+  - Summoning-sick creatures (now enemy ones too) have a dashed border and 💤.
+  - Damage reads 💔N.
+  - Attackers lift with an outline and ⚔️.
+  - Cards you can play lift in your hand; the rest sit flat and dimmed.
+- **Richer card details.**
+  - Type, rarity and element tags.
+  - Cost as pips and words.
+  - Current power/toughness (with the printed values if changed).
+  - What the card is doing on the battlefield (tapped, damage, summoning sick, attacking).
+  - Each keyword with its icon and exact rule.
+  - Flash is clearly marked "No effect": it is greyed out on cards and labelled in details.
+- **Pack reveals** show rarity, cost and power/toughness in the card's colours.
+- **Fixed:** on phones, long-pressing a card sometimes opened its details and closed them again at once.
+
+Under the hood:
+- Shared helpers in `index.js`: `getCardRarity`, `getCardIdentity`, `applyCardIdentity`, `renderCostPips`,
+  `describeCost`, `createKeywordBadge` and `renderKeywordDetail`.
+- A "CARD FACES" block in `styles.css`.
+- Card data, ids, rarity, rules, saves and `bindCardPress` are unchanged.
+- New `tests/card-faces.mjs` (`npm run cards:ui`, in CI). See [UI.md](UI.md) §8.
+
 ## Unreleased: menu and battle setup refresh
 
 For players:

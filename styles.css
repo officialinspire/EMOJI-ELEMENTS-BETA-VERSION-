@@ -4626,3 +4626,572 @@ html {
         font-size: 16px;
     }
 }
+
+/* =====================================================================================================
+   CARD FACES: one presentation for the hand, both battlefields, card details and pack reveals.
+   The emoji stays the artwork. Around it: an element-coloured window (--card-el-1/--card-el-2, set by
+   applyCardIdentity: mono, dual split, rainbow, or neutral steel for colorless), a rarity border with no
+   animation, cost pips top-left (hand), keywords or the type icon top-right, a state marker bottom-left and
+   power/toughness bottom-right. States never rely on colour alone: tapped turns sideways, summoning sickness
+   has a dashed border and 💤, damage reads 💔N, attackers lift with an outline and ⚔️, playable hand cards
+   lift, and unplayable ones sit flat and dimmed.
+   ===================================================================================================== */
+:root {
+    --elc-fire: #ff6a3d;
+    --elc-water: #45b0ff;
+    --elc-earth: #62d46f;
+    --elc-swamp: #b383ff;
+    --elc-light: #ffd84a;
+    --elc-colorless: #aab2c0;
+    --rarity-common: rgba(214, 200, 170, 0.62);
+    --rarity-uncommon: #7ef29f;
+    --rarity-rare: #5fb0ff;
+    --rarity-epic: #b77bff;
+    --rarity-legendary: #ffce60;
+    --card-ink: #fff8e6;
+    --card-chip: rgba(10, 6, 18, 0.88);
+}
+
+/* Element backgrounds, shared by faces, land stacks, the detail art window and the pack reveal */
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport) {
+    --card-face-bg:
+        radial-gradient(90% 60% at 50% 42%, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, transparent) 0%, transparent 72%),
+        linear-gradient(165deg, color-mix(in srgb, var(--card-el-1, var(--elc-colorless)) 34%, #1b1030) 0%, #140b22 80%);
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport).is-multicolor {
+    /* Dual cards: a diagonal split between their two colours */
+    --card-face-bg:
+        radial-gradient(80% 55% at 50% 42%, rgba(255, 255, 255, 0.1) 0%, transparent 70%),
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--card-el-1) 46%, #1b1030) 0%,
+            color-mix(in srgb, var(--card-el-1) 20%, #160c26) 49%,
+            color-mix(in srgb, var(--card-el-2) 20%, #160c26) 51%,
+            color-mix(in srgb, var(--card-el-2) 46%, #1b1030) 100%);
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport).is-rainbow {
+    --card-face-bg:
+        radial-gradient(circle at 50% 45%, rgba(20, 11, 34, 0.25) 0%, rgba(20, 11, 34, 0.75) 75%),
+        conic-gradient(from 200deg, var(--elc-fire), var(--elc-light), var(--elc-earth), var(--elc-water), var(--elc-swamp), var(--elc-fire));
+}
+
+:is(.card, .land-stack-card, .card-detail-popup, .pack-card-viewport)[data-elements="colorless"] {
+    --card-face-bg:
+        radial-gradient(80% 55% at 50% 40%, rgba(220, 228, 240, 0.18) 0%, transparent 70%),
+        linear-gradient(165deg, #434957 0%, #1c1f28 82%);
+}
+
+/* ---- The face */
+.card {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    color: var(--card-ink);
+    border-width: 2px;
+    border-radius: 9px;
+    justify-content: center;
+}
+
+/* Browsers without color-mix() keep the previous card backgrounds */
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+    .card,
+    .card.land,
+    .card.scifi,
+    .card.enemy-card {
+        background: var(--card-face-bg);
+    }
+
+    /* Sci-fi cards keep a faint scanline instead of their own cyan colour scheme */
+    .card.scifi {
+        background:
+            repeating-linear-gradient(0deg, rgba(160, 240, 255, 0.05) 0 1px, transparent 1px 4px),
+            var(--card-face-bg);
+    }
+
+    .land-stack-card,
+    .card-detail-popup .card-detail-emoji,
+    .pack-card-viewport {
+        background: var(--card-face-bg);
+    }
+}
+
+.card,
+.card.land,
+.card.scifi,
+.card.enemy-card {
+    box-shadow: var(--card-shadow);
+}
+
+/* Enemy cards: a thin red rim outside the rarity border */
+.card.enemy-card {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(220, 20, 60, 0.6);
+}
+
+.card-art {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+/* Type treatment: instants get a rune ring, artifacts a steel bevel, lands an earthen base */
+.card.type-instant .card-art {
+    background: radial-gradient(circle at 50% 50%, transparent 52%, rgba(255, 241, 186, 0.22) 55%, transparent 60%);
+}
+
+.card.type-artifact {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(200, 210, 225, 0.22);
+}
+
+.card.type-land {
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 -10px 12px -6px rgba(120, 84, 40, 0.55);
+}
+
+/* Rarity: border colour only, never animated (the legendary pulse and halo are gone) */
+.card.rarity-common { border-color: var(--rarity-common); }
+.card.rarity-uncommon { border-color: var(--rarity-uncommon); }
+.card.rarity-rare { border-color: var(--rarity-rare); }
+.card.rarity-epic { border-color: var(--rarity-epic); }
+
+.card.rarity-legendary {
+    border-color: var(--rarity-legendary);
+    animation: none;
+    --card-shadow: 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 206, 96, 0.55), 0 0 8px rgba(255, 206, 96, 0.3);
+}
+
+.card.rarity-legendary::after {
+    content: none;
+}
+
+/* ---- Cost pips (faces, details, pack reveal) */
+.cost-pip {
+    --pip: var(--elc-colorless);
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    height: 16px;
+    padding: 0 4px 0 2px;
+    border: 1px solid var(--pip);
+    border-radius: 8px;
+    background: var(--card-chip);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.cost-pip-icon {
+    font-size: 11px;
+}
+
+.cost-pip[data-element="fire"] { --pip: var(--elc-fire); }
+.cost-pip[data-element="water"] { --pip: var(--elc-water); }
+.cost-pip[data-element="earth"] { --pip: var(--elc-earth); }
+.cost-pip[data-element="swamp"] { --pip: var(--elc-swamp); }
+.cost-pip[data-element="light"] { --pip: var(--elc-light); }
+
+/* Colorless and free have a square pip, so they differ from the colours by shape too */
+.cost-pip[data-element="colorless"],
+.cost-pip-free {
+    border-radius: 3px;
+}
+
+.cost-pip-free {
+    --pip: rgba(242, 207, 114, 0.7);
+    padding: 0 5px;
+}
+
+.card .card-cost {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 0;
+    background: none;
+    border: 0;
+    font-size: inherit;
+}
+
+.card .cost-pip {
+    height: 15px;
+    padding: 0 3px 0 1px;
+    font-size: 11px;
+}
+
+.card .cost-pip-icon {
+    font-size: 10px;
+}
+
+/* ---- Corner badges */
+.card-type-icon,
+.card-state,
+.card .ability-icon,
+.ability-more {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border-radius: 4px;
+    background: var(--card-chip);
+    border: 1px solid rgba(242, 207, 114, 0.45);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.card-type-icon {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    border-radius: 50%;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.card .card-abilities {
+    top: 2px;
+    right: 2px;
+    gap: 2px;
+}
+
+.card .ability-icon:nth-child(n + 4) {
+    display: none;
+}
+
+.ability-more {
+    font-weight: 700;
+}
+
+/* Flash does nothing yet: its badge is dimmed and struck through */
+.ability-icon.is-inactive {
+    position: relative;
+    opacity: 0.6;
+    filter: grayscale(0.8);
+}
+
+.ability-icon.is-inactive::after {
+    content: '';
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 50%;
+    height: 2px;
+    background: #ff8a8a;
+    transform: rotate(-45deg);
+}
+
+.card-state {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    border-radius: 50%;
+}
+
+.card-state-sick {
+    border-style: dashed;
+    border-color: rgba(200, 210, 230, 0.8);
+}
+
+.card-state-attacking {
+    border-color: #ff6b6b;
+}
+
+.card .card-power {
+    bottom: 2px;
+    right: 2px;
+    padding: 1px 4px;
+    border: 1px solid rgba(242, 207, 114, 0.75);
+    border-radius: 5px;
+    background: var(--card-chip);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.card .card-damage {
+    top: 2px;
+    left: 2px;
+    background: var(--card-chip);
+    color: #ffb3b3;
+    font-size: 11px;
+}
+
+/* ---- States */
+.card.summoning-sick .card-art {
+    opacity: 0.6;
+}
+
+#playerHand .card.playable {
+    animation: none;
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow), 0 0 0 2px rgba(120, 255, 170, 0.6);
+}
+
+#playerHand .card.unplayable {
+    transform: none;
+    opacity: 0.55;
+    filter: saturate(0.45);
+}
+
+.card.attacking {
+    animation: none;
+    transform: translateY(-6px);
+    outline: 2px solid #ff6b6b;
+    outline-offset: 2px;
+    box-shadow: var(--card-shadow), 0 0 14px rgba(220, 20, 60, 0.55);
+}
+
+@media (hover: hover) and (min-width: 768px) {
+    #playerHand .card.playable:hover {
+        transform: translateY(-10px) scale(1.06);
+    }
+
+    #playerHand .card.unplayable:hover {
+        transform: translateY(-4px);
+    }
+}
+
+/* Land stacks get the same element backgrounds (in @supports above); their borders still show
+   tapped / partly tapped / ready. */
+
+/* ---- Bigger faces where there is room (not on short landscape phones, whose cards stay 52 px wide) */
+@media (min-width: 768px) and (min-height: 501px) {
+    .card-art {
+        font-size: 40px;
+    }
+
+    .card .cost-pip {
+        height: 17px;
+        font-size: 12px;
+    }
+
+    .card .cost-pip-icon {
+        font-size: 11px;
+    }
+
+    .card-type-icon,
+    .card-state,
+    .card .ability-icon,
+    .ability-more {
+        width: 19px;
+        height: 19px;
+        font-size: 12px;
+    }
+
+    .card .card-power {
+        font-size: 13px;
+    }
+}
+
+/* ---- Card details */
+.card-detail-popup {
+    border-color: var(--rarity-common);
+}
+
+.card-detail-popup[data-rarity="rare"] { border-color: var(--rarity-rare); }
+.card-detail-popup[data-rarity="epic"] { border-color: var(--rarity-epic); }
+.card-detail-popup[data-rarity="legendary"] { border-color: var(--rarity-legendary); }
+
+.card-detail-popup .card-detail-emoji {
+    margin: 0 0 10px;
+    padding: 8px 0;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.card-detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin: -4px 0 10px;
+}
+
+.detail-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border: 1px solid rgba(242, 207, 114, 0.4);
+    border-radius: 999px;
+    background: var(--card-chip);
+    color: var(--card-ink);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.detail-tag-rarity.rarity-common { border-color: var(--rarity-common); }
+.detail-tag-rarity.rarity-uncommon { border-color: var(--rarity-uncommon); color: var(--rarity-uncommon); }
+.detail-tag-rarity.rarity-rare { border-color: var(--rarity-rare); color: var(--rarity-rare); }
+.detail-tag-rarity.rarity-epic { border-color: var(--rarity-epic); color: #d4b3ff; }
+.detail-tag-rarity.rarity-legendary { border-color: var(--rarity-legendary); color: var(--rarity-legendary); }
+
+.detail-tag-element[data-element="fire"] { border-color: var(--elc-fire); }
+.detail-tag-element[data-element="water"] { border-color: var(--elc-water); }
+.detail-tag-element[data-element="earth"] { border-color: var(--elc-earth); }
+.detail-tag-element[data-element="swamp"] { border-color: var(--elc-swamp); }
+.detail-tag-element[data-element="light"] { border-color: var(--elc-light); }
+.detail-tag-element[data-element="colorless"] { border-color: var(--elc-colorless); }
+
+.card-detail-popup .card-detail-info {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--card-ink);
+}
+
+.card-detail-popup .card-detail-label {
+    font-family: 'Cinzel', serif;
+    color: var(--gold-1);
+}
+
+.detail-cost {
+    display: inline-flex;
+    gap: 4px;
+    vertical-align: middle;
+}
+
+.detail-cost-text,
+.detail-printed {
+    color: var(--text-soft);
+    font-size: 12px;
+}
+
+.detail-pt {
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+}
+
+.card-detail-subtitle {
+    margin-bottom: 4px;
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold-1);
+}
+
+.card-detail-keyword {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 6px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--card-ink);
+    text-align: left;
+}
+
+.kw-badge {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(242, 207, 114, 0.45);
+    background: var(--card-chip);
+    font-size: 14px;
+}
+
+.kw-body strong {
+    color: var(--gold-1);
+}
+
+.card-detail-keyword.is-inactive .kw-badge {
+    opacity: 0.6;
+    filter: grayscale(0.8);
+}
+
+.card-detail-keyword.is-inactive .kw-body {
+    color: var(--text-soft);
+}
+
+.kw-tag {
+    display: inline-block;
+    padding: 0 6px;
+    border: 1px solid #ff8a8a;
+    border-radius: 999px;
+    color: #ffb3b3;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.card-detail-state {
+    border-color: rgba(255, 107, 107, 0.4);
+}
+
+.card-detail-flavour {
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-soft);
+}
+
+/* ---- Pack reveal */
+.pack-card-viewport {
+    border: 2px solid var(--rarity-common);
+}
+
+.pack-card-viewport[data-rarity="rare"] { border-color: var(--rarity-rare); }
+.pack-card-viewport[data-rarity="epic"] { border-color: var(--rarity-epic); }
+.pack-card-viewport[data-rarity="legendary"] { border-color: var(--rarity-legendary); }
+
+.pack-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.pack-card-viewport:not(.is-revealed) .pack-card-meta {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.pack-card-cost {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.pack-card-meta .card-power {
+    position: static;
+    padding: 1px 6px;
+    border: 1px solid rgba(242, 207, 114, 0.75);
+    border-radius: 5px;
+    background: var(--card-chip);
+    color: #fff;
+    font-size: 13px;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .card-detail-tags {
+        margin-bottom: 6px;
+    }
+
+    .card-detail-keyword {
+        margin: 3px 0;
+        font-size: 12px;
+    }
+
+    .pack-card-meta {
+        margin-top: 4px;
+    }
+}

@@ -16,6 +16,7 @@
     "effects": "node --test tests/effects.test.mjs",
     "ui": "node tests/ui-audit.mjs",
     "menu": "node tests/menu-audit.mjs",
+    "cards:ui": "node tests/card-faces.mjs",
     "ai": "node --test tests/ai.test.mjs",
     "ai:sim": "node tests/ai-sim.mjs",
     "release": "node tests/release.mjs"

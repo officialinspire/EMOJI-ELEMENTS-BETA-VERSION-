@@ -21,6 +21,9 @@ jobs:
       - name: Run the menu and battle setup audit
         if: always()
         run: node tests/menu-audit.mjs --label=ci
+      - name: Run the card presentation audit
+        if: always()
+        run: node tests/card-faces.mjs --label=ci
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -29,4 +32,5 @@ jobs:
           path: |
             test-results/ui/ci/
             test-results/menu/ci/
+            test-results/cards/ci/
           retention-days: 14

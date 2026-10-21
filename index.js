@@ -922,6 +922,84 @@
         return rule ? `${rule.label}: ${rule.text}` : ability;
     }
 
+    // ---- Card presentation helpers, shared by the hand, the battlefield, card details and pack reveals.
+    // They only read card data; ids, stats, costs, rarity and rules stay where they are.
+    const ELEMENT_LABELS = { fire: 'Fire', water: 'Water', earth: 'Earth', swamp: 'Swamp', light: 'Light', colorless: 'Colorless' };
+    const elementLabel = element => `${ELEMENTS[element]?.emoji || ''} ${ELEMENT_LABELS[element] || element}`.trim();
+    const CARD_RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    // The rarity glyph gives each rarity a shape as well as a colour
+    const RARITY_INFO = {
+        common: { label: 'Common', glyph: '●' },
+        uncommon: { label: 'Uncommon', glyph: '◆' },
+        rare: { label: 'Rare', glyph: '◆' },
+        epic: { label: 'Epic', glyph: '⬢' },
+        legendary: { label: 'Legendary', glyph: '★' }
+    };
+    const CARD_TYPE_INFO = {
+        creature: { label: 'Creature', icon: '🐾' },
+        instant: { label: 'Instant', icon: '✨' },
+        artifact: { label: 'Artifact', icon: '⚙️' },
+        land: { label: 'Land', icon: '⛰️' }
+    };
+
+    function getCardRarity(card) {
+        return CARD_RARITIES.includes(card?.__rarity) ? card.__rarity : 'common';
+    }
+
+    // The colours a card face shows: a land's mana colours, otherwise its cost colours (largest first, as
+    // written); cards with neither are colorless.
+    function getCardIdentity(card) {
+        const source = card?.type === 'land'
+            ? (Array.isArray(card.elements) ? card.elements : [card.element])
+            : Object.keys(card?.cost || {});
+        const colours = [...new Set(source)].filter(element => element !== 'colorless' && ELEMENTS[element]);
+        return colours.length ? colours : ['colorless'];
+    }
+
+    // Element colours for a face or panel: --card-el-1/--card-el-2 drive its background (styles.css "CARD FACES")
+    function applyCardIdentity(el, card) {
+        const identity = getCardIdentity(card);
+        el.dataset.elements = identity.join(' ');
+        el.classList.toggle('is-multicolor', identity.length === 2);
+        el.classList.toggle('is-rainbow', identity.length > 2);
+        el.style.setProperty('--card-el-1', `var(--elc-${identity[0]})`);
+        el.style.setProperty('--card-el-2', `var(--elc-${identity[1] || identity[0]})`);
+        return identity;
+    }
+
+    // Mana cost as pips: one per colour with its count, colorless as ◇. A free card shows 0.
+    function renderCostPips(cost) {
+        const entries = Object.entries(cost || {}).filter(([, n]) => n > 0);
+        if (!entries.length) return '<span class="cost-pip cost-pip-free" title="Free">0</span>';
+        return entries.map(([element, n]) => `<span class="cost-pip" data-element="${element}" title="${n} ${ELEMENT_LABELS[element] || element}">`
+            + `<span class="cost-pip-icon" aria-hidden="true">${ELEMENTS[element]?.emoji || '◇'}</span><span class="cost-pip-n">${n}</span></span>`).join('');
+    }
+
+    function describeCost(cost) {
+        const entries = Object.entries(cost || {}).filter(([, n]) => n > 0);
+        return entries.length ? entries.map(([element, n]) => `${n} ${ELEMENT_LABELS[element] || element}`).join(' + ') : 'Free';
+    }
+
+    // Keyword badge for a card face. Flash has no effect in this version, so its badge is marked inactive.
+    function createKeywordBadge(ability) {
+        const badge = document.createElement('div');
+        badge.className = 'ability-icon';
+        badge.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
+        badge.title = describeKeyword(ability);
+        if (ability === 'flash') badge.classList.add('is-inactive');
+        return badge;
+    }
+
+    // One keyword in card details: badge, name and the KEYWORD_RULES text
+    function renderKeywordDetail(ability) {
+        const rule = KEYWORD_RULES[ability];
+        if (!rule) return `<div class="card-detail-keyword">${ability}</div>`;
+        const inactive = ability === 'flash';
+        return `<div class="card-detail-keyword${inactive ? ' is-inactive' : ''}">`
+            + `<span class="kw-badge" aria-hidden="true">${rule.badge}</span>`
+            + `<span class="kw-body"><strong>${rule.label}</strong>${inactive ? ' <span class="kw-tag">No effect</span>' : ''}: ${rule.text}</span></div>`;
+    }
+
     // Token creatures made by token spells (tokenType). `default` is for a token spell without a type.
     const TOKEN_TYPES = {
         spirit: { name: 'Spirit Token', emoji: '👻', power: 1, toughness: 1, abilities: ['flying'] },
@@ -2631,8 +2709,7 @@
         packOpeningState.currentIndex = boundedIndex;
 
         const card = packOpeningState.cards[boundedIndex];
-        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-        const rarity = validRarities.has(card?.__rarity) ? card.__rarity : 'common';
+        const rarity = getCardRarity(card);
         const packCardEmoji = document.getElementById('packCardEmoji');
         const packCardName = document.getElementById('packCardName');
         const packCardType = document.getElementById('packCardType');
@@ -2645,6 +2722,17 @@
         if (packCardEmoji) packCardEmoji.textContent = card.emoji || '✨';
         if (packCardName) packCardName.textContent = card.name || 'Unknown Card';
         if (packCardType) packCardType.textContent = card.cardType || card.type || '';
+        const packCardMeta = document.getElementById('packCardMeta');
+        if (packCardMeta) {
+            const parts = [`<span class="detail-tag detail-tag-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`];
+            if (card.type !== 'land') parts.push(`<span class="pack-card-cost">${renderCostPips(card.cost)}</span>`);
+            if (card.type === 'creature') parts.push(`<span class="card-power pack-card-power">${card.power}/${card.toughness}</span>`);
+            packCardMeta.innerHTML = parts.join('');
+        }
+        if (packViewport) {
+            applyCardIdentity(packViewport, card);
+            packViewport.dataset.rarity = rarity;
+        }
         if (packCardCounter) packCardCounter.textContent = `Card ${boundedIndex + 1} of ${packOpeningState.cards.length}`;
         if (packPrevBtn) packPrevBtn.disabled = boundedIndex === 0;
         if (packNextBtn) packNextBtn.disabled = boundedIndex === packOpeningState.cards.length - 1;
@@ -3708,9 +3796,6 @@
         return gameState.deckMode === 'single' ? 1 : 2;
     }
 
-    const ELEMENT_LABELS = { fire: 'Fire', water: 'Water', earth: 'Earth', swamp: 'Swamp', light: 'Light' };
-    const elementLabel = element => `${ELEMENTS[element]?.emoji || ''} ${ELEMENT_LABELS[element] || element}`.trim();
-
     function updateStartButtonState() {
         const startBtn = document.getElementById('startBtn');
         if (!startBtn) return;
@@ -4028,108 +4113,67 @@
         emoji.textContent = card.emoji;
         name.textContent = card.name;
 
-        let html = '';
+        // Same element colours, type and rarity treatment as the card face
+        const identity = applyCardIdentity(popup, card);
+        const rarity = getCardRarity(card);
+        const typeInfo = CARD_TYPE_INFO[card.type] || { label: card.cardType || card.type, icon: '' };
+        popup.dataset.type = card.type;
+        popup.dataset.rarity = rarity;
+
+        const row = (label, value) => `<div class="card-detail-info"><span class="card-detail-label">${label}:</span> ${value}</div>`;
+        const tags = [
+            `<span class="detail-tag detail-tag-type">${typeInfo.icon} ${card.type === 'instant' ? 'Instant Spell' : typeInfo.label}</span>`,
+            `<span class="detail-tag detail-tag-rarity rarity-${rarity}">${RARITY_INFO[rarity].glyph} ${RARITY_INFO[rarity].label}</span>`,
+            ...identity.map(element => `<span class="detail-tag detail-tag-element" data-element="${element}">${elementLabel(element)}</span>`)
+        ];
+        let html = `<div class="card-detail-tags">${tags.join('')}</div>`;
 
         if (card.type === 'land') {
-            // Handle both single-color lands and dual lands
-            let effectText;
-            if (card.elements && card.elements.length > 1) {
-                // Dual land
-                const manaOptions = card.elements.map(el => ELEMENTS[el].emoji).join(' or ');
-                effectText = `Tap to add ${manaOptions} to your mana pool`;
-            } else if (card.element) {
-                // Single color land
-                effectText = `Tap to add ${ELEMENTS[card.element].emoji} to your mana pool`;
-            } else {
-                effectText = card.desc || 'Tap for mana';
+            // Single-colour, dual, rainbow and colorless lands
+            const colours = Array.isArray(card.elements) ? card.elements : [card.element];
+            const mana = colours.map(element => `${ELEMENTS[element]?.emoji || '◇'} ${ELEMENT_LABELS[element] || element}`).join(' or ');
+            html += `<div class="card-detail-section">${row('Mana', `Tap to add ${mana} to your mana pool`)}</div>`;
+        } else {
+            const stats = [row('Cost', `<span class="detail-cost">${renderCostPips(card.cost)}</span> <span class="detail-cost-text">${describeCost(card.cost)}</span>`)];
+            if (card.type === 'creature') {
+                // Current power/toughness, with the printed values when an effect changed them
+                const printed = __CARD_BY_ID[card.__id];
+                const changed = printed && (printed.power !== card.power || printed.toughness !== card.toughness);
+                stats.push(row('Power/Toughness', `<strong class="detail-pt">${card.power}/${card.toughness}</strong>${changed ? ` <span class="detail-printed">(printed ${printed.power}/${printed.toughness})</span>` : ''}`));
             }
+            html += `<div class="card-detail-section">${stats.join('')}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Land
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${effectText}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'creature') {
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ');
-            
-            const abilitiesStr = card.abilities && card.abilities.length > 0
-                ? card.abilities.map(a => `<div class="card-detail-keyword">${describeKeyword(a)}</div>`).join('')
-                : 'None';
+        // Where it stands on the battlefield right now
+        const onBoard = gameState.playerBoard.includes(card) || gameState.enemyBoard.includes(card);
+        if (onBoard) {
+            const state = [];
+            if (card.tapped) state.push('Tapped');
+            if (card.type === 'creature') {
+                if (card.damage > 0) state.push(`💔 ${card.damage} damage this turn`);
+                if (card.summoningSick && !card.abilities?.includes('haste')) state.push('💤 Summoning sick: can attack next turn');
+                if (gameState.attackers.includes(card.id)) state.push('⚔️ Attacking');
+            }
+            const owner = gameState.enemyBoard.includes(card) ? 'Enemy battlefield' : 'Your battlefield';
+            html += `<div class="card-detail-section card-detail-state">${row(owner, state.length ? state.join(' · ') : 'Ready')}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Creature
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Power/Toughness:</span> ${card.power}/${card.toughness}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Abilities:</span> ${abilitiesStr}
-                    </div>
-                </div>
-                <div class="card-detail-section">
-                    <div class="card-detail-info" style="font-style: italic;">
-                        ${card.desc || 'A mighty creature'}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'instant') {
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ');
+        if (card.type === 'creature') {
+            const keywords = (card.abilities || []).map(renderKeywordDetail).join('');
+            html += `<div class="card-detail-section"><div class="card-detail-subtitle">Abilities</div>${keywords || '<div class="card-detail-info">None</div>'}</div>`;
+        } else if (card.type === 'instant' || card.type === 'artifact') {
+            html += `<div class="card-detail-section card-detail-rules">${row('Rules', describeEffect(card))}</div>`;
+        }
 
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Instant Spell
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Magical effect'}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
-                    </div>
-                </div>
-            `;
-        } else if (card.type === 'artifact') {
-            const costStr = Object.entries(card.cost || {})
-                .map(([el, val]) => `${ELEMENTS[el].emoji} ${val}`)
-                .join(', ') || 'Free';
-
-            html = `
-                <div class="card-detail-section">
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Type:</span> Artifact
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Cost:</span> ${costStr}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Effect:</span> ${card.desc || 'Powerful artifact'}
-                    </div>
-                    <div class="card-detail-info">
-                        <span class="card-detail-label">Rules:</span> ${describeEffect(card)}
-                    </div>
-                </div>
-            `;
+        const flavour = card.type === 'creature' ? (card.desc || 'A mighty creature')
+            : card.type === 'land' ? '' : (card.desc || '');
+        if (flavour) {
+            html += `<div class="card-detail-section card-detail-flavour">${card.type === 'creature' ? flavour : row('Effect', flavour)}</div>`;
         }
 
         content.innerHTML = html;
         popup.classList.add('show');
+        cardDetailOpenedAt = performance.now();
         hoverTooltipPinned = true;
         hideCardHoverTooltip();
     }
@@ -4190,8 +4234,11 @@
     }
 
     // Close popup when clicking outside
+    // A click on the backdrop closes details, but not the click that ends the long-press which opened them
+    // (on phones the popup opens under the finger).
+    let cardDetailOpenedAt = 0;
     document.getElementById('cardDetailPopup').addEventListener('click', function(e) {
-        if (e.target === this) {
+        if (e.target === this && performance.now() - cardDetailOpenedAt > 500) {
             hideCardDetail();
         }
     });
@@ -6677,6 +6724,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card';
+            applyCardIdentity(stackCard, representativeCard);
             attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
@@ -6756,6 +6804,11 @@
             
             if (card.type === 'creature' && attackPhase && gameState.attackers.includes(card.id)) {
                 cardEl.classList.add('attacking');
+                const marker = document.createElement('div');
+                marker.className = 'card-state card-state-attacking';
+                marker.textContent = '⚔️';
+                marker.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(marker);
             }
 
             // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
@@ -6807,6 +6860,7 @@
 
             const stackCard = document.createElement('div');
             stackCard.className = 'land-stack-card enemy-land-stack';
+            applyCardIdentity(stackCard, representativeCard);
             attachDesktopTooltip(stackCard, representativeCard);
             if (tappedCount === total) {
                 stackCard.classList.add('all-tapped');
@@ -6938,17 +6992,20 @@
         }
     }
 
+    // One card face for the hand and both battlefields. The art (emoji) is the first child; around it: cost pips
+    // (hand) or damage (board) top-left, keywords or the type icon top-right, a state marker bottom-left and
+    // power/toughness bottom-right. Element colours, type and rarity are classes and data attributes styled in
+    // styles.css ("CARD FACES").
     function createCardElement(card, onBoard, isEnemy = false) {
         const cardEl = document.createElement('div');
         cardEl.className = 'card';
         cardEl.dataset.cardId = card.id;
         cardEl.id = `card-${isEnemy ? 'enemy' : 'player'}-${card.id}`;
 
-        const validRarities = new Set(['common', 'uncommon', 'rare', 'epic', 'legendary']);
-        const rarity = validRarities.has(card.__rarity) ? card.__rarity : 'common';
-        cardEl.classList.add(`rarity-${rarity}`);
-        cardEl.classList.add(`juice-glow-${rarity}`);
-        
+        cardEl.classList.add(`rarity-${getCardRarity(card)}`, `type-${card.type}`);
+        cardEl.dataset.type = card.type;
+        applyCardIdentity(cardEl, card);
+
         if (card.type === 'land') {
             cardEl.classList.add('land');
         }
@@ -6961,33 +7018,36 @@
         if (isEnemy) {
             cardEl.classList.add('enemy-card');
         }
-        if (onBoard && !isEnemy && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste')) {
+        const sick = onBoard && card.type === 'creature' && card.summoningSick && !card.abilities?.includes('haste');
+        if (sick) {
             cardEl.classList.add('summoning-sick');
-            cardEl.title = 'Summoning sick: can attack next turn';
+            cardEl.title = isEnemy ? 'Summoning sick: can attack on its next turn' : 'Summoning sick: can attack next turn';
         }
-        // Emoji - centered
+
+        // Art: the emoji, centred in an element-coloured window
         const emojiEl = document.createElement('div');
+        emojiEl.className = 'card-art';
         emojiEl.textContent = card.emoji;
-        emojiEl.style.fontSize = '32px';
-        emojiEl.style.display = 'flex';
-        emojiEl.style.alignItems = 'center';
-        emojiEl.style.justifyContent = 'center';
-        emojiEl.style.flex = '1';
-        emojiEl.style.width = '100%';
         cardEl.appendChild(emojiEl);
 
-        // Cost
-        if (card.cost && !onBoard && Object.keys(card.cost).length > 0) {
+        // Cost, in hand only (the board has no use for it)
+        if (!onBoard && card.type !== 'land') {
             const costEl = document.createElement('div');
             costEl.className = 'card-cost';
-            const costStr = Object.entries(card.cost)
-                .map(([el, val]) => `${ELEMENTS[el].emoji}${val}`)
-                .join(' ');
-            costEl.textContent = costStr;
+            costEl.innerHTML = renderCostPips(card.cost);
             cardEl.appendChild(costEl);
         }
 
-        // Power/Toughness
+        // Type icon for everything but creatures (their power/toughness already says what they are)
+        if (card.type !== 'creature' && CARD_TYPE_INFO[card.type]) {
+            const typeEl = document.createElement('div');
+            typeEl.className = 'card-type-icon';
+            typeEl.textContent = CARD_TYPE_INFO[card.type].icon;
+            typeEl.title = CARD_TYPE_INFO[card.type].label;
+            typeEl.setAttribute('aria-hidden', 'true');
+            cardEl.appendChild(typeEl);
+        }
+
         if (card.type === 'creature') {
             const powerEl = document.createElement('div');
             powerEl.className = 'card-power';
@@ -7002,17 +7062,27 @@
                 cardEl.appendChild(damageEl);
             }
 
-            // Abilities
+            // Summoning sickness as a marker, not only the dashed border
+            if (sick) {
+                const stateEl = document.createElement('div');
+                stateEl.className = 'card-state card-state-sick';
+                stateEl.textContent = '💤';
+                stateEl.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(stateEl);
+            }
+
+            // Keywords: up to three badges show; the rest are counted (+N) and listed in card details
             if (card.abilities && card.abilities.length > 0) {
                 const abilitiesEl = document.createElement('div');
                 abilitiesEl.className = 'card-abilities';
-                card.abilities.forEach(ability => {
-                    const abilityEl = document.createElement('div');
-                    abilityEl.className = 'ability-icon';
-                    abilityEl.textContent = KEYWORD_RULES[ability]?.badge || ability[0].toUpperCase();
-                    abilityEl.title = describeKeyword(ability);
-                    abilitiesEl.appendChild(abilityEl);
-                });
+                card.abilities.forEach(ability => abilitiesEl.appendChild(createKeywordBadge(ability)));
+                if (card.abilities.length > 3) {
+                    const moreEl = document.createElement('div');
+                    moreEl.className = 'ability-more';
+                    moreEl.textContent = `+${card.abilities.length - 3}`;
+                    moreEl.title = card.abilities.slice(3).map(describeKeyword).join('\n');
+                    abilitiesEl.appendChild(moreEl);
+                }
                 cardEl.appendChild(abilitiesEl);
             }
         }

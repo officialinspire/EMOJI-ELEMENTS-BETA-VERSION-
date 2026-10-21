@@ -10,6 +10,8 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 - Standardized starter deck keys for mono and dual identities.
 - Pack Shop with themed packs: fantasy, sci-fi, tech, alien, robot, lands.
 - Animated pack opening flow with drag-to-rip + swipe card reveal.
+- Emoji card art in element-coloured frames (split for two-colour cards, steel for colorless), with cost pips,
+  rarity borders, and markers for tapped, summoning-sick, damaged and attacking creatures.
 - Desktop shortcuts + mobile touch support.
 - localStorage persistence for stats, collection, decks, wallet, and last pack, with automatic repair and backups of damaged saves.
 
@@ -171,6 +173,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run smoke` | Desktop and mobile smoke flows |
 | `npm run ui` | Layout, touch, keyboard, accessibility at phone, tablet and desktop sizes ([UI.md](UI.md)) |
 | `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
+| `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
 
