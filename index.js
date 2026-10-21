@@ -4162,7 +4162,7 @@
 
     const getShopCredits = () => (Number.isFinite(gameMeta?.wallet?.credits) ? Math.max(0, Math.floor(gameMeta.wallet.credits)) : 0);
     const getPackTheme = themeKey => PACK_THEMES.find(theme => theme.key === themeKey) || null;
-    const formatPackChance = p => (p >= 0.995 ? 'every pack' : `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`);
+    const formatPackChance = p => `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`;
 
     // "3 × Common · 1 × Rare · 1 × Epic/Legendary", from the same slot plan generatePack uses
     function describePackSlotsShort(themeKey) {

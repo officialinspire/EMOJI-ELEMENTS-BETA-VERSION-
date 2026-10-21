@@ -78,8 +78,8 @@ Legend: ✅ pass · ❌ fail · ⛔ blocked (couldn't be run here).
    on average ([AI.md](AI.md) §4).
 5. **Medium:** Hard AI wins 70% against the reference bot; it may be too strong for casual players
    ([AI.md](AI.md) §6).
-6. **Medium:** Alien and Robot packs contain no alien or robot cards ([CARD_AUDIT.md](CARD_AUDIT.md),
-   decision A).
+6. ~~**Medium:** Alien and Robot packs contain no alien or robot cards ([CARD_AUDIT.md](CARD_AUDIT.md),
+   decision A).~~ ✅ Resolved in the pack pass: explicit pack membership (CARD_AUDIT.md §7).
 7. **Low:** the Flash keyword (9 creatures) has no effect (RULES.md C15).
 8. **Low:** spells pick random targets, and blocking is automatic for both sides (EFFECTS.md E2, RULES.md R5.4).
 9. **Low:** open economy choices: a pack on every win, guaranteed rare + epic slots, no duplicate protection

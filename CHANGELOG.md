@@ -1,5 +1,42 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Pack Shop and pack opening
+
+For players:
+- **Packs contain what their names say.**
+  - Alien packs hold aliens, UFOs and space cards; Robot packs hold robots, drones, mechs and machine minds.
+    Before, both were 100% unrelated Nature and City cards.
+  - Lands packs hold only lands; Badlands Boar is gone.
+  - Every card is in at least one pack. Some are in several (Satellite Drone is in four).
+- **The odds changed on purpose.** CARD_AUDIT.md §7 has the full before/after table.
+  - Fantasy now also holds the elemental wildlife, so each Fantasy card is about half as likely per pack.
+  - The small Alien, Robot and Tech pools make their rarer cards come round much more often.
+  - The Robot pack has only one Epic (Battle Mech), so its fifth card is Epic or Rare. Battle Mech is in a third
+    of Robot packs instead of every one.
+- **A clearer shop.**
+  - Each pack has its own art, a price chip, its slots and how many of its cards you own.
+  - Short of credits, the button says "NEED 20 MORE"; pressing it explains and charges nothing.
+  - **What's inside** lists every card a pack can contain, with what you own and the exact chance of each card.
+- **Better reveals.**
+  - **OPEN PACK** opens a pack without the rip gesture.
+  - Each card shows its keywords, rules or mana, and **✨ NEW** (only if you had none before this pack) or "You
+    own 3 (had 2)".
+  - **ALL 5 CARDS** gives a summary of the pack, and **DONE** closes it.
+  - Win packs show their theme ("🎁 Victory Pack · Robot").
+
+Unchanged: prices (60, Lands 40), 5 different cards per pack, a pack and +25 credits on every win, win-pack
+theme weights, every card's rarity, and the save format.
+
+Under the hood:
+- `PACK_MEMBERSHIP` (reviewed per card id) replaces `inferTheme` and its keyword lists.
+- `getPackSlotPlan`, `generatePack` and `getPackOdds` share one slot plan, with the documented fallbacks: a tiny
+  tier is merged with the next one, and a small pool is completed from the catalog.
+- `addPackToCollection` keeps the before-pack counts in memory for NEW.
+- `purchasePack` refuses while a pack is open.
+- The card audit checks membership and reachability and simulates seeded packs. The manifest is now
+  `schemaVersion` 2: `packTheme` is replaced by the explicit `availability.packThemes`.
+- New `tests/packs.test.mjs` (16 tests, in CI) and `tests/pack-shots.mjs` (screenshots and axe). See UI.md §11.
+
 ## Unreleased: Gameplay feedback
 
 For players:

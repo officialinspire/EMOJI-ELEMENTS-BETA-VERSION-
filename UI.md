@@ -584,3 +584,103 @@ Screenshots (`npm run feedback:shots`): before, then after (selection, preview d
 - The history keeps the last 80 events of the current match only, in memory. It is not saved and resets with a
   new match. Older entries are dropped and the dialog says how many.
 - Chromium only, as for the other UI passes. Real-device checks are still listed in §6.
+
+## 11. Pack Shop and pack opening
+
+Pack membership, pools and odds are in [CARD_AUDIT.md](CARD_AUDIT.md) §7. This section covers the screens.
+
+**Unchanged:**
+- prices, pack size, rewards and the save format;
+- `purchasePack`, `openPackOpeningOverlayFromMeta`;
+- the rip gesture and the swipe between cards;
+- the ids the existing tests use: `.shop-pack-btn[data-theme]`, `#packTearSurface`, `#packPrevBtn`,
+  `#packNextBtn`, `#packCloseBtn`, `#packCardName`, `#packCardCounter`.
+
+### What changed
+
+| Area | Before | After |
+|---|---|---|
+| Shop tiles | Six gradient buttons, "🧙 Fantasy Pack · 60 Credits". Nothing said what was inside or whether you could afford it. | One tile per pack: <ul><li>CSS-and-emoji art in the pack's colours, with foil stripes, a crimped edge and four of its rarest cards;</li><li>the name and a price chip ("💳 60");</li><li>a one-line description;</li><li>the slots ("3 × Common · 1 × Rare · 1 × Epic/Legendary");</li><li>"N cards · you have M";</li><li>BUY and What's inside.</li></ul> Three columns on wide screens, one on phones. |
+| Affordability | Learnt only after pressing | Short of credits, a tile shows "NEED 20 MORE" on a dashed button, a muted wrapper and "You have 💳 40 of 60". The button's accessible name says the same. It stays pressable and explains in the status line; nothing is charged. It updates whenever credits change. |
+| Contents preview | none | **What's inside** (dialog): <ul><li>the description;</li><li>how many cards the pack can contain and its slots;</li><li>for each rarity, how many cards there are and the exact chance of each one being in a pack (from `getPackOdds`);</li><li>any fallback note ("Card 5: this pack has only 1 Epic/Legendary card, so it can also be Rare.");</li><li>every card, rarest first, with art tile, cost, type, power/toughness, keywords, rarity, and "Owned ×N" or "Not owned".</li></ul> BUY inside it closes it and buys. Esc, ✕ or the backdrop closes it, with the same focus handling as other dialogs. |
+| Sealed pack | 📦 on an orange panel; drag only | The pack's own art, icon and name. The instruction says "Slide across the pack to rip it open, or press OPEN PACK", and there is an **OPEN PACK** button. A win pack's title names its theme: "🎁 Victory Pack · Robot". |
+| Card reveal | Emoji, name, type, rarity, cost and power/toughness | Also the keywords as chips (Flash marked inactive), the rules line for instants and artifacts (`describeEffect`), the mana for lands, the creature's flavour line, and **✨ NEW · First copy** or **You own 3 (had 2)**. NEW compares with ownership **before** the pack (§ below). The counter is a polite live region. |
+| Summary | none | **ALL 5 CARDS** (always there, highlighted on the last card) shows the five cards with their rarity and NEW or "Own N", plus a line such as "2 new to your collection · Best: Battle Mech (Epic)". Each card jumps back to its reveal. Focus moves to **DONE**, which closes the pack, as ✕ does. NEXT still stops at the last card. |
+
+### NEW, and purchases charged once
+
+- `addPackToCollection` records each card's count just before the pack is added. That record is in memory only,
+  so the save keeps `lastPack { themeKey, cardIds, openedAt }` exactly.
+- After a reload, `getPackOwnedBefore` works the count out as "owned now − 1", because a pack never holds a card
+  twice.
+- `purchasePack` refuses while a pack is open (`pack_open`): a second click, tap or Enter buys nothing. Win
+  rewards were already recorded once (`matchFinalized`).
+
+### Evidence
+
+`tests/packs.test.mjs` (`npm run packs`, in CI with the rules suites) has 16 browser tests:
+- **Pools:**
+  - membership covers exactly the 268 catalog ids, and every card is in a pack;
+  - the Alien and Robot pools hold the alien and robot cards and no Nature/City filler;
+  - Science Fiction keeps all 56 Science Fiction cards;
+  - Lands is exactly the 8 lands, without Badlands Boar.
+- **Generation:**
+  - 3000 seeded packs per pack: 5 different cards, all from the pool, each slot from its planned tiers, and
+    every pool card pulled at least once;
+  - tier rates match `getPackOdds`;
+  - per-card rates for Robot, Lands and Alien match it too (6000 packs each).
+- **Fallbacks:** Robot's widened slot 5 and its note, a 3-card pool completed from the catalog, an unknown pack.
+- **Unchanged:** prices, pack size, win credits and theme weights.
+- **Shop:**
+  - each tile's price, slots, owned count and art;
+  - affordability at 50 and at 60 credits;
+  - What's inside for all six packs: exactly the pool, owned counts, every percentage and note; Esc closes only
+    the dialog;
+  - one charge for a double click, Enter twice in the dialog, and a call while the pack is open;
+  - short of credits: nothing saved, the message, "NEED 10 MORE".
+- **Opening:**
+  - NEW only for cards owned 0 before the pack, and "You own 3 (had 2)" for the rest; the summary agrees;
+  - after a reload, NEW is still right and `lastPack` keeps its three keys;
+  - OPEN PACK with the keyboard; full information for a creature, an artifact, a land, an instant and a
+    legendary; DONE closes;
+  - win reward: +25 and one pack, once; the title names the theme; the cards come from that pool.
+- **Saves:** the existing-save fixture buys, reloads and keeps its keys, collection, `lastPack`, credits and
+  decks.
+
+| Suite | Before (`82612af`) | After |
+|---|---|---|
+| `tests/packs.test.mjs` | 1 / 16 (only the existing-save test) | 16 / 16 |
+| Card catalog (with the new membership checks) | pass | pass |
+| Rules, combat, progression, collection, effects, AI, feedback (node) | 403 / 403 | 403 / 403 |
+| Smoke | 204 / 204 | 204 / 204 |
+| UI audit | 469 / 469 | 469 / 469 |
+| Menu audit (the Pack Shop at 4 sizes: 44 px controls, 11 px text, axe including contrast) | 289 / 289 | 289 / 289 |
+| Card faces (pack reveal checks) | 95 / 95 | 95 / 95 |
+| Release playthroughs (on the code commit, in a clean worktree; packs bought with a duplicate tap, win packs ripped) | 97 / 97 | 97 / 97 |
+| `tests/pack-shots.mjs`: page errors and serious axe violations (including contrast) in the shop, What's inside and the summary, at desktop, phone and phone-landscape | n/a | none |
+
+**Existing tests changed:**
+- The progression test's pack-slot check now reads the slot plan. It expects 3 Common, 1 Rare and 1 Epic+ for
+  every pack, including Lands now that it holds only lands, and Epic or Rare for Robot's card 5.
+
+**Fixed during the pass:**
+- The first version marked unaffordable BUY buttons `aria-disabled`. Playwright then refused to press them, and
+  the smoke test caught it.
+- Pressing an unaffordable BUY is meant to explain, so the button is no longer marked disabled. Its label says
+  how many credits are missing.
+
+Screenshots (`npm run packs:shots`; before, then after):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/packs-phone.jpg](docs/ui-evidence/packs-phone.jpg) | Phone 360×740. **Before:** the shop and a "Robot" pack that revealed Growth. **After:** the shop at 50 credits, What's inside (Robot), the sealed Robot pack, a reveal with NEW, and the summary. |
+| [docs/ui-evidence/packs-desktop.jpg](docs/ui-evidence/packs-desktop.jpg) | Desktop 1366×900: the same, with three tile columns |
+| [docs/ui-evidence/packs-landscape.jpg](docs/ui-evidence/packs-landscape.jpg) | Phone landscape: the shop, What's inside, a reveal and the summary |
+
+### Limitations
+
+- In phone landscape the fuller reveal is taller than the screen. The panel scrolls to PREV/NEXT, as it did for
+  the shorter reveal.
+- The odds shown are exact for the pack's slots; they don't include the win-pack theme weights.
+- The art is CSS and emoji, so it depends on the device's emoji font, like the cards.
+- Chromium only, as for the other UI passes.

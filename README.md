@@ -8,8 +8,10 @@ EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real pr
 - Match economy: credits on **win and loss**, plus a **free booster pack on every win**.
 - Deck Builder backed by owned cards (collection-driven), with copy-limit + deck-size validation.
 - Standardized starter deck keys for mono and dual identities.
-- Pack Shop with themed packs: fantasy, sci-fi, tech, alien, robot, lands.
-- Animated pack opening flow with drag-to-rip + swipe card reveal.
+- Pack Shop with six themed packs (Fantasy, Science Fiction, Tech, Alien, Robot, Lands). Each shows its art,
+  price, whether you can afford it, and "What's inside": every card it can contain and the odds.
+- Pack opening: drag to rip, or press OPEN PACK. Swipe or use PREV/NEXT to reveal cards with their full rules,
+  NEW or how many you own. A summary shows all five.
 - Emoji card art in element-coloured frames (split for two-colour cards, steel for colorless), with cost pips,
   rarity borders, and markers for tapped, summoning-sick, damaged and attacking creatures.
 - Desktop shortcuts + mobile touch support.
@@ -89,8 +91,14 @@ In the Deck Builder:
 | Fantasy, Science Fiction, Tech, Alien or Robot pack | 60 |
 | Lands pack | 40 |
 
-- A pack holds 5 different cards from its theme pool. Slots 1–3 are commons, slot 4 a rare, and slot 5 an
-  epic or legendary (falling back if a pool runs out). Lands packs favour lands ×3.
+- A pack holds 5 different cards from its pool. Each card's packs are listed explicitly (`PACK_MEMBERSHIP`,
+  [CARD_AUDIT.md](CARD_AUDIT.md) §7):
+  - Alien and Robot packs hold aliens and robots;
+  - Lands packs hold only lands;
+  - every card is in at least one pack.
+- Slots 1–3 are commons, slot 4 a rare, and slot 5 an epic or legendary. The Robot pack has only one Epic, so
+  its slot 5 is Epic or Rare.
+- "What's inside" in the shop shows each pack's cards, what you own and the chance of each card.
 - Win packs use a random theme, weighted Fantasy 24, Science Fiction 18, and the others 14 each.
 - With too few credits a purchase does nothing: no charge and no cards.
 - Open economy questions are listed in [PROGRESSION.md §8](PROGRESSION.md).
@@ -129,7 +137,8 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 
 ### Touch
 
-- Pack opening: drag/swipe to rip the sealed pack, then swipe sideways (one card per swipe) to browse.
+- Pack opening: drag/swipe to rip the sealed pack (or press OPEN PACK), then swipe sideways (one card per swipe)
+  or use PREV/NEXT to browse. ALL 5 CARDS shows the summary.
 - Swiping across the hand or battlefield scrolls it without playing anything or scrolling the page.
 - Pinch-zoom is allowed; double-tap zoom is not.
 
@@ -198,6 +207,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run menu` | Main menu and battle setup: hierarchy, labels, credits and collection, deck summary, saved deck, keyboard, axe ([UI.md](UI.md) §7) |
 | `npm run collection` | Collection and Deck Builder: filter combinations, add/remove and Add reasons, summary and curve, invalid saves, unsaved-edit warnings, reloads, existing saves ([UI.md](UI.md) §9) |
 | `npm run feedback` | Gameplay feedback: the attack preview matches real combat for both sides (first strike, double strike, trample, deathtouch, menace, lifelink, lethal), changes nothing, and refreshes; play and attack reasons; CONFIRM/CANCEL; turn banner and AI status; match history ([UI.md](UI.md) §10) |
+| `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
 | `npm run cards:ui` | Card faces, battlefield states, card details and pack reveals: every type, element and rarity, crowded boards, phone and desktop ([UI.md](UI.md) §8) |
 | `npm run release` | Release playthroughs through the real UI, plus a long-match performance run ([QA_REPORT.md](QA_REPORT.md)) |
 | `npm run ai:sim` | Measured AI sample: 15 decks × 3 difficulties ([AI.md](AI.md)) |
