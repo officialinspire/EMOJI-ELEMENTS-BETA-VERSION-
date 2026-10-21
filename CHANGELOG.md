@@ -1,5 +1,24 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Cleanup and final regression
+
+For players:
+- In the Deck Builder, + and − keep keyboard focus on the card you pressed. Before, focus jumped to the top
+  of the page.
+- Menus no longer redraw an invisible effects layer 60 times a second (less battery use).
+- Leaving a match lets go of its cards straight away.
+- "What's inside" shows power/toughness as the same chip as the Collection.
+
+Under the hood:
+- **CSS:** removed CSS nothing uses or that later passes had overridden (`styles.css` −178 lines). A
+  computed-style fingerprint of 24 screen states is unchanged.
+- **List-row styles:** one shared set for the Collection, Deck Builder and Pack Shop.
+- **New suites:**
+  - `tests/regression.test.mjs` (11 tests, in CI);
+  - `tests/cross-browser.mjs`, which reports engines that aren't installed as NOT TESTED.
+- **QA_REPORT:** brought up to date. `main` holds the release pass (PR #117); the five newer passes and this
+  one are on the branch, not merged.
+
 ## Unreleased: Pack Shop and pack opening
 
 For players:
