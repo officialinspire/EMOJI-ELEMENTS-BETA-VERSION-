@@ -15,7 +15,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { useGameBrowser, openGame, openGamePage, act, setup, passTurn, waitUntilStartable, QUIET_ENEMY } from './lib/game.mjs';
+import { useGameBrowser, openGame, openGamePage, act, setup, passTurn, waitUntilStartable, clickAt, QUIET_ENEMY } from './lib/game.mjs';
 
 useGameBrowser();
 
@@ -276,8 +276,8 @@ const SCENARIOS = [
         await act(p, () => changePlayerLife(-10));
         await p.evaluate(() => { confirmQuit(); document.getElementById('gameConfirmYesBtn').click(); });
     } },
-    { ids: ['card-inspector'], storage: withCounters({ cardDetails: 49 }), match: {}, run: p => p.evaluate(() => showCardDetail(gameState.playerHand[0])) },
-    { ids: ['decorator'], run: p => p.evaluate(() => { applyVisualTheme('deep-space'); applyVisualTheme('neon'); }) }
+    { ids: ['card-inspector'], storage: withCounters({ cardDetails: 49 }), match: {}, run: async p => { const b=await p.locator('#playerHand .card').first().boundingBox(); await p.mouse.click(b.x+b.width/2,b.y+b.height/2,{button:'right'}); } },
+    { ids: ['decorator'], run: async p => { await p.evaluate(() => showThemePicker()); await p.clock.runFor(100); await clickAt(p, '[data-ui-theme="deep-space"]'); await clickAt(p, '[data-ui-theme="neon"]'); } }
 ];
 
 const covered = new Set();
@@ -401,7 +401,7 @@ describe('unlocking and storage', () => {
         assert.ok(r.store.unlocked['from-a-later-build'], 'an id this build does not know is kept');
         assert.equal(r.store.unlocked['first-win'].at, '1970-01-01T00:00:00.000Z', 'a malformed entry keeps the unlock without a date');
         assert.equal(r.store.counters.landTaps, 12);
-        assert.equal(r.store.counters.streak, 'many', 'strings are kept as they are');
+        assert.equal(r.store.counters.streak, 0, 'a malformed numeric counter cannot satisfy a threshold');
         assert.deepEqual(r.store.counters.themes, ['arcane']);
         assert.equal(r.store.counters.junk, undefined);
         assert.equal(r.store.extra, undefined);
@@ -460,7 +460,7 @@ describe('unlocking and storage', () => {
         await play(page, FOX);
         await win(page);
         await page.clock.runFor(1000);
-        assert.ok(await page.evaluate(() => Achievements.isUnlocked('first-win')), 'works during the QA visit');
+        assert.equal(await page.evaluate(() => Achievements.isUnlocked('first-win')), false, 'QA actions cannot grant progress');
         assert.equal(await page.evaluate(key => localStorage.getItem(key), STORE_KEY), null, 'nothing saved');
         assert.match(await page.evaluate(() => { returnToMainMenu(); showAchievements(); return document.getElementById('achievementsMenuView').textContent; }), /not saved/);
         // The QA reset reloads the page: still nothing saved, nothing carried over

@@ -31,7 +31,7 @@ Nothing reads the enemy's hand contents (only its size, which the board shows), 
 | `pack:opened` | `reportPackOpened`: when the pack is torn open, or when its screen is closed unopened (once per pack) | `themeKey`, `cards[{id, rarity, isNew}]` |
 | `pack:purchased` | `purchasePack` | `themeKey`, `price` |
 | `collection`, `wallet` | after a pack is opened; `metaSave` | (none: the saved profile is read) |
-| `deck:saved`, `mulligan`, `card:details`, `theme`, `match:quit` | deck builder save, `performMulligan`, `showCardDetail`, theme change, QUIT confirmed | small payloads |
+| `deck:saved`, `mulligan`, `card:details`, `theme`, `match:quit` | deck builder save, `performMulligan`, `showCardDetail` during trusted card input, theme change, QUIT confirmed | small payloads |
 
 After `card:played`, `spell:resolved`, `combat`, `turn:start` and `match:start`, the "control … at once" achievements are also checked against the board (internal event `board`).
 
@@ -100,7 +100,7 @@ Nothing about past plays, combos or match conditions is ever backfilled. Streaks
 
 ## 5. QA isolation
 
-With `?qa=1` (or `localStorage.emojiElementsQA = '1'`), achievements work for the visit, but nothing is saved (`persist: false`). The screen says so.
+With `?qa=1` (or `localStorage.emojiElementsQA = '1'`), achievement events and backfill are disabled and nothing is saved. The runtime `__QA_FORCE_META_OFF` fixture switch also suppresses events. QA actions cannot create even temporary unlocks. QA profiles, legacy stats and backups use separate storage keys, so a later normal reload cannot backfill QA payouts into real achievements.
 
 QA tools (`__qaResetMeta`, fixtures, forced outcomes) therefore can't award a real profile anything. The tests check this, including across the QA reset's reload.
 
@@ -426,3 +426,39 @@ Helpers used in the triggers:
 | 150 | `clown-car` | 🤡 Clown Car *(hidden)* | rare | Control Demonic Clown and Dread Clown at once. | `board` | `onBoard(x.game.playerBoard, 'creatures-demonic-clown', 'creatures-dread-clown')` |  |
 
 <!-- catalog:end -->
+
+
+## Persistence hardening on the Codex stabilization branch
+
+The existing 150-definition implementation was brought in from `c7ef846`, with upstream
+fixes `dd66838` and `8c0ca46`; it was not recreated. Profile and achievement writes share
+a browser Web Lock for the lifetime of the page. A second tab can inspect and play but
+cannot save either store. Close the first tab and reload the second to continue saving.
+The guard deliberately fails closed when Web Locks/HTTPS are unavailable. Preferences
+outside the profile remain separate keys; changing a particular preference is last-write-wins.
+
+Original achievement bytes are backed up before repair, including readable migrations.
+A failed backup leaves the original untouched and disables achievement persistence until
+a successful reload. Unknown versions are read-only. Known numeric counters are repaired
+to finite nonnegative integers; set counters are deduplicated and filtered. Failed writes
+keep session state and show **Retry saving**, which flushes a snapshot without replaying
+an unlock, purchase or reward. Page hide/reload flushes batched counters synchronously.
+
+Programmatic card detail rendering, previews, rerenders and fixture setup earn nothing.
+The Card Inspector and Decorator definitions still exist: they require intentional card
+input or a theme-picker action. Purchases report spending only after their profile commit.
+Pack acquisitions have an independent persisted ID, so two packs acquired in the same
+millisecond remain distinct; reopening one after a reload cannot repeat its event.
+
+`tests/achievement-hardening.test.mjs` adds below/at-threshold checks, real AI attribution,
+render/fixture purity, immediate reload, quota recovery, failed backups, unsupported
+versions, two-tab writes and reset semantics. Stats/progress reset keeps earned achievements
+and notification preferences, matching the imported feature's behavior.
+
+The profile and achievement store remain two localStorage keys, not a server transaction.
+A browser/OS crash between their writes can lose unflushed event-only counters; backfill
+recovers only facts provable from the committed profile, never invented play history.
+Normal reload is covered by the page-hide flush. Do not close a tab while a save failure
+is displayed: blocked/quota-limited storage cannot provide durable progress until retry
+succeeds. An older build or external tool that ignores Web Locks can still write; detected
+snapshot conflicts are rejected and require reload. No cross-device synchronization exists.

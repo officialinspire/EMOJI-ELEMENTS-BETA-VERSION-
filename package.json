@@ -12,6 +12,7 @@
     "smoke:mobile": "node tests/smoke.mjs --project=mobile",
     "rules": "node --test tests/rules.test.mjs",
     "combat": "node --test tests/combat.test.mjs",
+    "persistence": "node --test tests/persistence.test.mjs tests/achievement-hardening.test.mjs",
     "progression": "node --test tests/progression.test.mjs",
     "collection": "node --test tests/collection.test.mjs",
     "collection:shots": "node tests/collection-shots.mjs",

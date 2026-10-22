@@ -173,3 +173,37 @@ backups.
 | Owned copies shared across decks | Owning 1 copy lets every deck use it | The alternative (copies locked per deck) would need new UI. |
 | Legacy coins | `emojiElementsProgress` coins and booster packs from the legacy single-file build are not converted to credits | Different economy; converting would grant credits. |
 | Duplicate protection | None: packs can pull cards you already own many copies of | README roadmap mentions duplicate-protection tuning. |
+
+
+## Codex persistence hardening
+
+`npm run persistence` exercises original-byte backups, malformed/missing fields, blocked
+reads, quota failures, repeated confirmation, reward and pack reloads, preferences and
+same-profile tabs. Profile mutations require the browser's exclusive Web Lock. Other tabs
+are explicitly read-only for progression until the writer closes and they reload. A stored
+snapshot changed by an external writer is rejected. Failed purchases spend nothing and
+open no pack. Backup failure prevents destructive repair/reset. Failed reward saves keep
+the awarded session snapshot; **Retry saving** persists it without awarding it again.
+Legacy stats are a best-effort mirror of the authoritative meta save, not a second payout.
+
+The existing achievement feature is now integrated; see [ACHIEVEMENTS.md](ACHIEVEMENTS.md)
+for its separate versioned store, precise definitions, QA isolation and crash-window limits.
+Stats/progress reset retains preferences and earned achievements. Gameplay rules, prices,
+win/loss credits and starter collection sizes are unchanged.
+
+Focused verification:
+
+```sh
+node --test --test-concurrency=2 tests/progression.test.mjs tests/packs.test.mjs tests/persistence.test.mjs tests/achievements.test.mjs tests/achievement-hardening.test.mjs
+node tests/achievements-doc.mjs
+```
+
+`npm run verify -- --group=logic` includes these and every other root browser test suite
+in CI. Physical browser storage eviction, OS kill/power loss, older non-cooperating builds
+and cross-device synchronization are outside the local-storage guarantee. The original
+raw saves are kept in browser backup keys before repair; backups still need available quota.
+
+QA mode now uses `emoji_elements_meta_qa_v1`, `emojiElementsStatsQA` and a separate backup key.
+It cannot write or backfill artificial payouts into the normal profile on a later reload.
+The smoke harness exercises its QA profile explicitly; production-profile persistence is
+covered by the progression, persistence and achievement suites.

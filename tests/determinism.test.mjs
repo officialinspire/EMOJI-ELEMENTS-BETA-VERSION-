@@ -42,7 +42,7 @@ test('seeded actions, random targets and rewards ignore presentation and extra r
                 for (const c of s.gameState[zone]) { delete c.id; }
             }
             // No attacks are selected at these checkpoints. Wall time is save metadata only.
-            if (s.meta.lastPack) delete s.meta.lastPack.openedAt;
+            if (s.meta.lastPack) { delete s.meta.lastPack.openedAt; delete s.meta.lastPack.acquisitionId; }
             for (const entry of Object.values(s.meta.collection || {})) if (entry && typeof entry === 'object') delete entry.firstSeen;
             snapshots.push(s);
         };

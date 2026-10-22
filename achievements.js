@@ -233,30 +233,38 @@
     // ---- Storage: { version, unlocked: { id: { at, backfilled? } }, counters: {}, prefs: {} }
     let store = null;
     let persist = true;
+    let savedRaw = null;
     let hooks = null;
     let saveTimer = null;
     const listeners = [];
 
     function emptyStore() {
-        return { version: VERSION, unlocked: {}, counters: {}, prefs: { notify: true } };
+        return { version: VERSION, unlocked: Object.create(null), counters: Object.create(null), prefs: { notify: true } };
+    }
+
+    function preserveOriginal(raw) {
+        if (!persist || hooks.canPersist?.() === false) return false;
+        try { localStorage.setItem(BACKUP_KEY, raw); return true; }
+        catch (_) { persist = false; hooks.onSaveError?.(); return false; }
     }
 
     function load() {
-        let raw = null;
-        try { raw = localStorage.getItem(STORE_KEY); } catch (_) { /* blocked storage */ }
-        if (!raw) return emptyStore();
+        let raw;
+        try { raw = localStorage.getItem(STORE_KEY); savedRaw = raw; }
+        catch (_) { persist = false; hooks.onSaveError?.(); return emptyStore(); }
+        if (raw === null) return emptyStore();
         try {
             const parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
-            // A newer version than this build knows: use it read-only, so it is never overwritten with less
-            if (Number(parsed.version) > VERSION) {
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+            if (parsed.version !== undefined && Number(parsed.version) !== VERSION) {
                 persist = false;
-                return { ...emptyStore(), ...parsed };
+                return migrate(parsed); // safe in-memory view; original bytes stay untouched
             }
-            return migrate(parsed);
+            const repaired = migrate(parsed);
+            if (JSON.stringify(repaired) !== raw) preserveOriginal(raw);
+            return repaired;
         } catch (_) {
-            // Unreadable: keep a copy, start again (the backfill below recognises what the profile proves)
-            try { localStorage.setItem(BACKUP_KEY, raw); } catch (__) { /* blocked */ }
+            preserveOriginal(raw);
             return emptyStore();
         }
     }
@@ -270,7 +278,14 @@
         });
         const counters = saved.counters && typeof saved.counters === 'object' ? saved.counters : {};
         Object.entries(counters).forEach(([key, value]) => {
-            if (Array.isArray(value)) out.counters[key] = value.filter(v => typeof v === 'string');
+            if (/^(played\.|plays\.)/.test(key) || ['streak','hardWins','landTaps','tokens','creditsSpent','cardDetails'].includes(key)) {
+                const n = typeof value === 'string' && value.trim() ? Number(value) : value;
+                out.counters[key] = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+            }
+            else if (Array.isArray(value)) {
+                const allowed = { themes: ['arcane','deep-space','neon'], packTypes: ['fantasy','scifi','tech','alien','robot','lands'], difficultiesWon: ['easy','medium','hard'] }[key];
+                out.counters[key] = [...new Set(value.filter(v => typeof v === 'string' && (!allowed || allowed.includes(v))))];
+            }
             else if (Number.isFinite(value)) out.counters[key] = value;
             else if (typeof value === 'string') out.counters[key] = value;
         });
@@ -279,10 +294,15 @@
     }
 
     function saveNow() {
-        clearTimeout(saveTimer);
-        saveTimer = null;
-        if (!persist || !store) return;
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (_) { /* full or blocked: kept for this visit */ }
+        clearTimeout(saveTimer); saveTimer = null;
+        if (!persist || !store || hooks.canPersist?.() === false || hooks.enabled?.() === false) return false;
+        try {
+            if (localStorage.getItem(STORE_KEY) !== savedRaw) {
+                persist = false; hooks.onSaveError?.(); return false;
+            }
+            const raw = JSON.stringify(store);
+            localStorage.setItem(STORE_KEY, raw); savedRaw = raw; return true;
+        } catch (_) { hooks.onSaveError?.(); return false; }
     }
 
     // Counters change often (every land tap); they are written at most twice a second, unlocks at once
@@ -292,9 +312,9 @@
     }
 
     // ---- Counters
-    const count = (key, by = 1) => { store.counters[key] = (store.counters[key] || 0) + by; };
+    const count = (key, by = 1) => { store.counters[key] = (Number.isFinite(store.counters[key]) ? store.counters[key] : 0) + by; };
     const addToSet = (key, value) => {
-        const set = store.counters[key] || (store.counters[key] = []);
+        const set = Array.isArray(store.counters[key]) ? store.counters[key] : (store.counters[key] = []);
         if (!set.includes(value)) set.push(value);
     };
 
@@ -428,7 +448,12 @@
     const BOARD_EVENTS = ['card:played', 'spell:resolved', 'combat', 'turn:start', 'match:start'];
 
     function emit(type, e = {}) {
-        if (!store || !hooks) return;
+        if (!store || !hooks || hooks.enabled?.() === false) return;
+        if (type === 'card:played' && e.side !== 'player') return;
+        if (type === 'pack:opened' && e.acquisitionId) {
+            if (store.counters.lastPackOpened === e.acquisitionId) return;
+            store.counters.lastPackOpened = e.acquisitionId;
+        }
         try {
             REDUCERS[type]?.(e);
             evaluate(type, e);
@@ -464,7 +489,7 @@
         persist = options.persist !== false;
         store = load();
         if (!store.counters.themes && options.currentTheme) addToSet('themes', options.currentTheme);
-        const recognised = backfill();
+        const recognised = hooks.enabled?.() === false ? [] : backfill();
         saveNow();
         return recognised;
     }

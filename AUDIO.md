@@ -37,7 +37,7 @@ Effect loudness spread over **36 dB** (tapland −53 dB mean, attack −17 dB).
 - **Each sound was one element**, so it couldn't overlap itself. A second play cut the first off. A blanket
   100 ms rule dropped repeats.
 - **Pack opening was silent**: no sound for the rip or for revealing cards, rare or not.
-- **There is no achievement system** in the game.
+- **There was no achievement system** in that baseline.
 
 **Mute:**
 - One switch (`emojiElementsMuted`), the header 🔊, muted every element. There was no separate music or
@@ -102,8 +102,7 @@ default 70 %). Length is until the signal falls below −60 dB. For comparison, 
 | Not allowed (any ⚠️ message: not your turn, can't afford…) | `deny` | 131 ms | −17.0 | −32.9 |
 
 **Notes on the cue set:**
-- **Achievement:** the game has no achievements yet, so `GameFeedback.play('achievement')` is ready (and in the
-  sound board) but nothing calls it.
+- **Achievement:** the integrated achievement notices call `GameFeedback.play('achievement')` after an earned unlock; quiet backfill and QA fixtures do not play it.
 - **The AI's plays** use the same summon, spell and artifact cues as yours, and their cooldowns keep a burst of
   AI plays from piling up.
 - **Before and after for a heal spell:** previously 1 + 3 sounds (the spell, then one per point). Now one heal
@@ -228,6 +227,6 @@ without running the game. They were shared with this pass, not committed.
 
 ## 7. Limits
 
-- **Achievements:** the cue exists but there are no achievements to trigger it.
+- **Achievements:** earned notices use the cue; saved-history backfill stays quiet.
 - **Card pickup** sounds on pointer press only. Keyboard play goes straight to the play sound.
 - **Measurements** are the synthesised signal. A phone speaker will thin out the low thuds (damage, summon).

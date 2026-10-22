@@ -146,3 +146,11 @@ test('preferences and edited deck lists survive a migration and both reset opera
     assert.equal((await memory(page)).wallet.credits,100);
     assert.deepEqual((await memory(page)).stats,{wins:0,losses:0,packsOpened:0});
 });
+
+test('browsers without Web Locks keep the original profile read-only', async t => {
+    const original=fs.readFileSync(new URL('./fixtures/saves/existing.json',import.meta.url),'utf8');
+    const page=await open(t,{storage:{[META]:original},initScript:()=>Object.defineProperty(navigator,'locks',{value:undefined})});
+    assert.equal(await page.evaluate(()=>profileWriteState),'unsupported');
+    assert.equal((await page.evaluate(()=>purchasePack('lands'))).ok,false);
+    assert.equal(await raw(page),original);
+});

@@ -50,6 +50,8 @@
         }
     })();
     const QA_DEBUG = QA_MODE;
+    const META_STORAGE_KEY = QA_MODE ? 'emoji_elements_meta_qa_v1' : 'emoji_elements_meta_v1';
+    const LEGACY_STATS_STORAGE_KEY = QA_MODE ? 'emojiElementsStatsQA' : 'emojiElementsStats';
 
     window.__QA_FORCE_META_OFF = false;
 
@@ -344,6 +346,13 @@
     document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
     document.addEventListener('keydown', (e) => { if (e.key === 'Tab') lastInputWasPointer = false; }, true);
 
+    let cardInteractionDepth = 0;
+    function cardInteraction(fn, trusted) {
+        if (!trusted) return fn?.();
+        cardInteractionDepth++;
+        try { return fn?.(); } finally { cardInteractionDepth--; }
+    }
+
     function bindCardPress(el, { onTap, onLongPress, label }) {
         let timer = null;
         let start = null;
@@ -361,14 +370,15 @@
         el.addEventListener('pointerdown', (e) => {
             longPressed = false;
             if (e.pointerType === 'mouse') return;
-            start = { x: e.clientX, y: e.clientY };
+            start = { x: e.clientX, y: e.clientY, trusted: e.isTrusted };
             clearTimeout(timer);
             timer = setTimeout(() => {
                 if (!start || !el.isConnected || (el.closest('#gameContainer') && (gamePaused || gameState.matchFinalized))) return;
                 longPressed = true;
+                const trusted = start.trusted;
                 start = null;
                 haptic('select');
-                onLongPress?.();
+                cardInteraction(onLongPress, trusted);
             }, LONG_PRESS_MS);
         });
         el.addEventListener('pointermove', (e) => {
@@ -383,23 +393,23 @@
                 e.preventDefault();
                 return;
             }
-            onTap?.();
+            cardInteraction(onTap, e.isTrusted);
         });
         el.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (longPressed) return; // the long-press already acted
-            onLongPress?.();
+            cardInteraction(onLongPress, e.isTrusted);
         });
         el.addEventListener('keydown', (e) => {
             // Only when the card was reached with the keyboard: after a mouse click, Space stays END TURN.
             if ((e.key === 'Enter' || e.key === ' ') && !lastInputWasPointer) {
                 e.preventDefault();
                 e.stopPropagation();
-                onTap?.();
+                cardInteraction(onTap, e.isTrusted);
             } else if (e.key === 'i' || e.key === 'I' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                 e.preventDefault();
                 e.stopPropagation();
-                onLongPress?.();
+                cardInteraction(onLongPress, e.isTrusted);
             }
         });
     }
@@ -701,7 +711,7 @@
         }
 
         let savedMeta;
-        try { savedMeta = localStorage.getItem('emoji_elements_meta_v1'); } catch (_) { return; }
+        try { savedMeta = localStorage.getItem(META_STORAGE_KEY); } catch (_) { return; }
         if (savedMeta) {
             try {
                 const parsedMeta = JSON.parse(savedMeta);
@@ -720,7 +730,7 @@
         }
 
         let saved;
-        try { saved = localStorage.getItem('emojiElementsStats'); } catch (_) { return; }
+        try { saved = localStorage.getItem(LEGACY_STATS_STORAGE_KEY); } catch (_) { return; }
         if (!saved) {
             return;
         }
@@ -755,7 +765,9 @@
             }
         }
         if (isMetaRuntimeEnabled() && profileWriteState === 'writer' && !profileRepairBlocked) {
-            try { localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats)); } catch (_) { /* meta is authoritative */ }
+            const achievementsSaved = window.Achievements?.flush();
+            if (achievementsSaved !== false) document.getElementById('persistenceNotice')?.remove();
+            try { localStorage.setItem(LEGACY_STATS_STORAGE_KEY, JSON.stringify(gameStats)); } catch (_) { /* meta is authoritative */ }
         }
     }
 
@@ -1020,6 +1032,7 @@
     // ---- Achievements (achievements.js) hear about confirmed outcomes only: a card that resolved, a finished
     // combat, a match that ended. reportAchievement never throws into the game.
     function reportAchievement(type, payload) {
+        if (QA_MODE || !isMetaRuntimeEnabled()) return;
         try { window.Achievements?.emit(type, payload); } catch (_) { /* never in the game's way */ }
     }
 
@@ -1718,7 +1731,6 @@
     window.__CARD_BY_ID = __CARD_BY_ID;
 
     // META persistence module
-    const META_STORAGE_KEY = 'emoji_elements_meta_v1';
     const BASE_WIN_CREDITS = 25;
     const BASE_LOSS_CREDITS = 10;
     const WIN_FREE_PACK_CHANCE = 0.15;
@@ -1917,7 +1929,6 @@
             const raw = JSON.stringify(meta);
             localStorage.setItem(META_STORAGE_KEY, raw);
             profileSavedRaw = raw;
-            document.getElementById('persistenceNotice')?.remove();
             return true;
         } catch (error) {
             console.warn('Meta save failed.', error);
@@ -1927,7 +1938,7 @@
         }
     }
 
-    const META_BACKUP_KEY = 'emoji_elements_meta_backups';
+    const META_BACKUP_KEY = QA_MODE ? 'emoji_elements_meta_qa_backups' : 'emoji_elements_meta_backups';
     const META_BACKUP_LIMIT = 3;
 
     // Keeps the exact stored text of a profile before the game rewrites it (PROGRESSION.md §7).
@@ -1951,7 +1962,7 @@
     // Wins/losses from the pre-meta build's emojiElementsStats, for a brand-new profile (PROGRESSION.md P7.4).
     function importLegacyStats(meta) {
         try {
-            const legacy = JSON.parse(localStorage.getItem('emojiElementsStats') || 'null');
+            const legacy = JSON.parse(localStorage.getItem(LEGACY_STATS_STORAGE_KEY) || 'null');
             if (!legacy || typeof legacy !== 'object') return;
             meta.stats.wins = readStoredNumber(legacy.wins) ?? 0;
             meta.stats.losses = readStoredNumber(legacy.losses) ?? 0;
@@ -2225,7 +2236,8 @@
                     ? {
                         themeKey: typeof loaded.lastPack.themeKey === 'string' ? loaded.lastPack.themeKey : null,
                         cardIds: loaded.lastPack.cardIds.filter(id => __CARD_BY_ID[id]),
-                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null
+                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null,
+                        ...(typeof loaded.lastPack.acquisitionId === 'string' ? { acquisitionId: loaded.lastPack.acquisitionId } : {})
                     }
                     : null
             };
@@ -2385,14 +2397,14 @@
     // No expiring leases: a suspended tab cannot regain a stale write permission.
     const profileReady = (async () => {
         if (!navigator.locks) {
-            profileWriteState = 'reader';
+            profileWriteState = 'unsupported';
             persistenceNotice('Saving requires a browser with Web Locks on HTTPS. Progress here is not saved.');
-            return;
+            initializeAchievements(); return;
         }
         await new Promise(resolve => {
-            navigator.locks.request('emoji-elements-profile-writer', { ifAvailable: true }, async lock => {
+            navigator.locks.request(`emoji-elements-writer:${META_STORAGE_KEY}`, { ifAvailable: true }, async lock => {
                 if (!lock) {
-                    profileWriteState = 'reader'; canSaveProfile(); resolve(); return;
+                    profileWriteState = 'reader'; canSaveProfile(); initializeAchievements(); resolve(); return;
                 }
                 profileWriteState = 'writer';
                 try {
@@ -2403,27 +2415,35 @@
                 } catch (_) {
                     profileWriteState = 'unavailable'; canSaveProfile();
                 }
+                initializeAchievements();
                 resolve();
                 await new Promise(() => {}); // browser releases this when the page closes/reloads
-            }).catch(() => { profileWriteState = 'unavailable'; canSaveProfile(); resolve(); });
+            }).catch(() => { profileWriteState = 'unavailable'; canSaveProfile(); initializeAchievements(); resolve(); });
         });
     })();
 
+    window.addEventListener('pagehide', () => window.Achievements?.flush());
     // Achievements keep their own versioned key (achievements.js). Anything the saved profile already proves is
     // recognised now, quietly. QA sessions (?qa=1) never save, so QA tools can't award a real profile.
-    try {
-        achievementsRecognised = window.Achievements ? Achievements.init({
-            game: () => gameState,
-            meta: () => gameMeta,
-            cards: () => __CARD_BY_ID,
-            identity: getCardIdentity,
-            rarity: getCardRarity,
-            persist: !QA_MODE,
-            currentTheme: document.documentElement.dataset.theme,
-            debug: QA_DEBUG
-        }) : [];
-    } catch (error) {
-        console.warn('Achievements could not start; the game plays without them.', error);
+    function initializeAchievements() {
+        try {
+            achievementsRecognised = window.Achievements ? Achievements.init({
+                game: () => gameState,
+                meta: () => gameMeta,
+                cards: () => __CARD_BY_ID,
+                identity: getCardIdentity,
+                rarity: getCardRarity,
+                persist: !QA_MODE && profileWriteState === 'writer' && !profileRepairBlocked,
+                canPersist: () => profileWriteState === 'writer' && !profileRepairBlocked,
+                enabled: () => !QA_MODE && isMetaRuntimeEnabled(),
+                onSaveError: () => persistenceNotice('Achievements could not be saved. Keep this tab open and retry saving.', true),
+                currentTheme: document.documentElement.dataset.theme,
+                debug: QA_DEBUG
+            }) : [];
+        } catch (error) {
+            console.warn('Achievements could not start; the game plays without them.', error);
+        }
+
     }
 
     if (QA_DEBUG) {
@@ -2449,7 +2469,7 @@
             try {
                 if (!backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'qa-reset')) return false;
                 localStorage.removeItem(META_STORAGE_KEY);
-                localStorage.removeItem('emojiElementsStats');
+                localStorage.removeItem(LEGACY_STATS_STORAGE_KEY);
             } catch (error) {
                 console.warn('QA reset failed to clear meta storage key.', error);
             }
@@ -3124,9 +3144,12 @@
     let packReportedFor = null;
     function reportPackOpened() {
         const pack = gameMeta?.lastPack;
-        if (!pack?.openedAt || packReportedFor === pack.openedAt) return;
-        packReportedFor = pack.openedAt;
+        if (!pack?.openedAt) return;
+        const acquisitionId = pack.acquisitionId || JSON.stringify([pack.openedAt, pack.themeKey, pack.cardIds]);
+        if (packReportedFor === acquisitionId) return;
+        packReportedFor = acquisitionId;
         reportAchievement('pack:opened', {
+            acquisitionId,
             themeKey: pack.themeKey,
             cards: (pack.cardIds || []).map(id => ({ id, rarity: getCardRarity(__CARD_BY_ID[id] || {}), isNew: getPackOwnedBefore(id) === 0 }))
         });
@@ -3804,8 +3827,7 @@
         recordHistory(normalizedResult === 'win' ? 'player' : 'enemy', normalizedResult === 'win' ? '🏆 Victory: the enemy is defeated' : '💀 Defeat');
 
         if (normalizedResult === 'win') {
-            gameStats.wins++;
-            gameStats.total++;
+            if (isMetaRuntimeEnabled()) { gameStats.wins++; gameStats.total++; }
 
             const awardedFreePack = true;
             const themeKey = choosePackThemeByWeight();
@@ -3827,7 +3849,7 @@
 
                     addPackToCollection(cardIds, openedAt);
 
-                    gameMeta.lastPack = { themeKey, cardIds, openedAt };
+                    gameMeta.lastPack = { themeKey, cardIds, openedAt, acquisitionId: globalThis.crypto?.randomUUID?.() || `pack-${Date.now()}-${nextCardInstanceId()}` };
                     metaSave(gameMeta);
                 } catch (error) {
                     console.warn('Meta reward hook failed after win. Continuing with baseline victory flow.', error);
@@ -3850,6 +3872,7 @@
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
             haptic('victory');
+            reportAchievement('wallet', {});
             reportAchievement('match:end', { result: 'win', reason: gameState.enemyDeckedOut ? 'decked' : 'life' });
             showMatchRewardOverlay({
                 creditsAwarded: BASE_WIN_CREDITS,
@@ -3858,8 +3881,7 @@
             return;
         }
 
-        gameStats.losses++;
-        gameStats.total++;
+        if (isMetaRuntimeEnabled()) { gameStats.losses++; gameStats.total++; }
 
         if (isMetaRuntimeEnabled()) {
             try {
@@ -3888,6 +3910,7 @@
         stopSFX('gameplayMusic');
         playSFX('gameLose');
         haptic('defeat');
+        reportAchievement('wallet', {});
         reportAchievement('match:end', { result: 'loss', reason: gameState.playerDeckedOut ? 'decked' : 'life' });
         const lossReward = document.getElementById('lossRewardLine');
         if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
@@ -4995,8 +5018,7 @@
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
             addPackToCollection(cardIds, openedAt);
-            reportAchievement('pack:purchased', { themeKey: normalizedTheme, price: cost });
-            gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
+            gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt, acquisitionId: globalThis.crypto?.randomUUID?.() || `pack-${Date.now()}-${nextCardInstanceId()}` };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
             if (!metaSave(gameMeta)) {
@@ -5006,6 +5028,8 @@
                 return { ok: false, reason: 'save_failed' };
             }
 
+            reportAchievement('pack:purchased', { themeKey: normalizedTheme, price: cost });
+            reportAchievement('wallet', {});
             setPackShopMessage(`Bought a ${getPackTheme(normalizedTheme)?.label || normalizedTheme} Pack for 💳 ${cost}.`, 'success');
             updatePackShopCreditsBadge();
             openPackOpeningOverlayFromMeta('shop');
@@ -5292,7 +5316,7 @@
         info.className = 'deck-builder-info-btn';
         info.textContent = 'ⓘ';
         info.setAttribute('aria-label', `Rules for ${card.name}`);
-        info.addEventListener('click', () => showCardDetail(card));
+        info.addEventListener('click', e => cardInteraction(() => showCardDetail(card), e.isTrusted));
         row.appendChild(info);
         return row;
     }
@@ -5755,12 +5779,15 @@
 
     // A profile that already proved some achievements gets one quiet notice instead of one for each (queued once
     // this script has finished loading: the dialog list it checks is defined further down)
+    profileReady.then(() => {
     if (achievementsRecognised.length) {
         setTimeout(() => queueAchievementNotice({
             icon: '🏆', quiet: true, label: 'Recognised from your saved progress',
             name: `${achievementsRecognised.length} achievement${achievementsRecognised.length === 1 ? '' : 's'}`
         }), 0);
     }
+
+    });
 
     // Visual themes: colours, type and backgrounds only (styles.css "VISUAL THEMES"). Saved under its own key,
     // apart from the profile, so a progress reset keeps it and switching theme never touches the save.
@@ -5776,7 +5803,7 @@
         return VISUAL_THEMES[key] ? key : 'arcane';
     }
 
-    function applyVisualTheme(key, { save = true } = {}) {
+    function applyVisualTheme(key, { save = true, track = false } = {}) {
         if (!VISUAL_THEMES[key]) key = 'arcane';
         document.documentElement.dataset.theme = key;
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', VISUAL_THEMES[key].metaColor);
@@ -5791,7 +5818,7 @@
         });
         if (save) {
             try { localStorage.setItem(THEME_STORAGE_KEY, key); } catch (_) { /* private mode: the theme lasts this visit */ }
-            reportAchievement('theme', { theme: key });
+            if (track) reportAchievement('theme', { theme: key });
         }
     }
 
@@ -5814,7 +5841,7 @@
                     <span class="theme-option-label">${theme.label}</span>
                     <span class="theme-option-desc">${theme.desc}</span>
                 </span>`;
-            option.addEventListener('click', () => { playSFX('select'); applyVisualTheme(key); });
+            option.addEventListener('click', e => { playSFX('select'); applyVisualTheme(key, { track: e.isTrusted }); });
             list.appendChild(option);
         });
         // Arrow keys move between themes and pick them (radio group pattern)
@@ -5827,7 +5854,7 @@
             else if (e.key === 'End') next = keys[keys.length - 1];
             if (!next) return;
             e.preventDefault();
-            applyVisualTheme(next);
+            applyVisualTheme(next, { track: e.isTrusted });
             list.querySelector(`[data-ui-theme="${next}"]`)?.focus();
         });
         applyVisualTheme(getVisualTheme(), { save: false });
@@ -6285,7 +6312,7 @@
 
     // Card Detail Popup
     function showCardDetail(card) {
-        reportAchievement('card:details', { card });
+        if (cardInteractionDepth) reportAchievement('card:details', { card });
         const popup = document.getElementById('cardDetailPopup');
         const emoji = document.getElementById('detailEmoji');
         const name = document.getElementById('detailName');

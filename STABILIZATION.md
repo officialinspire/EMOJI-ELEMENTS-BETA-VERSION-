@@ -116,3 +116,12 @@ frames and global listener registrations relative to the initialized page. Finit
 and detached-node CSS cleanup get three seconds to settle. This checks scheduling and
 listener balance, not garbage collection or an operating-system memory profile. Physical
 phone haptics and background suspension still need device testing.
+
+## Persistence and achievement integration
+
+The earlier baseline's missing-achievements note is historical. The existing implementation
+from `c7ef846` is now integrated, with upstream fixes `dd66838` and `8c0ca46`. It has exactly
+150 definitions. See [PROGRESSION.md](PROGRESSION.md) and [ACHIEVEMENTS.md](ACHIEVEMENTS.md)
+for single-writer storage, backup-before-repair, retry behavior, QA isolation and documented
+crash-window limits. `npm run persistence` runs the focused hardening checks; the full logic
+CI command automatically includes both new hardening suites and the imported achievement suite.
