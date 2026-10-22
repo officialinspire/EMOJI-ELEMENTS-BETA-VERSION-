@@ -42,8 +42,8 @@ test('nothing plays before the first gesture; effect files are no longer downloa
     t.after(close);
     const before = await page.evaluate(() => ({ state: GameFeedback.state, played: GameFeedback.play('select'), buzz: GameFeedback.haptic('select') }));
     assert.deepEqual(before, { state: 'locked', played: false, buzz: false });
-    const media = await page.evaluate(() => performance.getEntriesByType('resource').map(e => e.name.split('/').pop()).filter(n => /\.(mp3|mp4)$/.test(n)));
-    for (const name of media) assert.ok(['startmenu.mp3', 'gameplaybackgroundmusic.mp3', 'inspiresoftwareintro.mp4'].includes(name), name);
+    const media = await page.evaluate(() => performance.getEntriesByType('resource').map(e => decodeURIComponent(e.name.split('/').pop())).filter(n => /\.(mp3|mp4)$/.test(n)));
+    for (const name of media) assert.ok(['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'].includes(name), name);
     await gesture(page);
     await page.waitForFunction(() => GameFeedback.state === 'running', null, { timeout: 5000 });
     assert.equal(await page.evaluate(() => GameFeedback.play('select')), true);
@@ -109,8 +109,8 @@ test('the menu Sound dialog and the pause panel show the same settings; sliders 
     const slider = '#menuMusicVolume';
     await page.focus(slider);
     for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft');      // 4 × 5 %
-    assert.equal(await page.evaluate(() => soundSettings.musicVolume), 0.3);
-    assert.equal(await page.getAttribute(slider, 'aria-valuetext'), '30%');
+    assert.equal(await page.evaluate(() => soundSettings.musicVolume), 0.1);
+    assert.equal(await page.getAttribute(slider, 'aria-valuetext'), '10%');
     await clickAt(page, '#menuSfxSwitch');
     assert.equal(await page.evaluate(() => soundSettings.sfxOff), true);
     assert.equal(await page.evaluate(() => document.querySelector('[data-sound-volume="sfxVolume"]').hidden), true, 'its slider hides');
@@ -124,7 +124,7 @@ test('the menu Sound dialog and the pause panel show the same settings; sliders 
         music: document.getElementById('pauseMusicVolume').value,
         sfx: document.getElementById('pauseSfxSwitch').getAttribute('aria-checked')
     }));
-    assert.deepEqual(pause, { music: '30', sfx: 'false' });
+    assert.deepEqual(pause, { music: '10', sfx: 'false' });
 });
 
 test('rapid input: repeats are spaced, overlapping voices are capped, land taps step up gently', { timeout: 60000 }, async t => {

@@ -76,7 +76,7 @@ try {
         const state=await sample();report.cycles.push(state);
         await page.screenshot({path:path.join(OUT,`cleanup-${cycle}.png`)});
         assert.equal(state.audio.liveSources,0,'no sounding/scheduled effect sources after cleanup');
-        assert.equal(state.audio.connected,3,'only the permanent audio bus remains');
+        assert.equal(state.audio.connected,6,'only the permanent effects and streaming music buses remain');
         assert.ok(state.frameMs.p95<250,JSON.stringify(state.frameMs));
     }
     const first=report.cycles[0],last=report.cycles.at(-1);

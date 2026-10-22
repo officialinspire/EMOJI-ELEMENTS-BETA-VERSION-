@@ -14,7 +14,7 @@ const base=new URL(target);if(!base.pathname.endsWith('/'))base.pathname+='/';
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'}).trim();
 const out=path.join(ROOT,'test-results/live-pages');fs.mkdirSync(out,{recursive:true});
 const files=['index.html','index.js','styles.css','feedback.js','achievements.js'];
-const media=['startmenu.mp3','gameplaybackgroundmusic.mp3','inspiresoftwareintro.mp4'];
+const media=['minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3','inspiresoftwareintro.mp4'];
 const digest=data=>createHash('sha256').update(data).digest('hex');
 const expected=Object.fromEntries(files.map(file=>[file,digest(fs.readFileSync(path.join(ROOT,file)))]));
 const report={commit,url:base.href,status:'FAIL',started:new Date().toISOString(),assets:[],screenshots:[],checks:[]};

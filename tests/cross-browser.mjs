@@ -21,10 +21,15 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
     // Linux WebKit's legacy playbin2 deadlocks pausing looping MP3s on this host.
     // Select the native playbin3 pipeline; media and Web Audio remain enabled.
     const mediaPipeline = engine === 'webkit' && process.platform === 'linux' ? 'playbin3' : 'native';
-    try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: { ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1' } } : {}) }); }
+    // CI has no speakers. OpenAL's null output keeps real decoding/mixing running without
+    // intermittent autoaudiosink failures probing nonexistent ALSA/Pulse devices.
+    const audioOutput = mediaPipeline === 'playbin3' ? 'OpenAL null output' : 'native';
+    try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: {
+        ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1', ALSOFT_DRIVERS: 'null'
+    } } : {}) }); }
     catch (error) { report.results.push({ engine, status: 'BLOCKED', error: error.message }); reportFailure(`${engine}: BLOCKED`, error.message); continue; }
     for (const [profile, viewport] of [['desktop',{width:1366,height:900}],['phone',{width:360,height:740}]]) {
-        const row = { engine, profile, version: browser.version(), mediaPipeline, status: 'FAIL', checks: [], screenshots: [] };
+        const row = { engine, profile, version: browser.version(), mediaPipeline, audioOutput, status: 'FAIL', checks: [], screenshots: [] };
         report.results.push(row);
         const context = await browser.newContext({ viewport, hasTouch: profile === 'phone', reducedMotion: 'reduce' });
         await context.addInitScript(save => { if (!sessionStorage.seeded) { localStorage.setItem('emoji_elements_meta_v1',save); sessionStorage.seeded='1'; } }, save);
@@ -32,10 +37,25 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
         page.setDefaultTimeout(15000);
         page.setDefaultNavigationTimeout(30000);
         const errors = [];
+        const audioMessages = [];
+        page.on('console', message => { if (/Audio play|Music resume/.test(message.text())) audioMessages.push(message.text()); });
         page.on('pageerror', e => errors.push(e.message));
         const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded' }); await boot(page); row.checks.push('startup');
+            await page.waitForFunction(() => !audioSystem.startMenuMusic.paused && audioSystem.startMenuMusic.readyState >= 2 &&
+                !activeAudioFades.has(audioSystem.startMenuMusic));
+            const music = await page.evaluate(() => ({
+                file: decodeURIComponent(new URL(audioSystem.startMenuMusic.src).pathname.split('/').pop()),
+                level: GameFeedback.getMusicLevel(audioSystem.startMenuMusic), mediaVolume: audioSystem.startMenuMusic.volume,
+                context: GameFeedback.state
+            }));
+            assert.equal(music.file, 'minimalist menu theme.mp3');
+            assert.ok(Math.abs(music.level - 0.135) < 0.001);
+            if (music.mediaVolume === 1) assert.equal(music.context, 'running', 'route only into a running context');
+            else assert.ok(Math.abs(music.mediaVolume - music.level) < 0.001,
+                'a blocked audio context must retain playable HTML music at the selected level');
+            row.checks.push('new menu track decoded; streaming gain and quiet default mix');
             await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
             await click(page, '#mainMenu [data-menu-target="binderScreen"]');
             assert.equal(await page.locator('#binderList .binder-row').count(),268);
@@ -47,6 +67,11 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),150);
             await shot('achievements'); await click(page,'#achievementsScreen .menu-back'); row.checks.push('150 achievement entries');
             await start(page); row.checks.push('battle setup');
+            await page.waitForFunction(() => !audioSystem.gameplayMusic.paused &&
+                audioSystem.gameplayMusic.readyState >= 2 && audioSystem.startMenuMusic.paused);
+            assert.equal(await page.evaluate(() => decodeURIComponent(new URL(audioSystem.gameplayMusic.src).pathname.split('/').pop())),
+                'Emoji Elements - Celestial Battle Theme.mp3');
+            row.checks.push('new battle track decoded; menu transition completed');
             await click(page,'.menu-icon-btn');
             await click(page,'#pauseSfxSwitch'); await click(page,'#pauseSfxSwitch');
             await page.locator('#pauseModal .menu-btn').filter({hasText:'RESUME'}).click();
@@ -73,7 +98,16 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             await page.reload({ waitUntil: 'domcontentloaded' }); await boot(page);
             assert.deepEqual(await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme})),persisted);
             assert.deepEqual(errors,[]); row.checks.push('purchase, reveal, summary, rotation/zoom, save reload'); row.status='PASS';
-        } catch (error) { row.error=error.stack; reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{}); }
+        } catch (error) {
+            row.audio = await page.evaluate(() => ({ context: GameFeedback.state, hidden: document.hidden,
+                tracks: Object.fromEntries(Object.entries(audioSystem).map(([name, audio]) => [name, {
+                    paused: audio.paused, ready: audio.readyState, time: audio.currentTime, error: audio.error?.code,
+                    level: GameFeedback.getMusicLevel(audio), fading: activeAudioFades.has(audio)
+                }])) })).catch(() => null);
+            row.audioMessages = audioMessages;
+            row.error=error.stack + '\nAudio: ' + JSON.stringify({ state: row.audio, messages: audioMessages });
+            reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{});
+        }
         finally { await context.close(); }
         console.log(`${engine}/${profile}: ${row.status} ${row.error || row.checks.join('; ')}`);
     }

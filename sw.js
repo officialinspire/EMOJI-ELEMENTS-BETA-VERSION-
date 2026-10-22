@@ -1,19 +1,19 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '8a4ee88dd17c';
+const BUILD_ID = '2e209c5d73b3';
 const REQUIRED = {
   "index.html": "ac467aeb15bd80580b17cf6740a6b8d9f030fbb6d7fcb0d1d1521cc8ba972ed9",
-  "index.js": "9145d14db9760067f1afd233962f37dff43e190c7b4d78a5747d195826abc952",
+  "index.js": "597c0fccfb2f9caa20144a41c3003b421e552e8510c0b18757d1503a2aa572f7",
   "styles.css": "53bcba93eeb0e3dded70008efe9cc28c91d79808ea79bdb209aaf79b3ec3029a",
-  "feedback.js": "df3db073ed3f0e89943a8a9fd6d230590fd19fdd344a8feeac96a693808caca3",
+  "feedback.js": "1eeb38bcc103b76abe1645a684111fa94ae04782a4f372caa898d672585b6563",
   "achievements.js": "51c179c9e0f59a96c16a71aac13c72947542b40405e66bc65f07c957d1624cb4",
   "pwa.js": "9d98249f5c0ff1dae1836bd930e4eccd03bf3f501b7256c3f2025ee01715fdb0",
   "manifest.json": "3414f035ddc169a9672d719667914cf6e8b7e148c66b5dd2447abe81de15e85e",
   "icon.svg": "14ff82cd3de37991fe9e47261aa8e548970934f6cdb2afd6db2d2801d7c2bac1",
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
-  "pwa-build.js": "c4f27495d5a4e9bcff08a0cf15099eb8605dd240659000cb48f8388a80ef695a"
+  "pwa-build.js": "44ab66a31c96a9bdcae76a816c630a51bdd1b21a2c000a3b386417efac898428"
 };
-const OPTIONAL = ['startmenu.mp3', 'gameplaybackgroundmusic.mp3', 'inspiresoftwareintro.mp4'];
+const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;
 const PREFIX = `emoji-elements@${SCOPE}:`;
 const CACHE = `${PREFIX}${BUILD_ID}`;
@@ -98,7 +98,9 @@ self.addEventListener('fetch', event => {
     const request = event.request;
     const url = new URL(request.url);
     if (request.method !== 'GET' || !url.href.startsWith(SCOPE)) return;
-    const path = url.pathname.slice(new URL(SCOPE).pathname.length);
+    let path;
+    try { path = decodeURIComponent(url.pathname.slice(new URL(SCOPE).pathname.length)); }
+    catch (_) { return; } // malformed escapes are not app assets
     // Leave unrelated pages, sibling projects and all external requests alone.
     const file = path === '' ? 'index.html' : path;
     if (!(file in REQUIRED) && !OPTIONAL.includes(file)) return;

@@ -9,6 +9,34 @@ Branch `claude/audio-feedback`, built on the battle-screen and pause pass (`clau
 | Tests | `tests/audio.test.mjs` (`npm run audio`) |
 | Listening page | `docs/sound-board.html` |
 
+## Current soundtrack and mix
+
+- Main menu: `minimalist menu theme.mp3` (175.9 s; source mean −15.4 dBFS, peak −0.6 dBFS).
+- Gameplay: `Emoji Elements - Celestial Battle Theme.mp3` (174.0 s; source mean −16.9 dBFS, peak −1.0 dBFS).
+- Fresh installs start at Music 30% and Effects 70%. Existing saved preferences are preserved.
+  Music has a 0.45 mix trim: at the defaults its mean is approximately −32.8 / −34.3 dBFS.
+  Successful effects briefly duck music to 35% of its current level, then recover with a gentle envelope.
+  These are signal measurements, not listening judgments; users can adjust either slider independently.
+- Streaming music is routed once through per-track Web Audio gains in the effects engine's shared,
+  gesture-unlocked context, only after both the context and streaming decoder are ready. A refused
+  context resume leaves ordinary HTML playback intact. This supports fades and music volume on mobile browsers that ignore
+  `HTMLMediaElement.volume`. The intro video remains outside that graph and outside music ducking;
+  saved master mute now also silences its audio. Music cannot start until the intro ends or is skipped.
+- Without Web Audio or supported media routing, HTML media playback remains the fallback. On browsers
+  that ignore media volume in this fallback, Music on/off and master mute remain available.
+- Settings changed during a fade use the latest volume. Rapid transitions cancel stale fades.
+  Hidden pages pause music; foregrounding resumes the same position, and gameplay remains paused
+  until the player resumes it. Stopping a track while hidden prevents an unwanted restart.
+- The PWA caches the two new filenames, including URL-encoded spaces, with offline range support.
+  Run `npm run pwa:build` after changing soundtrack files and commit both generated files.
+
+The sections below document the original effects pass and its historical measurements. For this
+soundtrack update, automated browser tests cover startup/credits isolation, real streaming gain routing,
+foreground effects ducking/recovery, settings/fade races, rapid menu transitions, hidden-page lifecycle,
+existing independent controls, decoder/context readiness, and both new cached tracks offline. Chromium
+and WebKit desktop/phone browser playthroughs passed with the new tracks decoded. Real-device listening remains required
+for subjective balance on phone speakers/headphones and OS-specific interruptions.
+
 ## 1. What was there
 
 **Media files.** The repository holds 20 audio/video files: 19 MP3s and the intro MP4. I found no 21st file;
@@ -57,8 +85,8 @@ Effect loudness spread over **36 dB** (tapland −53 dB mean, attack −17 dB).
 ## 2. The new effects
 
 Every effect is now synthesised with the Web Audio API in `feedback.js`. There are no effect files any more:
-the 17 effect MP3s are removed. Music and the intro video are unchanged; they are still `<audio>` / `<video>`
-elements with their fades and loops.
+the 17 effect MP3s are removed. Music and the intro video remain streaming `<audio>` / `<video>` elements; see the current soundtrack
+section above for the updated routing and mix.
 
 **How the effects are shaped:**
 - **Graph:** cue voices → effects gain (the Effects volume) → compressor (−18 dB, 4:1) → +7 dB makeup → speakers.
@@ -129,7 +157,7 @@ Each setting is saved on this device under its own key, never in the game profil
 |---|---|---|---|
 | Sound (master) | `emojiElementsMuted` | on | The header 🔊. While it is off, Music and Effects are shown off and can't be changed. |
 | Music | `emojiElementsMusicOff` | on | Menu and match music |
-| Music volume | `emojiElementsMusicVolume` | 50 % | The previous fixed level. iOS Safari ignores media-element volume, so there only on/off works. |
+| Music volume | `emojiElementsMusicVolume` | 30 % | Web Audio gain with background mix trim; saved values are preserved. |
 | Effects | `emojiElementsSfxOff` | on | |
 | Effects volume | `emojiElementsSfxVolume` | 70 % | Letting go of the slider plays a sample |
 | Haptics | `emojiElementsHaptics` | on | Disabled, with "Not available on this device", where there is no vibration |
@@ -218,7 +246,7 @@ match. Please check:
   is acceptable.
 - **Android vibration** strength for each pattern. iOS Safari has no `navigator.vibrate`, so Haptics shows "Not
   available".
-- The Music volume slider has no effect on iOS (only on/off). Effects volume works there.
+- Check the Music slider and fades on iOS with the streaming Web Audio gain, and Music on/off in the no-Web-Audio fallback.
 
 ### Listening files
 
@@ -234,4 +262,4 @@ without running the game. They were shared with this pass, not committed.
 Release hardening: each synthesized cue now owns its sources, filters and envelopes. Priority eviction
 stops/disconnects the evicted cue, natural completion disconnects its nodes, and `stopAll()` destroys
 future notes before gain recovery. `tests/audio-lifecycle.test.mjs` independently observes real Web Audio
-nodes; the three-node processing bus remains for subsequent cues. See RELEASE.md for measured soak limits.
+nodes; the three-node effects bus and three streaming-music gains remain for subsequent cues. See RELEASE.md for measured soak limits.
