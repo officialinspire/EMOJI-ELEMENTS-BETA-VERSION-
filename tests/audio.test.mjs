@@ -24,9 +24,12 @@ async function spy(page) {
     await page.evaluate(() => {
         window.__cues = [];
         window.__buzz = [];
+        window.__buzzKinds = [];
+        const originalHaptic = window.__originalHaptic ||= GameFeedback.haptic;
+        GameFeedback.haptic = (kind) => { window.__hapticKind = kind; try { return originalHaptic(kind); } finally { window.__hapticKind = null; } };
         const play = window.__originalPlay ||= GameFeedback.play;   // wrap the original only once
         GameFeedback.play = (name, options = {}) => { const ok = play(name, options); window.__cues.push({ name, options, ok }); return ok; };
-        navigator.vibrate = pattern => { window.__buzz.push(pattern); return true; };
+        navigator.vibrate = pattern => { window.__buzz.push(pattern); window.__buzzKinds.push({ kind: window.__hapticKind, pattern }); return true; };
     });
 }
 const cues = page => page.evaluate(() => window.__cues);
@@ -186,14 +189,19 @@ test('a match: plays, taps, attack, block and AI turn use the right cues; the AI
     const myBuzz = await buzz(page);
     assert.ok(myBuzz.length >= 2 && myBuzz.length <= 4, `buzzes on my turn: ${JSON.stringify(myBuzz)}`);
 
-    await page.evaluate(() => { window.__buzz = []; window.__cues = []; });
+    await page.evaluate(() => { window.__buzz = []; window.__buzzKinds = []; window.__cues = []; });
     await act(page, () => endTurn());
     await page.clock.runFor(12000);
     const theirs = (await cues(page)).filter(c => c.ok).map(c => c.name);
     assert.ok(theirs.includes('summon'), 'the AI summon is heard');
-    // Only your own damage may buzz during the AI turn, once
-    const aiBuzz = await buzz(page);
-    assert.ok(aiBuzz.every(p => JSON.stringify(p) === '[22,40,30]') && aiBuzz.length <= 1, JSON.stringify(aiBuzz));
+    // A queued notice for your own achievement can land during the AI turn. Attribute it
+    // explicitly; AI card plays still cannot produce a play/select buzz.
+    const records = await page.evaluate(() => window.__buzzKinds);
+    const notices = records.filter(r => r.kind === 'achievement');
+    assert.ok(notices.every(r => JSON.stringify(r.pattern) === '[10,40,10]'));
+    if (notices.length) assert.ok((await cues(page)).some(c => c.name === 'achievement'), 'notice requests its achievement cue (voice limits may drop it while fake time outruns Web Audio)');
+    const aiBuzz = records.filter(r => r.kind !== 'achievement');
+    assert.ok(aiBuzz.every(r => r.kind === 'impact' && JSON.stringify(r.pattern) === '[22,40,30]') && aiBuzz.length <= 1, JSON.stringify(aiBuzz));
 });
 
 test('pause: nothing from the match plays while paused; settings still give feedback', { timeout: 60000 }, async t => {
