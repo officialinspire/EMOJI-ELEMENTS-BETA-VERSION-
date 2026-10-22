@@ -138,3 +138,10 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
 });
 
 test('generated offline assets match the committed source', () => { buildPwa(ROOT, true); });
+
+test('manifest preserves the identity and launch URL of existing installs', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.start_url, './index.html');
+    assert.equal(manifest.id, undefined, 'preserve the original start_url-derived identity across project paths');
+    assert.equal(manifest.scope, './');
+});

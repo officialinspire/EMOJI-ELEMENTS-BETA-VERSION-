@@ -1,7 +1,6 @@
 {
   "name": "Emoji Elements",
   "short_name": "Emoji Elements",
-  "id": "./",
   "scope": "./",
   "start_url": "./index.html",
   "display": "standalone",

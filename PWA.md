@@ -6,6 +6,9 @@ activates it and reloads this page once. Starting the game is never blocked by d
 An offline/failed check leaves the current app playable. Updating never clears localStorage, IndexedDB,
 achievements, preferences, or another INSPIRE game's caches.
 
+The original `start_url` stays `./index.html` and the manifest keeps its original inferred app identity;
+adding an origin-relative `id` would make browsers treat the project as a different installed app.
+
 `sw.js` caches one complete app shell per build. Required assets are verified against SHA-256 hashes;
 missing or mismatched files reject the new install and preserve the previous generation. Music/video
 are optional and can retry later. Cached media supports byte-range requests. External fonts use the
