@@ -3625,6 +3625,7 @@
             }
 
             packOpeningState.active = true;
+            holdAchievementNotice();
             packOpeningState.cards = cards;
             packOpeningState.currentIndex = 0;
             packOpeningState.isDragging = false;
@@ -5652,6 +5653,7 @@
     }
 
     function showAchievementsDialog() {
+        holdAchievementNotice();
         renderAchievements(document.getElementById('achievementsDialogView'));
         playSFX('menuOpen');
         document.getElementById('achievementsDialog').classList.add('show');
@@ -5690,6 +5692,19 @@
         if (label && currentAchievementNotice) label.textContent = achievementNoticeLabel(currentAchievementNotice);
     }
 
+    // PAUSE, this list and a pack reveal take the notice on screen down at once (it would cover their headings); it
+    // comes back, without its sound again, once they close
+    let achievementNoticeTimer = null;
+    function holdAchievementNotice() {
+        const toast = document.getElementById('achievementToast');
+        if (!toast || toast.hidden || !currentAchievementNotice) return;
+        clearTimeout(achievementNoticeTimer);
+        toast.hidden = true;
+        achievementNoticeQueue.unshift({ ...currentAchievementNotice, quiet: true });
+        currentAchievementNotice = null;
+        setTimeout(showNextAchievementNotice, 600);
+    }
+
     function titleScreenShowing() {
         const shown = id => {
             const el = document.getElementById(id);
@@ -5723,7 +5738,7 @@
             GameFeedback.play('achievement');
             haptic('achievement');
         }
-        setTimeout(() => {
+        achievementNoticeTimer = setTimeout(() => {
             toast.hidden = true;
             currentAchievementNotice = null;
             setTimeout(showNextAchievementNotice, 250);
@@ -6068,6 +6083,7 @@
 
         gamePaused = true;
         freezeMatchTimers();
+        holdAchievementNotice();
         container.classList.add('is-paused');
         container.inert = true;
         document.getElementById('gameLog')?.classList.remove('show');

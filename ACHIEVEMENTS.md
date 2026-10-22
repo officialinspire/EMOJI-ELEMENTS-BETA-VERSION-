@@ -131,6 +131,7 @@ The test suites run in fresh browser contexts, so their storage never touches a 
 - Notices are queued and shown one at a time for 3.2 s.
 - They appear as a small pill at the top centre. In a match it sits over the header, never over the hand, the turn buttons or the life totals, and it lets clicks through.
 - When several unlock together (a win often brings a few), the notice counts the rest ("· 3 more").
+- Opening PAUSE, the Achievements dialog or a pack reveal takes down the notice on screen at once (on phones it would cover their headings). It comes back afterwards, without its sound again.
 - Notices wait while:
   - the game is paused;
   - the Achievements dialog is open;
