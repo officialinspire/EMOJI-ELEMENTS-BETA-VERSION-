@@ -560,6 +560,13 @@ describe('the Achievements screen and notices', () => {
         assert.deepEqual(overlap.hits, []);
         assert.equal(overlap.clicks, 'none');
 
+        // PAUSE takes the notice on screen down at once (it covered the panel's title on phones); it returns after
+        await act(page, () => pauseGame());
+        assert.equal(await page.evaluate(() => document.getElementById('achievementToast').hidden), true, 'down while paused');
+        await act(page, () => resumeGame());
+        await page.clock.runFor(800);
+        assert.match(await page.evaluate(() => document.getElementById('achievementToast').textContent), /Plot of Land/, 'back after RESUME');
+
         // Paused: the next notice waits until RESUME
         await page.clock.runFor(4000);
         await act(page, () => pauseGame());
