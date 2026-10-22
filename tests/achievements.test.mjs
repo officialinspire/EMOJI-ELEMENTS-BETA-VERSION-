@@ -15,6 +15,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { loadCatalog } from './achievements-doc.mjs';
 import { useGameBrowser, openGame, openGamePage, act, setup, passTurn, waitUntilStartable, clickAt, QUIET_ENEMY } from './lib/game.mjs';
 
 useGameBrowser();
@@ -306,8 +307,8 @@ describe('catalog', () => {
     test('every event a trigger listens for is reported by index.js', () => {
         const source = fs.readFileSync(new URL('../index.js', import.meta.url), 'utf8');
         const reported = new Set([...source.matchAll(/reportAchievement\('([a-z:]+)'/g)].map(m => m[1]));
-        const catalog = fs.readFileSync(new URL('../achievements.js', import.meta.url), 'utf8');
-        const listened = new Set([...catalog.matchAll(/on: \[([^\]]+)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z:]+)'/g)].map(x => x[1])));
+        const { catalog } = loadCatalog();
+        const listened = new Set(catalog.flatMap(def => def.on));
         listened.delete('board'); // checked after every board-changing event (BOARD_EVENTS)
         assert.deepEqual([...listened].filter(type => !reported.has(type)), []);
     });
