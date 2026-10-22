@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { ROOT } from './lib/harness.mjs';
+import { reportFailure } from './lib/ci.mjs';
 
 const group = process.argv[2]?.replace(/^--group=/, '') || 'all';
 if (!['all', 'logic', 'visual', 'playthroughs', 'browsers', 'soak'].includes(group) || process.argv.length > 3) {
@@ -43,6 +44,7 @@ for (const [, name, args] of plan) {
     report.results.push(row);
     fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(`${result.status === 0 ? 'PASS' : 'FAIL'} ${name} (${row.durationMs} ms), ${row.log}`);
+    if (result.status !== 0) reportFailure(`${name} verification failed`, fs.readFileSync(log, 'utf8').slice(-14000));
 }
 report.completed = new Date().toISOString();
 fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify(report, null, 2) + '\n');
