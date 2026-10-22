@@ -194,6 +194,10 @@ Tested on narrow Android portrait, phone landscape, tablet and desktop sizes: se
 
 ## How To Run
 
+Installed-app updates and offline play: see [PWA.md](PWA.md). The initialization screen offers **Check for
+updates**, then **Reload updated version** when ready. After app changes, run `npm run pwa:build` and commit
+the generated worker and build marker; `npm run pwa:check` validates them.
+
 Entry point: `index.html` (loads `styles.css` and `index.js`).
 
 Recommended (local server):

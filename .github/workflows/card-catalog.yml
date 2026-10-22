@@ -14,3 +14,5 @@ jobs:
           node-version: 22
       - name: Validate card catalog and manifest
         run: node tests/card-audit.mjs
+      - name: Verify installed-app build matches its assets
+        run: node scripts/build-pwa.mjs --check

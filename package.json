@@ -36,7 +36,10 @@
     "release": "node tests/release.mjs",
     "verify": "node tests/verify.mjs",
     "determinism": "node --test tests/determinism.test.mjs",
-    "stabilization": "node --test tests/stabilization.test.mjs"
+    "stabilization": "node --test tests/stabilization.test.mjs",
+    "pwa:build": "node scripts/build-pwa.mjs",
+    "pwa:check": "node scripts/build-pwa.mjs --check",
+    "pwa": "node --test tests/pwa.test.mjs"
   },
   "devDependencies": {
     "axe-core": "4.10.3",

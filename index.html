@@ -65,6 +65,11 @@
             <div class="click-to-start-tagline">Arcane duels. Elemental strategy.</div>
             <div class="click-to-start-text"><span aria-hidden="true">▶</span> Click to start</div>
             <div class="click-to-start-hint">Sound on · tap or click anywhere</div>
+            <div id="pwaUpdate" class="pwa-update">
+                <span id="pwaVersion" class="pwa-version"></span>
+                <button id="pwaUpdateButton" type="button">Check for updates</button>
+                <span id="pwaUpdateStatus" role="status" aria-live="polite">Preparing app…</span>
+            </div>
         </div>
     </div>
 
@@ -740,6 +745,8 @@
     <!-- Unlock notices: one at a time, at the top, never over the match controls (showNextAchievementNotice) -->
     <div id="achievementToast" class="achievement-toast" role="status" aria-live="polite" hidden></div>
 
+    <script src="pwa-build.js"></script>
+    <script src="pwa.js"></script>
     <script src="feedback.js"></script>
     <script src="achievements.js"></script>
     <script src="index.js"></script>
