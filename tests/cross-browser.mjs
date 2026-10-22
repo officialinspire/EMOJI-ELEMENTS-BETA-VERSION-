@@ -32,6 +32,8 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
         page.setDefaultTimeout(15000);
         page.setDefaultNavigationTimeout(30000);
         const errors = [];
+        const audioMessages = [];
+        page.on('console', message => { if (/Audio play|Music resume/.test(message.text())) audioMessages.push(message.text()); });
         page.on('pageerror', e => errors.push(e.message));
         const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
         try {
@@ -89,7 +91,16 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             await page.reload({ waitUntil: 'domcontentloaded' }); await boot(page);
             assert.deepEqual(await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme})),persisted);
             assert.deepEqual(errors,[]); row.checks.push('purchase, reveal, summary, rotation/zoom, save reload'); row.status='PASS';
-        } catch (error) { row.error=error.stack; reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{}); }
+        } catch (error) {
+            row.audio = await page.evaluate(() => ({ context: GameFeedback.state, hidden: document.hidden,
+                tracks: Object.fromEntries(Object.entries(audioSystem).map(([name, audio]) => [name, {
+                    paused: audio.paused, ready: audio.readyState, time: audio.currentTime, error: audio.error?.code,
+                    level: GameFeedback.getMusicLevel(audio), fading: activeAudioFades.has(audio)
+                }])) })).catch(() => null);
+            row.audioMessages = audioMessages;
+            row.error=error.stack + '\nAudio: ' + JSON.stringify({ state: row.audio, messages: audioMessages });
+            reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{});
+        }
         finally { await context.close(); }
         console.log(`${engine}/${profile}: ${row.status} ${row.error || row.checks.join('; ')}`);
     }
