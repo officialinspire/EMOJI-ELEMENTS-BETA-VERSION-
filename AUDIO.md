@@ -262,4 +262,4 @@ without running the game. They were shared with this pass, not committed.
 Release hardening: each synthesized cue now owns its sources, filters and envelopes. Priority eviction
 stops/disconnects the evicted cue, natural completion disconnects its nodes, and `stopAll()` destroys
 future notes before gain recovery. `tests/audio-lifecycle.test.mjs` independently observes real Web Audio
-nodes; the three-node processing bus remains for subsequent cues. See RELEASE.md for measured soak limits.
+nodes; the three-node effects bus and three streaming-music gains remain for subsequent cues. See RELEASE.md for measured soak limits.

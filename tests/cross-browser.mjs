@@ -21,10 +21,15 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
     // Linux WebKit's legacy playbin2 deadlocks pausing looping MP3s on this host.
     // Select the native playbin3 pipeline; media and Web Audio remain enabled.
     const mediaPipeline = engine === 'webkit' && process.platform === 'linux' ? 'playbin3' : 'native';
-    try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: { ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1' } } : {}) }); }
+    // CI has no speakers. OpenAL's null output keeps real decoding/mixing running without
+    // intermittent autoaudiosink failures probing nonexistent ALSA/Pulse devices.
+    const audioOutput = mediaPipeline === 'playbin3' ? 'OpenAL null output' : 'native';
+    try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: {
+        ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1', ALSOFT_DRIVERS: 'null'
+    } } : {}) }); }
     catch (error) { report.results.push({ engine, status: 'BLOCKED', error: error.message }); reportFailure(`${engine}: BLOCKED`, error.message); continue; }
     for (const [profile, viewport] of [['desktop',{width:1366,height:900}],['phone',{width:360,height:740}]]) {
-        const row = { engine, profile, version: browser.version(), mediaPipeline, status: 'FAIL', checks: [], screenshots: [] };
+        const row = { engine, profile, version: browser.version(), mediaPipeline, audioOutput, status: 'FAIL', checks: [], screenshots: [] };
         report.results.push(row);
         const context = await browser.newContext({ viewport, hasTouch: profile === 'phone', reducedMotion: 'reduce' });
         await context.addInitScript(save => { if (!sessionStorage.seeded) { localStorage.setItem('emoji_elements_meta_v1',save); sessionStorage.seeded='1'; } }, save);

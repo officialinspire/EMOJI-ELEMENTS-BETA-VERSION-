@@ -39,8 +39,24 @@ export function startServer() {
                 res.writeHead(404);
                 return res.end();
             }
-            res.writeHead(200, { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream' });
-            res.end(data);
+            const headers = { 'Content-Type': MIME[path.extname(filePath)] || 'application/octet-stream',
+                'Accept-Ranges': 'bytes', 'Content-Length': data.length };
+            if (req.headers.range) {
+                const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+                const start = match?.[1] ? Number(match[1]) : Math.max(0, data.length - Number(match?.[2]));
+                const end = match?.[1] && match[2] ? Math.min(Number(match[2]), data.length - 1) : data.length - 1;
+                if (!match || (!match[1] && !match[2]) || start > end || start >= data.length) {
+                    res.writeHead(416, { 'Content-Range': `bytes */${data.length}` });
+                    return res.end();
+                }
+                headers['Content-Range'] = `bytes ${start}-${end}/${data.length}`;
+                headers['Content-Length'] = end - start + 1;
+                res.writeHead(206, headers);
+                res.end(req.method === 'HEAD' ? undefined : data.subarray(start, end + 1));
+            } else {
+                res.writeHead(200, headers);
+                res.end(req.method === 'HEAD' ? undefined : data);
+            }
         });
     });
     return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(server)));
