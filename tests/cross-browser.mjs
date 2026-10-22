@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
 import { boot, click, themes, start, ready, quit, purchase, backFromPack } from './lib/release-ui.mjs';
+import { reportFailure } from './lib/ci.mjs';
 const selected = process.argv.find(a => a.startsWith('--engine='))?.split('=')[1];
 if (selected && !['chromium','firefox','webkit'].includes(selected)) throw Error('Unknown engine');
 const OUT = path.join(ROOT, 'test-results/cross-browser');
@@ -21,7 +22,7 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
     // Select the native playbin3 pipeline; media and Web Audio remain enabled.
     const mediaPipeline = engine === 'webkit' && process.platform === 'linux' ? 'playbin3' : 'native';
     try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: { ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1' } } : {}) }); }
-    catch (error) { report.results.push({ engine, status: 'BLOCKED', error: error.message }); console.error(`${engine}: BLOCKED: ${error.message}`); continue; }
+    catch (error) { report.results.push({ engine, status: 'BLOCKED', error: error.message }); reportFailure(`${engine}: BLOCKED`, error.message); continue; }
     for (const [profile, viewport] of [['desktop',{width:1366,height:900}],['phone',{width:360,height:740}]]) {
         const row = { engine, profile, version: browser.version(), mediaPipeline, status: 'FAIL', checks: [], screenshots: [] };
         report.results.push(row);
@@ -71,7 +72,7 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             await page.reload(); await boot(page);
             assert.deepEqual(await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme})),persisted);
             assert.deepEqual(errors,[]); row.checks.push('purchase, reveal, summary, rotation/zoom, save reload'); row.status='PASS';
-        } catch (error) { row.error=error.stack; await shot('failure').catch(()=>{}); }
+        } catch (error) { row.error=error.stack; reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{}); }
         finally { await context.close(); }
         console.log(`${engine}/${profile}: ${row.status} ${row.error || row.checks.join('; ')}`);
     }
