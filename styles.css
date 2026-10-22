@@ -4377,18 +4377,13 @@ html {
         font-size: 19px;
     }
 
-    /* Five entries: three on the first row, two wider ones on the second */
+    /* Six entries: two rows of three */
     #startModal .menu-grid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    #startModal .menu-grid .menu-tile {
-        grid-column: span 2;
-    }
-
-    #startModal .menu-grid .menu-tile:nth-child(n + 4),
     #startModal .menu-grid .menu-tile:last-child:nth-child(odd) {
-        grid-column: span 3;
+        grid-column: auto;
     }
 
     /* Sub-screens: the screen heading replaces the logo, so the content fits the short screen */
@@ -7993,5 +7988,351 @@ html {
 
     .pause-volume-row {
         padding-bottom: 2px;
+    }
+}
+
+/* ---- Achievements (renderAchievements): menu screen and pause dialog */
+.achievements-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    text-align: left;
+}
+
+#achievementsScreen .achievements-view {
+    max-height: min(62vh, 640px);
+}
+
+.achievements-dialog .theme-dialog-content {
+    width: min(640px, 100%);
+    max-height: calc(100dvh - 32px);
+    display: flex;
+    flex-direction: column;
+}
+
+.achievements-dialog .achievements-view {
+    flex: 1;
+    min-height: 0;
+}
+
+.ach-qa-note {
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px dashed var(--gold-line);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    color: var(--text-dim);
+}
+
+.ach-summary {
+    display: grid;
+    grid-template-columns: auto minmax(80px, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.ach-count {
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.ach-count strong {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    color: var(--gold-1);
+}
+
+.ach-meter,
+.ach-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.35);
+    border: 1px solid var(--gold-line);
+    overflow: hidden;
+}
+
+.ach-meter > span,
+.ach-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--gold-1));
+}
+
+.ach-notify {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 6px 4px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.ach-qa-note,
+.ach-summary,
+.ach-filters {
+    flex: none;
+}
+
+.ach-filters {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.ach-filter {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 4px 14px;
+    border: 1px solid var(--gold-line);
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.25);
+    color: var(--text-soft);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.ach-filter[aria-pressed="true"] {
+    background: var(--gold-fill);
+    border-color: var(--accent-edge);
+    color: var(--ink);
+}
+
+.ach-filter-count {
+    font-size: 11.5px;
+    opacity: 0.85;
+}
+
+.ach-notify:focus-visible,
+.ach-filter:focus-visible,
+.ach-list:focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 2px;
+}
+
+.ach-list {
+    flex: 1;
+    list-style: none;
+    margin: 0;
+    padding: 0 4px 0 0;
+    display: grid;
+    gap: 8px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.ach-item {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--gold-line);
+    border-radius: 12px;
+    background: var(--panel);
+}
+
+.ach-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgb(var(--accent-rgb) / 0.35);
+    background: radial-gradient(circle at 35% 30%, rgb(var(--accent-2-soft-rgb) / 0.25), rgba(9, 6, 17, 0.6));
+    font-size: 22px;
+}
+
+.ach-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ach-name {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: 0.03em;
+    color: var(--gold-1);
+}
+
+.ach-desc {
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-soft);
+}
+
+.ach-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    margin-top: 2px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.ach-tier {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.tier-rare .ach-tier { color: #8fc8ff; }
+.tier-epic .ach-tier { color: #d4a6ff; }
+.tier-legendary .ach-tier { color: var(--gold-1); }
+
+.ach-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ach-progress .ach-bar {
+    width: 72px;
+    height: 6px;
+}
+
+/* Unlocked entries stand out with a gold edge; locked ones are dimmer (the text still meets contrast) */
+.ach-item[data-state="unlocked"] {
+    border-color: var(--accent-edge);
+    box-shadow: inset 0 0 18px rgb(var(--accent-rgb) / 0.12);
+}
+
+.ach-item[data-state="unlocked"] .ach-when {
+    color: var(--gold-1);
+    font-weight: 700;
+}
+
+.ach-item[data-state="locked"] .ach-icon,
+.ach-item[data-state="secret"] .ach-icon {
+    filter: grayscale(1);
+    opacity: 0.55;
+}
+
+.ach-item[data-state="secret"] .ach-name {
+    font-style: italic;
+    color: var(--text-soft);
+}
+
+/* ---- Unlock notice: small, top centre, clicks pass through; in a match it sits above the enemy row, never over
+   the player's hand or the turn buttons */
+.achievement-toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 50%;
+    z-index: 17500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(360px, calc(100vw - 32px));
+    padding: 8px 14px 8px 8px;
+    border: 1px solid var(--accent-edge);
+    border-radius: 999px;
+    background: var(--panel-strong);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    transform: translateX(-50%);
+    animation: ach-toast-in 0.25s ease-out;
+}
+
+.achievement-toast[hidden] {
+    display: none;
+}
+
+.ach-toast-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--gold-fill);
+    font-size: 18px;
+}
+
+.ach-toast-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.ach-toast-label {
+    font-family: var(--font-body);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.ach-toast-name {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes ach-toast-in {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 1; transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .achievement-toast {
+        animation: none;
+    }
+}
+
+@media (max-width: 519px) {
+    .ach-summary {
+        grid-template-columns: auto minmax(60px, 1fr);
+    }
+
+    .ach-notify {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .ach-item {
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: 10px;
+        padding: 8px 10px;
+    }
+
+    .ach-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    #achievementsScreen .achievements-view {
+        max-height: 58vh;
     }
 }

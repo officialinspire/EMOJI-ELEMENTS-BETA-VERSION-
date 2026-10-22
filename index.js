@@ -970,6 +970,67 @@
     // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
     let matchSerial = 0;
 
+    // ---- Achievements (achievements.js) hear about confirmed outcomes only: a card that resolved, a finished
+    // combat, a match that ended. reportAchievement never throws into the game.
+    function reportAchievement(type, payload) {
+        try { window.Achievements?.emit(type, payload); } catch (_) { /* never in the game's way */ }
+    }
+
+    const manaTotal = mana => Object.values(mana || {}).reduce((sum, n) => sum + (n || 0), 0);
+
+    // What is changing life right now ('instant', 'drain', 'artifact', 'upkeep' or 'combat'). A lethal hit ends the
+    // match inside the change, before the spell or combat is reported, so each life change carries its source.
+    let lifeChangeSource = null;
+    function withLifeSource(source, fn) {
+        const previous = lifeChangeSource;
+        lifeChangeSource = source;
+        try {
+            return fn();
+        } finally {
+            lifeChangeSource = previous;
+        }
+    }
+
+    // What a spell or artifact actually did, from the public state before and after it resolved
+    function snapshotForOutcome() {
+        const ids = board => new Map(board.map(c => [c.id, { tapped: !!c.tapped, power: c.power, card: c }]));
+        return {
+            player: ids(gameState.playerBoard), enemy: ids(gameState.enemyBoard),
+            enemyHand: gameState.enemyHand.length, playerDeck: gameState.playerDeck.length,
+            playerGraveyard: gameState.playerGraveyard.length,
+            enemyLife: gameState.enemyLife
+        };
+    }
+
+    function describeOutcome(before, card, side) {
+        const left = (map, board) => [...map.values()].filter(v => !board.some(c => c.id === v.card.id)).map(v => v.card);
+        const enemyGone = left(before.enemy, gameState.enemyBoard).filter(c => c.type === 'creature');
+        const playerGone = left(before.player, gameState.playerBoard).filter(c => c.type === 'creature');
+        const inHand = (hand, c) => hand.some(h => h.id === c.id);
+        const mine = side === 'player' ? gameState.playerBoard : gameState.enemyBoard;
+        const myBefore = side === 'player' ? before.player : before.enemy;
+        const theirsBefore = side === 'player' ? before.enemy : before.player;
+        const theirsGone = side === 'player' ? enemyGone : playerGone;
+        const theirHand = side === 'player' ? gameState.enemyHand : gameState.playerHand;
+        const added = mine.filter(c => !myBefore.has(c.id) && c.type === 'creature');
+        return {
+            side,
+            card,
+            enemyLifeChange: gameState.enemyLife - before.enemyLife,
+            bounced: theirsGone.filter(c => inHand(theirHand, c)),
+            destroyed: theirsGone.filter(c => !inHand(theirHand, c)),
+            deaths: [...enemyGone.filter(c => !inHand(gameState.enemyHand, c)).map(c => ({ card: c, owner: 'enemy' })),
+                ...playerGone.filter(c => !inHand(gameState.playerHand, c)).map(c => ({ card: c, owner: 'player' }))],
+            tokens: added.filter(c => c.cardType === 'Creature Token').length,
+            revived: added.find(c => c.cardType !== 'Creature Token') || null,
+            discarded: side === 'player' ? Math.max(0, before.enemyHand - gameState.enemyHand.length) : 0,
+            enemyHandAfter: gameState.enemyHand.length,
+            frozeTapped: [...theirsBefore.values()].some(v => v.tapped && v.card.frozen),
+            buffed: mine.filter(c => myBefore.has(c.id) && c.power > myBefore.get(c.id).power).length,
+            drawn: side === 'player' ? Math.max(0, before.playerDeck - gameState.playerDeck.length) : 0
+        };
+    }
+
     // ---- Pausable match timers. The AI's turn steps, its failsafe, the action-lock failsafes and the toasts run
     // on these, so PAUSE stops them where they are and RESUME continues them with the time they had left.
     let gamePaused = false;
@@ -1798,6 +1859,7 @@
         if (!isMetaRuntimeEnabled()) return;
         try {
             localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+            reportAchievement('wallet', {});
         } catch (error) {
             console.warn('Meta save failed. Continuing without persisting meta.', error);
             showGameLog('⚠️ Progress could not be saved: browser storage is full or blocked.', true);
@@ -2252,6 +2314,24 @@
         losses: Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0,
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
+
+    // Achievements keep their own versioned key (achievements.js). Anything the saved profile already proves is
+    // recognised now, quietly. QA sessions (?qa=1) never save, so QA tools can't award a real profile.
+    let achievementsRecognised = [];
+    try {
+        achievementsRecognised = window.Achievements ? Achievements.init({
+            game: () => gameState,
+            meta: () => gameMeta,
+            cards: () => __CARD_BY_ID,
+            identity: getCardIdentity,
+            rarity: getCardRarity,
+            persist: !QA_MODE,
+            currentTheme: document.documentElement.dataset.theme,
+            debug: QA_DEBUG
+        }) : [];
+    } catch (error) {
+        console.warn('Achievements could not start; the game plays without them.', error);
+    }
 
     if (QA_DEBUG) {
         window.__qaDumpMeta = function() {
@@ -2945,6 +3025,20 @@
     // unchanged), so the reveal can mark NEW cards and show "had N".
     let lastPackOwnedBefore = null;
 
+    // A pack counts for achievements when its cards are seen (torn open), so an unlock never spoils the reveal.
+    // Closing the pack screen without tearing it counts too: the cards are yours either way.
+    let packReportedFor = null;
+    function reportPackOpened() {
+        const pack = gameMeta?.lastPack;
+        if (!pack?.openedAt || packReportedFor === pack.openedAt) return;
+        packReportedFor = pack.openedAt;
+        reportAchievement('pack:opened', {
+            themeKey: pack.themeKey,
+            cards: (pack.cardIds || []).map(id => ({ id, rarity: getCardRarity(__CARD_BY_ID[id] || {}), isNew: getPackOwnedBefore(id) === 0 }))
+        });
+        reportAchievement('collection', {});
+    }
+
     function addPackToCollection(cardIds, openedAt) {
         const before = {};
         cardIds.forEach(cardId => { before[cardId] = gameMeta.collection[cardId] || 0; });
@@ -3326,6 +3420,7 @@
 
     function closePackOpeningOverlay() {
         const overlay = document.getElementById('packOpeningOverlay');
+        if (overlay?.classList.contains('show')) reportPackOpened();
         const shouldUnlockScroll = overlay?.dataset.lockScroll !== 'false' && overlay?.classList.contains('show');
         let scrollReleased = false;
 
@@ -3379,6 +3474,7 @@
         if (packOpeningState.stage !== 'sealed') return;
 
         packOpeningState.stage = 'opening';
+        reportPackOpened();
         GameFeedback.play('packRip');
         haptic('reveal');
         const instruction = document.getElementById('packInstruction');
@@ -3657,6 +3753,7 @@
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
             haptic('victory');
+            reportAchievement('match:end', { result: 'win', reason: gameState.enemyDeckedOut ? 'decked' : 'life' });
             showMatchRewardOverlay({
                 creditsAwarded: BASE_WIN_CREDITS,
                 packCount: 1
@@ -3694,6 +3791,7 @@
         stopSFX('gameplayMusic');
         playSFX('gameLose');
         haptic('defeat');
+        reportAchievement('match:end', { result: 'loss', reason: gameState.playerDeckedOut ? 'decked' : 'life' });
         const lossReward = document.getElementById('lossRewardLine');
         if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
         showMatchResultOverlay('loss');
@@ -3976,7 +4074,9 @@
 
     // Resolves one side's attack with the live rules, recording each attacker's real result once
     function resolveAttackersWithHistory(attackers, blockersFor, isPlayerAttacking) {
-        const results = attackers.map(attacker => {
+        const untappedDefenders = (isPlayerAttacking ? gameState.enemyBoard : gameState.playerBoard)
+            .filter(c => c.type === 'creature' && !c.tapped).length;
+        const results = withLifeSource('combat', () => attackers.map(attacker => {
             const blockers = blockersFor(attacker);
             const before = { player: gameState.playerLife, enemy: gameState.enemyLife };
             if (!hasAbility(attacker, 'vigilance')) {
@@ -3988,7 +4088,7 @@
                 dealUnblockedDamage(attacker, isPlayerAttacking);
             }
             return { attacker, blockers, lifeChange: { player: gameState.playerLife - before.player, enemy: gameState.enemyLife - before.enemy } };
-        });
+        }));
         checkStateBasedActions();
         const alive = new Set([...gameState.playerBoard, ...gameState.enemyBoard].map(c => c.id));
         const side = isPlayerAttacking ? 'player' : 'enemy';
@@ -3998,6 +4098,17 @@
             blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id)
         }, isPlayerAttacking));
         recordHistory(side, `⚔️ ${sideName(side)} ${isPlayerAttacking ? 'attack' : 'attacks'} with ${attackers.length} creature${attackers.length === 1 ? '' : 's'}`, details);
+        reportAchievement('combat', {
+            side,
+            untappedDefenders,
+            pairs: results.map(r => ({
+                attacker: r.attacker,
+                blockers: r.blockers,
+                attackerDies: !alive.has(r.attacker.id),
+                blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id),
+                lifeChange: r.lifeChange
+            }))
+        });
         return results;
     }
 
@@ -4781,6 +4892,7 @@
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
             addPackToCollection(cardIds, openedAt);
+            reportAchievement('pack:purchased', { themeKey: normalizedTheme, price: cost });
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
@@ -5280,6 +5392,7 @@
         }
         playSFX('select');
         showGameLog(`Saved deck ${deckKey}.`, false);
+        reportAchievement('deck:saved', { deckKey });
         deckBuilderState.workingCardIds = [...candidate];
         deckBuilderState.debugWarning = '';
         deckBuilderState.validationErrors = [];
@@ -5306,7 +5419,7 @@
     let currentMenuScreen = 'mainMenu';
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
-        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'achievementsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
         if (activeScreenId === 'mainMenu' && currentMenuScreen !== 'mainMenu') menuReturnTarget = currentMenuScreen;
         currentMenuScreen = activeScreenId;
         menuScreens.forEach(id => {
@@ -5350,6 +5463,8 @@
             const losses = Math.max(0, Number(gameStats.losses) || 0);
             recordEl.textContent = wins + losses > 0 ? `${wins} won · ${losses} lost` : 'No battles yet';
         }
+        const achievementsEl = document.getElementById('menuAchievements');
+        if (achievementsEl && window.Achievements) achievementsEl.textContent = achievementsSummary();
         // NEW GAME names the deck it will start from, once you have played at least once
         const newGameDesc = document.getElementById('menuNewGameDesc');
         if (newGameDesc) {
@@ -5359,6 +5474,177 @@
                 ? `Last deck: ${colors.map(elementLabel).join(' + ')}`
                 : 'Pick your elements and duel the AI';
         }
+    }
+
+    // ---- Achievements: the menu screen and the pause dialog draw the same view (renderAchievements)
+    let achievementFilter = 'all';
+
+    function escapeAchievementText(text) {
+        return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    }
+
+    function renderAchievements(root) {
+        if (!root || !window.Achievements) return;
+        const all = Achievements.catalog;
+        const unlockedTotal = Achievements.unlockedCount();
+        const filters = [['all', 'All', '🏆'], ['unlocked', 'Unlocked', '✅'], ...Achievements.categories];
+        const inFilter = a => achievementFilter === 'all' ? true
+            : achievementFilter === 'unlocked' ? Achievements.isUnlocked(a.id) : a.cat === achievementFilter;
+        const shown = all.filter(inFilter);
+        const countIn = key => {
+            const list = key === 'all' ? all : key === 'unlocked' ? all.filter(a => Achievements.isUnlocked(a.id)) : all.filter(a => a.cat === key);
+            return key === 'unlocked' ? `${list.length}` : `${list.filter(a => Achievements.isUnlocked(a.id)).length}/${list.length}`;
+        };
+        const date = iso => { try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (_) { return ''; } };
+        const tierLabel = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+
+        root.innerHTML = `
+            ${Achievements.persisting ? '' : '<p class="ach-qa-note">QA session or newer save format: achievements here are not saved.</p>'}
+            <div class="ach-summary">
+                <div class="ach-count"><strong>${unlockedTotal}</strong> of ${all.length} unlocked</div>
+                <div class="ach-meter" aria-hidden="true"><span style="width:${Math.round(unlockedTotal / all.length * 100)}%"></span></div>
+                <button type="button" class="ach-notify" role="switch" aria-checked="${Achievements.notify}">
+                    <span>Unlock sound &amp; buzz</span><span class="pause-switch" aria-hidden="true"></span>
+                </button>
+            </div>
+            <div class="ach-filters" role="group" aria-label="Show achievements">
+                ${filters.map(([key, label, icon]) => `<button type="button" class="ach-filter" data-filter="${key}" aria-pressed="${achievementFilter === key}">
+                    <span aria-hidden="true">${icon}</span> ${escapeAchievementText(label)} <span class="ach-filter-count">${countIn(key)}</span></button>`).join('')}
+            </div>
+            <ul class="ach-list" tabindex="0" aria-label="${escapeAchievementText(filters.find(f => f[0] === achievementFilter)?.[1] || 'All')} achievements">
+                ${shown.map(a => {
+                    const unlocked = Achievements.isUnlocked(a.id);
+                    const secret = a.hidden && !unlocked;
+                    const progress = !unlocked && a.goal ? Achievements.progressOf(a) : null;
+                    const at = unlocked ? Achievements.unlockedAt(a.id) : null;
+                    return `<li class="ach-item tier-${a.tier}" data-state="${unlocked ? 'unlocked' : secret ? 'secret' : 'locked'}" data-id="${a.id}">
+                        <span class="ach-icon" aria-hidden="true">${secret ? '❔' : a.icon}</span>
+                        <span class="ach-body">
+                            <span class="ach-name">${secret ? 'Hidden achievement' : escapeAchievementText(a.name)}</span>
+                            <span class="ach-desc">${secret ? 'Keep playing to find this one.' : escapeAchievementText(a.desc)}</span>
+                            <span class="ach-meta">
+                                <span class="ach-tier">${tierLabel[a.tier]}</span>
+                                ${unlocked ? `<span class="ach-when">✓ ${Achievements.wasBackfilled(a.id) ? 'From your saved progress' : `Unlocked${at && !at.startsWith('1970') ? ` ${date(at)}` : ''}`}</span>` : '<span class="ach-when">🔒 Locked</span>'}
+                                ${progress ? `<span class="ach-progress" role="img" aria-label="${progress.value} of ${progress.goal}"><span class="ach-bar"><span style="width:${Math.round(progress.value / progress.goal * 100)}%"></span></span>${progress.value} / ${progress.goal}</span>` : ''}
+                            </span>
+                        </span>
+                    </li>`;
+                }).join('')}
+            </ul>`;
+
+        root.querySelector('.ach-notify').addEventListener('click', () => {
+            Achievements.setNotify(!Achievements.notify);
+            renderAchievements(root);
+            root.querySelector('.ach-notify')?.focus();
+        });
+        root.querySelectorAll('.ach-filter').forEach(button => button.addEventListener('click', () => {
+            achievementFilter = button.dataset.filter;
+            playSFX('select');
+            renderAchievements(root);
+            root.querySelector(`.ach-filter[data-filter="${achievementFilter}"]`)?.focus();
+        }));
+    }
+
+    function showAchievements() {
+        playSFX('menuOpen');
+        setStartMenuScreen('achievementsScreen');
+        renderAchievements(document.getElementById('achievementsMenuView'));
+    }
+
+    function showAchievementsDialog() {
+        renderAchievements(document.getElementById('achievementsDialogView'));
+        playSFX('menuOpen');
+        document.getElementById('achievementsDialog').classList.add('show');
+    }
+
+    function hideAchievementsDialog() {
+        playSFX('menuClose');
+        document.getElementById('achievementsDialog').classList.remove('show');
+        updatePausePanel();
+    }
+
+    function achievementsSummary() {
+        return window.Achievements ? `${Achievements.unlockedCount()} of ${Achievements.catalog.length} unlocked` : '';
+    }
+
+    // ---- Unlock notices: queued, one at a time (3.2 s), at the top of the screen, never over the match controls.
+    // Each is { icon, name, label?, quiet? }: quiet notices make no sound or buzz.
+    const achievementNoticeQueue = [];
+    let achievementNoticeShowing = false;
+
+    function queueAchievementNotice(notice) {
+        achievementNoticeQueue.push(notice);
+        if (!achievementNoticeShowing) showNextAchievementNotice();
+        else updateAchievementNoticeCount();
+    }
+
+    function achievementNoticeLabel(notice) {
+        const more = achievementNoticeQueue.length;
+        return `${notice.label || 'Achievement unlocked'}${more ? ` · ${more} more` : ''}`;
+    }
+
+    // Unlocks that arrive while a notice shows (a win often brings several) are counted on it at once
+    let currentAchievementNotice = null;
+    function updateAchievementNoticeCount() {
+        const label = document.querySelector('#achievementToast:not([hidden]) .ach-toast-label');
+        if (label && currentAchievementNotice) label.textContent = achievementNoticeLabel(currentAchievementNotice);
+    }
+
+    function titleScreenShowing() {
+        const shown = id => {
+            const el = document.getElementById(id);
+            return !!el && getComputedStyle(el).display !== 'none';
+        };
+        return shown('clickToStart') || shown('introContainer');
+    }
+
+    function showNextAchievementNotice() {
+        const toast = document.getElementById('achievementToast');
+        if (!toast || !achievementNoticeQueue.length) {
+            achievementNoticeShowing = false;
+            return;
+        }
+        achievementNoticeShowing = true;
+        // Wait while paused (the board is frozen), while this list is open, while a pack is being revealed (a
+        // notice could spoil the cards) and while the page is hidden. Over anything else the notice sits at the top
+        // and lets clicks through.
+        const blocking = getOpenGameDialog()?.id;
+        if (document.hidden || gamePaused || titleScreenShowing() || ['pauseModal', 'achievementsDialog', 'packOpeningOverlay'].includes(blocking)) {
+            setTimeout(showNextAchievementNotice, 600);
+            return;
+        }
+        const notice = achievementNoticeQueue.shift();
+        currentAchievementNotice = notice;
+        toast.innerHTML = `<span class="ach-toast-icon" aria-hidden="true">${notice.icon}</span>
+            <span class="ach-toast-text"><span class="ach-toast-label">${escapeAchievementText(achievementNoticeLabel(notice))}</span>
+            <span class="ach-toast-name">${escapeAchievementText(notice.name)}</span></span>`;
+        toast.hidden = false;
+        if (Achievements.notify && !notice.quiet) {
+            GameFeedback.play('achievement');
+            haptic('achievement');
+        }
+        setTimeout(() => {
+            toast.hidden = true;
+            currentAchievementNotice = null;
+            setTimeout(showNextAchievementNotice, 250);
+        }, 3200);
+    }
+
+    if (window.Achievements) {
+        Achievements.onUnlock((def, { backfilled }) => {
+            if (!backfilled) queueAchievementNotice({ icon: def.icon, name: def.name });
+            const label = document.getElementById('menuAchievements');
+            if (label) label.textContent = achievementsSummary();
+        });
+    }
+
+    // A profile that already proved some achievements gets one quiet notice instead of one for each (queued once
+    // this script has finished loading: the dialog list it checks is defined further down)
+    if (achievementsRecognised.length) {
+        setTimeout(() => queueAchievementNotice({
+            icon: '🏆', quiet: true, label: 'Recognised from your saved progress',
+            name: `${achievementsRecognised.length} achievement${achievementsRecognised.length === 1 ? '' : 's'}`
+        }), 0);
     }
 
     // Visual themes: colours, type and backgrounds only (styles.css "VISUAL THEMES"). Saved under its own key,
@@ -5390,6 +5676,7 @@
         });
         if (save) {
             try { localStorage.setItem(THEME_STORAGE_KEY, key); } catch (_) { /* private mode: the theme lasts this visit */ }
+            reportAchievement('theme', { theme: key });
         }
     }
 
@@ -5447,6 +5734,10 @@
         playSFX('menuClose');
         document.getElementById('themeDialog').classList.remove('show');
     }
+
+    document.getElementById('achievementsDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideAchievementsDialog();
+    });
 
     document.getElementById('soundDialog')?.addEventListener('click', function(e) {
         if (e.target === this) hideSoundSettings();
@@ -5738,6 +6029,8 @@
             const whose = gameState.turn === 'enemy' ? "Enemy's turn" : 'Your turn';
             summary.textContent = `Turn ${gameState.round || 1} · ${whose} · You ❤️ ${gameState.playerLife} · Enemy ❤️ ${gameState.enemyLife}`;
         }
+        const achievementsNote = document.getElementById('pauseAchievementsNote');
+        if (achievementsNote) achievementsNote.textContent = achievementsSummary();
         syncSoundSettings();
     }
 
@@ -5760,6 +6053,7 @@
 
     function confirmQuit() {
         showConfirmModal('🏠 QUIT GAME?', 'Are you sure you want to quit to main menu? Current game will be lost.', function() {
+            reportAchievement('match:quit', {});
             returnToMainMenu();
         });
     }
@@ -5854,6 +6148,7 @@
 
     // Card Detail Popup
     function showCardDetail(card) {
+        reportAchievement('card:details', { card });
         const popup = document.getElementById('cardDetailPopup');
         const emoji = document.getElementById('detailEmoji');
         const name = document.getElementById('detailName');
@@ -6252,6 +6547,7 @@
             return;
         }
         playSFX('select');
+        reportAchievement('mulligan', {});
 
         // Return hand to deck
         gameState.playerDeck = gameState.playerDeck.concat(gameState.playerHand);
@@ -6399,6 +6695,11 @@
 
         updateUI();
         updateDeckCounters();
+        reportAchievement('match:start', {
+            deckKey: getDeckKeyFromElements(gameState.selectedElements),
+            elements: [...gameState.selectedElements],
+            difficulty: gameState.difficulty
+        });
 
         setTimeout(() => {
             isStartingGame = false;
@@ -6468,9 +6769,11 @@
         setProcessingLock(3000);
 
         // Pay cost
+        const manaBefore = manaTotal(gameState.playerMana);
         if (card.type !== 'land') {
             payCost(cardCost, gameState.playerMana);
         }
+        const manaAfter = manaTotal(gameState.playerMana);
 
         // Remove from hand
         gameState.playerHand = gameState.playerHand.filter(c => c.id !== cardId);
@@ -6505,6 +6808,7 @@
         }
 
         haptic('play');
+        reportAchievement('card:played', { side: 'player', card, manaBefore, manaAfter });
         const verb = { land: 'play', creature: 'summon', artifact: 'play', instant: 'cast' }[card.type] || 'play';
         recordHistory('player', `${card.emoji} You ${verb} ${card.name}`,
             describeChangesSince(historySnap, { playedFrom: 'player', playedId: playedBoardCardId ?? card.id }));
@@ -6715,6 +7019,7 @@
                 card.tapped = true;
                 gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
                 playLandTap();
+                reportAchievement('land:tapped', { cards: [card] });
                 showGameLog(`⚡ You tap ${card.name} for ${chosenElement} mana`, false);
                 updateUI();
             });
@@ -6731,6 +7036,7 @@
         gameState.playerMana[elementToAdd] = (gameState.playerMana[elementToAdd] || 0) + 1;
 
         playLandTap();
+        reportAchievement('land:tapped', { cards: [card] });
         showGameLog(`⚡ You tap ${card.name} for ${elementToAdd} mana`, false);
 
         updateUI();
@@ -6782,6 +7088,7 @@
 
         if (tappedCount > 0) {
             playLandTap();
+            reportAchievement('land:tapped', { cards: untappedLands.filter(c => c.tapped) });
             showGameLog(`⚡ You tap ${tappedCount} ${untappedLands[0].name}${tappedCount > 1 ? 's' : ''} for mana`, false);
             updateUI();
         }
@@ -6816,6 +7123,7 @@
         gameState.playerMana[manaToAdd] = (gameState.playerMana[manaToAdd] || 0) + (card.value || 1);
 
         playLandTap();
+        reportAchievement('mana:artifact', { card });
         showGameLog(`⚡ ${card.name} adds ${ELEMENTS[manaToAdd].emoji} mana`, false);
         updateUI();
     }
@@ -6852,17 +7160,21 @@
     // Shared by the player and the AI, so both sides resolve cards the same way.
     function resolveArtifactOnPlay(artifactOnBoard, owner) {
         if (!ON_PLAY_ARTIFACT_EFFECTS.includes(artifactOnBoard.effect)) return;
-        resolveSpell(artifactOnBoard, owner);
+        const before = snapshotForOutcome();
+        withLifeSource('artifact', () => resolveSpell(artifactOnBoard, owner));
         checkStateBasedActions();
+        reportAchievement('spell:resolved', describeOutcome(before, artifactOnBoard, owner));
         if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
             sendBoardCardToGraveyard(artifactOnBoard.id, owner);
         }
     }
 
     function castInstant(card, caster) {
-        resolveSpell(card, caster);
+        const before = snapshotForOutcome();
+        withLifeSource(card.effect === 'drain' ? 'drain' : 'instant', () => resolveSpell(card, caster));
         moveCardToGraveyard(card, caster);
         checkStateBasedActions();
+        reportAchievement('spell:resolved', describeOutcome(before, card, caster));
     }
 
     // Untap step for one permanent. A Deep Frozen permanent skips one untap (EFFECTS.md E4).
@@ -7753,7 +8065,9 @@
     function processUpkeepEffects(isPlayer) {
         const board = isPlayer ? gameState.playerBoard : gameState.enemyBoard;
         const artifacts = board.filter(c => c.type === 'artifact');
+        const outcomeBefore = { deck: gameState.playerDeck.length, enemyLife: gameState.enemyLife };
 
+        lifeChangeSource = 'upkeep';
         artifacts.forEach(artifact => {
             const snap = snapshotForHistory();
             switch(artifact.effect) {
@@ -7788,6 +8102,14 @@
             const changes = describeChangesSince(snap);
             if (changes.length) recordHistory(isPlayer ? 'player' : 'enemy', `${cardLabel(artifact)} at the start of the turn`, changes);
         });
+        lifeChangeSource = null;
+        if (artifacts.length) {
+            reportAchievement('upkeep', {
+                side: isPlayer ? 'player' : 'enemy',
+                drawn: isPlayer ? Math.max(0, outcomeBefore.deck - gameState.playerDeck.length) : 0,
+                enemyLifeChange: gameState.enemyLife - outcomeBefore.enemyLife
+            });
+        }
     }
 
     // Start player turn
@@ -7805,6 +8127,7 @@
         gameState.round = (gameState.round || 1) + 1;
         aiStatusText = '';
         recordHistory('player', `🔔 Turn ${gameState.round}: your turn`);
+        reportAchievement('turn:start', { side: 'player', round: gameState.round });
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
 
         // CRITICAL FIX: Ensure attack phase is reset and button is restored
@@ -8412,6 +8735,7 @@
         const oldLife = gameState.playerLife;
         gameState.playerLife = Math.max(0, gameState.playerLife + amount);
         const actualChange = gameState.playerLife - oldLife;
+        if (actualChange !== 0) reportAchievement('life:changed', { side: 'player', amount, change: actualChange, before: oldLife, after: gameState.playerLife, source: lifeChangeSource });
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('playerLife');
@@ -8458,6 +8782,7 @@
         const oldLife = gameState.enemyLife;
         gameState.enemyLife = Math.max(0, gameState.enemyLife + amount);
         const actualChange = gameState.enemyLife - oldLife;
+        if (actualChange !== 0) reportAchievement('life:changed', { side: 'enemy', amount, change: actualChange, before: oldLife, after: gameState.enemyLife, source: lifeChangeSource });
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('enemyLife');
@@ -9045,6 +9370,7 @@
         { id: 'historyModal', close: () => hideMatchHistory() },
         { id: 'themeDialog', close: () => hideThemePicker() },
         { id: 'soundDialog', close: () => hideSoundSettings() },
+        { id: 'achievementsDialog', close: () => hideAchievementsDialog() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 
@@ -9148,7 +9474,7 @@
             }
 
             // Battle setup, How to Play and Stats go back to the menu too
-            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen']
+            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'achievementsScreen']
                 .find(id => document.getElementById(id)?.style.display === 'block');
             if (startModal?.classList.contains('modal-visible') && backScreen) {
                 e.preventDefault();

@@ -1,5 +1,31 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Achievements
+
+For players:
+- **150 achievements** across 13 categories. Some are milestones (first win, 50 wins, every card collected).
+  Most are about how you play: a Clean Sweep of three blockers, winning By a Thread on 1 life, freezing a
+  creature that was already tapped, or getting Phoenix and Phoenix Firebird out together. Four are hidden.
+- **🏆 Achievements screen** from the main menu and the pause menu: category filters, an Unlocked filter,
+  progress bars, unlock dates.
+- **Unlock notices:** a small pill at the top of the screen, one at a time, "· N more" when several arrive
+  together. They wait while you're paused or opening a pack, never cover your hand or turn buttons, and can
+  play a short sound and buzz (switch on the Achievements screen).
+- **Existing players** get credit for what their profile proves (wins, losses, packs, cards owned, credits) in
+  one quiet notice. Past plays and combos are never guessed.
+
+Under the hood:
+- `achievements.js` (`window.Achievements`): the catalog, lifetime counters, the current match's context, and
+  a versioned store under its own key (`emoji_elements_achievements_v1`). Unlocks are saved at once, counters
+  in batches. Migration keeps unknown ids, drops bad fields, backs up a corrupt store, and never overwrites a
+  newer version. Nothing is saved in QA mode.
+- `index.js` reports confirmed outcomes (`reportAchievement`) from the places they happen: card resolution,
+  combat, life changes (with their source), match end, packs, deck saves. A report can never throw into the game.
+- `ACHIEVEMENTS.md` documents the events and storage, and lists all 150 triggers. The table is generated from
+  the code (`npm run achievements:doc`).
+- `npm run achievements` unlocks each of the 150 from real game events and tests unlock-once, reloads,
+  migration, backfill, QA isolation, the screen, the notices and a long match. It is part of CI.
+
 ## Unreleased: Sound and haptics
 
 For players:

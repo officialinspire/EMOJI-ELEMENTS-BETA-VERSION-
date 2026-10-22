@@ -386,10 +386,11 @@
         reveal: 12,
         revealRare: [14, 40, 14, 40, 26],
         victory: [30, 60, 30, 60, 90],
-        defeat: [60]
+        defeat: [60],
+        achievement: [10, 40, 10]
     };
     const HAPTIC_PRIORITY = ['victory', 'defeat', 'revealRare'];
-    const HAPTIC_COOLDOWN = { select: 70, toggle: 100, play: 120, impact: 450, reveal: 150, revealRare: 500, victory: 2000, defeat: 2000 };
+    const HAPTIC_COOLDOWN = { achievement: 300, select: 70, toggle: 100, play: 120, impact: 450, reveal: 150, revealRare: 500, victory: 2000, defeat: 2000 };
     const lastHaptic = {};
     let lastAnyHaptic = -Infinity;
     const hapticStats = { sent: {}, skipped: {} };
