@@ -69,7 +69,7 @@ test('the remaining time carries over: a step 1 s from firing waits about 1 s af
     await setup(page, { ...QUIET_ENEMY, playerBoard: [PEAK], playerHand: [] });
     // The test clock also moves with real time; on a busy machine that added time between the steps below. Stop it,
     // so only runFor moves time here.
-    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000)); // ahead of real time, which keeps moving
     await page.evaluate(() => endTurn());
     await page.clock.runFor(500);                       // the AI starts 1.5 s after END TURN
     await page.evaluate(() => pauseGame());
