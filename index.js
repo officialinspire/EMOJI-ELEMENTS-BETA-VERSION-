@@ -8067,8 +8067,7 @@
         const artifacts = board.filter(c => c.type === 'artifact');
         const outcomeBefore = { deck: gameState.playerDeck.length, enemyLife: gameState.enemyLife };
 
-        lifeChangeSource = 'upkeep';
-        artifacts.forEach(artifact => {
+        withLifeSource('upkeep', () => artifacts.forEach(artifact => {
             const snap = snapshotForHistory();
             switch(artifact.effect) {
                 case 'draw':
@@ -8101,8 +8100,7 @@
             }
             const changes = describeChangesSince(snap);
             if (changes.length) recordHistory(isPlayer ? 'player' : 'enemy', `${cardLabel(artifact)} at the start of the turn`, changes);
-        });
-        lifeChangeSource = null;
+        }));
         if (artifacts.length) {
             reportAchievement('upkeep', {
                 side: isPlayer ? 'player' : 'enemy',
