@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map(arg => {
@@ -377,7 +378,8 @@ async function longMatch(browser, url) {
     watch(page, sink);
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await page.goto(url);
-    await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; });
+    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+    await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; setGameplaySeed(20261022); });
     await page.evaluate(() => { showElementSelection(); setDeckMode('dual'); selectElement('fire'); selectElement('water'); selectDifficulty('hard'); startGame(); });
     await page.clock.runFor(1000);
     // Both sides at 999 life so the match runs to the turn limit; the player plays everything it can.
@@ -423,7 +425,7 @@ async function longMatch(browser, url) {
         if (await page.evaluate(() => gameState.matchFinalized)) break;
     }
     const board = await page.evaluate(() => ({
-        player: gameState.playerBoard.length, enemy: gameState.enemyBoard.length, finalized: gameState.matchFinalized,
+        player: gameState.playerBoard.length, enemy: gameState.enemyBoard.length, round: gameState.round, finalized: gameState.matchFinalized,
         life: [gameState.playerLife, gameState.enemyLife], decks: [gameState.playerDeck.length, gameState.enemyDeck.length],
         deckedOut: [!!gameState.playerDeckedOut, !!gameState.enemyDeckedOut]
     }));
@@ -433,12 +435,12 @@ async function longMatch(browser, url) {
     const avg = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
     const early = avg(turnCosts.slice(0, 10));
     const late = avg(turnCosts.slice(-10));
-    check('desktop', 'performance', `long match reached ${last.turn} turns with ${board.player}+${board.enemy} permanents, no errors`, last.turn >= 50 && sink.errors.length === 0, `${JSON.stringify(board)} ${sink.errors.slice(0, 2).join(' | ')}`);
+    check('desktop', 'performance', `long match reached round ${board.round} after ${last.turn} iterations with ${board.player}+${board.enemy} permanents, no errors`, last.turn >= 50 && board.round >= 51 && !board.finalized && sink.errors.length === 0, `${JSON.stringify(board)} ${sink.errors.slice(0, 2).join(' | ')}`);
     check('desktop', 'performance', `heap after GC stays bounded (${first.heapMB} MB at turn ${first.turn} → ${last.heapMB} MB at turn ${last.turn})`, last.heapMB < first.heapMB * 1.5 + 5, JSON.stringify(samples));
     check('desktop', 'performance', `event listeners don't accumulate (${first.listeners} → ${last.listeners})`, last.listeners < first.listeners * 1.5 + 200, JSON.stringify(samples));
     check('desktop', 'performance', `script+layout time per turn stays flat (${(early * 1000).toFixed(0)} ms early → ${(late * 1000).toFixed(0)} ms late)`, late < early * 2 + 0.05, JSON.stringify(turnCosts));
     check('desktop', 'performance', 'no lingering floating numbers, sparkles or particles', last.floaters < 10 && last.particles < 300, JSON.stringify(last));
-    evidence.longMatch = { samples, board, earlyTurnMs: +(early * 1000).toFixed(1), lateTurnMs: +(late * 1000).toFixed(1) };
+    evidence.longMatch = { seed: 20261022, stoppedClock: true, samples, board, earlyTurnMs: +(early * 1000).toFixed(1), lateTurnMs: +(late * 1000).toFixed(1) };
     await context.close();
 }
 
@@ -462,7 +464,7 @@ async function main() {
         server.close();
     }
     const failed = results.filter(r => !r.ok);
-    fs.writeFileSync(path.join(OUT, 'release.json'), JSON.stringify({ date: new Date().toISOString(), browser: chromium.name(), results, evidence }, null, 2));
+    fs.writeFileSync(path.join(OUT, 'release.json'), JSON.stringify({ commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(), date: new Date().toISOString(), browser: chromium.name(), results, evidence }, null, 2));
     console.log(`\nSummary: ${results.length - failed.length} passed · ${failed.length} failed → test-results/release/release.json`);
     process.exit(failed.length ? 1 : 0);
 }
