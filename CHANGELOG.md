@@ -53,6 +53,10 @@ Under the hood:
 - **`feedback.js` (`window.GameFeedback`):** a Web Audio effects engine with per-cue cooldowns, a cap on
   overlapping voices, pitch variation and a compressor. It also holds the sound settings and the one guarded
   `haptic(kind)` helper.
+- **Pitch variation uses its own random generator**, so sound effects never change deals, packs or AI choices.
+- **Release check:** the long-match run in `tests/release.mjs` is seeded, and its listener and per-turn-cost
+  checks are measured against the number of elements on screen. Before, an unseeded run could grow a much
+  bigger board and fail without a leak.
 - **Unlock:** audio starts only after a gesture, and is resumed quietly after interruptions.
 - **Music and the intro are unchanged.** The 17 effect MP3s are removed.
 - **Achievements:** the game has none, so the achievement cue exists but nothing triggers it yet.

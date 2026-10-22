@@ -315,6 +315,15 @@
         } }
     };
 
+    // Pitch variation has its own generator, so effects never consume the game's Math.random (deals, packs, AI)
+    let variationSeed = 0x9e3779b9;
+    function variation() {
+        variationSeed ^= variationSeed << 13;
+        variationSeed ^= variationSeed >>> 17;
+        variationSeed ^= variationSeed << 5;
+        return ((variationSeed >>> 0) % 10000) / 10000;
+    }
+
     function pruneVoices(now) {
         for (let i = activeVoices.length - 1; i >= 0; i--) {
             if (activeVoices[i].end <= now) activeVoices.splice(i, 1);
@@ -338,7 +347,7 @@
             activeVoices.splice(0, activeVoices.length - MAX_VOICES + 1);
         }
         lastPlayed[name] = nowMs;
-        const cents = cue.vary ? (Math.random() * 2 - 1) * cue.vary : 0;
+        const cents = cue.vary ? (variation() * 2 - 1) * cue.vary : 0;
         const v = Math.pow(2, cents / 1200);
         try {
             const end = cue.play(ctx, sfxGain, t, options, v);

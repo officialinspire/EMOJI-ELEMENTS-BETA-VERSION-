@@ -326,7 +326,7 @@ async function playthrough(browser, url, project, { existingSave }) {
     const reloaded = await state(page);
     const backupsAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('emoji_elements_meta_backups') || '[]').length);
     check(label, 'save', 'reloading a clean save writes no new backup', backupsAfterReload === prod.backups.length, `${prod.backups.length} → ${backupsAfterReload}`);
-    const mutedAfterReload = await page.evaluate(() => isMuted && document.getElementById('muteBtn').textContent === '🔇');
+    const mutedAfterReload = await page.evaluate(() => soundSettings.muted && document.getElementById('muteBtn').textContent === '🔇');
     check(label, 'save', 'reload keeps credits, collection, wins/losses, packs opened and mute', reloaded.credits === lost.credits && reloaded.collection === afterBuy.collection && reloaded.wins === lost.wins && reloaded.losses === lost.losses && reloaded.packsOpened === afterBuy.packsOpened && mutedAfterReload, JSON.stringify({ reloaded, mutedAfterReload }));
 
     // ---- resets (through STATS and the confirm dialog)
@@ -370,6 +370,17 @@ async function longMatch(browser, url) {
     const sink = { errors: [], warnings: [], qaLogs: [], failedRequests: [], dialogs: [] };
     watch(page, sink);
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+    // Seeded, so every run plays the same match: the board size (and with it the DOM, listeners and layout
+    // cost) used to vary from run to run, between about 60 and 100 permanents.
+    await page.addInitScript(() => {
+        let state = 20261022;
+        Math.random = () => {
+            state = (state + 0x6D2B79F5) | 0;
+            let t = Math.imul(state ^ (state >>> 15), 1 | state);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    });
     await page.goto(url);
     await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; });
     await page.evaluate(() => { showElementSelection(); setDeckMode('dual'); selectElement('fire'); selectElement('water'); selectDifficulty('hard'); startGame(); });
@@ -429,8 +440,12 @@ async function longMatch(browser, url) {
     const late = avg(turnCosts.slice(-10));
     check('desktop', 'performance', `long match reached ${last.turn} turns with ${board.player}+${board.enemy} permanents, no errors`, last.turn >= 50 && sink.errors.length === 0, `${JSON.stringify(board)} ${sink.errors.slice(0, 2).join(' | ')}`);
     check('desktop', 'performance', `heap after GC stays bounded (${first.heapMB} MB at turn ${first.turn} → ${last.heapMB} MB at turn ${last.turn})`, last.heapMB < first.heapMB * 1.5 + 5, JSON.stringify(samples));
-    check('desktop', 'performance', `event listeners don't accumulate (${first.listeners} → ${last.listeners})`, last.listeners < first.listeners * 1.5 + 200, JSON.stringify(samples));
-    check('desktop', 'performance', `script+layout time per turn stays flat (${(early * 1000).toFixed(0)} ms early → ${(late * 1000).toFixed(0)} ms late)`, late < early * 2 + 0.05, JSON.stringify(turnCosts));
+    // A bigger board means more cards on screen, each with its listeners, and more layout. Leaks show up as growth
+    // beyond what the DOM explains: listeners per element, and turn cost scaled by the number of elements.
+    const perNode = sample => sample.listeners / sample.nodes;
+    const growth = last.nodes / first.nodes;
+    check('desktop', 'performance', `event listeners don't accumulate (${first.listeners} → ${last.listeners} for ${first.nodes} → ${last.nodes} elements; ${perNode(first).toFixed(2)} → ${perNode(last).toFixed(2)} per element)`, perNode(last) < perNode(first) * 1.5 + 0.2, JSON.stringify(samples));
+    check('desktop', 'performance', `script+layout time per turn stays flat for the board size (${(early * 1000).toFixed(0)} ms early → ${(late * 1000).toFixed(0)} ms late, ${growth.toFixed(2)}× the elements)`, late < early * 2 * Math.max(1, growth) + 0.05, JSON.stringify(turnCosts));
     check('desktop', 'performance', 'no lingering floating numbers, sparkles or particles', last.floaters < 10 && last.particles < 300, JSON.stringify(last));
     evidence.longMatch = { samples, board, earlyTurnMs: +(early * 1000).toFixed(1), lateTurnMs: +(late * 1000).toFixed(1) };
     await context.close();

@@ -66,7 +66,8 @@ elements with their fades and loops.
   victory and defeat about 1.3 s.
 - **Pitch variation** on sounds that repeat (selection ±60 cents, land taps ±25, hits ±40…), so long sessions
   don't sound mechanical. Quick land taps also step up a whole tone each, to at most 4 steps, so tapping a row of
-  lands sounds like a short run.
+  lands sounds like a short run. The variation has its own small random generator: sound effects never draw
+  from the game's `Math.random`, so they can't change deals, packs or the AI's choices (or a seeded test's).
 - **Limits:**
   - each cue has a cooldown (selection 45 ms … victory 1.5 s) and a cap on copies sounding at once (1–3);
   - all effects together are capped at 8 voices, with victory and defeat allowed to take a slot;
