@@ -1,3 +1,30 @@
+    // One writer per origin/profile. Other tabs can inspect/play, but cannot overwrite saves.
+    let profileWriteState = 'pending';
+    let profileSavedRaw = null;
+    let profileRepairBlocked = false;
+    function persistenceNotice(message, retry = false) {
+        let el = document.getElementById('persistenceNotice');
+        if (!el) {
+            el = document.createElement('div'); el.id = 'persistenceNotice';
+            el.setAttribute('role', 'alert');
+            el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:30000;padding:8px;background:#29212b;color:white;text-align:center;font:14px sans-serif';
+            document.body.appendChild(el);
+        }
+        el.textContent = message;
+        if (retry) {
+            const button = document.createElement('button'); button.textContent = 'Retry saving';
+            button.addEventListener('click', () => saveStats());
+            el.append(' ', button);
+        }
+    }
+    function canSaveProfile() {
+        if (profileWriteState === 'writer' && !profileRepairBlocked) return true;
+        persistenceNotice(profileWriteState === 'reader'
+            ? 'Another tab owns this profile. Progress here is not saved. Close the other tab and reload here to save.'
+            : 'Progress could not be saved. Storage is unavailable or the original save needs recovery. Keep this tab open.');
+        return false;
+    }
+
     // Gameplay has its own seeded stream. Presentation code may use Math.random freely
     // without moving deck, AI, target or reward decisions. A replay can reset this seed.
     let gameplayRandomState = (Math.random() * 4294967296) >>> 0;
@@ -673,7 +700,8 @@
             return;
         }
 
-        const savedMeta = localStorage.getItem('emoji_elements_meta_v1');
+        let savedMeta;
+        try { savedMeta = localStorage.getItem('emoji_elements_meta_v1'); } catch (_) { return; }
         if (savedMeta) {
             try {
                 const parsedMeta = JSON.parse(savedMeta);
@@ -691,7 +719,8 @@
             }
         }
 
-        const saved = localStorage.getItem('emojiElementsStats');
+        let saved;
+        try { saved = localStorage.getItem('emojiElementsStats'); } catch (_) { return; }
         if (!saved) {
             return;
         }
@@ -720,12 +749,14 @@
                 gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
                 gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
                 gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened : 0;
-                metaSave(gameMeta);
+                if (!metaSave(gameMeta)) return false;
             } catch (error) {
                 console.warn('Meta save hook failed while saving stats. Proceeding with baseline stats save.', error);
             }
         }
-        localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
+        if (isMetaRuntimeEnabled() && profileWriteState === 'writer' && !profileRepairBlocked) {
+            try { localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats)); } catch (_) { /* meta is authoritative */ }
+        }
     }
 
     loadStats();
@@ -1614,7 +1645,7 @@
     }
 
     const __ALL_CARDS = getAllCardsFlat();
-    const __CARD_BY_ID = {};
+    const __CARD_BY_ID = Object.create(null);
 
     __ALL_CARDS.forEach(card => {
         card.__id = getCardId(card);
@@ -1812,12 +1843,26 @@
     }
 
     function metaSave(meta) {
-        if (!isMetaRuntimeEnabled()) return;
+        if (!isMetaRuntimeEnabled()) return false;
+        if (profileWriteState === 'pending') return false; // initialization waits for the browser lock
+        if (!canSaveProfile()) return false;
         try {
-            localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+            // Also refuse snapshots changed by an older build or external writer without our lock.
+            if (localStorage.getItem(META_STORAGE_KEY) !== profileSavedRaw) {
+                profileWriteState = 'reader';
+                persistenceNotice('This profile changed elsewhere. Reload to use its latest saved progress.');
+                return false;
+            }
+            const raw = JSON.stringify(meta);
+            localStorage.setItem(META_STORAGE_KEY, raw);
+            profileSavedRaw = raw;
+            document.getElementById('persistenceNotice')?.remove();
+            return true;
         } catch (error) {
-            console.warn('Meta save failed. Continuing without persisting meta.', error);
+            console.warn('Meta save failed.', error);
+            persistenceNotice('Progress could not be saved: browser storage is full or blocked. Keep this tab open.', true);
             showGameLog('⚠️ Progress could not be saved: browser storage is full or blocked.', true);
+            return false;
         }
     }
 
@@ -1826,14 +1871,19 @@
 
     // Keeps the exact stored text of a profile before the game rewrites it (PROGRESSION.md §7).
     function backupMetaRaw(raw, reason) {
-        if (!raw) return;
+        if (raw === null) return true;
+        if (profileWriteState !== 'writer') return false;
         try {
             const previous = JSON.parse(localStorage.getItem(META_BACKUP_KEY) || '[]');
             const backups = Array.isArray(previous) ? previous : [];
             backups.push({ savedAt: new Date().toISOString(), reason, raw });
             localStorage.setItem(META_BACKUP_KEY, JSON.stringify(backups.slice(-META_BACKUP_LIMIT)));
+            return true;
         } catch (error) {
             console.warn('Could not back up the previous save.', error);
+            profileRepairBlocked = true;
+            persistenceNotice('The original save could not be backed up. It has been kept unchanged; progress here is not saved.');
+            return false;
         }
     }
 
@@ -2121,7 +2171,7 @@
 
             Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
                 if (!__CARD_BY_ID[cardId]) return;
-                const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+                const safeCount = readStoredNumber(count) ?? 0;
                 if (safeCount > 0) {
                     repaired.collection[cardId] = safeCount;
                 }
@@ -2132,7 +2182,7 @@
 
             Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
                 const colors = Array.isArray(deckData?.colors)
-                    ? deckData.colors.filter(color => ELEMENTS[color])
+                    ? deckData.colors.filter(color => Object.hasOwn(ELEMENTS, color))
                     : getDeckColorsFromKey(deckKey);
                 if (colors.length === 0) return;
                 const savedStarter = Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [];
@@ -2182,7 +2232,7 @@
                 deck.cardIds = clampDeckCardIdsToOwned(deck.cardIds, repaired.collection);
             });
 
-            if (!repaired.decks[repaired.selectedDeckKey]) {
+            if (!Object.hasOwn(repaired.decks, repaired.selectedDeckKey)) {
                 repaired.selectedDeckKey = 'FIRE';
             }
 
@@ -2219,7 +2269,7 @@
             console.warn('Could not read the saved profile.', error);
         }
 
-        if (!raw) {
+        if (raw === null) {
             const seeded = createInitialMeta();
             if (importLegacy) importLegacyStats(seeded);
             metaSave(seeded);
@@ -2235,17 +2285,16 @@
 
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
             // Unreadable: keep its text, then start a new profile.
-            backupMetaRaw(raw, 'corrupt');
+            const backedUp = backupMetaRaw(raw, 'corrupt');
             const seeded = createInitialMeta();
-            metaSave(seeded);
+            if (backedUp) metaSave(seeded);
             return seeded;
         }
 
         // Any readable profile is repaired, never replaced (PROGRESSION.md §7).
         const meta = validateMeta(parsed);
         if (JSON.stringify(meta) !== raw) {
-            backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version');
-            metaSave(meta);
+            if (backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version')) metaSave(meta);
         }
         return meta;
     }
@@ -2270,6 +2319,34 @@
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
 
+    // Holding a Web Lock for the page lifetime avoids a non-atomic localStorage read/write race.
+    // No expiring leases: a suspended tab cannot regain a stale write permission.
+    const profileReady = (async () => {
+        if (!navigator.locks) {
+            profileWriteState = 'reader';
+            persistenceNotice('Saving requires a browser with Web Locks on HTTPS. Progress here is not saved.');
+            return;
+        }
+        await new Promise(resolve => {
+            navigator.locks.request('emoji-elements-profile-writer', { ifAvailable: true }, async lock => {
+                if (!lock) {
+                    profileWriteState = 'reader'; canSaveProfile(); resolve(); return;
+                }
+                profileWriteState = 'writer';
+                try {
+                    profileSavedRaw = localStorage.getItem(META_STORAGE_KEY);
+                    gameMeta = metaEnsureInitialized();
+                    gameStats = { wins: gameMeta.stats.wins, losses: gameMeta.stats.losses,
+                        total: gameMeta.stats.wins + gameMeta.stats.losses };
+                } catch (_) {
+                    profileWriteState = 'unavailable'; canSaveProfile();
+                }
+                resolve();
+                await new Promise(() => {}); // browser releases this when the page closes/reloads
+            }).catch(() => { profileWriteState = 'unavailable'; canSaveProfile(); resolve(); });
+        });
+    })();
+
     if (QA_DEBUG) {
         window.__qaDumpMeta = function() {
             const meta = metaLoad() || gameMeta || {};
@@ -2289,8 +2366,9 @@
 
         window.__qaResetMeta = function() {
             const confirmed = window.confirm('Reset persisted meta and reload page?');
-            if (!confirmed) return false;
+            if (!confirmed || !canSaveProfile()) return false;
             try {
+                if (!backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'qa-reset')) return false;
                 localStorage.removeItem(META_STORAGE_KEY);
                 localStorage.removeItem('emojiElementsStats');
             } catch (error) {
@@ -3638,7 +3716,7 @@
             const cardIds = generatePack(themeKey);
             const openedAt = new Date().toISOString();
 
-            if (META_ENABLED) {
+            if (isMetaRuntimeEnabled()) {
                 try {
                     if (!gameMeta.stats) {
                         gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
@@ -3686,7 +3764,7 @@
         gameStats.losses++;
         gameStats.total++;
 
-        if (META_ENABLED) {
+        if (isMetaRuntimeEnabled()) {
             try {
                 if (!gameMeta.stats) {
                     gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
@@ -4767,6 +4845,7 @@
 
     function purchasePack(themeKey) {
         try {
+            if (!canSaveProfile()) return { ok: false, reason: 'storage_unavailable' };
             const normalizedTheme = String(themeKey || '').trim().toLowerCase();
             const cost = PACK_SHOP_COSTS[normalizedTheme];
             if (!Number.isFinite(cost)) {
@@ -4799,16 +4878,20 @@
                 return { ok: false, reason: 'empty_pack', themeKey: normalizedTheme };
             }
 
+            const beforePurchase = gameMeta;
+            const beforeOwned = lastPackOwnedBefore;
+            gameMeta = JSON.parse(JSON.stringify(gameMeta));
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
             addPackToCollection(cardIds, openedAt);
             gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
-            try {
-                metaSave(gameMeta);
-            } catch (saveError) {
-                console.warn('Pack Shop metaSave failed; continuing with in-memory purchase state.', saveError);
+            if (!metaSave(gameMeta)) {
+                gameMeta = beforePurchase;
+                lastPackOwnedBefore = beforeOwned;
+                setPackShopMessage('Purchase not completed: progress could not be saved.', 'error');
+                return { ok: false, reason: 'save_failed' };
             }
 
             setPackShopMessage(`Bought a ${getPackTheme(normalizedTheme)?.label || normalizedTheme} Pack for 💳 ${cost}.`, 'success');
@@ -5293,12 +5376,9 @@
             return;
         }
 
+        const previous = gameMeta.decks[deckKey].cardIds;
         gameMeta.decks[deckKey].cardIds = [...candidate];
-        try {
-            metaSave(gameMeta);
-        } catch (error) {
-            console.warn('Meta deck-save hook failed. Proceeding with in-memory deck update only.', error);
-        }
+        if (!metaSave(gameMeta)) { gameMeta.decks[deckKey].cardIds = previous; return; }
         playSFX('select');
         showGameLog(`Saved deck ${deckKey}.`, false);
         deckBuilderState.workingCardIds = [...candidate];
@@ -5837,10 +5917,12 @@
     function resetMetaProgress() {
         showConfirmModal('🧹 RESET PROGRESS?', 'This clears collection/decks/packs progress. Continue?', function() {
             try {
-                backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset');
+                if (!canSaveProfile() || !backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset')) return;
                 localStorage.removeItem(META_STORAGE_KEY);
+                profileSavedRaw = null;
             } catch (error) {
-                console.warn('Failed to clear meta save key. Proceeding with in-memory reset fallback.', error);
+                persistenceNotice('Progress could not be reset. The existing save was kept.');
+                return;
             }
 
             try {
@@ -6687,16 +6769,21 @@
         yesBtn.parentNode.replaceChild(newYes, yesBtn);
         noBtn.parentNode.replaceChild(newNo, noBtn);
 
+        let settled = false;
         function closeModal() {
             modal.classList.remove('show');
-            setTimeout(() => { modal.style.display = 'none'; }, 250);
+            setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
         }
 
         newYes.addEventListener('click', function() {
+            if (settled) return;
+            settled = true;
             closeModal();
             if (onConfirm) onConfirm();
         });
         newNo.addEventListener('click', function() {
+            if (settled) return;
+            settled = true;
             closeModal();
             if (onCancel) onCancel();
         });

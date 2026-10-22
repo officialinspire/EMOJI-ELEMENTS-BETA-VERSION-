@@ -1,0 +1,1 @@
+{"version": 1, "initialized": true, "wallet": {"credits": "not-a-number"}, "stats": {"wins": -4, "losses": "3", "packsOpened": null}, "collection": {"lands-volcanic-peak": "Infinity", "creatures-fire-lobster": "2", "removed-card": 42, "constructor": 3, "toString": 2}, "decks": {"FIRE": {"colors": ["fire"], "cardIds": {"bad": true}}}, "selectedDeckKey": "unknown"}
