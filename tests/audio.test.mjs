@@ -191,8 +191,9 @@ test('a match: plays, taps, attack, block and AI turn use the right cues; the AI
     await page.clock.runFor(12000);
     const theirs = (await cues(page)).filter(c => c.ok).map(c => c.name);
     assert.ok(theirs.includes('summon'), 'the AI summon is heard');
-    // Only your own damage may buzz during the AI turn, once
-    const aiBuzz = await buzz(page);
+    // Only your own damage may buzz during the AI turn, once. Achievement notices for your own plays (queued,
+    // shown one at a time) may land in the AI's turn; they are yours, not the AI's.
+    const aiBuzz = (await buzz(page)).filter(p => JSON.stringify(p) !== '[10,40,10]');
     assert.ok(aiBuzz.every(p => JSON.stringify(p) === '[22,40,30]') && aiBuzz.length <= 1, JSON.stringify(aiBuzz));
 });
 

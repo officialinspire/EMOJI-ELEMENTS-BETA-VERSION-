@@ -67,6 +67,9 @@ test('the remaining time carries over: a step 1 s from firing waits about 1 s af
     const page = await openGame(t);
     await startMatch(page);
     await setup(page, { ...QUIET_ENEMY, playerBoard: [PEAK], playerHand: [] });
+    // The test clock also moves with real time; on a busy machine that added time between the steps below. Stop it,
+    // so only runFor moves time here.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1));
     await page.evaluate(() => endTurn());
     await page.clock.runFor(500);                       // the AI starts 1.5 s after END TURN
     await page.evaluate(() => pauseGame());
@@ -86,6 +89,13 @@ test('while paused the board takes no input: keys, clicks and direct calls do no
     const before = await snapshot(page);
     await page.keyboard.press('Escape');
     assert.equal((await paused(page)).flag, true, 'Esc pauses');
+    // Focus moves to RESUME a moment after the panel opens, where Space or Enter would rightly resume. Wait for
+    // that, then take focus off the panel so the keys below reach the game's own shortcuts (they used to race it).
+    for (let i = 0; i < 20 && await page.evaluate(() => document.activeElement?.id !== 'pauseResumeBtn'); i++) {
+        await page.clock.runFor(50);
+        await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    await page.evaluate(() => document.activeElement?.blur());
 
     for (const key of ['Space', 'e', 'a', 'm', 'Enter']) await page.keyboard.press(key);
     await page.mouse.click(40, 40);                     // outside the panel: the backdrop
@@ -264,8 +274,12 @@ test('the AI\'s activity is marked: new cards, its attackers, and your automatic
         await page.clock.runFor(100);
         attacked = await page.evaluate(() => enemyCombatMarks.attackers.size > 0);
     }
-    // The board redraws on the next frame after the attack (updateUI is scheduled)
-    await page.clock.runFor(50);
+    // The board redraws on a later frame after the attack (updateUI is scheduled); on a busy machine that frame
+    // can come after a fixed 50 ms, so wait for the redraw itself (marks stay up during the attack pause)
+    for (let i = 0; i < 20 && attacked && !(await page.evaluate(() => document.querySelector('#enemyBoard .card.enemy-attacking'))); i++) {
+        await page.clock.runFor(16);
+        await new Promise(resolve => setTimeout(resolve, 20));
+    }
     const marks = await page.evaluate(() => enemyCombatMarks.attackers.size ? {
             newCards: [...document.querySelectorAll('#enemyBoard .card.ai-new')].map(c => c.querySelector('.ai-new-chip')?.textContent),
             attackers: document.querySelectorAll('#enemyBoard .card.enemy-attacking').length,
