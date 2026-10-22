@@ -4070,8 +4070,10 @@
 
     // Effects (Web Audio) start only after the player touches the page; each later gesture also resumes audio the
     // browser suspended or interrupted (a call, a background tab)
-    ['pointerdown', 'keydown', 'touchend'].forEach(type =>
-        document.addEventListener(type, () => GameFeedback.unlock(), { capture: true, passive: true }));
+    ['pointerdown', 'pointerup', 'click', 'keydown', 'touchend'].forEach(type =>
+        document.addEventListener(type, event => {
+            if (event.isTrusted) GameFeedback.unlock();
+        }, { capture: true, passive: true }));
 
     // Leaving a match drops its pending toasts, so a menu message isn't held behind a combat report
     function resetGameLog() {

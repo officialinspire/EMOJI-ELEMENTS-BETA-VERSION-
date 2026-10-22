@@ -182,3 +182,45 @@ test('saved master mute includes credits; unsupported streaming routing keeps mu
     await page.evaluate(() => GameFeedback.setSetting('musicOff', false));
     assert.equal(await page.evaluate(() => audioSystem.startMenuMusic.muted), false);
 });
+
+test('streaming gains wait for decoder readiness instead of rerouting an unfinished media pipeline', async t => {
+    const page = await openGame(t);
+    // Hold the readiness signal while observing the actual createMediaElementSource calls.
+    await page.evaluate(installMusicProbe);
+    await page.evaluate(() => {
+        window.__holdMusicDecoder = true;
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'readyState');
+        Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { configurable: true,
+            get() { return this instanceof HTMLAudioElement && window.__holdMusicDecoder ? 0 : descriptor.get.call(this); } });
+    });
+    await page.mouse.click(3, 3);
+    await page.waitForFunction(() => GameFeedback.state === 'running');
+    assert.equal(await page.evaluate(() => __musicProbe().length), 0, 'no unfinished decoder is rerouted');
+    await page.evaluate(() => {
+        window.__holdMusicDecoder = false;
+        Object.values(audioSystem).forEach(audio => audio.dispatchEvent(new Event('loadeddata')));
+    });
+    await page.waitForFunction(() => __musicProbe().length === 2);
+    await page.evaluate(() => GameFeedback.unlock());
+    assert.equal(await page.evaluate(() => __musicProbe().length), 2, 'each decoded stream is connected once');
+});
+
+test('a refused context resume keeps the HTML music fallback rather than routing into silence', async t => {
+    const page = await openGame(t, { initScript: () => {
+        const NativeAudioContext = window.AudioContext;
+        window.AudioContext = class extends NativeAudioContext {
+            get state() { return 'suspended'; }
+            resume() { return Promise.reject(new Error('Resume refused')); }
+            createMediaElementSource() { throw new Error('Must not route a suspended context'); }
+        };
+    } });
+    await page.mouse.click(3, 3);
+    await page.evaluate(() => ensureStartMenuMusic());
+    await page.clock.runFor(1200);
+    const music = await page.evaluate(() => ({ state: GameFeedback.state, paused: audioSystem.startMenuMusic.paused,
+        level: GameFeedback.getMusicLevel(audioSystem.startMenuMusic), volume: audioSystem.startMenuMusic.volume }));
+    assert.equal(music.state, 'suspended');
+    assert.equal(music.paused, false);
+    assert.ok(Math.abs(music.level - 0.135) < 0.001);
+    assert.ok(Math.abs(music.volume - music.level) < 0.001, 'ordinary media retains volume ownership');
+});

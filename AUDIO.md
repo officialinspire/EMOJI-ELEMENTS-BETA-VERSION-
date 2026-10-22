@@ -18,7 +18,8 @@ Branch `claude/audio-feedback`, built on the battle-screen and pause pass (`clau
   Successful effects briefly duck music to 35% of its current level, then recover with a gentle envelope.
   These are signal measurements, not listening judgments; users can adjust either slider independently.
 - Streaming music is routed once through per-track Web Audio gains in the effects engine's shared,
-  gesture-unlocked context. This supports fades and music volume on mobile browsers that ignore
+  gesture-unlocked context, only after both the context and streaming decoder are ready. A refused
+  context resume leaves ordinary HTML playback intact. This supports fades and music volume on mobile browsers that ignore
   `HTMLMediaElement.volume`. The intro video remains outside that graph and outside music ducking;
   saved master mute now also silences its audio. Music cannot start until the intro ends or is skipped.
 - Without Web Audio or supported media routing, HTML media playback remains the fallback. On browsers
@@ -32,7 +33,8 @@ Branch `claude/audio-feedback`, built on the battle-screen and pause pass (`clau
 The sections below document the original effects pass and its historical measurements. For this
 soundtrack update, automated browser tests cover startup/credits isolation, real streaming gain routing,
 foreground effects ducking/recovery, settings/fade races, rapid menu transitions, hidden-page lifecycle,
-existing independent controls, and both new cached tracks offline. Real-device listening remains required
+existing independent controls, decoder/context readiness, and both new cached tracks offline. Chromium
+and WebKit desktop/phone browser playthroughs passed with the new tracks decoded. Real-device listening remains required
 for subjective balance on phone speakers/headphones and OS-specific interruptions.
 
 ## 1. What was there

@@ -113,6 +113,9 @@
         if (!channel) {
             channel = { level, gain: null };
             musicChannels.set(media, channel);
+            media.addEventListener('loadeddata', () => {
+                if (ctx?.state === 'running') connectMusic();
+            });
         }
         channel.level = level;
         if (channel.gain) channel.gain.gain.value = level;
@@ -129,7 +132,8 @@
             musicDuck.connect(ctx.destination);
         }
         for (const [media, channel] of musicChannels) {
-            if (channel.gain) continue;
+            // Let the streaming decoder establish its pipeline before rerouting it.
+            if (channel.gain || media.readyState < 2 || media.error) continue;
             const gain = ctx.createGain();
             gain.gain.value = channel.level;
             try {
@@ -154,8 +158,12 @@
                 sfxGain.gain.value = sfxLevel();
                 noiseBuffer = makeNoise(ctx);
             }
-            connectMusic();
-            if (ctx.state !== 'running') ctx.resume().catch(() => { /* blocked: the next gesture tries again */ });
+            // A blocked/suspended context must not swallow otherwise playable HTML music.
+            // Route only after resume succeeds; keep the normal media-volume fallback until then.
+            if (ctx.state === 'running') connectMusic();
+            else ctx.resume().then(() => {
+                if (ctx?.state === 'running') connectMusic();
+            }).catch(() => { /* blocked: the next gesture tries again */ });
         } catch (_) {
             ctx = null;   // no audio on this device; the game plays silently
         }

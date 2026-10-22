@@ -38,16 +38,18 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
         const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded' }); await boot(page); row.checks.push('startup');
-            await page.waitForFunction(() => GameFeedback.state === 'running' &&
-                !audioSystem.startMenuMusic.paused && audioSystem.startMenuMusic.readyState >= 2 &&
+            await page.waitForFunction(() => !audioSystem.startMenuMusic.paused && audioSystem.startMenuMusic.readyState >= 2 &&
                 !activeAudioFades.has(audioSystem.startMenuMusic));
             const music = await page.evaluate(() => ({
                 file: decodeURIComponent(new URL(audioSystem.startMenuMusic.src).pathname.split('/').pop()),
-                level: GameFeedback.getMusicLevel(audioSystem.startMenuMusic), mediaVolume: audioSystem.startMenuMusic.volume
+                level: GameFeedback.getMusicLevel(audioSystem.startMenuMusic), mediaVolume: audioSystem.startMenuMusic.volume,
+                context: GameFeedback.state
             }));
             assert.equal(music.file, 'minimalist menu theme.mp3');
             assert.ok(Math.abs(music.level - 0.135) < 0.001);
-            assert.equal(music.mediaVolume, 1, 'streaming Web Audio gain owns the music level');
+            if (music.mediaVolume === 1) assert.equal(music.context, 'running', 'route only into a running context');
+            else assert.ok(Math.abs(music.mediaVolume - music.level) < 0.001,
+                'a blocked audio context must retain playable HTML music at the selected level');
             row.checks.push('new menu track decoded; streaming gain and quiet default mix');
             await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
             await click(page, '#mainMenu [data-menu-target="binderScreen"]');
