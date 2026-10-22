@@ -256,6 +256,11 @@
                         <span class="pause-row-text"><span class="pause-row-label">Theme</span><span class="pause-row-note" id="pauseThemeName">Arcane Fantasy</span></span>
                         <span class="pause-row-go" aria-hidden="true">›</span>
                     </button>
+                    <button class="pause-switch-row pause-achievements-btn" type="button" onclick="showAchievementsDialog()" aria-haspopup="dialog">
+                        <span class="pause-row-icon" aria-hidden="true">🏆</span>
+                        <span class="pause-row-text"><span class="pause-row-label">Achievements</span><span class="pause-row-note" id="pauseAchievementsNote">0 of 150 unlocked</span></span>
+                        <span class="pause-row-go" aria-hidden="true">›</span>
+                    </button>
                 </div>
             </section>
 
@@ -288,6 +293,17 @@
             </div>
             <p class="theme-dialog-note">Saved on this device. They never change your cards, decks or progress.</p>
             <div class="pause-settings" id="menuSoundSettings"></div>
+        </div>
+    </div>
+
+    <!-- Achievements during a match (from the pause panel): the same view as the menu screen -->
+    <div id="achievementsDialog" class="graveyard-modal theme-dialog achievements-dialog" role="dialog" aria-modal="true" aria-labelledby="achievementsDialogTitle">
+        <div class="graveyard-content theme-dialog-content">
+            <div class="graveyard-header">
+                <div class="graveyard-title" id="achievementsDialogTitle">🏆 Achievements</div>
+                <button class="graveyard-close" type="button" onclick="hideAchievementsDialog()" aria-label="Close achievements">✕</button>
+            </div>
+            <div class="achievements-view" id="achievementsDialogView"></div>
         </div>
     </div>
 
@@ -396,6 +412,13 @@
                         <span class="menu-tile-body">
                             <span class="menu-tile-label">Stats</span>
                             <span class="menu-tile-desc" id="menuRecord">Your battle record</span>
+                        </span>
+                    </button>
+                    <button class="menu-btn menu-tile" type="button" data-menu-target="achievementsScreen" onclick="showAchievements()">
+                        <span class="menu-tile-icon" aria-hidden="true">🏆</span>
+                        <span class="menu-tile-body">
+                            <span class="menu-tile-label">Achievements</span>
+                            <span class="menu-tile-desc" id="menuAchievements">150 to discover</span>
                         </span>
                     </button>
                 </div>
@@ -568,6 +591,13 @@
                 <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
             </div>
 
+            <!-- Achievements (achievements.js): drawn by renderAchievements, also used by the pause dialog -->
+            <div id="achievementsScreen" style="display: none;">
+                <div class="modal-subtitle" tabindex="-1">Achievements</div>
+                <div class="achievements-view" id="achievementsMenuView"></div>
+                <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
+            </div>
+
             <div id="deckBuilderScreen" style="display: none;">
                 <div class="modal-subtitle" tabindex="-1">Deck Builder</div>
                 <div class="deck-builder-subtitle">Build from your collection. Win packs. Upgrade your standard decks.</div>
@@ -707,7 +737,11 @@
 
     <div id="cardHoverTooltip" class="card-hover-tooltip"></div>
 
+    <!-- Unlock notices: one at a time, at the top, never over the match controls (showNextAchievementNotice) -->
+    <div id="achievementToast" class="achievement-toast" role="status" aria-live="polite" hidden></div>
+
     <script src="feedback.js"></script>
+    <script src="achievements.js"></script>
     <script src="index.js"></script>
 </body>
 </html>

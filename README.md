@@ -49,6 +49,19 @@ Full, test-backed rules: [PROGRESSION.md](PROGRESSION.md) (`npm run progression`
   - The main menu shows your credits and how many of the 268 cards you have collected.
 - Rarity is inferred from each card: `common`, `rare`, `epic`, `legendary`. No card is currently `uncommon`.
 
+## Achievements
+
+150 achievements in 13 categories: first steps, wins and losses, difficulty, the 15 decks, elements, card types,
+mana and lands, combat keywords, spells and artifacts, collection and packs, rare feats, card combinations and a
+few jokes (four are hidden until earned). Full catalog with every trigger: [ACHIEVEMENTS.md](ACHIEVEMENTS.md).
+
+- **🏆 Achievements** on the main menu, or the Achievements row in the pause menu: filter by category or
+  unlocked, see progress bars for counted ones.
+- A small notice at the top of the screen announces each unlock (one at a time, never over your cards or turn
+  buttons), with a short sound and buzz you can switch off on the Achievements screen.
+- Each unlocks once. Progress you already had (wins, packs, cards owned, credits) is recognised on first load;
+  nothing about past matches is guessed.
+
 ## Decks & Deck Builder
 
 There are 15 standard decks, each starting as a 60-card starter list:
@@ -211,6 +224,7 @@ You can also open `index.html` directly in many browsers, but a local server is 
 | `emojiElementsSfxOff` / `emojiElementsSfxVolume` | Effects off; effects volume (0–1, default 0.7) |
 | `emojiElementsHaptics` | Vibration on supporting phones (default on) |
 | `emoji_elements_theme` | Visual theme: `arcane`, `deep-space` or `neon` (kept apart from the profile; a reset keeps it) |
+| `emoji_elements_achievements_v1` | Achievements: unlocked ids with dates, lifetime counters, the notice setting (version 1; a reset of the profile keeps them; never saved in QA mode). See [ACHIEVEMENTS.md §3](ACHIEVEMENTS.md) |
 
 - On every load, a damaged or older profile is **repaired, not replaced**. A save that can't be read at all
   is kept in the backups before a new profile starts. Details and the migration plan: [PROGRESSION.md §7](PROGRESSION.md).
@@ -248,6 +262,7 @@ Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright in
 | `npm run packs` | Pack pools (Alien, Robot, Lands, every card reachable), slots and exact odds vs generated packs, fallbacks, shop tiles and "What's inside", one charge per purchase, NEW vs ownership before the pack, win reward, saves across a reload ([UI.md](UI.md) §11) |
 | `npm run regression` | Final regression: Deck Builder focus and scroll, combined filters, combat preview = result on 40 random boards, pack membership = manifest, nothing running after leaving a match, history bound, keyboard-only turn, reduced motion, portrait/landscape changes, fresh and existing profiles ([QA_REPORT.md](QA_REPORT.md) §2) |
 | `npm run cross-browser` | The main flows in every installed engine (Chromium, Firefox, WebKit); engines that aren't installed are reported as NOT TESTED. This is browser emulation, not real devices. |
+| `npm run achievements` | All 150 achievements unlocked from real game events, catalog and document checks, unlock once, reloads, migration, backfill, QA isolation, the screen and notices, long-match cost ([ACHIEVEMENTS.md](ACHIEVEMENTS.md)) |
 | `npm run audio` | Sound effects and haptics: nothing before the first gesture, cue lengths and levels, independent settings kept across reloads, rapid input and voice limits, one sound per life change, a whole turn, pause, packs, win/loss, haptic guards, no vibration / no Web Audio / interrupted audio, the sound board ([AUDIO.md](AUDIO.md)) |
 | `npm run battle` | Battle screen and pause: pause stops the AI turn and every match timer and resumes with the time left, no input while paused, focus returns, sound/music/haptics switches, MAIN MENU confirmation, auto-pause when hidden, toasts never cover cards, AI activity marks, attacker/blocker outlines, counters, a 15-turn session ([UI.md](UI.md) §13) |
 | `npm run themes` | The three visual themes at desktop, phone and phone-landscape: axe and measured text contrast, overflow and clipped text, the logo, no looping animation; saving, reload, reset and keyboard use of the picker ([UI.md](UI.md) §12). `npm run menu`, `ui` and `cards:ui` also take `--theme=deep-space` or `--theme=neon`. |
