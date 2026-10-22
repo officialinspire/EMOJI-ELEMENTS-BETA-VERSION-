@@ -1,7 +1,7 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '6f029df68e02';
+const BUILD_ID = '8a4ee88dd17c';
 const REQUIRED = {
-  "index.html": "82400c31b9f364827ad84caa22270c2cc8dc8e12d6b3ba6d22a05e95fbef4b66",
+  "index.html": "ac467aeb15bd80580b17cf6740a6b8d9f030fbb6d7fcb0d1d1521cc8ba972ed9",
   "index.js": "9145d14db9760067f1afd233962f37dff43e190c7b4d78a5747d195826abc952",
   "styles.css": "53bcba93eeb0e3dded70008efe9cc28c91d79808ea79bdb209aaf79b3ec3029a",
   "feedback.js": "df3db073ed3f0e89943a8a9fd6d230590fd19fdd344a8feeac96a693808caca3",
@@ -11,7 +11,7 @@ const REQUIRED = {
   "icon.svg": "14ff82cd3de37991fe9e47261aa8e548970934f6cdb2afd6db2d2801d7c2bac1",
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
-  "pwa-build.js": "2d3b6960b41801f34a2e318c3d8215f6cbae6114ab3f3adc4e618545c62fe55c"
+  "pwa-build.js": "c4f27495d5a4e9bcff08a0cf15099eb8605dd240659000cb48f8388a80ef695a"
 };
 const OPTIONAL = ['startmenu.mp3', 'gameplaybackgroundmusic.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;

@@ -36,7 +36,8 @@
 
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Cinzel:wght@400;700;900&family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;700&family=MedievalSharp&family=Orbitron:wght@700;900&family=Uncial+Antiqua&display=swap" rel="stylesheet">
+    <!-- Font CDN latency must not block game scripts or the start screen. -->
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Cinzel:wght@400;700;900&family=Exo+2:wght@500;600;700;800&family=Inter:wght@400;500;700&family=MedievalSharp&family=Orbitron:wght@700;900&family=Uncial+Antiqua&display=swap" rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>

@@ -18,11 +18,25 @@ current-commit results, screenshots, measurements and rollback instructions. A m
 an earlier commit as release evidence. `npm run cross-browser -- --engine=webkit` runs one engine;
 `npm run verify -- --group=soak` repeats the soak independently.
 
-CI runs five groups: logic, visual, playthroughs, the three-engine matrix, and soak. Browser matrix
+CI runs five pre-release groups: logic, visual, playthroughs, the three-engine matrix, and soak.
+Jobs pin Ubuntu 24.04 and use Node 24 artifact actions. Failures appear in Actions annotations and
+job summaries as well as uploaded logs. Superseded runs of the same workflow/ref are canceled
+so only the newest commit consumes CI capacity. Browser navigation waits for DOM readiness and the actual
+start screen rather than the media-dependent full load event; a held-font-and-media regression covers this. Font CSS loads asynchronously so a stalled CDN
+cannot block game scripts or the start screen. Browser matrix
 jobs install their engine with system dependencies and fail on missing/failed launch. Artifacts
 upload even after failure. Repository branch protection must require `Browser (chromium)`,
 `Browser (firefox)`, `Browser (webkit)` and `Real-time soak` as well as existing verification jobs;
 workflow files cannot configure server-side branch protection.
+
+## Publishing and live Pages verification
+
+After all branch checks pass, advancing `main` triggers the existing GitHub Pages build/deployment.
+The separate Live Pages verification job waits for propagation, compares deployed HTML/JS/CSS
+SHA-256 hashes with that commit, checks media availability, and exercises startup, themes,
+achievements, inspection, a battle turn, pause/quit, a pack purchase and save reload in an isolated
+Chromium profile. Results and screenshots are uploaded. It never modifies a real player profile.
+This job runs on main pushes, after publishing is authorized; it is separate from local `verify`.
 
 ## What is measured
 
@@ -109,11 +123,11 @@ Record OS/browser/device, commit and results on at least iOS Safari and Android 
 - Reload after purchases, achievements, deck edits and preference changes; preserve credits/cards.
   A second tab must explain read-only status instead of overwriting the first tab.
 
-No physical device was attached here; this checklist remains a release gate.
+No physical device was attached here; record real-phone sign-off separately from automated verification.
 
 ## Rollback
 
-No merge or deployment is part of this task. To undo local hardening, inspect
+To undo release hardening on a new branch, inspect
 `git log --oneline 2123c12..HEAD` and revert those commits newest first on a new branch. Preserve
 uncommitted work. For any future deployment, serve the previously approved static artifact atomically.
 Export raw profile, achievement and preference storage first; never clear player saves to roll back.

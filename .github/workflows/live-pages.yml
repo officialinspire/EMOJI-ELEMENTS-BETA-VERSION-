@@ -1,0 +1,30 @@
+name: Live Pages verification
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  live-pages:
+    name: Live Pages assets and UI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for Pages propagation, then verify deployed assets and real UI
+        run: node tests/live-pages.mjs --url=https://officialinspire.github.io/EMOJI-ELEMENTS-BETA-VERSION-/
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: live-pages-verification
+          path: test-results/live-pages/
+          retention-days: 14
