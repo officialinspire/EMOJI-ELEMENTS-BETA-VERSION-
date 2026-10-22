@@ -1,7 +1,7 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
 const BUILD_ID = '__EE_BUILD__';
 const REQUIRED = __EE_REQUIRED__;
-const OPTIONAL = ['startmenu.mp3', 'gameplaybackgroundmusic.mp3', 'inspiresoftwareintro.mp4'];
+const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;
 const PREFIX = `emoji-elements@${SCOPE}:`;
 const CACHE = `${PREFIX}${BUILD_ID}`;
@@ -86,7 +86,9 @@ self.addEventListener('fetch', event => {
     const request = event.request;
     const url = new URL(request.url);
     if (request.method !== 'GET' || !url.href.startsWith(SCOPE)) return;
-    const path = url.pathname.slice(new URL(SCOPE).pathname.length);
+    let path;
+    try { path = decodeURIComponent(url.pathname.slice(new URL(SCOPE).pathname.length)); }
+    catch (_) { return; } // malformed escapes are not app assets
     // Leave unrelated pages, sibling projects and all external requests alone.
     const file = path === '' ? 'index.html' : path;
     if (!(file in REQUIRED) && !OPTIONAL.includes(file)) return;

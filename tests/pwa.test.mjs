@@ -11,7 +11,7 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ee-pwa-'));
     const files = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
         'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg',
-        'startmenu.mp3', 'gameplaybackgroundmusic.mp3', 'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
+        'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
     for (const file of files) {
         fs.mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
         fs.copyFileSync(path.join(ROOT, file), path.join(folder, file));
@@ -30,7 +30,7 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://localhost');
         if (url.pathname === '/sibling/') { res.end('<!doctype html><title>Sibling app</title>'); return; }
-        const file = url.pathname.replace(/^\/game\//, '') || 'index.html';
+        const file = decodeURIComponent(url.pathname).replace(/^\/game\//, '') || 'index.html';
         let body = snapshots[current].get(file);
         if (current === 2 && file === 'styles.css') body = Buffer.from('/* broken partial deployment */');
         if (!body) { res.writeHead(404); res.end(); return; }
@@ -72,11 +72,14 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     assert.equal(await page.evaluate(() => window.EE_BUILD_ID), builds[0], 'cached code starts offline');
     await page.locator('#pwaUpdateButton').tap();
     await page.waitForFunction(() => /Offline/.test(document.getElementById('pwaUpdateStatus').textContent));
-    const range = await page.evaluate(async () => {
-        const res = await fetch('./startmenu.mp3', { headers: { Range: 'bytes=0-31' } });
-        return { status: res.status, bytes: (await res.arrayBuffer()).byteLength };
+    const ranges = await page.evaluate(async () => {
+        return Promise.all(['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3'].map(async file => {
+            const res = await fetch(new URL(file, location.href), { headers: { Range: 'bytes=0-31' } });
+            return { status: res.status, bytes: (await res.arrayBuffer()).byteLength };
+        }));
     });
-    assert.deepEqual(range, { status: 206, bytes: 32 }, 'cached music supports offline ranges');
+    assert.deepEqual(ranges, [{ status: 206, bytes: 32 }, { status: 206, bytes: 32 }],
+        'both new tracks with URL-encoded spaces support offline ranges');
     await context.setOffline(false);
     // Keep a second running client on the old generation: updating this page must not reload it.
     const other = await context.newPage();

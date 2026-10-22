@@ -1,5 +1,15 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Soundtrack refresh and audio hardening
+
+- Main menu now plays **minimalist menu theme**; matches play **Emoji Elements – Celestial Battle Theme**.
+- Fresh-device music starts at 30%, effects at 70%; saved preferences stay intact. Music has background
+  headroom and dips briefly under effects so combat and menu feedback stay clear.
+- Streaming Web Audio gains support mobile music sliders/fades, with ordinary media playback as fallback.
+- Master mute also covers intro credits. Initialization remains silent; music waits for credits to finish/skip.
+- Fades use current settings, stale transitions cannot stop new sessions, and hidden pages pause music.
+- Updated PWA soundtrack caching handles spaces in filenames and offline media range requests.
+
 ## Unreleased: Achievements
 
 For players:

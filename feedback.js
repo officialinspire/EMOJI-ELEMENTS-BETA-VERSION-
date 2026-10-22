@@ -23,7 +23,7 @@
         sfxVolume: 'emojiElementsSfxVolume',
         haptics: 'emojiElementsHaptics'
     };
-    const DEFAULTS = { muted: false, musicOff: false, musicVolume: 0.5, sfxOff: false, sfxVolume: 0.7, haptics: true };
+    const DEFAULTS = { muted: false, musicOff: false, musicVolume: 0.3, sfxOff: false, sfxVolume: 0.7, haptics: true };
 
     function read(key, fallback) {
         try {
@@ -58,6 +58,8 @@
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
     let ctx = null;
     let sfxGain = null;
+    let musicDuck = null;
+    const musicChannels = new Map();
     let noiseBuffer = null;
     let gestureSeen = false;
     const stats = { played: {}, dropped: {} };
@@ -103,6 +105,44 @@
         return buffer;
     }
 
+    // Keep streaming/looping media, but control its level with Web Audio on iOS too.
+    // Registering a track never creates an AudioContext or starts playback.
+    function setMusicLevel(media, level) {
+        level = Math.max(0, Math.min(1, Number(level) || 0));
+        let channel = musicChannels.get(media);
+        if (!channel) {
+            channel = { level, gain: null };
+            musicChannels.set(media, channel);
+        }
+        channel.level = level;
+        if (channel.gain) channel.gain.gain.value = level;
+        else media.volume = level; // graceful fallback without Web Audio
+    }
+
+    function getMusicLevel(media) {
+        return musicChannels.get(media)?.level ?? media.volume;
+    }
+
+    function connectMusic() {
+        if (!musicDuck) {
+            musicDuck = ctx.createGain();
+            musicDuck.connect(ctx.destination);
+        }
+        for (const [media, channel] of musicChannels) {
+            if (channel.gain) continue;
+            const gain = ctx.createGain();
+            gain.gain.value = channel.level;
+            try {
+                const source = ctx.createMediaElementSource(media);
+                source.connect(gain).connect(musicDuck);
+                channel.gain = gain;
+                media.volume = 1; // the gain owns volume; media.muted still owns mute
+            } catch (_) {
+                gain.disconnect(); // unsupported routing: retain ordinary media playback
+            }
+        }
+    }
+
     // Called from a user gesture (index.js). Creates or resumes the context; harmless to call often.
     function unlock() {
         gestureSeen = true;
@@ -114,6 +154,7 @@
                 sfxGain.gain.value = sfxLevel();
                 noiseBuffer = makeNoise(ctx);
             }
+            connectMusic();
             if (ctx.state !== 'running') ctx.resume().catch(() => { /* blocked: the next gesture tries again */ });
         } catch (_) {
             ctx = null;   // no audio on this device; the game plays silently
@@ -374,6 +415,13 @@
         try {
             voice.end = cue.play(ctx, sfxGain, t, options, v);
             activeVoices.push(voice);
+            // Briefly lower the background under effects; never duck the intro video.
+            if (musicDuck) {
+                const param = musicDuck.gain;
+                param.cancelScheduledValues(ctx.currentTime);
+                param.setTargetAtTime(0.35, ctx.currentTime, 0.015);
+                param.setTargetAtTime(1, Math.max(t + 0.08, voice.end), 0.18);
+            }
             count('played', name);
             return true;
         } catch (_) {
@@ -463,6 +511,8 @@
 
     window.GameFeedback = {
         unlock,
+        setMusicLevel,
+        getMusicLevel,
         play,
         stopAll,
         haptic,

@@ -78,24 +78,20 @@
     // Audio System. Music stays on HTML media elements; every sound effect is synthesised by feedback.js
     // (GameFeedback), which also holds the sound and haptics settings.
     const audioSystem = {
-        startMenuMusic: new Audio('startmenu.mp3'),
-        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3')
+        startMenuMusic: new Audio('minimalist menu theme.mp3'),
+        gameplayMusic: new Audio('Emoji Elements - Celestial Battle Theme.mp3')
     };
 
     audioSystem.startMenuMusic.loop = true;
     audioSystem.gameplayMusic.loop = true;
-    audioSystem.startMenuMusic.volume = 0.5;
-    audioSystem.gameplayMusic.volume = 0.5;
+    Object.values(audioSystem).forEach(audio => GameFeedback.setMusicLevel(audio, 0));
 
     const soundSettings = GameFeedback.settings;
 
-    // Both tracks play at the Music volume (default 0.5, as before)
-    const MUSIC_TARGET_VOLUME = {
-        get menu() { return soundSettings.musicVolume; },
-        get gameplay() { return soundSettings.musicVolume; }
-    };
-
+    // Background headroom keeps effects in front; saved slider preferences are preserved.
+    const MUSIC_MIX_GAIN = 0.45;
     const activeAudioFades = new WeakMap();
+    const backgroundPausedMusic = new Set();
 
     // The old effect names, as cues (feedback.js). Callers that know more (a summon's theme, a reveal's rarity,
     // how much life changed) call GameFeedback.play directly.
@@ -122,6 +118,10 @@
         try {
             audioSystem[soundName].currentTime = 0;
             audioSystem[soundName].loop = loop;
+            if (document.hidden) {
+                backgroundPausedMusic.add(audioSystem[soundName]);
+                return;
+            }
             const playPromise = audioSystem[soundName].play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
@@ -138,6 +138,7 @@
             return;
         }
         if (audioSystem[soundName]) {
+            backgroundPausedMusic.delete(audioSystem[soundName]);
             // A previous transition must not restore volume or stop a newly started session later.
             const fade = activeAudioFades.get(audioSystem[soundName]);
             if (fade) clearInterval(fade);
@@ -157,10 +158,9 @@
     function applyMuteState() {
         const musicMuted = soundSettings.muted || soundSettings.musicOff;
         Object.values(audioSystem).forEach(audio => { audio.muted = musicMuted; });
-        // Playing music follows the volume at once (no fade is running when a slider moves)
+        // Active fades resolve their target from current settings; idle tracks update immediately.
         Object.values(audioSystem).forEach(audio => {
-            if (!audio.paused && !activeAudioFades.get(audio)) audio.volume = gamePaused && audio === audioSystem.gameplayMusic
-                ? soundSettings.musicVolume * 0.4 : soundSettings.musicVolume;
+            if (!activeAudioFades.has(audio)) GameFeedback.setMusicLevel(audio, musicTarget(audio));
         });
 
         const muteBtn = document.getElementById('muteBtn');
@@ -169,6 +169,8 @@
             muteBtn.title = soundSettings.muted ? 'Unmute sound' : 'Mute sound';
             muteBtn.setAttribute('aria-pressed', String(soundSettings.muted));
         }
+        const intro = document.getElementById('introVideo');
+        if (intro && soundSettings.muted) intro.muted = true;
         syncSoundSettings();
     }
 
@@ -618,22 +620,27 @@
 
         const steps = 20;
         const interval = duration / steps;
-        const startVolume = audioElement.volume;
-        const volumeStep = (targetVolume - startVolume) / steps;
+        const startVolume = GameFeedback.getMusicLevel(audioElement);
+        const target = () => typeof targetVolume === 'function' ? targetVolume() : targetVolume;
         let currentStep = 0;
 
         const fade = setInterval(() => {
             currentStep++;
-            audioElement.volume = Math.max(0, Math.min(1, startVolume + volumeStep * currentStep));
+            GameFeedback.setMusicLevel(audioElement, startVolume + (target() - startVolume) * currentStep / steps);
             if (currentStep >= steps) {
                 clearInterval(fade);
                 activeAudioFades.delete(audioElement);
-                audioElement.volume = targetVolume;
+                GameFeedback.setMusicLevel(audioElement, target());
                 if (callback) callback();
             }
         }, interval);
 
         activeAudioFades.set(audioElement, fade);
+    }
+
+    function musicTarget(audio) {
+        return soundSettings.musicVolume * MUSIC_MIX_GAIN *
+            (gamePaused && audio === audioSystem.gameplayMusic ? 0.4 : 1);
     }
 
     function isAudioPlaying(audioElement) {
@@ -644,11 +651,11 @@
         stopSFX('gameplayMusic');
 
         if (!isAudioPlaying(audioSystem.startMenuMusic)) {
-            audioSystem.startMenuMusic.volume = 0;
+            GameFeedback.setMusicLevel(audioSystem.startMenuMusic, 0);
             playSFX('startMenuMusic', true);
         }
 
-        fadeAudio(audioSystem.startMenuMusic, MUSIC_TARGET_VOLUME.menu, 800);
+        fadeAudio(audioSystem.startMenuMusic, () => musicTarget(audioSystem.startMenuMusic), 800);
     }
 
     function transitionToGameplayMusic() {
@@ -657,11 +664,11 @@
         });
 
         if (!isAudioPlaying(audioSystem.gameplayMusic)) {
-            audioSystem.gameplayMusic.volume = 0;
+            GameFeedback.setMusicLevel(audioSystem.gameplayMusic, 0);
             playSFX('gameplayMusic', true);
         }
 
-        fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay, 800);
+        fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 800);
     }
 
     // Game State
@@ -924,7 +931,7 @@
             introContainer.classList.remove('hidden');
             introContainer.style.display = 'flex';
 
-            introVideo.muted = false;
+            introVideo.muted = soundSettings.muted;
             introVideo.volume = 1.0;
 
             // Fallback in case video playback never starts on slower mobile browsers
@@ -983,7 +990,7 @@
         introVideo.load();
 
         // Prepare video for playback with audio (especially important for iOS)
-        introVideo.removeAttribute('muted');
+        introVideo.muted = soundSettings.muted;
         introVideo.volume = 1.0;
 
         // Robust startup trigger for browsers that don't consistently emit pointer events
@@ -6121,7 +6128,7 @@
         // Effect particles are only decoration: drop them rather than draw them over the pause panel
         particles = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay * 0.4, 250);
+        fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 250);
         updatePausePanel();
         renderSoundSettings(document.querySelector('#pauseModal .pause-settings'), 'pause');
         playSFX('menuOpen');
@@ -6147,7 +6154,7 @@
         if (gamePaused) {
             gamePaused = false;
             thawMatchTimers();
-            fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay, 250);
+            fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 250);
         }
     }
 
@@ -6214,7 +6221,21 @@
 
     // A match pauses itself when the page is hidden (another tab or app), so nothing happens unseen
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden && !gameState.matchFinalized) pauseGame();
+        if (document.hidden) {
+            if (!gameState.matchFinalized) pauseGame();
+            Object.values(audioSystem).forEach(audio => {
+                if (!audio.paused) {
+                    backgroundPausedMusic.add(audio);
+                    audio.pause();
+                }
+            });
+        } else {
+            for (const audio of backgroundPausedMusic) {
+                const result = audio.play();
+                result?.catch(error => console.debug('Music resume blocked:', error?.name));
+            }
+            backgroundPausedMusic.clear();
+        }
     });
 
     function confirmQuit() {

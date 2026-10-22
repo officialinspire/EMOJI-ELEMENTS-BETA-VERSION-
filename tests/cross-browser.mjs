@@ -36,6 +36,17 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
         const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded' }); await boot(page); row.checks.push('startup');
+            await page.waitForFunction(() => GameFeedback.state === 'running' &&
+                !audioSystem.startMenuMusic.paused && audioSystem.startMenuMusic.readyState >= 2 &&
+                !activeAudioFades.has(audioSystem.startMenuMusic));
+            const music = await page.evaluate(() => ({
+                file: decodeURIComponent(new URL(audioSystem.startMenuMusic.src).pathname.split('/').pop()),
+                level: GameFeedback.getMusicLevel(audioSystem.startMenuMusic), mediaVolume: audioSystem.startMenuMusic.volume
+            }));
+            assert.equal(music.file, 'minimalist menu theme.mp3');
+            assert.ok(Math.abs(music.level - 0.135) < 0.001);
+            assert.equal(music.mediaVolume, 1, 'streaming Web Audio gain owns the music level');
+            row.checks.push('new menu track decoded; streaming gain and quiet default mix');
             await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
             await click(page, '#mainMenu [data-menu-target="binderScreen"]');
             assert.equal(await page.locator('#binderList .binder-row').count(),268);
@@ -47,6 +58,11 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),150);
             await shot('achievements'); await click(page,'#achievementsScreen .menu-back'); row.checks.push('150 achievement entries');
             await start(page); row.checks.push('battle setup');
+            await page.waitForFunction(() => !audioSystem.gameplayMusic.paused &&
+                audioSystem.gameplayMusic.readyState >= 2 && audioSystem.startMenuMusic.paused);
+            assert.equal(await page.evaluate(() => decodeURIComponent(new URL(audioSystem.gameplayMusic.src).pathname.split('/').pop())),
+                'Emoji Elements - Celestial Battle Theme.mp3');
+            row.checks.push('new battle track decoded; menu transition completed');
             await click(page,'.menu-icon-btn');
             await click(page,'#pauseSfxSwitch'); await click(page,'#pauseSfxSwitch');
             await page.locator('#pauseModal .menu-btn').filter({hasText:'RESUME'}).click();
