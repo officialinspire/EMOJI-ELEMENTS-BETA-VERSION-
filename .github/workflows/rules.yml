@@ -6,7 +6,7 @@ on:
 
 jobs:
   rules:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -20,7 +20,7 @@ jobs:
         run: npm run verify -- --group=logic
       - name: Upload verification logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: logic-verification
           path: test-results/verification/logic/

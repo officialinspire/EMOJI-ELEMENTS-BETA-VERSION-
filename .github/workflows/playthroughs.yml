@@ -6,7 +6,7 @@ on:
 
 jobs:
   playthroughs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -21,7 +21,7 @@ jobs:
         run: npm run verify -- --group=playthroughs
       - name: Upload playthrough results and screenshots
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: playthrough-verification
           path: test-results/
