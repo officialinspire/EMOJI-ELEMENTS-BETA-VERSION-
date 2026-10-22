@@ -6,7 +6,7 @@ on:
 
 jobs:
   card-catalog:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -14,3 +14,5 @@ jobs:
           node-version: 22
       - name: Validate card catalog and manifest
         run: node tests/card-audit.mjs
+      - name: Verify installed-app build matches its assets
+        run: node scripts/build-pwa.mjs --check

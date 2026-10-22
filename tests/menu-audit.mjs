@@ -4,6 +4,7 @@
 //   node tests/menu-audit.mjs                       # all profiles (npm run menu)
 //   node tests/menu-audit.mjs --profile=phone
 //   node tests/menu-audit.mjs --label=before --report-only
+//   node tests/menu-audit.mjs --theme=neon      # in a visual theme (arcane, deep-space, neon); label theme-neon
 //
 // It drives the real menus (mouse, touch or keyboard) on a fresh profile, saves a screenshot of each screen,
 // and checks:
@@ -32,7 +33,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(arg => {
     const [key, value] = arg.replace(/^--/, '').split('=');
     return [key, value ?? true];
 }));
-const LABEL = args.label || 'current';
+const LABEL = args.label || (args.theme ? `theme-${args.theme}` : 'current');
 const OUT = path.join(ROOT, 'test-results', 'menu', LABEL);
 const { chromium, devices } = loadPlaywright();
 
@@ -49,7 +50,8 @@ const ENTRIES = [
     { label: 'Collection', screen: 'binderScreen' },
     { label: 'Pack Shop', screen: 'packShopScreen' },
     { label: 'How to Play', screen: 'howToPlayScreen' },
-    { label: 'Stats', screen: 'statsScreen' }
+    { label: 'Stats', screen: 'statsScreen' },
+    { label: 'Achievements', screen: 'achievementsScreen' }
 ];
 const ELEMENT_NAMES = { fire: 'Fire', water: 'Water', earth: 'Earth', swamp: 'Swamp', light: 'Light' };
 // What each difficulty must say, from AI_PROFILES in index.js (AI.md §3)
@@ -239,6 +241,7 @@ async function auditProfile(browser, url, profile) {
     fs.mkdirSync(path.join(OUT, profile), { recursive: true });
     const context = await browser.newContext({ ...options });
     await context.addInitScript(seededInit);
+    if (args.theme) await context.addInitScript(theme => { try { localStorage.setItem('emoji_elements_theme', theme); } catch (_) { /* about:blank */ } }, args.theme);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -272,7 +275,7 @@ async function auditProfile(browser, url, profile) {
     check(profile, 'hierarchy', 'NEW GAME is the first menu entry', /^[^a-z]*new game/i.test(menu.first), menu.first);
     check(profile, 'hierarchy', 'NEW GAME is clearly the largest entry (≥ 1.5× the others)', menu.areas[0] >= 1.5 * median, `${Math.round(menu.areas[0])} vs median ${Math.round(median)} px²`);
     check(profile, 'layout', 'NEW GAME is on screen without scrolling', menu.newGameOnScreen);
-    check(profile, 'labels', 'menu entries are New Game, Deck Builder, Collection, Pack Shop, How to Play, Stats',
+    check(profile, 'labels', 'menu entries are New Game, Deck Builder, Collection, Pack Shop, How to Play, Stats, Achievements',
         ENTRIES.every((e, i) => (menu.lines[i]?.join(' ') || '').toLowerCase().includes(e.label.toLowerCase())), menu.lines.map(l => l[0]).join(' | '));
     check(profile, 'labels', 'every entry has a line of supporting text', menu.lines.every(l => l.length >= 2), menu.lines.filter(l => l.length < 2).map(l => l[0]).join(', '));
     check(profile, 'info', `menu shows current credits (${menu.credits})`, new RegExp(`\\b${menu.credits}\\b[^\\n]*credits|credits[^\\n]*\\b${menu.credits}\\b`, 'i').test(menu.menuText));
@@ -356,7 +359,7 @@ async function auditProfile(browser, url, profile) {
         for (const { label, screen } of ENTRIES) {
             if (label !== 'New Game') await page.evaluate(id => ({
                 deckBuilderScreen: showDeckBuilder, binderScreen: showBinder, packShopScreen: showPackShop,
-                howToPlayScreen: showHowToPlay, statsScreen: showStats
+                howToPlayScreen: showHowToPlay, statsScreen: showStats, achievementsScreen: showAchievements
             })[id](), screen);
             else if (!(await shown(page, screen))) await page.evaluate(() => showElementSelection());
             await page.keyboard.press('Escape');

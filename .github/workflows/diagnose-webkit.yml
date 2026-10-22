@@ -1,0 +1,32 @@
+name: Inspect prior WebKit failure
+on:
+  push:
+    branches: [codex/stabilization]
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Read the failed run's existing browser report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download 39828873379 --name browser-webkit --dir "$RUNNER_TEMP/webkit-failure"
+      - name: Publish the synthetic-profile error details
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = path.join(process.env.RUNNER_TEMP, 'webkit-failure');
+          const find = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? find(path.join(dir, e.name)) : [path.join(dir, e.name)]);
+          const file = find(root).find(f => f.endsWith('/webkit.json'));
+          if (!file) throw Error('WebKit report missing from the failed-run artifact');
+          const report = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const encode = s => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+          for (const row of report.results) {
+            if (row.status !== 'PASS') console.log(`::notice title=Prior WebKit failure::${encode(row.error || JSON.stringify(row))}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '# Prior WebKit report\n\n```json\n' + JSON.stringify(report, null, 2) + '\n```\n');
+          JS

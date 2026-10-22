@@ -76,8 +76,8 @@ function pageInit(seed) {
 // storage: { key: string | null } is written to localStorage before index.js first runs (null removes the
 // key), as if a returning player's browser already held that saved data. Later reloads keep whatever the
 // game itself stored.
-export async function openGamePage({ seed = 1, storage = null } = {}) {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+export async function openGamePage({ seed = 1, storage = null, contextOptions = {}, initScript = null } = {}) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...contextOptions });
     const page = await context.newPage();
     if (storage) {
         await page.addInitScript(items => {
@@ -94,7 +94,9 @@ export async function openGamePage({ seed = 1, storage = null } = {}) {
     page.on('dialog', dialog => { errors.push(`dialog: ${dialog.message()}`); dialog.dismiss(); });
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await page.addInitScript(pageInit, seed);
+    if (initScript) await page.addInitScript(initScript);
     await page.goto(url);
+    await page.evaluate(() => profileReady);
     // Skip the CLICK TO START / intro screens (covered by tests/smoke.mjs); they would swallow clicks.
     await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; });
     return {

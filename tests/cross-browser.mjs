@@ -1,98 +1,84 @@
 #!/usr/bin/env node
-// A short check of the main flows in every browser engine Playwright can launch here: Chromium, Firefox and
-// WebKit (Safari's engine). These are desktop browser engines with phone-sized viewports and touch emulation.
-// They are not real devices: real iOS Safari and Android Chrome still need hands-on testing (UI.md §6).
-//
-//   node tests/cross-browser.mjs                 → test-results/cross-browser/<engine>-*.png
-//
-// An engine that isn't installed is reported as NOT TESTED, never as passed. Install the missing engines with
-// `npx playwright install --with-deps firefox webkit`.
-
+// Strict by default, including launch failures. A phone viewport is emulation, never a device pass.
 import fs from 'node:fs';
 import path from 'node:path';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
-
-const OUT = path.join(ROOT, 'test-results', 'cross-browser');
+import { boot, click, themes, start, ready, quit, purchase, backFromPack } from './lib/release-ui.mjs';
+import { reportFailure } from './lib/ci.mjs';
+const selected = process.argv.find(a => a.startsWith('--engine='))?.split('=')[1];
+if (selected && !['chromium','firefox','webkit'].includes(selected)) throw Error('Unknown engine');
+const OUT = path.join(ROOT, 'test-results/cross-browser');
 fs.mkdirSync(OUT, { recursive: true });
 const playwright = loadPlaywright();
 const server = await startServer();
 const url = `http://127.0.0.1:${server.address().port}/`;
-
-const results = [];
-const check = (engine, name, ok, detail = '') => {
-    results.push({ engine, name, ok, detail });
-    console.log(`  ${ok ? '✅' : '❌'} [${engine}] ${name}${ok || !detail ? '' : ` — ${detail}`}`);
-};
-
-for (const engine of ['chromium', 'firefox', 'webkit']) {
+const report = { commit: execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(), started: new Date().toISOString(), results: [] };
+const save = fs.readFileSync(path.join(ROOT,'tests/fixtures/saves/existing.json'),'utf8');
+for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
     let browser;
-    try {
-        browser = await playwright[engine].launch();
-    } catch (error) {
-        console.log(`\n[${engine}] NOT TESTED: ${error.message.split('\n')[0]}`);
-        results.push({ engine, name: 'launch', ok: null });
-        continue;
-    }
-    console.log(`\n[${engine}] ${browser.version()}`);
-    for (const [label, options] of [['desktop', { viewport: { width: 1366, height: 900 } }],
-        ['phone', { viewport: { width: 360, height: 740 }, hasTouch: true, ...(engine === 'firefox' ? {} : { isMobile: true }) }]]) {
-        const context = await browser.newContext(options);
+    // Linux WebKit's legacy playbin2 deadlocks pausing looping MP3s on this host.
+    // Select the native playbin3 pipeline; media and Web Audio remain enabled.
+    const mediaPipeline = engine === 'webkit' && process.platform === 'linux' ? 'playbin3' : 'native';
+    try { browser = await playwright[engine].launch({ timeout: 15000, ...(mediaPipeline === 'playbin3' ? { env: { ...process.env, WEBKIT_GST_USE_PLAYBIN3: '1' } } : {}) }); }
+    catch (error) { report.results.push({ engine, status: 'BLOCKED', error: error.message }); reportFailure(`${engine}: BLOCKED`, error.message); continue; }
+    for (const [profile, viewport] of [['desktop',{width:1366,height:900}],['phone',{width:360,height:740}]]) {
+        const row = { engine, profile, version: browser.version(), mediaPipeline, status: 'FAIL', checks: [], screenshots: [] };
+        report.results.push(row);
+        const context = await browser.newContext({ viewport, hasTouch: profile === 'phone', reducedMotion: 'reduce' });
+        await context.addInitScript(save => { if (!sessionStorage.seeded) { localStorage.setItem('emoji_elements_meta_v1',save); sessionStorage.seeded='1'; } }, save);
         const page = await context.newPage();
+        page.setDefaultTimeout(15000);
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
-        await page.goto(url);
-        await page.waitForTimeout(600);
-        const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-        // Menus
-        await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; const m = document.getElementById('startModal'); m.style.display = 'flex'; m.classList.add('modal-visible'); });
-        await page.waitForTimeout(300);
-        check(engine, `${label}: main menu has 6 entries`, await page.locator('#mainMenu [data-menu-target], #mainMenu .menu-btn').count() >= 6);
-        await page.evaluate(() => { showBinder(); });
-        await page.waitForTimeout(300);
-        check(engine, `${label}: Collection lists all 268 cards`, await page.locator('#binderList .binder-row').count() === 268);
-        await page.evaluate(() => { backToMenu(); showPackShop(); });
-        await page.waitForTimeout(300);
-        check(engine, `${label}: Pack Shop shows 6 packs, no sideways overflow`, await page.locator('#packShopGrid .shop-pack').count() === 6 && (await overflow()) <= 1);
-        await page.screenshot({ path: path.join(OUT, `${engine}-${label}-shop.png`) });
-        await page.evaluate(() => showPackContents('robot'));
-        await page.waitForTimeout(300);
-        check(engine, `${label}: What's inside lists the Robot pack`, await page.locator('#packContentsList .pack-contents-row').count() === 16);
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(200);
-        check(engine, `${label}: Esc closes it`, !(await page.evaluate(() => document.getElementById('packContentsModal').classList.contains('show'))));
-        // A match: crowded board, attack preview, pack reveal
-        await page.evaluate(() => { hidePackShop(); showElementSelection(); setDeckMode('dual'); selectElement('fire'); selectElement('water'); startGame(); });
-        await page.waitForFunction(() => gameState.turn === 'player' && !isProcessingAction, null, { timeout: 20000 }).catch(() => {});
-        const preview = await page.evaluate(() => {
-            const mk = id => { const c = { ...__CARD_BY_ID[id], id: Math.random() }; c.tapped = false; if (c.type === 'creature') { c.summoningSick = false; c.damage = 0; } return c; };
-            gameState.playerBoard = ['creatures-fire-lion', 'creatures-giant-squid', 'creatures-ancient-dragon', 'lands-volcanic-peak'].map(mk);
-            gameState.enemyBoard = ['creatures-ember-beetle', 'creatures-ancient-turtle'].map(mk);
-            updateUI({ immediate: true });
-            enterAttackPhase();
-            gameState.playerBoard.filter(c => c.type === 'creature').forEach(c => selectAttacker(c.id));
-            updateUI({ immediate: true });
-            return { shown: !document.getElementById('combatPreview').hidden, summary: document.querySelector('.combat-preview-summary').textContent };
-        });
-        await page.waitForTimeout(300);
-        check(engine, `${label}: attack preview shows`, preview.shown && /Enemy/.test(preview.summary), preview.summary);
-        check(engine, `${label}: match screen has no sideways overflow`, (await overflow()) <= 1);
-        await page.screenshot({ path: path.join(OUT, `${engine}-${label}-attack.png`) });
-        await page.evaluate(() => { cancelAttack(); gameMeta.lastPack = { themeKey: 'alien', cardIds: ['creatures-grey-alien', 'creatures-ufo-saucer', 'spells-comet-strike', 'creatures-space-marine', 'lands-distant-planet'], openedAt: 'x' }; openPackOpeningOverlayFromMeta('shop'); });
-        await page.waitForTimeout(300);
-        await page.click('#packOpenBtn');
-        await page.waitForTimeout(900);
-        check(engine, `${label}: OPEN PACK reveals the first card`, (await page.textContent('#packCardName')) === 'Grey Alien');
-        await page.screenshot({ path: path.join(OUT, `${engine}-${label}-reveal.png`) });
-        await page.click('#packSummaryBtn');
-        await page.waitForTimeout(300);
-        check(engine, `${label}: summary lists 5 cards`, await page.locator('#packSummaryGrid .pack-summary-card').count() === 5);
-        check(engine, `${label}: no page errors`, errors.length === 0, errors.slice(0, 2).join(' | '));
-        await context.close();
+        const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
+        try {
+            await page.goto(url); await boot(page); row.checks.push('startup');
+            await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
+            await click(page, '#mainMenu [data-menu-target="binderScreen"]');
+            assert.equal(await page.locator('#binderList .binder-row').count(),268);
+            await click(page, '#binderList .binder-row');
+            assert.equal(await page.locator('#cardDetailPopup').isVisible(),true);
+            await shot('inspect'); await click(page,'#cardDetailPopup .close-detail');
+            await click(page,'#binderScreen .menu-back'); row.checks.push('collection, trusted card inspection');
+            await click(page,'#mainMenu [data-menu-target="achievementsScreen"]');
+            assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),150);
+            await shot('achievements'); await click(page,'#achievementsScreen .menu-back'); row.checks.push('150 achievement entries');
+            await start(page); row.checks.push('battle setup');
+            await click(page,'.menu-icon-btn');
+            await click(page,'#pauseSfxSwitch'); await click(page,'#pauseSfxSwitch');
+            await page.locator('#pauseModal .menu-btn').filter({hasText:'RESUME'}).click();
+            await click(page,'#endTurnBtn'); await ready(page); row.checks.push('pause/settings, natural AI turn');
+            // Explicit combat fixture: position only; attack selection and confirmation use real controls.
+            await page.evaluate(() => {
+                gameState.playerBoard = [{...__CARD_BY_ID['creatures-fire-lion'],id:900001,tapped:false,summoningSick:false,damage:0}];
+                gameState.enemyBoard=[]; gameState.enemyLife=20; updateUI({immediate:true});
+            });
+            const before = await page.evaluate(() => gameState.enemyLife);
+            await click(page,'#attackBtn'); await click(page,'#playerBoard .card.type-creature'); await click(page,'#attackBtn');
+            await page.waitForFunction(before => gameState.enemyLife < before, before);
+            await shot('combat'); await ready(page); await quit(page); row.checks.push('fixture combat via UI, quit');
+            if (profile === 'phone') await page.setViewportSize({width:740,height:360});
+            await purchase(page); await shot('pack-summary-landscape');
+            if (profile === 'phone') {
+                // Layout zoom shrinks the CSS viewport; CSS root zoom does not change dvh.
+                await page.setViewportSize({width:240,height:493});
+                await shot('pack-summary-zoom');
+                const rect = await page.locator('#packCloseBtn').boundingBox(); assert.ok(rect.y>=0 && rect.y+rect.height<=493);
+            }
+            await backFromPack(page);
+            const persisted = await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme}));
+            await page.reload(); await boot(page);
+            assert.deepEqual(await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme})),persisted);
+            assert.deepEqual(errors,[]); row.checks.push('purchase, reveal, summary, rotation/zoom, save reload'); row.status='PASS';
+        } catch (error) { row.error=error.stack; reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{}); }
+        finally { await context.close(); }
+        console.log(`${engine}/${profile}: ${row.status} ${row.error || row.checks.join('; ')}`);
     }
     await browser.close();
 }
-server.close();
-const failed = results.filter(r => r.ok === false);
-const untested = [...new Set(results.filter(r => r.ok === null).map(r => r.engine))];
-console.log(`\nSummary: ${results.filter(r => r.ok).length} passed · ${failed.length} failed${untested.length ? ` · NOT TESTED: ${untested.join(', ')}` : ''}`);
-process.exit(failed.length ? 1 : 0);
+await new Promise(resolve=>server.close(resolve));
+report.completed=new Date().toISOString();
+fs.writeFileSync(path.join(OUT,selected ? `${selected}.json` : 'results.json'),JSON.stringify(report,null,2)+'\n');
+process.exitCode=report.results.every(r=>r.status==='PASS') ? 0 : 1;

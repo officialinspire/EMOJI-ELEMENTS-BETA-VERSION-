@@ -335,13 +335,14 @@ describe('pack opening', () => {
         assert.equal(summary.focus, 'packDoneBtn');
     });
 
-    test('after a reload the last pack still knows what was new (no extra saved data)', { timeout: 60000 }, async t => {
+    test('after a reload the last pack retains its acquisition identity and knows what was new', { timeout: 60000 }, async t => {
         const page = await openGame(t, { seed: 42 });
         await page.evaluate(() => { getThemePool('alien').forEach(c => { delete gameMeta.collection[c.__id]; }); metaSave(gameMeta); purchasePack('alien'); closePackOpeningOverlay(); });
         const meta = await readMeta(page);
-        assert.deepEqual(Object.keys(meta.lastPack).sort(), ['cardIds', 'openedAt', 'themeKey'], 'lastPack keeps its format');
+        assert.deepEqual(Object.keys(meta.lastPack).sort(), ['acquisitionId', 'cardIds', 'openedAt', 'themeKey'], 'lastPack adds only its acquisition identity');
         await page.reload();
         await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; });
+        assert.equal((await readMeta(page)).lastPack.acquisitionId, meta.lastPack.acquisitionId, 'identity survives reload');
         const r = await page.evaluate(() => gameMeta.lastPack.cardIds.map(id => getPackOwnedBefore(id)));
         assert.deepEqual(r, [0, 0, 0, 0, 0]);
     });
@@ -410,7 +411,9 @@ describe('saved data', () => {
         await page.evaluate(() => closePackOpeningOverlay());
         const after = await readMeta(page);
         assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'same top-level keys');
-        assert.deepEqual(Object.keys(after.lastPack).sort(), ['cardIds', 'openedAt', 'themeKey']);
+        assert.deepEqual(Object.keys(after.lastPack).sort(), ['acquisitionId', 'cardIds', 'openedAt', 'themeKey']);
+        assert.equal(typeof after.lastPack.acquisitionId, 'string');
+        assert.ok(after.lastPack.acquisitionId.length > 0);
         assert.equal(after.wallet.credits, 75);
         assert.equal(after.stats.packsOpened, before.stats.packsOpened + 1);
         await page.reload();

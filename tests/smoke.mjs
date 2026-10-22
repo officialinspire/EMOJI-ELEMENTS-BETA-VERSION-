@@ -21,7 +21,8 @@ import path from 'node:path';
 import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
 
 const OUT_DIR = path.join(ROOT, 'test-results');
-const META_KEY = 'emoji_elements_meta_v1';
+// Smoke uses ?qa=1; progression is isolated from the player's normal profile.
+const META_KEY = 'emoji_elements_meta_qa_v1';
 
 const args = Object.fromEntries(process.argv.slice(2).map(arg => {
     const [key, value] = arg.replace(/^--/, '').split('=');
@@ -531,7 +532,7 @@ scenario('win-flow', async ({ page, touch, t, url, project }) => {
     t.check('credits 100 → 125', after.wallet.credits === 125, `credits=${after.wallet.credits}`);
     t.check('packsOpened = 1', after.stats.packsOpened === 1);
     t.check('win pack added 5 cards to collection', collectionTotal(after) === collectionTotal(before) + 5);
-    t.check('legacy emojiElementsStats mirrored', await page.evaluate(() => JSON.parse(localStorage.getItem('emojiElementsStats')).wins === 1));
+    t.check('legacy emojiElementsStats mirrored', await page.evaluate(() => JSON.parse(localStorage.getItem('emojiElementsStatsQA')).wins === 1));
 
     await act(page, touch, '#victoryOverlay button:has-text("MAIN MENU")');
     await openMenu(page, touch, 'STATS');

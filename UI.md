@@ -684,3 +684,269 @@ Screenshots (`npm run packs:shots`; before, then after):
 - The odds shown are exact for the pack's slots; they don't include the win-pack theme weights.
 - The art is CSS and emoji, so it depends on the device's emoji font, like the cards.
 - Chromium only, as for the other UI passes.
+
+## 12. Visual themes and logo
+
+Branch audit at the start of the pass: the six earlier visual/UX passes (menu, cards, collection, feedback, packs,
+cleanup) are all on `main` (`397089f`). This pass branches from there (`claude/visual-themes`).
+
+**Unchanged:**
+- the menu routes and `data-menu-target`s, the intro skip flow (tap → intro → tap to skip);
+- accessible names: the menu logo is still a level-1 heading named "Emoji Elements", and the controls, dialogs and
+  ids are unchanged;
+- keyboard navigation, saved decks, the save format and the game rules.
+
+### One interface, three token sets
+
+A theme is only a set of tokens on `<html data-theme="arcane|deep-space|neon">`, plus `[data-ui-theme]` on the
+picker's options, so each option previews itself. The rules after the token sets (styles.css "VISUAL THEMES") are
+shared by all three. There are no per-theme copies of the interface.
+
+| Token group | Arcane Fantasy (default) | Deep Space | Neon Sci-Fi |
+|---|---|---|---|
+| Background | violet ink `#090611`→`#23113d`, soft violet and crimson glows | navy `#04060d`→`#0e1a35`, a sparse fixed starfield, two faint nebulae | near-black `#05040a`, a faint 44 px grid fading towards the top, a magenta horizon |
+| Accent (`--gold-1`, fills) | gold `#f2cf72` | ice blue `#9fd6ff` | cyan `#5cefff` |
+| Second accent (`--accent`) | violet `#8a7dff` | periwinkle `#8f9bff` | magenta `#ff4fd8` |
+| Danger / ATTACK | crimson | rose | hot pink-red |
+| Display / headings / UI type | Uncial Antiqua / Cinzel / MedievalSharp | Exo 2 | Orbitron (logo) / Chakra Petch |
+| Element colours (`--elc-*`) | the card-pass colours | slightly cooler | more saturated |
+| Same in all three | Inter body text, rarity colours, card layout and state markers | | |
+
+How the old rules were moved onto tokens, without changing how anything looked first:
+- 322 literal colours and fonts in older rules were replaced by tokens with Arcane's values. Examples: the gold
+  `#ffd700`, the violet `rgba(138,125,255,…)` and the card bases `#1b1030`/`#140b22`.
+- The computed-style fingerprint of 24 screen states (14,830 elements, about 62 properties each) was identical
+  before and after. Only then were the themes and the new components added.
+
+**Storage:**
+- The theme is saved under `localStorage.emoji_elements_theme`, apart from the profile
+  (`emoji_elements_meta_v1`).
+- An inline script in `<head>` applies it before the first paint. An unknown value falls back to Arcane, and
+  blocked storage means the theme lasts the visit.
+- RESET PROGRESS removes only the profile, so it keeps the theme. Switching theme never writes the profile.
+
+### Logo
+
+- **Mark:** `#ee-sigil`, an inline SVG symbol: a ring and pentagram in the theme's accent, with the five element
+  nodes in `--elc-*`.
+- **Wordmark:** live text. A small tracked "EMOJI" sits above "Elements" in the theme's display face, with a
+  gradient fill (gold, starlight-to-ice, or cyan-to-magenta). It has no animation.
+- **Three sizes:**
+  - hero: the sigil above the stacked wordmark (start screen);
+  - menu: the sigil beside it;
+  - bar: one line in the match header. "EMOJI" is hidden at 420 px and below so the header keeps its room.
+- Each theme scales the logo (`--logo-scale`), because Orbitron is much wider than Uncial.
+- The ⚔️ swords around the old all-caps title are gone.
+
+### Start screen and main menu
+
+- **Start screen:**
+  - a panel with the hero logo, the tagline, one pill-shaped **▶ Click to start** and a quiet hint ("Sound on ·
+    tap or click anywhere");
+  - the old 2-second opacity pulse is replaced by one 0.7 s rise;
+  - the intro and its skip are unchanged.
+- **Main menu:**
+  - the logo;
+  - V2 BETA beside a **Theme: …** chip (a 44 px button with a three-colour swatch);
+  - the tagline, the credits and collection chips, then the six entries.
+  - **NEW GAME** stays the one large accent tile. It now has a › that moves on hover and lifts slightly. After
+    the first battle its second line names the deck it will start from ("Last deck: 🔥 Fire + 💧 Water").
+- The menu sits on a 42 % scrim over the theme background (stars, grid) instead of 95 % black.
+- Outside Arcane, the gold divider takes the theme's accent.
+- Hover and focus states:
+  - tiles brighten their border and icon ring;
+  - every new control has a 3 px focus ring in `--gold-2`.
+
+### Theme picker
+
+- **Where:** the menu chip, or 🎨 THEME in the pause menu. It opens above the pause menu.
+- **Structure:** a `role="radiogroup"` of three `role="radio"` buttons with a roving tabindex.
+- **Each option** is drawn in its own theme: a sigil, three swatches, the name in that theme's heading font, and
+  a description. The chosen one has a 2 px ring and the text "✓ Selected", so the choice isn't shown by colour
+  alone.
+- **Keys:** arrow keys, Home and End pick a theme immediately; Esc, ✕ or the backdrop close the picker.
+- **Dialog handling:** it is in `GAME_DIALOGS`, so focus is trapped while it is open and returns to the chip
+  (or THEME) when it closes. From the pause menu, Esc closes only the picker.
+
+### Comfortable during a long match
+
+| Before | After |
+|---|---|
+| Phase label glowed in and out every 2 s (`phaseGlow`) | still |
+| ATTACK pulsed every 1.2 s whenever it was enabled (`attackPulse`) | a steady red fill with a thin ring |
+| Enemy turn: phase label pulsed every 1.5 s (`enemyPulse`) | a steady red label and a stronger enemy border |
+| VICTORY / DEFEAT text scaled 1 → 1.1 every second, forever (`victoryPulse`) | pops in once |
+| Base rules for playable and attacking cards still had looping glows (hidden by later rules) | set to none, so nothing can bring them back |
+| MULLIGAN royal blue, GRAVEYARD and END TURN bright gold gradients, all with outer glow | MULLIGAN and GRAVEYARD are quiet panel buttons; END TURN is the one accent fill |
+| Hand: 3 px double gold border with glow | 1 px accent line (padding +2 px keeps the same inner size) |
+| Result banners: full-screen gold or red wash | a dark scrim with the theme's glow |
+
+With reduced motion, the one-off entrances (start panel, result text) are also off (the existing global rule).
+
+### Evidence
+
+All suites were run on the battle-pause branch, which contains this pass, in headless Chromium.
+
+| Check | Result |
+|---|---|
+| `npm run themes` (`tests/theme-audit.mjs`): 3 themes × desktop 1366×900, phone 360×740, landscape 740×360; 10 screens each, axe including contrast, measured label contrast, overflow, clipping, logo fit, looping animations; storage, keyboard and reduced-motion checks | **1209 / 1209** |
+| Menu audit, once per theme (`--theme=`) | 289 / 289 × 3 |
+| UI audit, once per theme | 469 / 469 × 3 |
+| Card faces, once per theme | 95 / 95 × 3 |
+| Smoke | 204 / 204 |
+| Release playthroughs | 97 / 97 |
+| Node suites (rules, combat, effects, progression, collection, feedback, packs, regression, AI) | 430 / 430 |
+| Cross-browser | Chromium 20 / 20; Firefox and WebKit not installed (NOT TESTED) |
+
+**Contrast and layout failures found, and fixed in the pass:**
+- **MAIN MENU on the victory and defeat banners:** white on cornflower blue, 3.27:1. It is now a themed
+  secondary button, 12:1 or better.
+- **MULLIGAN:** light text on royal blue when enabled. It is now a panel button.
+- **The theme picker in short landscape:** the selected option opened below the fold, half hidden. It now scrolls
+  into view, and the options are compact.
+
+**Contrast that axe can't judge:** axe marks text over gradients as "needs review". The theme audit therefore
+also measures key labels against the pixels behind them; 621 measurements, the lowest 6.04:1 (ATTACK in Deep Space on a phone; AA needs 4.5).
+
+**Remaining limits:**
+- Logo text uses a gradient fill, so it is checked by eye only.
+- Firefox, WebKit and real devices are not tested.
+
+Screenshots (theme audit):
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/themes-desktop.jpg](docs/ui-evidence/themes-desktop.jpg) | Desktop: start, menu, picker and match in each theme |
+| [docs/ui-evidence/themes-phone.jpg](docs/ui-evidence/themes-phone.jpg) | Phone 360×740: start, menu, picker, match and pause in each theme |
+| [docs/ui-evidence/themes-landscape.jpg](docs/ui-evidence/themes-landscape.jpg) | Phone landscape 740×360: menu, match and attack preview in each theme |
+
+## 13. Battle screen and pause
+
+This pass builds on §12 (branch `claude/battle-pause`, from `claude/visual-themes`). It changes how the match
+reads and how pause behaves.
+
+**Unchanged:**
+- combat calculations, the preview (`previewCombat`), rewards, saves and card interactions;
+- the ids and texts the existing tests use. The pause buttons still contain RESUME and MAIN MENU, and MAIN
+  MENU still goes through `confirmQuit`.
+
+### Findings at the start
+
+Measured on a crowded late-game board (12 cards a side, 7 in hand) at 1366×900, 360×740 and 640×360:
+
+| Finding | Evidence |
+|---|---|
+| **Pause didn't pause.** The panel covered the screen, but the AI's turn kept running on its timers. | Pause right after END TURN, wait 7 s: the AI drew, played two cards and attacked, history went from 1 to 6 entries, your next turn started, and a toast showed **above** the pause panel. |
+| Toasts sat in the middle of the screen, over cards | On every size; in 640×360 landscape they covered the enemy's creatures. |
+| Selected attackers and predicted blockers were both red outlines | Solid red and dashed red; easy to mix up at a glance. |
+| The predicted outcome (✓, ☠, 🛡) was centred on the card | It covered the creature's art. |
+| The deck count was as loud as life | Same size, accent colour and glow; no label. |
+| During the enemy turn your side dropped to 60 % opacity at 70 % brightness | Your creatures were hard to read just when the AI attacked them. |
+| Nothing showed what the AI had just done, apart from a toast and the banner | You had to compare boards. |
+| The pause panel offered only Resume, Main menu and Theme | Large gold buttons of equal weight; Main menu between the other two. |
+
+### Pause
+
+How pausing works:
+- **Timers:** the match's own timers go through `matchDelay`. These are the AI turn's steps, its 12 s failsafe,
+  the action-lock failsafes and releases, and the toasts. `pauseGame` freezes them, keeping the time each had
+  left; `resumeGame` re-arms them with that time. A step 1 s from firing still waits 1 s after RESUME.
+- **Input:** the board becomes `inert`, so no clicks, taps, focus or keys reach it. The actions themselves
+  (`playCard`, `tapLand`, `endTurn`, `enterAttackPhase`, `selectAttacker`, `mulligan`, `activateArtifact`,
+  tap all) also return while paused.
+- **Presentation:** CSS animations on the board hold, effect particles are dropped, the toast hides, and the
+  music drops to 40 % (back up on resume).
+- **Focus:** it moves to RESUME and stays inside the panel; RESUME or Esc returns it to where it was (the
+  dialog code in `GAME_DIALOGS`).
+- **Hidden page:** the match pauses itself when the page is hidden (another tab or app).
+- **Leaving:**
+  - MAIN MENU uses the existing confirmation. NO returns to the still-paused match.
+  - YES leaves and clears the paused state, the old match's timers and its pending toasts. (Before, a combat
+    report's hold could also delay a menu message.)
+
+The panel, top to bottom:
+1. **PAUSED**, with "Turn 10 · Your turn · You ❤️ 7 · Enemy ❤️ 11".
+2. **RESUME**: the one filled, accent-coloured button.
+3. **Settings**, as rows with switches. The switches are `role="switch"`, and each shows ON/OFF in text as
+   well as colour.
+   - **Sound:** the existing mute; the header 🔊 agrees.
+   - **Music:** effects stay on; disabled while Sound is off.
+   - **Haptics:** a short buzz on long-press and when you take damage. On devices without vibration it reads
+     "Not available on this device" and is disabled.
+   - **Theme:** opens the §12 picker on top; Esc closes only the picker.
+   - Each setting is saved under its own key (`emojiElementsMuted`, `emojiElementsMusicOff`,
+     `emojiElementsHaptics`), never in the profile.
+   - The sound pass that followed added Effects and the two volume sliders, and the same rows on the main menu
+     ([AUDIO.md](AUDIO.md) §4).
+4. **Controls** (collapsed): tap, long-press and attack in three lines, plus the keyboard keys. The keys are
+   hidden on touch-only devices.
+5. **MAIN MENU**, below a dashed rule: an outlined button, with "Leaves this match. You'll be asked to
+   confirm."
+
+In short landscape the panel has two columns (resume, help and leave on the left; settings on the right), so
+nothing needs scrolling.
+
+### Reading the board
+
+| What | How it shows (shape or text first, colour second) |
+|---|---|
+| Whose turn | The banner ("⚔️ Your turn" / "🤖 Enemy turn · Playing a land: …"), the header label, and a 4 px bar on the active side's inner edge. |
+| AI activity | The banner says what the AI is doing. Cards it put down since its turn began get a **NEW** tag and a ring until its next turn. During its attack, its attackers have a solid outline, drop slightly and show ⚔️; your automatic blockers have a dotted outline and 🛡. Your side is only lightly dimmed (90 %, a little desaturated) so it stays readable. |
+| Chosen attackers | Solid 3 px outline in the danger colour, lifted, ⚔️ bottom-left |
+| Could attack | Dashed accent outline |
+| Can't attack | A reason chip ("Tapped", "Defender", "Next turn"); it wraps on 52 px landscape cards instead of being cut |
+| Predicted blockers | Dotted outline in the second accent, and 🛡 (🛡☠ if it dies) |
+| Predicted outcome | ✓ or ☠ in a small chip low on the card, above power/toughness, so the art stays visible |
+| Damage | 💔N, top-left, with a red rim |
+| Tapped | Turned sideways, as before |
+| Playable / unplayable in hand | Lifted with a ring / flat and dimmed with the reason, as before |
+| Counters | Life is the largest number on each side. Deck (🎴) and the enemy's hand size (✋, new) are smaller and quieter. All have screen-reader labels ("Enemy life", "Enemy deck", "Enemy hand", "Your life", "Your deck"). |
+| Messages | On the turn banner for their usual 2 s (combat reports 3.5 s), opaque, with a red edge for the enemy's. They never cover a card; in the menus they stay centred. |
+
+### Evidence
+
+**New suite.** `tests/battle.test.mjs` (`npm run battle`, in CI) has 14 tests:
+- **Pause stops the match:** 30 s paused right after END TURN changes nothing; resume finishes the AI turn in
+  the same match.
+- **Remaining time:** a step 1 s from firing still waits about 1 s after RESUME.
+- **No input while paused:** keys, clicks and direct calls do nothing.
+- **Focus:** it returns to the card that had it.
+- **Settings:** switches are saved apart from the profile and come back after a reload.
+- **Theme from pause:** the picker opens on top, and Esc closes only it.
+- **Leaving:** MAIN MENU → NO keeps the match paused; YES leaves with no timers left, and the next match plays.
+- **Hidden page:** the match pauses itself.
+- **Toasts:** with 21 cards on screen they sit on the turn banner and overlap none.
+- **AI activity marks:** NEW, its attackers and your automatic blockers.
+- **Outlines:** attacker, could-attack and predicted-blocker outlines are solid, dashed and dotted.
+- **Counters:** labelled, with the enemy's hand size.
+- **A 15-turn session with a pause each turn:** at most a few timers pending, no errors.
+
+**Theme audit.** It now also checks the docked toasts (yours and the enemy's), the pause panel's rows and the
+counters, in every theme and size.
+
+**Results**, the same run as §12:
+
+| Suite | Result |
+|---|---|
+| Battle | 14 / 14 |
+| Theme audit (with the battle screens) | 1209 / 1209 |
+| Smoke (pause → RESUME, pause → MAIN MENU → YES) | 204 / 204 |
+| Release playthroughs (quits through the new pause panel 15 times) | 97 / 97 |
+| UI audit (pause dialog focus trap and Esc) | 469 / 469 per theme |
+
+**Two test races fixed** (the game was right both times):
+- **"The AI's activity is marked":** the test read the board in the same instant the attack was recorded,
+  before the scheduled redraw. It now waits one frame.
+- **"Remaining time":** under heavy machine load the fake clock also moved with real time. The margins are now
+  ±300 ms, which still tells "the time left" from "at once" and from "the full 1.5 s again".
+
+Screenshots, before (`claude/visual-themes`) and after:
+
+| File | Shows |
+|---|---|
+| [docs/ui-evidence/battle-desktop.jpg](docs/ui-evidence/battle-desktop.jpg) | Deep Space, 1366×900, crowded late game: attack preview, a toast, pause |
+| [docs/ui-evidence/battle-phone.jpg](docs/ui-evidence/battle-phone.jpg) | Neon, 360×740: attack preview, a toast, the enemy turn, pause; after, also the enemy's attack with NEW marks |
+| [docs/ui-evidence/battle-landscape.jpg](docs/ui-evidence/battle-landscape.jpg) | Arcane, 640×360: attack preview, a toast over the enemy board, pause |
+
+**Real devices:** not tested here. Touch was emulated in Chromium at phone sizes; haptics need an Android
+phone.

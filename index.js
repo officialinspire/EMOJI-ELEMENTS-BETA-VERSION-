@@ -1,3 +1,44 @@
+    // One writer per origin/profile. Other tabs can inspect/play, but cannot overwrite saves.
+    let profileWriteState = 'pending';
+    let profileSavedRaw = null;
+    let profileRepairBlocked = false;
+    function persistenceNotice(message, retry = false) {
+        let el = document.getElementById('persistenceNotice');
+        if (!el) {
+            el = document.createElement('div'); el.id = 'persistenceNotice';
+            el.setAttribute('role', 'alert');
+            el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:30000;padding:8px;background:#29212b;color:white;text-align:center;font:14px sans-serif';
+            document.body.appendChild(el);
+        }
+        el.textContent = message;
+        if (retry) {
+            const button = document.createElement('button'); button.textContent = 'Retry saving';
+            button.addEventListener('click', () => saveStats());
+            el.append(' ', button);
+        }
+    }
+    function canSaveProfile() {
+        if (profileWriteState === 'writer' && !profileRepairBlocked) return true;
+        persistenceNotice(profileWriteState === 'reader'
+            ? 'Another tab owns this profile. Progress here is not saved. Close the other tab and reload here to save.'
+            : 'Progress could not be saved. Storage is unavailable or the original save needs recovery. Keep this tab open.');
+        return false;
+    }
+
+    // Gameplay has its own seeded stream. Presentation code may use Math.random freely
+    // without moving deck, AI, target or reward decisions. A replay can reset this seed.
+    let gameplayRandomState = (Math.random() * 4294967296) >>> 0;
+    function setGameplaySeed(seed) { gameplayRandomState = seed >>> 0; }
+    function gameplayRandom() {
+        gameplayRandomState = (gameplayRandomState + 0x6D2B79F5) | 0;
+        let t = Math.imul(gameplayRandomState ^ (gameplayRandomState >>> 15), 1 | gameplayRandomState);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    // Instance identity is runtime-only, never a random gameplay decision.
+    let cardInstanceSequence = 1000000;
+    function nextCardInstanceId() { return ++cardInstanceSequence; }
+
     // QA tooling is off for players. Add ?qa=1 to the URL (or set localStorage emojiElementsQA = '1') to turn
     // on the [QA] console logs, error echoing, DOM/perf checks and the window.__qa* helpers that
     // tests/smoke.mjs uses (QA_REPORT.md). Automated suites live in tests/.
@@ -9,6 +50,8 @@
         }
     })();
     const QA_DEBUG = QA_MODE;
+    const META_STORAGE_KEY = QA_MODE ? 'emoji_elements_meta_qa_v1' : 'emoji_elements_meta_v1';
+    const LEGACY_STATS_STORAGE_KEY = QA_MODE ? 'emojiElementsStatsQA' : 'emojiElementsStats';
 
     window.__QA_FORCE_META_OFF = false;
 
@@ -32,86 +75,73 @@
         // 2) Start match -> confirm no red errors.
     }
 
-    // Audio System
+    // Audio System. Music stays on HTML media elements; every sound effect is synthesised by feedback.js
+    // (GameFeedback), which also holds the sound and haptics settings.
     const audioSystem = {
         startMenuMusic: new Audio('startmenu.mp3'),
-        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3'),
-        tapLand: new Audio('tapland.mp3'),
-        untap: new Audio('untap.mp3'),
-        summonCreatureFantasy: new Audio('summoncreaturefantasy.mp3'),
-        summonCreatureScifi: new Audio('scifisummon.mp3'),
-        summonInstant: new Audio('summoninstant.mp3'),
-        cardDestroyed: new Audio('carddestroyed.mp3'),
-        attack: new Audio('attack.mp3'),
-        block: new Audio('block.mp3'),
-        playerHeal: new Audio('playerheal.mp3'),
-        playerTakeDamage: new Audio('playertakedamage.mp3'),
-        opponentHeals: new Audio('opponentheals.mp3'),
-        opponentTakeDamage: new Audio('opponenttakedamage.mp3'),
-        menuOpen: new Audio('menuopen.mp3'),
-        menuClose: new Audio('menuclose.mp3'),
-        select: new Audio('select.mp3'),
-        gameVictory: new Audio('gamevictorysfx.mp3'),
-        gameLose: new Audio('gamelosesfx.mp3')
+        gameplayMusic: new Audio('gameplaybackgroundmusic.mp3')
     };
 
-    // Configure audio loops and volume for mobile compatibility
     audioSystem.startMenuMusic.loop = true;
     audioSystem.gameplayMusic.loop = true;
     audioSystem.startMenuMusic.volume = 0.5;
     audioSystem.gameplayMusic.volume = 0.5;
-    audioSystem.gameVictory.volume = 0.7;
-    audioSystem.gameLose.volume = 0.7;
 
-    // Set all sound effects to reasonable volume
-    Object.keys(audioSystem).forEach(key => {
-        if (!['startMenuMusic', 'gameplayMusic', 'gameVictory', 'gameLose'].includes(key)) {
-            audioSystem[key].volume = 0.6;
-        }
-    });
+    const soundSettings = GameFeedback.settings;
 
+    // Both tracks play at the Music volume (default 0.5, as before)
     const MUSIC_TARGET_VOLUME = {
-        menu: 0.5,
-        gameplay: 0.5
+        get menu() { return soundSettings.musicVolume; },
+        get gameplay() { return soundSettings.musicVolume; }
     };
 
     const activeAudioFades = new WeakMap();
 
-    // IMPROVED: Audio queue management to prevent overlapping sounds
-    const audioQueue = {
-        lastPlayed: {},
-        minInterval: 100 // Minimum milliseconds between same sound effects
+    // The old effect names, as cues (feedback.js). Callers that know more (a summon's theme, a reveal's rarity,
+    // how much life changed) call GameFeedback.play directly.
+    const SFX_CUES = {
+        menuOpen: 'open',
+        menuClose: 'close',
+        select: 'select',
+        tapLand: 'landTap',
+        untap: 'turnStart',
+        cardDestroyed: 'destroy',
+        attack: 'attack',
+        block: 'block',
+        gameVictory: 'victory',
+        gameLose: 'defeat'
     };
 
-    // Helper function to play sound effect with better management
+    // Music (with loop) on its media element; any other name is a sound effect cue
     function playSFX(soundName, loop = false) {
-        if (audioSystem[soundName]) {
-            try {
-                // Prevent rapid-fire duplicate sounds for better audio quality
-                const now = Date.now();
-                const lastPlayTime = audioQueue.lastPlayed[soundName] || 0;
-
-                if (!loop && now - lastPlayTime < audioQueue.minInterval) {
-                    return; // Skip if played too recently
-                }
-
-                audioQueue.lastPlayed[soundName] = now;
-
-                audioSystem[soundName].currentTime = 0;
-                audioSystem[soundName].loop = loop;
-                const playPromise = audioSystem[soundName].play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
-                }
-            } catch (e) {
-                console.log('Audio error:', e);
+        if (!audioSystem[soundName]) {
+            const cue = SFX_CUES[soundName];
+            if (cue) GameFeedback.play(cue);
+            return;
+        }
+        try {
+            audioSystem[soundName].currentTime = 0;
+            audioSystem[soundName].loop = loop;
+            const playPromise = audioSystem[soundName].play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.debug('Audio play blocked or failed:', e?.name || e));
             }
+        } catch (e) {
+            console.log('Audio error:', e);
         }
     }
 
     // Helper function to stop sound
     function stopSFX(soundName) {
+        if (SFX_CUES[soundName]) {
+            GameFeedback.stopAll();
+            return;
+        }
         if (audioSystem[soundName]) {
+            // A previous transition must not restore volume or stop a newly started session later.
+            const fade = activeAudioFades.get(audioSystem[soundName]);
+            if (fade) clearInterval(fade);
+            activeAudioFades.delete(audioSystem[soundName]);
             try {
                 audioSystem[soundName].pause();
                 audioSystem[soundName].currentTime = 0;
@@ -122,24 +152,141 @@
     }
 
 
+    // Sound and haptics settings (GameFeedback.settings, saved per device, never in the profile). The header 🔊 is
+    // the master mute. The pause panel and the menu's Sound dialog draw the same rows (renderSoundSettings).
     function applyMuteState() {
+        const musicMuted = soundSettings.muted || soundSettings.musicOff;
+        Object.values(audioSystem).forEach(audio => { audio.muted = musicMuted; });
+        // Playing music follows the volume at once (no fade is running when a slider moves)
         Object.values(audioSystem).forEach(audio => {
-            audio.muted = isMuted;
+            if (!audio.paused && !activeAudioFades.get(audio)) audio.volume = gamePaused && audio === audioSystem.gameplayMusic
+                ? soundSettings.musicVolume * 0.4 : soundSettings.musicVolume;
         });
 
         const muteBtn = document.getElementById('muteBtn');
         if (muteBtn) {
-            muteBtn.textContent = isMuted ? '🔇' : '🔊';
-            muteBtn.title = isMuted ? 'Unmute sound' : 'Mute sound';
-            muteBtn.setAttribute('aria-pressed', String(isMuted));
+            muteBtn.textContent = soundSettings.muted ? '🔇' : '🔊';
+            muteBtn.title = soundSettings.muted ? 'Unmute sound' : 'Mute sound';
+            muteBtn.setAttribute('aria-pressed', String(soundSettings.muted));
         }
+        syncSoundSettings();
     }
 
+    GameFeedback.onSettingsChange(() => applyMuteState());
+
     function toggleMute() {
-        isMuted = !isMuted;
-        localStorage.setItem('emojiElementsMuted', String(isMuted));
-        applyMuteState();
-        showGameLog(isMuted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+        GameFeedback.setSetting('muted', !soundSettings.muted);
+        // The pause menu's switch already shows it
+        if (!gamePaused) showGameLog(soundSettings.muted ? '🔇 Sound muted' : '🔊 Sound enabled', false);
+    }
+
+    function toggleMusic() {
+        GameFeedback.setSetting('musicOff', !soundSettings.musicOff);
+    }
+
+    function toggleSfx() {
+        GameFeedback.setSetting('sfxOff', !soundSettings.sfxOff);
+        GameFeedback.play('select');
+    }
+
+    function toggleHaptics() {
+        if (!GameFeedback.hapticsSupported()) return;
+        GameFeedback.setSetting('haptics', !soundSettings.haptics);
+        haptic('toggle');
+    }
+
+    // One guarded entry point for vibration (feedback.js): kind is select, toggle, play, impact, reveal,
+    // revealRare, victory or defeat
+    function haptic(kind) {
+        return GameFeedback.haptic(kind);
+    }
+
+    // Quick land taps step up in pitch a little (up to 4 steps), so tapping a row of lands sounds like a run
+    let landTapRun = { step: 0, at: -Infinity };
+    function playLandTap() {
+        const now = performance.now();
+        landTapRun = { step: now - landTapRun.at < 700 ? Math.min(4, landTapRun.step + 1) : 0, at: now };
+        GameFeedback.play('landTap', { step: landTapRun.step });
+    }
+
+    const SOUND_ROWS = [
+        { key: 'muted', id: 'Sound', icon: '🔊', label: 'Sound', note: 'Everything: music and effects', on: () => !soundSettings.muted, toggle: 'toggleMute()' },
+        { key: 'musicOff', id: 'Music', icon: '🎵', label: 'Music', note: 'Menu and battle music', on: () => !soundSettings.musicOff, toggle: 'toggleMusic()', volume: 'musicVolume' },
+        { key: 'sfxOff', id: 'Sfx', icon: '✨', label: 'Effects', note: 'Cards, combat and menus', on: () => !soundSettings.sfxOff, toggle: 'toggleSfx()', volume: 'sfxVolume' },
+        { key: 'haptics', id: 'Haptics', icon: '📳', label: 'Haptics', note: 'Short buzzes for plays, hits, rare cards and wins', on: () => soundSettings.haptics, toggle: 'toggleHaptics()' }
+    ];
+
+    function renderSoundSettings(container, prefix) {
+        if (!container || container.dataset.rendered) return;
+        container.dataset.rendered = '1';
+        const anchor = container.querySelector('.pause-theme-btn');
+        SOUND_ROWS.forEach(row => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pause-switch-row';
+            button.id = `${prefix}${row.id}Switch`;
+            button.setAttribute('role', 'switch');
+            button.setAttribute('onclick', row.toggle);
+            button.dataset.soundRow = row.id;
+            button.innerHTML = `
+                <span class="pause-row-icon" aria-hidden="true">${row.icon}</span>
+                <span class="pause-row-text"><span class="pause-row-label">${row.label}</span><span class="pause-row-note" id="${prefix}${row.id}Note">${row.note}</span></span>
+                <span class="pause-switch" aria-hidden="true"></span>`;
+            button.setAttribute('aria-describedby', `${prefix}${row.id}Note`);
+            container.insertBefore(button, anchor);
+            if (row.volume) {
+                const slider = document.createElement('label');
+                slider.className = 'pause-volume-row';
+                slider.dataset.soundVolume = row.volume;
+                slider.innerHTML = `
+                    <span class="pause-volume-label">${row.label} volume</span>
+                    <input type="range" min="0" max="100" step="5" id="${prefix}${row.id}Volume">
+                    <output class="pause-volume-value" for="${prefix}${row.id}Volume"></output>`;
+                const input = slider.querySelector('input');
+                input.addEventListener('input', () => GameFeedback.setSetting(row.volume, Number(input.value) / 100));
+                // A sample of the new effects level when the slider is let go
+                if (row.volume === 'sfxVolume') input.addEventListener('change', () => GameFeedback.play('select'));
+                container.insertBefore(slider, anchor);
+            }
+        });
+        syncSoundSettings();
+    }
+
+    function syncSoundSettings() {
+        const supported = GameFeedback.hapticsSupported();
+        document.querySelectorAll('[data-sound-row]').forEach(button => {
+            const row = SOUND_ROWS.find(r => r.id === button.dataset.soundRow);
+            const unavailable = row.key === 'haptics' && !supported;
+            // Music and Effects follow the master switch
+            const blocked = soundSettings.muted && (row.key === 'musicOff' || row.key === 'sfxOff');
+            button.setAttribute('aria-checked', String(row.on() && !unavailable && !blocked));
+            button.disabled = unavailable || blocked;
+            if (row.key === 'haptics') {
+                const note = button.querySelector('.pause-row-note');
+                if (note) note.textContent = supported ? row.note : 'Not available on this device';
+            }
+        });
+        document.querySelectorAll('[data-sound-volume]').forEach(label => {
+            const key = label.dataset.soundVolume;
+            const value = Math.round(soundSettings[key] * 100);
+            const input = label.querySelector('input');
+            if (Number(input.value) !== value) input.value = value;
+            input.setAttribute('aria-valuetext', `${value}%`);
+            label.querySelector('output').textContent = `${value}%`;
+            const channelOff = soundSettings.muted || (key === 'musicVolume' ? soundSettings.musicOff : soundSettings.sfxOff);
+            label.hidden = channelOff;
+        });
+    }
+
+    function showSoundSettings() {
+        renderSoundSettings(document.getElementById('menuSoundSettings'), 'menu');
+        playSFX('menuOpen');
+        document.getElementById('soundDialog').classList.add('show');
+    }
+
+    function hideSoundSettings() {
+        playSFX('menuClose');
+        document.getElementById('soundDialog').classList.remove('show');
     }
 
     function initializeButtonTypes() {
@@ -203,6 +350,13 @@
     document.addEventListener('pointerdown', () => { lastInputWasPointer = true; }, true);
     document.addEventListener('keydown', (e) => { if (e.key === 'Tab') lastInputWasPointer = false; }, true);
 
+    let cardInteractionDepth = 0;
+    function cardInteraction(fn, trusted) {
+        if (!trusted) return fn?.();
+        cardInteractionDepth++;
+        try { return fn?.(); } finally { cardInteractionDepth--; }
+    }
+
     function bindCardPress(el, { onTap, onLongPress, label }) {
         let timer = null;
         let start = null;
@@ -220,14 +374,15 @@
         el.addEventListener('pointerdown', (e) => {
             longPressed = false;
             if (e.pointerType === 'mouse') return;
-            start = { x: e.clientX, y: e.clientY };
+            start = { x: e.clientX, y: e.clientY, trusted: e.isTrusted };
             clearTimeout(timer);
             timer = setTimeout(() => {
-                if (!start) return;
+                if (!start || !el.isConnected || (el.closest('#gameContainer') && (gamePaused || gameState.matchFinalized))) return;
                 longPressed = true;
+                const trusted = start.trusted;
                 start = null;
-                if (navigator.vibrate) navigator.vibrate(50);
-                onLongPress?.();
+                haptic('select');
+                cardInteraction(onLongPress, trusted);
             }, LONG_PRESS_MS);
         });
         el.addEventListener('pointermove', (e) => {
@@ -242,23 +397,23 @@
                 e.preventDefault();
                 return;
             }
-            onTap?.();
+            cardInteraction(onTap, e.isTrusted);
         });
         el.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (longPressed) return; // the long-press already acted
-            onLongPress?.();
+            cardInteraction(onLongPress, e.isTrusted);
         });
         el.addEventListener('keydown', (e) => {
             // Only when the card was reached with the keyboard: after a mouse click, Space stays END TURN.
             if ((e.key === 'Enter' || e.key === ' ') && !lastInputWasPointer) {
                 e.preventDefault();
                 e.stopPropagation();
-                onTap?.();
+                cardInteraction(onTap, e.isTrusted);
             } else if (e.key === 'i' || e.key === 'I' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                 e.preventDefault();
                 e.stopPropagation();
-                onLongPress?.();
+                cardInteraction(onLongPress, e.isTrusted);
             }
         });
     }
@@ -315,7 +470,9 @@
             el.classList.remove(className);
             void el.offsetWidth;
             el.classList.add(className);
+            const serial = matchSerial;
             setTimeout(() => {
+                if (serial !== matchSerial) return;
                 try {
                     el.classList.remove(className);
                 } catch (_) {
@@ -557,7 +714,8 @@
             return;
         }
 
-        const savedMeta = localStorage.getItem('emoji_elements_meta_v1');
+        let savedMeta;
+        try { savedMeta = localStorage.getItem(META_STORAGE_KEY); } catch (_) { return; }
         if (savedMeta) {
             try {
                 const parsedMeta = JSON.parse(savedMeta);
@@ -575,7 +733,8 @@
             }
         }
 
-        const saved = localStorage.getItem('emojiElementsStats');
+        let saved;
+        try { saved = localStorage.getItem(LEGACY_STATS_STORAGE_KEY); } catch (_) { return; }
         if (!saved) {
             return;
         }
@@ -604,12 +763,16 @@
                 gameMeta.stats.wins = Number.isFinite(gameStats.wins) ? gameStats.wins : 0;
                 gameMeta.stats.losses = Number.isFinite(gameStats.losses) ? gameStats.losses : 0;
                 gameMeta.stats.packsOpened = Number.isFinite(gameMeta.stats.packsOpened) ? gameMeta.stats.packsOpened : 0;
-                metaSave(gameMeta);
+                if (!metaSave(gameMeta)) return false;
             } catch (error) {
                 console.warn('Meta save hook failed while saving stats. Proceeding with baseline stats save.', error);
             }
         }
-        localStorage.setItem('emojiElementsStats', JSON.stringify(gameStats));
+        if (isMetaRuntimeEnabled() && profileWriteState === 'writer' && !profileRepairBlocked) {
+            const achievementsSaved = window.Achievements?.flush();
+            if (achievementsSaved !== false) document.getElementById('persistenceNotice')?.remove();
+            try { localStorage.setItem(LEGACY_STATS_STORAGE_KEY, JSON.stringify(gameStats)); } catch (_) { /* meta is authoritative */ }
+        }
     }
 
     loadStats();
@@ -619,7 +782,6 @@
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    let isMuted = localStorage.getItem('emojiElementsMuted') === 'true';
     let hoverTooltipPinned = false;
 
     // Intro / startup sequence state
@@ -868,8 +1030,112 @@
     let processingActionTimer = null; // Failsafe timer to prevent permanent lock
     let activeGraveyardView = 'player';
     let isStartingGame = false;
-    // Bumped when a match starts or is abandoned; delayed AI-turn callbacks from an older match check it and stop.
+    // Bumped on match start, abandonment and completion; delayed work belongs to that serial.
     let matchSerial = 0;
+
+    // ---- Achievements (achievements.js) hear about confirmed outcomes only: a card that resolved, a finished
+    // combat, a match that ended. reportAchievement never throws into the game.
+    function reportAchievement(type, payload) {
+        if (QA_MODE || !isMetaRuntimeEnabled()) return;
+        try { window.Achievements?.emit(type, payload); } catch (_) { /* never in the game's way */ }
+    }
+
+    const manaTotal = mana => Object.values(mana || {}).reduce((sum, n) => sum + (n || 0), 0);
+
+    // What is changing life right now ('instant', 'drain', 'artifact', 'upkeep' or 'combat'). A lethal hit ends the
+    // match inside the change, before the spell or combat is reported, so each life change carries its source.
+    let lifeChangeSource = null;
+    function withLifeSource(source, fn) {
+        const previous = lifeChangeSource;
+        lifeChangeSource = source;
+        try {
+            return fn();
+        } finally {
+            lifeChangeSource = previous;
+        }
+    }
+
+    // What a spell or artifact actually did, from the public state before and after it resolved
+    function snapshotForOutcome() {
+        const ids = board => new Map(board.map(c => [c.id, { tapped: !!c.tapped, power: c.power, card: c }]));
+        return {
+            player: ids(gameState.playerBoard), enemy: ids(gameState.enemyBoard),
+            enemyHand: gameState.enemyHand.length, playerDeck: gameState.playerDeck.length,
+            playerGraveyard: gameState.playerGraveyard.length,
+            enemyLife: gameState.enemyLife
+        };
+    }
+
+    function describeOutcome(before, card, side) {
+        const left = (map, board) => [...map.values()].filter(v => !board.some(c => c.id === v.card.id)).map(v => v.card);
+        const enemyGone = left(before.enemy, gameState.enemyBoard).filter(c => c.type === 'creature');
+        const playerGone = left(before.player, gameState.playerBoard).filter(c => c.type === 'creature');
+        const inHand = (hand, c) => hand.some(h => h.id === c.id);
+        const mine = side === 'player' ? gameState.playerBoard : gameState.enemyBoard;
+        const myBefore = side === 'player' ? before.player : before.enemy;
+        const theirsBefore = side === 'player' ? before.enemy : before.player;
+        const theirsGone = side === 'player' ? enemyGone : playerGone;
+        const theirHand = side === 'player' ? gameState.enemyHand : gameState.playerHand;
+        const added = mine.filter(c => !myBefore.has(c.id) && c.type === 'creature');
+        return {
+            side,
+            card,
+            enemyLifeChange: gameState.enemyLife - before.enemyLife,
+            bounced: theirsGone.filter(c => inHand(theirHand, c)),
+            destroyed: theirsGone.filter(c => !inHand(theirHand, c)),
+            deaths: [...enemyGone.filter(c => !inHand(gameState.enemyHand, c)).map(c => ({ card: c, owner: 'enemy' })),
+                ...playerGone.filter(c => !inHand(gameState.playerHand, c)).map(c => ({ card: c, owner: 'player' }))],
+            tokens: added.filter(c => c.cardType === 'Creature Token').length,
+            revived: added.find(c => c.cardType !== 'Creature Token') || null,
+            discarded: side === 'player' ? Math.max(0, before.enemyHand - gameState.enemyHand.length) : 0,
+            enemyHandAfter: gameState.enemyHand.length,
+            frozeTapped: [...theirsBefore.values()].some(v => v.tapped && v.card.frozen),
+            buffed: mine.filter(c => myBefore.has(c.id) && c.power > myBefore.get(c.id).power).length,
+            drawn: side === 'player' ? Math.max(0, before.playerDeck - gameState.playerDeck.length) : 0
+        };
+    }
+
+    // ---- Pausable match timers. The AI's turn steps, its failsafe, the action-lock failsafes and the toasts run
+    // on these, so PAUSE stops them where they are and RESUME continues them with the time they had left.
+    let gamePaused = false;
+    const matchTimers = new Map();
+    let matchTimerSeq = 0;
+
+    function armMatchTimer(id, timer) {
+        timer.startedAt = Date.now();
+        timer.handle = setTimeout(() => {
+            matchTimers.delete(id);
+            if (timer.serial === matchSerial && !gameState.matchFinalized) timer.fn();
+        }, timer.remaining);
+    }
+
+    function matchDelay(fn, ms) {
+        if (gameState.matchFinalized) return null;
+        const id = ++matchTimerSeq;
+        const timer = { fn, serial: matchSerial, remaining: Math.max(0, ms), startedAt: 0, handle: null };
+        matchTimers.set(id, timer);
+        if (!gamePaused) armMatchTimer(id, timer);
+        return id;
+    }
+
+    function clearMatchDelay(id) {
+        const timer = matchTimers.get(id);
+        if (!timer) return;
+        clearTimeout(timer.handle);
+        matchTimers.delete(id);
+    }
+
+    function freezeMatchTimers() {
+        const now = Date.now();
+        matchTimers.forEach(timer => {
+            clearTimeout(timer.handle);
+            timer.remaining = Math.max(0, timer.remaining - (now - timer.startedAt));
+        });
+    }
+
+    function thawMatchTimers() {
+        matchTimers.forEach((timer, id) => armMatchTimer(id, timer));
+    }
 
     // Failsafe function to unlock processing after timeout
     function setProcessingLock(duration = 5000) {
@@ -877,11 +1143,11 @@
 
         // Clear any existing timer
         if (processingActionTimer) {
-            clearTimeout(processingActionTimer);
+            clearMatchDelay(processingActionTimer);
         }
 
         // Set failsafe timer to auto-unlock after duration
-        processingActionTimer = setTimeout(() => {
+        processingActionTimer = matchDelay(() => {
             if (QA_MODE) console.log('⚠️ Failsafe: Auto-unlocking processing action');
             isProcessingAction = false;
             updateUI();
@@ -892,7 +1158,7 @@
     function releaseProcessingLock() {
         isProcessingAction = false;
         if (processingActionTimer) {
-            clearTimeout(processingActionTimer);
+            clearMatchDelay(processingActionTimer);
             processingActionTimer = null;
         }
         // CRITICAL FIX: Update UI to refresh button states immediately after releasing lock
@@ -1457,7 +1723,7 @@
     }
 
     const __ALL_CARDS = getAllCardsFlat();
-    const __CARD_BY_ID = {};
+    const __CARD_BY_ID = Object.create(null);
 
     __ALL_CARDS.forEach(card => {
         card.__id = getCardId(card);
@@ -1469,7 +1735,6 @@
     window.__CARD_BY_ID = __CARD_BY_ID;
 
     // META persistence module
-    const META_STORAGE_KEY = 'emoji_elements_meta_v1';
     const BASE_WIN_CREDITS = 25;
     const BASE_LOSS_CREDITS = 10;
     const WIN_FREE_PACK_CHANCE = 0.15;
@@ -1655,35 +1920,53 @@
     }
 
     function metaSave(meta) {
-        if (!isMetaRuntimeEnabled()) return;
+        if (!isMetaRuntimeEnabled()) return false;
+        if (profileWriteState === 'pending') return false; // initialization waits for the browser lock
+        if (!canSaveProfile()) return false;
         try {
-            localStorage.setItem(META_STORAGE_KEY, JSON.stringify(meta));
+            // Also refuse snapshots changed by an older build or external writer without our lock.
+            if (localStorage.getItem(META_STORAGE_KEY) !== profileSavedRaw) {
+                profileWriteState = 'reader';
+                persistenceNotice('This profile changed elsewhere. Reload to use its latest saved progress.');
+                return false;
+            }
+            const raw = JSON.stringify(meta);
+            localStorage.setItem(META_STORAGE_KEY, raw);
+            profileSavedRaw = raw;
+            return true;
         } catch (error) {
-            console.warn('Meta save failed. Continuing without persisting meta.', error);
+            console.warn('Meta save failed.', error);
+            persistenceNotice('Progress could not be saved: browser storage is full or blocked. Keep this tab open.', true);
             showGameLog('⚠️ Progress could not be saved: browser storage is full or blocked.', true);
+            return false;
         }
     }
 
-    const META_BACKUP_KEY = 'emoji_elements_meta_backups';
+    const META_BACKUP_KEY = QA_MODE ? 'emoji_elements_meta_qa_backups' : 'emoji_elements_meta_backups';
     const META_BACKUP_LIMIT = 3;
 
     // Keeps the exact stored text of a profile before the game rewrites it (PROGRESSION.md §7).
     function backupMetaRaw(raw, reason) {
-        if (!raw) return;
+        if (raw === null) return true;
+        if (profileWriteState !== 'writer') return false;
         try {
             const previous = JSON.parse(localStorage.getItem(META_BACKUP_KEY) || '[]');
             const backups = Array.isArray(previous) ? previous : [];
             backups.push({ savedAt: new Date().toISOString(), reason, raw });
             localStorage.setItem(META_BACKUP_KEY, JSON.stringify(backups.slice(-META_BACKUP_LIMIT)));
+            return true;
         } catch (error) {
             console.warn('Could not back up the previous save.', error);
+            profileRepairBlocked = true;
+            persistenceNotice('The original save could not be backed up. It has been kept unchanged; progress here is not saved.');
+            return false;
         }
     }
 
     // Wins/losses from the pre-meta build's emojiElementsStats, for a brand-new profile (PROGRESSION.md P7.4).
     function importLegacyStats(meta) {
         try {
-            const legacy = JSON.parse(localStorage.getItem('emojiElementsStats') || 'null');
+            const legacy = JSON.parse(localStorage.getItem(LEGACY_STATS_STORAGE_KEY) || 'null');
             if (!legacy || typeof legacy !== 'object') return;
             meta.stats.wins = readStoredNumber(legacy.wins) ?? 0;
             meta.stats.losses = readStoredNumber(legacy.losses) ?? 0;
@@ -1957,14 +2240,15 @@
                     ? {
                         themeKey: typeof loaded.lastPack.themeKey === 'string' ? loaded.lastPack.themeKey : null,
                         cardIds: loaded.lastPack.cardIds.filter(id => __CARD_BY_ID[id]),
-                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null
+                        openedAt: typeof loaded.lastPack.openedAt === 'string' ? loaded.lastPack.openedAt : null,
+                        ...(typeof loaded.lastPack.acquisitionId === 'string' ? { acquisitionId: loaded.lastPack.acquisitionId } : {})
                     }
                     : null
             };
 
             Object.entries(loaded.collection || {}).forEach(([cardId, count]) => {
                 if (!__CARD_BY_ID[cardId]) return;
-                const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+                const safeCount = readStoredNumber(count) ?? 0;
                 if (safeCount > 0) {
                     repaired.collection[cardId] = safeCount;
                 }
@@ -1975,7 +2259,7 @@
 
             Object.entries(loaded.decks || {}).forEach(([deckKey, deckData]) => {
                 const colors = Array.isArray(deckData?.colors)
-                    ? deckData.colors.filter(color => ELEMENTS[color])
+                    ? deckData.colors.filter(color => Object.hasOwn(ELEMENTS, color))
                     : getDeckColorsFromKey(deckKey);
                 if (colors.length === 0) return;
                 const savedStarter = Array.isArray(deckData?.starterCardIds) ? deckData.starterCardIds.filter(id => __CARD_BY_ID[id]) : [];
@@ -2025,7 +2309,7 @@
                 deck.cardIds = clampDeckCardIdsToOwned(deck.cardIds, repaired.collection);
             });
 
-            if (!repaired.decks[repaired.selectedDeckKey]) {
+            if (!Object.hasOwn(repaired.decks, repaired.selectedDeckKey)) {
                 repaired.selectedDeckKey = 'FIRE';
             }
 
@@ -2062,7 +2346,7 @@
             console.warn('Could not read the saved profile.', error);
         }
 
-        if (!raw) {
+        if (raw === null) {
             const seeded = createInitialMeta();
             if (importLegacy) importLegacyStats(seeded);
             metaSave(seeded);
@@ -2078,17 +2362,16 @@
 
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
             // Unreadable: keep its text, then start a new profile.
-            backupMetaRaw(raw, 'corrupt');
+            const backedUp = backupMetaRaw(raw, 'corrupt');
             const seeded = createInitialMeta();
-            metaSave(seeded);
+            if (backedUp) metaSave(seeded);
             return seeded;
         }
 
         // Any readable profile is repaired, never replaced (PROGRESSION.md §7).
         const meta = validateMeta(parsed);
         if (JSON.stringify(meta) !== raw) {
-            backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version');
-            metaSave(meta);
+            if (backupMetaRaw(raw, parsed.version === undefined || parsed.version === 1 ? 'repair' : 'unsupported-version')) metaSave(meta);
         }
         return meta;
     }
@@ -2113,6 +2396,60 @@
         total: (Number.isFinite(gameMeta?.stats?.wins) ? gameMeta.stats.wins : 0) + (Number.isFinite(gameMeta?.stats?.losses) ? gameMeta.stats.losses : 0)
     };
 
+    let achievementsRecognised = [];
+    // Holding a Web Lock for the page lifetime avoids a non-atomic localStorage read/write race.
+    // No expiring leases: a suspended tab cannot regain a stale write permission.
+    const profileReady = (async () => {
+        if (!navigator.locks) {
+            profileWriteState = 'unsupported';
+            persistenceNotice('Saving requires a browser with Web Locks on HTTPS. Progress here is not saved.');
+            initializeAchievements(); return;
+        }
+        await new Promise(resolve => {
+            navigator.locks.request(`emoji-elements-writer:${META_STORAGE_KEY}`, { ifAvailable: true }, async lock => {
+                if (!lock) {
+                    profileWriteState = 'reader'; canSaveProfile(); initializeAchievements(); resolve(); return;
+                }
+                profileWriteState = 'writer';
+                try {
+                    profileSavedRaw = localStorage.getItem(META_STORAGE_KEY);
+                    gameMeta = metaEnsureInitialized();
+                    gameStats = { wins: gameMeta.stats.wins, losses: gameMeta.stats.losses,
+                        total: gameMeta.stats.wins + gameMeta.stats.losses };
+                } catch (_) {
+                    profileWriteState = 'unavailable'; canSaveProfile();
+                }
+                initializeAchievements();
+                resolve();
+                await new Promise(() => {}); // browser releases this when the page closes/reloads
+            }).catch(() => { profileWriteState = 'unavailable'; canSaveProfile(); initializeAchievements(); resolve(); });
+        });
+    })();
+
+    window.addEventListener('pagehide', () => window.Achievements?.flush());
+    // Achievements keep their own versioned key (achievements.js). Anything the saved profile already proves is
+    // recognised now, quietly. QA sessions (?qa=1) never save, so QA tools can't award a real profile.
+    function initializeAchievements() {
+        try {
+            achievementsRecognised = window.Achievements ? Achievements.init({
+                game: () => gameState,
+                meta: () => gameMeta,
+                cards: () => __CARD_BY_ID,
+                identity: getCardIdentity,
+                rarity: getCardRarity,
+                persist: !QA_MODE && profileWriteState === 'writer' && !profileRepairBlocked,
+                canPersist: () => profileWriteState === 'writer' && !profileRepairBlocked,
+                enabled: () => !QA_MODE && isMetaRuntimeEnabled(),
+                onSaveError: () => persistenceNotice('Achievements could not be saved. Keep this tab open and retry saving.', true),
+                currentTheme: document.documentElement.dataset.theme,
+                debug: QA_DEBUG
+            }) : [];
+        } catch (error) {
+            console.warn('Achievements could not start; the game plays without them.', error);
+        }
+
+    }
+
     if (QA_DEBUG) {
         window.__qaDumpMeta = function() {
             const meta = metaLoad() || gameMeta || {};
@@ -2132,10 +2469,11 @@
 
         window.__qaResetMeta = function() {
             const confirmed = window.confirm('Reset persisted meta and reload page?');
-            if (!confirmed) return false;
+            if (!confirmed || !canSaveProfile()) return false;
             try {
+                if (!backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'qa-reset')) return false;
                 localStorage.removeItem(META_STORAGE_KEY);
-                localStorage.removeItem('emojiElementsStats');
+                localStorage.removeItem(LEGACY_STATS_STORAGE_KEY);
             } catch (error) {
                 console.warn('QA reset failed to clear meta storage key.', error);
             }
@@ -2713,7 +3051,7 @@
             return PACK_THEMES[0]?.key || 'fantasy';
         }
 
-        let roll = Math.random() * totalWeight;
+        let roll = gameplayRandom() * totalWeight;
         for (const theme of PACK_THEMES) {
             roll -= Math.max(0, Number(theme.weight) || 0);
             if (roll <= 0) {
@@ -2730,7 +3068,7 @@
         const plan = getPackSlotPlan(themeKey);
         const remaining = [...plan.pool];
         const picked = [];
-        const pickOne = candidates => candidates[Math.floor(Math.random() * candidates.length)];
+        const pickOne = candidates => candidates[Math.floor(gameplayRandom() * candidates.length)];
 
         plan.slots.forEach((groups, slot) => {
             for (const group of groups) {
@@ -2804,6 +3142,23 @@
     // Copies of each card owned just before the latest pack was added. Kept in memory only (the save format is
     // unchanged), so the reveal can mark NEW cards and show "had N".
     let lastPackOwnedBefore = null;
+
+    // A pack counts for achievements when its cards are seen (torn open), so an unlock never spoils the reveal.
+    // Closing the pack screen without tearing it counts too: the cards are yours either way.
+    let packReportedFor = null;
+    function reportPackOpened() {
+        const pack = gameMeta?.lastPack;
+        if (!pack?.openedAt) return;
+        const acquisitionId = pack.acquisitionId || JSON.stringify([pack.openedAt, pack.themeKey, pack.cardIds]);
+        if (packReportedFor === acquisitionId) return;
+        packReportedFor = acquisitionId;
+        reportAchievement('pack:opened', {
+            acquisitionId,
+            themeKey: pack.themeKey,
+            cards: (pack.cardIds || []).map(id => ({ id, rarity: getCardRarity(__CARD_BY_ID[id] || {}), isNew: getPackOwnedBefore(id) === 0 }))
+        });
+        reportAchievement('collection', {});
+    }
 
     function addPackToCollection(cardIds, openedAt) {
         const before = {};
@@ -3009,6 +3364,10 @@
     function revealCurrentPackCard() {
         if (packOpeningState.stage !== 'reveal' || packOpeningState.cardRevealed) return;
         setPackCardRevealState(true);
+        const revealed = packOpeningState.cards[packOpeningState.currentIndex];
+        const rarity = revealed ? getCardRarity(revealed) : 'common';
+        GameFeedback.play('reveal', { rarity });
+        if (['rare', 'epic', 'legendary'].includes(rarity)) haptic('revealRare');
 
         const viewport = document.getElementById('packCardViewport');
         if (viewport) {
@@ -3127,6 +3486,7 @@
         const packCardOwned = document.getElementById('packCardOwned');
         if (packCardOwned) packCardOwned.innerHTML = renderPackOwned(card);
         if (packViewport) {
+            packViewport.scrollTop = 0;
             applyCardIdentity(packViewport, card);
             packViewport.dataset.rarity = rarity;
             packViewport.classList.toggle('is-new', getPackOwnedBefore(card.__id) === 0);
@@ -3182,6 +3542,7 @@
 
     function closePackOpeningOverlay() {
         const overlay = document.getElementById('packOpeningOverlay');
+        if (overlay?.classList.contains('show')) reportPackOpened();
         const shouldUnlockScroll = overlay?.dataset.lockScroll !== 'false' && overlay?.classList.contains('show');
         let scrollReleased = false;
 
@@ -3235,6 +3596,9 @@
         if (packOpeningState.stage !== 'sealed') return;
 
         packOpeningState.stage = 'opening';
+        reportPackOpened();
+        GameFeedback.play('packRip');
+        haptic('reveal');
         const instruction = document.getElementById('packInstruction');
         const shell = document.getElementById('packTearSurface');
         if (instruction) {
@@ -3288,6 +3652,7 @@
             }
 
             packOpeningState.active = true;
+            holdAchievementNotice();
             packOpeningState.cards = cards;
             packOpeningState.currentIndex = 0;
             packOpeningState.isDragging = false;
@@ -3460,20 +3825,20 @@
             return;
         }
         gameState.matchFinalized = true;
+        cancelMatchWork();
 
         const normalizedResult = result === 'win' ? 'win' : 'loss';
         recordHistory(normalizedResult === 'win' ? 'player' : 'enemy', normalizedResult === 'win' ? '🏆 Victory: the enemy is defeated' : '💀 Defeat');
 
         if (normalizedResult === 'win') {
-            gameStats.wins++;
-            gameStats.total++;
+            if (isMetaRuntimeEnabled()) { gameStats.wins++; gameStats.total++; }
 
             const awardedFreePack = true;
             const themeKey = choosePackThemeByWeight();
             const cardIds = generatePack(themeKey);
             const openedAt = new Date().toISOString();
 
-            if (META_ENABLED) {
+            if (isMetaRuntimeEnabled()) {
                 try {
                     if (!gameMeta.stats) {
                         gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
@@ -3488,7 +3853,7 @@
 
                     addPackToCollection(cardIds, openedAt);
 
-                    gameMeta.lastPack = { themeKey, cardIds, openedAt };
+                    gameMeta.lastPack = { themeKey, cardIds, openedAt, acquisitionId: globalThis.crypto?.randomUUID?.() || `pack-${Date.now()}-${nextCardInstanceId()}` };
                     metaSave(gameMeta);
                 } catch (error) {
                     console.warn('Meta reward hook failed after win. Continuing with baseline victory flow.', error);
@@ -3510,6 +3875,9 @@
 
             stopSFX('gameplayMusic');
             playSFX('gameVictory');
+            haptic('victory');
+            reportAchievement('wallet', {});
+            reportAchievement('match:end', { result: 'win', reason: gameState.enemyDeckedOut ? 'decked' : 'life' });
             showMatchRewardOverlay({
                 creditsAwarded: BASE_WIN_CREDITS,
                 packCount: 1
@@ -3517,10 +3885,9 @@
             return;
         }
 
-        gameStats.losses++;
-        gameStats.total++;
+        if (isMetaRuntimeEnabled()) { gameStats.losses++; gameStats.total++; }
 
-        if (META_ENABLED) {
+        if (isMetaRuntimeEnabled()) {
             try {
                 if (!gameMeta.stats) {
                     gameMeta.stats = { wins: 0, losses: 0, packsOpened: 0 };
@@ -3546,6 +3913,9 @@
 
         stopSFX('gameplayMusic');
         playSFX('gameLose');
+        haptic('defeat');
+        reportAchievement('wallet', {});
+        reportAchievement('match:end', { result: 'loss', reason: gameState.playerDeckedOut ? 'decked' : 'life' });
         const lossReward = document.getElementById('lossRewardLine');
         if (lossReward) lossReward.textContent = `💳 +${BASE_LOSS_CREDITS} Credits`;
         showMatchResultOverlay('loss');
@@ -3595,7 +3965,7 @@
     }
 
     function createParticles(x, y, color, count = 20) {
-        if (prefersReducedMotion()) return;
+        if (gamePaused || gameState.matchFinalized || prefersReducedMotion()) return;
         // Apply mobile optimization
         const adjustedCount = Math.floor(count * particleMultiplier);
 
@@ -3614,20 +3984,22 @@
     const particleFPS = 60;
     const particleFrameInterval = 1000 / particleFPS;
     let particleLoopRunning = false;
+    let particleRafId = 0;
 
     function startParticleLoop() {
         if (particleLoopRunning) return;
         particleLoopRunning = true;
-        requestAnimationFrame(animateParticles);
+        particleRafId = requestAnimationFrame(animateParticles);
     }
 
     function animateParticles(currentTime) {
         if (!particles.length) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             particleLoopRunning = false;
+            particleRafId = 0;
             return;
         }
-        requestAnimationFrame(animateParticles);
+        particleRafId = requestAnimationFrame(animateParticles);
 
         // Throttle particle updates for better performance
         if (currentTime - lastParticleFrame < particleFrameInterval) {
@@ -3657,8 +4029,8 @@
         const now = Date.now();
         if (!hold && now < gameLogHoldUntil) {
             gameLogQueue = [...gameLogQueue, { message, isEnemy, isScifi }].slice(-3);
-            clearTimeout(gameLogFlushTimer);
-            gameLogFlushTimer = setTimeout(flushGameLog, gameLogHoldUntil - now);
+            clearMatchDelay(gameLogFlushTimer);
+            gameLogFlushTimer = matchDelay(flushGameLog, gameLogHoldUntil - now);
             return;
         }
         if (hold) {
@@ -3667,8 +4039,14 @@
         }
 
         const log = document.getElementById('gameLog');
+        if (message.startsWith('⚠️')) GameFeedback.play('deny');
+        // During a match the toast sits on the turn banner, above the board, so it never covers cards
+        const banner = document.getElementById('turnBanner');
+        const inMatch = document.getElementById('gameContainer')?.style.display === 'flex';
+        const host = inMatch && banner ? banner : document.body;
+        if (log.parentElement !== host) host.appendChild(log);
         log.textContent = message;
-        log.className = 'game-log show';
+        log.className = `game-log show${inMatch ? ' is-docked' : ''}`;
 
         if (isEnemy) {
             log.classList.add('enemy');
@@ -3677,10 +4055,26 @@
             log.classList.add('scifi');
         }
 
-        clearTimeout(gameLogHideTimer);
-        gameLogHideTimer = setTimeout(() => {
+        clearMatchDelay(gameLogHideTimer);
+        gameLogHideTimer = matchDelay(() => {
             log.classList.remove('show');
         }, hold || 2000);
+    }
+
+    // Effects (Web Audio) start only after the player touches the page; each later gesture also resumes audio the
+    // browser suspended or interrupted (a call, a background tab)
+    ['pointerdown', 'keydown', 'touchend'].forEach(type =>
+        document.addEventListener(type, () => GameFeedback.unlock(), { capture: true, passive: true }));
+
+    // Leaving a match drops its pending toasts, so a menu message isn't held behind a combat report
+    function resetGameLog() {
+        gameLogQueue = [];
+        gameLogHoldUntil = 0;
+        clearMatchDelay(gameLogFlushTimer);
+        clearMatchDelay(gameLogHideTimer);
+        const log = document.getElementById('gameLog');
+        log?.classList.remove('show');
+        if (log && log.parentElement !== document.body) document.body.appendChild(log);
     }
 
     function flushGameLog() {
@@ -3690,7 +4084,7 @@
         showGameLog(next.message, next.isEnemy, next.isScifi);
         if (gameLogQueue.length) {
             gameLogHoldUntil = Date.now() + 900;
-            gameLogFlushTimer = setTimeout(flushGameLog, 900);
+            gameLogFlushTimer = matchDelay(flushGameLog, 900);
         }
     }
 
@@ -3806,7 +4200,9 @@
 
     // Resolves one side's attack with the live rules, recording each attacker's real result once
     function resolveAttackersWithHistory(attackers, blockersFor, isPlayerAttacking) {
-        const results = attackers.map(attacker => {
+        const untappedDefenders = (isPlayerAttacking ? gameState.enemyBoard : gameState.playerBoard)
+            .filter(c => c.type === 'creature' && !c.tapped).length;
+        const results = withLifeSource('combat', () => attackers.map(attacker => {
             const blockers = blockersFor(attacker);
             const before = { player: gameState.playerLife, enemy: gameState.enemyLife };
             if (!hasAbility(attacker, 'vigilance')) {
@@ -3818,7 +4214,7 @@
                 dealUnblockedDamage(attacker, isPlayerAttacking);
             }
             return { attacker, blockers, lifeChange: { player: gameState.playerLife - before.player, enemy: gameState.enemyLife - before.enemy } };
-        });
+        }));
         checkStateBasedActions();
         const alive = new Set([...gameState.playerBoard, ...gameState.enemyBoard].map(c => c.id));
         const side = isPlayerAttacking ? 'player' : 'enemy';
@@ -3828,6 +4224,17 @@
             blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id)
         }, isPlayerAttacking));
         recordHistory(side, `⚔️ ${sideName(side)} ${isPlayerAttacking ? 'attack' : 'attacks'} with ${attackers.length} creature${attackers.length === 1 ? '' : 's'}`, details);
+        reportAchievement('combat', {
+            side,
+            untappedDefenders,
+            pairs: results.map(r => ({
+                attacker: r.attacker,
+                blockers: r.blockers,
+                attackerDies: !alive.has(r.attacker.id),
+                blockersDie: r.blockers.filter(b => !alive.has(b.id)).map(b => b.id),
+                lifeChange: r.lifeChange
+            }))
+        });
         return results;
     }
 
@@ -4069,14 +4476,14 @@
         if (prefersReducedMotion()) return;
         const sparkleEmojis = ['✨', '💫', '⭐', '🌟', '💖'];
         for (let i = 0; i < count; i++) {
-            setTimeout(() => {
+            matchDelay(() => {
                 const sparkle = document.createElement('div');
                 sparkle.className = 'sparkle';
                 sparkle.textContent = sparkleEmojis[Math.floor(Math.random() * sparkleEmojis.length)];
                 sparkle.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
                 sparkle.style.top = (y + (Math.random() - 0.5) * 100) + 'px';
                 document.body.appendChild(sparkle);
-                setTimeout(() => sparkle.remove(), 1000);
+                matchDelay(() => sparkle.remove(), 1000);
             }, i * 50);
         }
     }
@@ -4085,14 +4492,14 @@
         if (prefersReducedMotion()) return;
         const trampleEmojis = ['💥', '⚡', '💢', '💨'];
         for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
+            matchDelay(() => {
                 const effect = document.createElement('div');
                 effect.className = 'trample-effect';
                 effect.textContent = trampleEmojis[Math.floor(Math.random() * trampleEmojis.length)];
                 effect.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
                 effect.style.top = (y + (Math.random() - 0.5) * 80) + 'px';
                 document.body.appendChild(effect);
-                setTimeout(() => effect.remove(), 800);
+                matchDelay(() => effect.remove(), 800);
             }, i * 100);
         }
     }
@@ -4101,14 +4508,14 @@
         if (prefersReducedMotion()) return;
         const gameContainer = document.getElementById('gameContainer');
         gameContainer.classList.add('shake-board');
-        setTimeout(() => {
+        matchDelay(() => {
             gameContainer.classList.remove('shake-board');
         }, 500);
     }
 
     function shakeElement(element) {
         element.classList.add('shake');
-        setTimeout(() => {
+        matchDelay(() => {
             element.classList.remove('shake');
         }, 500);
     }
@@ -4576,6 +4983,7 @@
 
     function purchasePack(themeKey) {
         try {
+            if (!canSaveProfile()) return { ok: false, reason: 'storage_unavailable' };
             const normalizedTheme = String(themeKey || '').trim().toLowerCase();
             const cost = PACK_SHOP_COSTS[normalizedTheme];
             if (!Number.isFinite(cost)) {
@@ -4608,18 +5016,24 @@
                 return { ok: false, reason: 'empty_pack', themeKey: normalizedTheme };
             }
 
+            const beforePurchase = gameMeta;
+            const beforeOwned = lastPackOwnedBefore;
+            gameMeta = JSON.parse(JSON.stringify(gameMeta));
             const openedAt = new Date().toISOString();
             gameMeta.wallet.credits = Math.max(0, currentCredits - cost);
             addPackToCollection(cardIds, openedAt);
-            gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt };
+            gameMeta.lastPack = { themeKey: normalizedTheme, cardIds, openedAt, acquisitionId: globalThis.crypto?.randomUUID?.() || `pack-${Date.now()}-${nextCardInstanceId()}` };
             gameMeta.stats.packsOpened = (readStoredNumber(gameMeta.stats?.packsOpened) ?? 0) + 1;
 
-            try {
-                metaSave(gameMeta);
-            } catch (saveError) {
-                console.warn('Pack Shop metaSave failed; continuing with in-memory purchase state.', saveError);
+            if (!metaSave(gameMeta)) {
+                gameMeta = beforePurchase;
+                lastPackOwnedBefore = beforeOwned;
+                setPackShopMessage('Purchase not completed: progress could not be saved.', 'error');
+                return { ok: false, reason: 'save_failed' };
             }
 
+            reportAchievement('pack:purchased', { themeKey: normalizedTheme, price: cost });
+            reportAchievement('wallet', {});
             setPackShopMessage(`Bought a ${getPackTheme(normalizedTheme)?.label || normalizedTheme} Pack for 💳 ${cost}.`, 'success');
             updatePackShopCreditsBadge();
             openPackOpeningOverlayFromMeta('shop');
@@ -4906,7 +5320,7 @@
         info.className = 'deck-builder-info-btn';
         info.textContent = 'ⓘ';
         info.setAttribute('aria-label', `Rules for ${card.name}`);
-        info.addEventListener('click', () => showCardDetail(card));
+        info.addEventListener('click', e => cardInteraction(() => showCardDetail(card), e.isTrusted));
         row.appendChild(info);
         return row;
     }
@@ -5102,14 +5516,12 @@
             return;
         }
 
+        const previous = gameMeta.decks[deckKey].cardIds;
         gameMeta.decks[deckKey].cardIds = [...candidate];
-        try {
-            metaSave(gameMeta);
-        } catch (error) {
-            console.warn('Meta deck-save hook failed. Proceeding with in-memory deck update only.', error);
-        }
+        if (!metaSave(gameMeta)) { gameMeta.decks[deckKey].cardIds = previous; return; }
         playSFX('select');
         showGameLog(`Saved deck ${deckKey}.`, false);
+        reportAchievement('deck:saved', { deckKey });
         deckBuilderState.workingCardIds = [...candidate];
         deckBuilderState.debugWarning = '';
         deckBuilderState.validationErrors = [];
@@ -5136,7 +5548,7 @@
     let currentMenuScreen = 'mainMenu';
 
     function setStartMenuScreen(activeScreenId = 'mainMenu') {
-        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
+        const menuScreens = ['mainMenu', 'elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'achievementsScreen', 'deckBuilderScreen', 'packShopScreen', 'binderScreen'];
         if (activeScreenId === 'mainMenu' && currentMenuScreen !== 'mainMenu') menuReturnTarget = currentMenuScreen;
         currentMenuScreen = activeScreenId;
         menuScreens.forEach(id => {
@@ -5180,7 +5592,307 @@
             const losses = Math.max(0, Number(gameStats.losses) || 0);
             recordEl.textContent = wins + losses > 0 ? `${wins} won · ${losses} lost` : 'No battles yet';
         }
+        const achievementsEl = document.getElementById('menuAchievements');
+        if (achievementsEl && window.Achievements) achievementsEl.textContent = achievementsSummary();
+        // NEW GAME names the deck it will start from, once you have played at least once
+        const newGameDesc = document.getElementById('menuNewGameDesc');
+        if (newGameDesc) {
+            const played = (Number(gameStats.wins) || 0) + (Number(gameStats.losses) || 0) > 0;
+            const colors = played && gameMeta?.decks?.[gameMeta?.selectedDeckKey] ? getDeckColorsFromKey(gameMeta.selectedDeckKey) : [];
+            newGameDesc.textContent = colors.length
+                ? `Last deck: ${colors.map(elementLabel).join(' + ')}`
+                : 'Pick your elements and duel the AI';
+        }
     }
+
+    // ---- Achievements: the menu screen and the pause dialog draw the same view (renderAchievements)
+    let achievementFilter = 'all';
+
+    function escapeAchievementText(text) {
+        return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    }
+
+    function renderAchievements(root) {
+        if (!root || !window.Achievements) return;
+        const all = Achievements.catalog;
+        const unlockedTotal = Achievements.unlockedCount();
+        const filters = [['all', 'All', '🏆'], ['unlocked', 'Unlocked', '✅'], ...Achievements.categories];
+        const inFilter = a => achievementFilter === 'all' ? true
+            : achievementFilter === 'unlocked' ? Achievements.isUnlocked(a.id) : a.cat === achievementFilter;
+        const shown = all.filter(inFilter);
+        const countIn = key => {
+            const list = key === 'all' ? all : key === 'unlocked' ? all.filter(a => Achievements.isUnlocked(a.id)) : all.filter(a => a.cat === key);
+            return key === 'unlocked' ? `${list.length}` : `${list.filter(a => Achievements.isUnlocked(a.id)).length}/${list.length}`;
+        };
+        const date = iso => { try { return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch (_) { return ''; } };
+        const tierLabel = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+
+        root.innerHTML = `
+            ${Achievements.persisting ? '' : '<p class="ach-qa-note">QA session or newer save format: achievements here are not saved.</p>'}
+            <div class="ach-summary">
+                <div class="ach-count"><strong>${unlockedTotal}</strong> of ${all.length} unlocked</div>
+                <div class="ach-meter" aria-hidden="true"><span style="width:${Math.round(unlockedTotal / all.length * 100)}%"></span></div>
+                <button type="button" class="ach-notify" role="switch" aria-checked="${Achievements.notify}">
+                    <span>Unlock sound &amp; buzz</span><span class="pause-switch" aria-hidden="true"></span>
+                </button>
+            </div>
+            <div class="ach-filters" role="group" aria-label="Show achievements">
+                ${filters.map(([key, label, icon]) => `<button type="button" class="ach-filter" data-filter="${key}" aria-pressed="${achievementFilter === key}">
+                    <span aria-hidden="true">${icon}</span> ${escapeAchievementText(label)} <span class="ach-filter-count">${countIn(key)}</span></button>`).join('')}
+            </div>
+            <ul class="ach-list" tabindex="0" aria-label="${escapeAchievementText(filters.find(f => f[0] === achievementFilter)?.[1] || 'All')} achievements">
+                ${shown.map(a => {
+                    const unlocked = Achievements.isUnlocked(a.id);
+                    const secret = a.hidden && !unlocked;
+                    const progress = !unlocked && a.goal ? Achievements.progressOf(a) : null;
+                    const at = unlocked ? Achievements.unlockedAt(a.id) : null;
+                    return `<li class="ach-item tier-${a.tier}" data-state="${unlocked ? 'unlocked' : secret ? 'secret' : 'locked'}" data-id="${a.id}">
+                        <span class="ach-icon" aria-hidden="true">${secret ? '❔' : a.icon}</span>
+                        <span class="ach-body">
+                            <span class="ach-name">${secret ? 'Hidden achievement' : escapeAchievementText(a.name)}</span>
+                            <span class="ach-desc">${secret ? 'Keep playing to find this one.' : escapeAchievementText(a.desc)}</span>
+                            <span class="ach-meta">
+                                <span class="ach-tier">${tierLabel[a.tier]}</span>
+                                ${unlocked ? `<span class="ach-when">✓ ${Achievements.wasBackfilled(a.id) ? 'From your saved progress' : `Unlocked${at && !at.startsWith('1970') ? ` ${date(at)}` : ''}`}</span>` : '<span class="ach-when">🔒 Locked</span>'}
+                                ${progress ? `<span class="ach-progress" role="img" aria-label="${progress.value} of ${progress.goal}"><span class="ach-bar"><span style="width:${Math.round(progress.value / progress.goal * 100)}%"></span></span>${progress.value} / ${progress.goal}</span>` : ''}
+                            </span>
+                        </span>
+                    </li>`;
+                }).join('')}
+            </ul>`;
+
+        root.querySelector('.ach-notify').addEventListener('click', () => {
+            Achievements.setNotify(!Achievements.notify);
+            renderAchievements(root);
+            root.querySelector('.ach-notify')?.focus();
+        });
+        root.querySelectorAll('.ach-filter').forEach(button => button.addEventListener('click', () => {
+            achievementFilter = button.dataset.filter;
+            playSFX('select');
+            renderAchievements(root);
+            root.querySelector(`.ach-filter[data-filter="${achievementFilter}"]`)?.focus();
+        }));
+    }
+
+    function showAchievements() {
+        playSFX('menuOpen');
+        setStartMenuScreen('achievementsScreen');
+        renderAchievements(document.getElementById('achievementsMenuView'));
+    }
+
+    function showAchievementsDialog() {
+        holdAchievementNotice();
+        renderAchievements(document.getElementById('achievementsDialogView'));
+        playSFX('menuOpen');
+        document.getElementById('achievementsDialog').classList.add('show');
+    }
+
+    function hideAchievementsDialog() {
+        playSFX('menuClose');
+        document.getElementById('achievementsDialog').classList.remove('show');
+        updatePausePanel();
+    }
+
+    function achievementsSummary() {
+        return window.Achievements ? `${Achievements.unlockedCount()} of ${Achievements.catalog.length} unlocked` : '';
+    }
+
+    // ---- Unlock notices: queued, one at a time (3.2 s), at the top of the screen, never over the match controls.
+    // Each is { icon, name, label?, quiet? }: quiet notices make no sound or buzz.
+    const achievementNoticeQueue = [];
+    let achievementNoticeShowing = false;
+
+    function queueAchievementNotice(notice) {
+        achievementNoticeQueue.push(notice);
+        if (!achievementNoticeShowing) showNextAchievementNotice();
+        else updateAchievementNoticeCount();
+    }
+
+    function achievementNoticeLabel(notice) {
+        const more = achievementNoticeQueue.length;
+        return `${notice.label || 'Achievement unlocked'}${more ? ` · ${more} more` : ''}`;
+    }
+
+    // Unlocks that arrive while a notice shows (a win often brings several) are counted on it at once
+    let currentAchievementNotice = null;
+    function updateAchievementNoticeCount() {
+        const label = document.querySelector('#achievementToast:not([hidden]) .ach-toast-label');
+        if (label && currentAchievementNotice) label.textContent = achievementNoticeLabel(currentAchievementNotice);
+    }
+
+    // PAUSE, this list and a pack reveal take the notice on screen down at once (it would cover their headings); it
+    // comes back, without its sound again, once they close
+    let achievementNoticeTimer = null;
+    function holdAchievementNotice() {
+        const toast = document.getElementById('achievementToast');
+        if (!toast || toast.hidden || !currentAchievementNotice) return;
+        clearTimeout(achievementNoticeTimer);
+        toast.hidden = true;
+        achievementNoticeQueue.unshift({ ...currentAchievementNotice, quiet: true });
+        currentAchievementNotice = null;
+        setTimeout(showNextAchievementNotice, 600);
+    }
+
+    function titleScreenShowing() {
+        const shown = id => {
+            const el = document.getElementById(id);
+            return !!el && getComputedStyle(el).display !== 'none';
+        };
+        return shown('clickToStart') || shown('introContainer');
+    }
+
+    function showNextAchievementNotice() {
+        const toast = document.getElementById('achievementToast');
+        if (!toast || !achievementNoticeQueue.length) {
+            achievementNoticeShowing = false;
+            return;
+        }
+        achievementNoticeShowing = true;
+        // Wait while paused (the board is frozen), while this list is open, while a pack is being revealed (a
+        // notice could spoil the cards) and while the page is hidden. Over anything else the notice sits at the top
+        // and lets clicks through.
+        const blocking = getOpenGameDialog()?.id;
+        if (document.hidden || gamePaused || titleScreenShowing() || ['pauseModal', 'achievementsDialog', 'packOpeningOverlay'].includes(blocking)) {
+            setTimeout(showNextAchievementNotice, 600);
+            return;
+        }
+        const notice = achievementNoticeQueue.shift();
+        currentAchievementNotice = notice;
+        toast.innerHTML = `<span class="ach-toast-icon" aria-hidden="true">${notice.icon}</span>
+            <span class="ach-toast-text"><span class="ach-toast-label">${escapeAchievementText(achievementNoticeLabel(notice))}</span>
+            <span class="ach-toast-name">${escapeAchievementText(notice.name)}</span></span>`;
+        toast.hidden = false;
+        if (Achievements.notify && !notice.quiet) {
+            GameFeedback.play('achievement');
+            haptic('achievement');
+        }
+        achievementNoticeTimer = setTimeout(() => {
+            toast.hidden = true;
+            currentAchievementNotice = null;
+            setTimeout(showNextAchievementNotice, 250);
+        }, 3200);
+    }
+
+    if (window.Achievements) {
+        Achievements.onUnlock((def, { backfilled }) => {
+            if (!backfilled) queueAchievementNotice({ icon: def.icon, name: def.name });
+            const label = document.getElementById('menuAchievements');
+            if (label) label.textContent = achievementsSummary();
+        });
+    }
+
+    // A profile that already proved some achievements gets one quiet notice instead of one for each (queued once
+    // this script has finished loading: the dialog list it checks is defined further down)
+    profileReady.then(() => {
+    if (achievementsRecognised.length) {
+        setTimeout(() => queueAchievementNotice({
+            icon: '🏆', quiet: true, label: 'Recognised from your saved progress',
+            name: `${achievementsRecognised.length} achievement${achievementsRecognised.length === 1 ? '' : 's'}`
+        }), 0);
+    }
+
+    });
+
+    // Visual themes: colours, type and backgrounds only (styles.css "VISUAL THEMES"). Saved under its own key,
+    // apart from the profile, so a progress reset keeps it and switching theme never touches the save.
+    const THEME_STORAGE_KEY = 'emoji_elements_theme';
+    const VISUAL_THEMES = {
+        arcane: { label: 'Arcane Fantasy', desc: 'Violet ink, gold leaf and runes', metaColor: '#140b1f' },
+        'deep-space': { label: 'Deep Space', desc: 'Midnight navy, starlight and ice blue', metaColor: '#060a16' },
+        neon: { label: 'Neon Sci-Fi', desc: 'Black glass, cyan and magenta', metaColor: '#07060c' }
+    };
+
+    function getVisualTheme() {
+        const key = document.documentElement.dataset.theme;
+        return VISUAL_THEMES[key] ? key : 'arcane';
+    }
+
+    function applyVisualTheme(key, { save = true, track = false } = {}) {
+        if (!VISUAL_THEMES[key]) key = 'arcane';
+        document.documentElement.dataset.theme = key;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', VISUAL_THEMES[key].metaColor);
+        const chipName = document.getElementById('themeChipName');
+        if (chipName) chipName.textContent = VISUAL_THEMES[key].label;
+        const pauseName = document.getElementById('pauseThemeName');
+        if (pauseName) pauseName.textContent = VISUAL_THEMES[key].label;
+        document.querySelectorAll('#themeOptions [role="radio"]').forEach(option => {
+            const checked = option.dataset.uiTheme === key;
+            option.setAttribute('aria-checked', String(checked));
+            option.tabIndex = checked ? 0 : -1;
+        });
+        if (save) {
+            try { localStorage.setItem(THEME_STORAGE_KEY, key); } catch (_) { /* private mode: the theme lasts this visit */ }
+            if (track) reportAchievement('theme', { theme: key });
+        }
+    }
+
+    function renderThemePicker() {
+        const list = document.getElementById('themeOptions');
+        if (!list || list.childElementCount) return;
+        Object.entries(VISUAL_THEMES).forEach(([key, theme]) => {
+            const option = document.createElement('button');
+            option.type = 'button';
+            // Each option is drawn in its own theme's tokens, so it is its own preview
+            option.className = 'theme-option';
+            option.setAttribute('role', 'radio');
+            option.dataset.uiTheme = key;
+            option.innerHTML = `
+                <span class="theme-option-preview" aria-hidden="true">
+                    <span class="theme-option-mark"><svg focusable="false"><use href="#ee-sigil"/></svg></span>
+                    <span class="theme-option-swatches"><i></i><i></i><i></i></span>
+                </span>
+                <span class="theme-option-body">
+                    <span class="theme-option-label">${theme.label}</span>
+                    <span class="theme-option-desc">${theme.desc}</span>
+                </span>`;
+            option.addEventListener('click', e => { playSFX('select'); applyVisualTheme(key, { track: e.isTrusted }); });
+            list.appendChild(option);
+        });
+        // Arrow keys move between themes and pick them (radio group pattern)
+        list.addEventListener('keydown', e => {
+            const keys = Object.keys(VISUAL_THEMES);
+            const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+            let next;
+            if (step) next = keys[(keys.indexOf(getVisualTheme()) + step + keys.length) % keys.length];
+            else if (e.key === 'Home') next = keys[0];
+            else if (e.key === 'End') next = keys[keys.length - 1];
+            if (!next) return;
+            e.preventDefault();
+            applyVisualTheme(next, { track: e.isTrusted });
+            list.querySelector(`[data-ui-theme="${next}"]`)?.focus();
+        });
+        applyVisualTheme(getVisualTheme(), { save: false });
+    }
+
+    function showThemePicker() {
+        renderThemePicker();
+        playSFX('menuOpen');
+        document.getElementById('themeDialog').classList.add('show');
+        // Focus starts on the current theme rather than the close button, scrolled into view on short screens
+        setTimeout(() => {
+            const current = document.querySelector('#themeOptions [aria-checked="true"]');
+            current?.focus({ preventScroll: true });
+            current?.scrollIntoView({ block: 'nearest' });
+        }, 60);
+    }
+
+    function hideThemePicker() {
+        playSFX('menuClose');
+        document.getElementById('themeDialog').classList.remove('show');
+    }
+
+    document.getElementById('achievementsDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideAchievementsDialog();
+    });
+
+    document.getElementById('soundDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideSoundSettings();
+    });
+
+    document.getElementById('themeDialog')?.addEventListener('click', function(e) {
+        if (e.target === this) hideThemePicker();
+    });
+    applyVisualTheme(getVisualTheme(), { save: false });
 
     function initializeStartMenuState() {
         setStartMenuScreen('mainMenu');
@@ -5339,7 +6051,9 @@
     }
 
     function returnToMainMenu() {
-        matchSerial++; // abandon any AI turn still scheduled for the match being left
+        cancelMatchWork();
+        clearMatchPause();
+        resetGameLog();
         stopSFX('gameplayMusic');
         stopSFX('gameVictory');
         stopSFX('gameLose');
@@ -5389,12 +6103,27 @@
         showElementSelection();
     }
 
-    // Pause/Resume Functions
+    // Pause/Resume. Pausing stops the match where it is: the AI's turn, its failsafe, the action-lock failsafes and
+    // the toasts wait (matchDelay), CSS animations on the board hold, and the board takes no input (inert). Resume
+    // continues the same timers with the time they had left; the dialog code returns focus to where it was.
     function pauseGame() {
-        if (document.getElementById('gameContainer').style.display !== 'flex') {
+        const container = document.getElementById('gameContainer');
+        if (container.style.display !== 'flex' || gamePaused) {
             return;
         }
 
+        gamePaused = true;
+        freezeMatchTimers();
+        holdAchievementNotice();
+        container.classList.add('is-paused');
+        container.inert = true;
+        document.getElementById('gameLog')?.classList.remove('show');
+        // Effect particles are only decoration: drop them rather than draw them over the pause panel
+        particles = [];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay * 0.4, 250);
+        updatePausePanel();
+        renderSoundSettings(document.querySelector('#pauseModal .pause-settings'), 'pause');
         playSFX('menuOpen');
         document.getElementById('pauseModal').classList.add('show');
     }
@@ -5405,16 +6134,92 @@
             event.stopPropagation();
         }
 
-        playSFX('menuClose');
-        document.getElementById('pauseModal').classList.remove('show');
-
+        const container = document.getElementById('gameContainer');
         // Safety fix: keep gameplay active after resuming from pause
         document.getElementById('startModal').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'flex';
+        container.style.display = 'flex';
+        // The board takes input again before the dialog closes, so focus can return to it
+        container.inert = false;
+        container.classList.remove('is-paused');
+
+        playSFX('menuClose');
+        document.getElementById('pauseModal').classList.remove('show');
+        if (gamePaused) {
+            gamePaused = false;
+            thawMatchTimers();
+            fadeAudio(audioSystem.gameplayMusic, MUSIC_TARGET_VOLUME.gameplay, 250);
+        }
     }
+
+    // What the AI did, shown on the board: cards it put onto the battlefield since its turn began (marked NEW until
+    // its next turn), and during its attack, its attackers and the creatures that blocked them automatically.
+    let enemyTurnStartIds = null;
+    let enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
+
+    function resetAiActivityMarks() {
+        enemyTurnStartIds = null;
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
+    }
+
+    function addBoardMarker(cardEl, className, text) {
+        const marker = document.createElement('div');
+        marker.className = `card-state ${className}`;
+        marker.textContent = text;
+        marker.setAttribute('aria-hidden', 'true');
+        cardEl.appendChild(marker);
+    }
+
+    // Where the match stands, for the pause panel's subtitle, and the current settings
+    function updatePausePanel() {
+        const summary = document.getElementById('pauseSummary');
+        if (summary) {
+            const whose = gameState.turn === 'enemy' ? "Enemy's turn" : 'Your turn';
+            summary.textContent = `Turn ${gameState.round || 1} · ${whose} · You ❤️ ${gameState.playerLife} · Enemy ❤️ ${gameState.enemyLife}`;
+        }
+        const achievementsNote = document.getElementById('pauseAchievementsNote');
+        if (achievementsNote) achievementsNote.textContent = achievementsSummary();
+        syncSoundSettings();
+    }
+
+    // One boundary for abandonment, replacement and completion, paused or running.
+    function cancelMatchWork() {
+        matchSerial++;
+        matchTimers.forEach(timer => clearTimeout(timer.handle));
+        matchTimers.clear();
+        processingActionTimer = null;
+        isProcessingAction = false;
+        isStartingGame = false;
+        particles = [];
+        cancelAnimationFrame(particleRafId);
+        particleRafId = 0;
+        particleLoopRunning = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.querySelectorAll('.sparkle, .trample-effect').forEach(el => el.remove());
+        document.getElementById('gameContainer').classList.remove('shake-board');
+        document.querySelectorAll('.life-increase, .life-decrease, .juice-pop, .screen-shake, .shake').forEach(el =>
+            el.classList.remove('life-increase', 'life-decrease', 'juice-pop', 'screen-shake', 'shake'));
+        hideCardDetail();
+    }
+
+    function clearMatchPause() {
+        const container = document.getElementById('gameContainer');
+        container.inert = false;
+        container.classList.remove('is-paused');
+        if (gamePaused) {
+            gamePaused = false;
+            matchTimers.forEach(timer => clearTimeout(timer.handle));
+            matchTimers.clear();
+        }
+    }
+
+    // A match pauses itself when the page is hidden (another tab or app), so nothing happens unseen
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && !gameState.matchFinalized) pauseGame();
+    });
 
     function confirmQuit() {
         showConfirmModal('🏠 QUIT GAME?', 'Are you sure you want to quit to main menu? Current game will be lost.', function() {
+            reportAchievement('match:quit', {});
             returnToMainMenu();
         });
     }
@@ -5452,10 +6257,12 @@
     function resetMetaProgress() {
         showConfirmModal('🧹 RESET PROGRESS?', 'This clears collection/decks/packs progress. Continue?', function() {
             try {
-                backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset');
+                if (!canSaveProfile() || !backupMetaRaw(localStorage.getItem(META_STORAGE_KEY), 'reset')) return;
                 localStorage.removeItem(META_STORAGE_KEY);
+                profileSavedRaw = null;
             } catch (error) {
-                console.warn('Failed to clear meta save key. Proceeding with in-memory reset fallback.', error);
+                persistenceNotice('Progress could not be reset. The existing save was kept.');
+                return;
             }
 
             try {
@@ -5509,6 +6316,7 @@
 
     // Card Detail Popup
     function showCardDetail(card) {
+        if (cardInteractionDepth) reportAchievement('card:details', { card });
         const popup = document.getElementById('cardDetailPopup');
         const emoji = document.getElementById('detailEmoji');
         const name = document.getElementById('detailName');
@@ -5708,16 +6516,16 @@
 
         if (elements.length === 1) {
             for (let i = 0; i < LAND_COUNT; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: nextCardInstanceId() });
             }
         } else {
             const firstLandCount = landCaps.maxPerColor[elements[0]] || Math.ceil(LAND_COUNT / 2);
             const secondLandCount = landCaps.maxPerColor[elements[1]] || (LAND_COUNT - firstLandCount);
             for (let i = 0; i < firstLandCount; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[0]], id: nextCardInstanceId() });
             }
             for (let i = 0; i < secondLandCount; i++) {
-                deck.push({ ...CARD_DATABASE.lands[elements[1]], id: Math.random() });
+                deck.push({ ...CARD_DATABASE.lands[elements[1]], id: nextCardInstanceId() });
             }
         }
 
@@ -5746,8 +6554,8 @@
             }
         });
 
-        const creatureTarget = 18 + Math.floor(Math.random() * 7); // 18-24
-        const spellTarget = 7 + Math.floor(Math.random() * 7); // 7-13
+        const creatureTarget = 18 + Math.floor(gameplayRandom() * 7); // 18-24
+        const spellTarget = 7 + Math.floor(gameplayRandom() * 7); // 7-13
         const artifactTarget = Math.max(0, NON_LAND_COUNT - creatureTarget - spellTarget);
 
         // Generated decks (the AI's) follow the same copy limits as a player's deck: at most 2 of a card and
@@ -5756,14 +6564,14 @@
         const canAdd = card => (copies[card.__id] || 0) < getDeckCardCopyLimit(card);
         function addCard(card) {
             copies[card.__id] = (copies[card.__id] || 0) + 1;
-            deck.push({ ...card, id: Math.random() });
+            deck.push({ ...card, id: nextCardInstanceId() });
         }
 
         function addCardsFromPool(pool, count) {
             for (let i = 0; i < count; i++) {
                 const open = pool.filter(canAdd);
                 if (open.length === 0) return;
-                addCard(open[Math.floor(Math.random() * open.length)]);
+                addCard(open[Math.floor(gameplayRandom() * open.length)]);
             }
         }
 
@@ -5773,7 +6581,7 @@
 
         let fallbackPool = [...creatures, ...spells, ...artifacts].filter(canAdd);
         while (deck.length < LAND_COUNT + NON_LAND_COUNT && fallbackPool.length > 0) {
-            addCard(fallbackPool[Math.floor(Math.random() * fallbackPool.length)]);
+            addCard(fallbackPool[Math.floor(gameplayRandom() * fallbackPool.length)]);
             fallbackPool = fallbackPool.filter(canAdd);
         }
 
@@ -5827,7 +6635,7 @@
                 return getFallbackDeckWithLog();
             }
 
-            const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: Math.random() }));
+            const deck = cardIds.map(cardId => ({ ...window.__CARD_BY_ID[cardId], id: nextCardInstanceId() }));
             shuffleDeck(deck);
             if (QA_MODE) {
                 console.debug('[QA] META path');
@@ -5846,12 +6654,12 @@
 
         for (let pass = 0; pass < safePasses; pass++) {
             for (let i = deck.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
+                const j = Math.floor(gameplayRandom() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
             }
 
             if (deck.length > 10) {
-                const cutIndex = Math.floor(deck.length * (0.25 + Math.random() * 0.5));
+                const cutIndex = Math.floor(deck.length * (0.25 + gameplayRandom() * 0.5));
                 const top = deck.splice(0, cutIndex);
                 deck.push(...top);
             }
@@ -5867,6 +6675,7 @@
     }
 
     function mulligan() {
+        if (gamePaused) return;
         if (!canMulligan()) {
             showGameLog('⚠️ You can only mulligan once, before your first action!', false);
             return;
@@ -5906,6 +6715,7 @@
             return;
         }
         playSFX('select');
+        reportAchievement('mulligan', {});
 
         // Return hand to deck
         gameState.playerDeck = gameState.playerDeck.concat(gameState.playerHand);
@@ -5933,6 +6743,8 @@
     function updateDeckCounters() {
         document.getElementById('playerDeckCount').textContent = gameState.playerDeck.length;
         document.getElementById('enemyDeckCount').textContent = gameState.enemyDeck.length;
+        const enemyHand = document.getElementById('enemyHandCount');
+        if (enemyHand) enemyHand.textContent = gameState.enemyHand.length;
     }
 
     function startGame() {
@@ -5951,7 +6763,10 @@
             return;
         }
 
+        cancelMatchWork();
         isStartingGame = true;
+        clearMatchPause();
+        resetAiActivityMarks();
         const startBtn = document.getElementById('startBtn');
         if (startBtn) {
             startBtn.disabled = true;
@@ -5995,7 +6810,6 @@
         resetMatchHistory();
         recordHistory('player', '🔔 Turn 1: your turn');
         pendingMatchResultOverlay = null;
-        matchSerial++;
 
         // Generate decks
         gameState.playerDeck = createPlayerDeck(gameState.selectedElements);
@@ -6006,10 +6820,10 @@
 
         // AI picks random elements
         const elementKeys = Object.keys(ELEMENTS).filter(element => element !== 'colorless');
-        const aiRequiredCount = Math.random() < 0.5 ? 1 : 2;
+        const aiRequiredCount = gameplayRandom() < 0.5 ? 1 : 2;
         const aiElements = [];
         while (aiElements.length < aiRequiredCount) {
-            const element = elementKeys[Math.floor(Math.random() * elementKeys.length)];
+            const element = elementKeys[Math.floor(gameplayRandom() * elementKeys.length)];
             if (!aiElements.includes(element)) {
                 aiElements.push(element);
             }
@@ -6049,8 +6863,13 @@
 
         updateUI();
         updateDeckCounters();
+        reportAchievement('match:start', {
+            deckKey: getDeckKeyFromElements(gameState.selectedElements),
+            elements: [...gameState.selectedElements],
+            difficulty: gameState.difficulty
+        });
 
-        setTimeout(() => {
+        matchDelay(() => {
             isStartingGame = false;
         }, 300);
     }
@@ -6058,6 +6877,7 @@
     // Draw Card
     // Drawing from an empty deck loses the match (RULES.md R6.1).
     function drawCard(player) {
+        if (gameState.matchFinalized) return;
         const isPlayer = player === 'player';
         const deck = isPlayer ? gameState.playerDeck : gameState.enemyDeck;
         if (deck.length === 0) {
@@ -6072,6 +6892,7 @@
 
     // Play Card
     function playCard(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6117,9 +6938,11 @@
         setProcessingLock(3000);
 
         // Pay cost
+        const manaBefore = manaTotal(gameState.playerMana);
         if (card.type !== 'land') {
             payCost(cardCost, gameState.playerMana);
         }
+        const manaAfter = manaTotal(gameState.playerMana);
 
         // Remove from hand
         gameState.playerHand = gameState.playerHand.filter(c => c.id !== cardId);
@@ -6130,32 +6953,31 @@
             gameState.playerBoard.push({...card, tapped: false});
             playedBoardCardId = card.id;
             gameState.landsPlayedThisTurn++;  // Increment land counter
+            playLandTap();
             showGameLog(`🌍 You play ${card.name}`, false);
         } else if (card.type === 'creature') {
             gameState.playerBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             playedBoardCardId = card.id;
-            // Play appropriate creature summon sound based on theme
-            if (card.theme === 'Science Fiction') {
-                playSFX('summonCreatureScifi');
-            } else {
-                playSFX('summonCreatureFantasy');
-            }
+            // Summon sound by the card's theme
+            GameFeedback.play('summon', { variant: card.theme === 'Science Fiction' ? 'scifi' : 'fantasy' });
             showGameLog(`${card.emoji} You summon ${card.name}`, false, card.theme === 'Science Fiction');
         } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.playerBoard.push(artifactOnBoard);
             playedBoardCardId = artifactOnBoard.id;
-            playSFX('summonInstant');
+            GameFeedback.play('artifact');
             showGameLog(`${card.emoji} You play ${card.name}`, false, card.theme === 'Science Fiction');
 
             // Trigger artifact effects that should happen immediately when played
             resolveArtifactOnPlay(artifactOnBoard, 'player');
         } else if (card.type === 'instant') {
-            playSFX('summonInstant');
+            GameFeedback.play('spell');
             showGameLog(`${card.emoji} You cast ${card.name}`, false, card.theme === 'Science Fiction');
             castInstant(card, 'player');
         }
 
+        haptic('play');
+        reportAchievement('card:played', { side: 'player', card, manaBefore, manaAfter });
         const verb = { land: 'play', creature: 'summon', artifact: 'play', instant: 'cast' }[card.type] || 'play';
         recordHistory('player', `${card.emoji} You ${verb} ${card.name}`,
             describeChangesSince(historySnap, { playedFrom: 'player', playedId: playedBoardCardId ?? card.id }));
@@ -6175,7 +6997,7 @@
         }
 
         // Release processing lock after a short delay
-        setTimeout(() => {
+        matchDelay(() => {
             releaseProcessingLock();
         }, 200);
     }
@@ -6297,16 +7119,21 @@
         yesBtn.parentNode.replaceChild(newYes, yesBtn);
         noBtn.parentNode.replaceChild(newNo, noBtn);
 
+        let settled = false;
         function closeModal() {
             modal.classList.remove('show');
-            setTimeout(() => { modal.style.display = 'none'; }, 250);
+            setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 250);
         }
 
         newYes.addEventListener('click', function() {
+            if (settled) return;
+            settled = true;
             closeModal();
             if (onConfirm) onConfirm();
         });
         newNo.addEventListener('click', function() {
+            if (settled) return;
+            settled = true;
             closeModal();
             if (onCancel) onCancel();
         });
@@ -6318,6 +7145,7 @@
 
     // Tap lands for mana
     function tapLand(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6364,7 +7192,8 @@
                 card.selectedElement = chosenElement;
                 card.tapped = true;
                 gameState.playerMana[chosenElement] = (gameState.playerMana[chosenElement] || 0) + 1;
-                playSFX('tapLand');
+                playLandTap();
+                reportAchievement('land:tapped', { cards: [card] });
                 showGameLog(`⚡ You tap ${card.name} for ${chosenElement} mana`, false);
                 updateUI();
             });
@@ -6380,7 +7209,8 @@
         card.tapped = true;
         gameState.playerMana[elementToAdd] = (gameState.playerMana[elementToAdd] || 0) + 1;
 
-        playSFX('tapLand');
+        playLandTap();
+        reportAchievement('land:tapped', { cards: [card] });
         showGameLog(`⚡ You tap ${card.name} for ${elementToAdd} mana`, false);
 
         updateUI();
@@ -6388,6 +7218,7 @@
 
     // Tap ALL untapped lands of a given element type at once
     function tapAllLandsOfType(landKey) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6430,13 +7261,15 @@
         });
 
         if (tappedCount > 0) {
-            playSFX('tapLand');
+            playLandTap();
+            reportAchievement('land:tapped', { cards: untappedLands.filter(c => c.tapped) });
             showGameLog(`⚡ You tap ${tappedCount} ${untappedLands[0].name}${tappedCount > 1 ? 's' : ''} for mana`, false);
             updateUI();
         }
     }
 
     function activateArtifact(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -6463,7 +7296,8 @@
         const manaToAdd = 'colorless';
         gameState.playerMana[manaToAdd] = (gameState.playerMana[manaToAdd] || 0) + (card.value || 1);
 
-        playSFX('tapLand');
+        playLandTap();
+        reportAchievement('mana:artifact', { card });
         showGameLog(`⚡ ${card.name} adds ${ELEMENTS[manaToAdd].emoji} mana`, false);
         updateUI();
     }
@@ -6500,17 +7334,21 @@
     // Shared by the player and the AI, so both sides resolve cards the same way.
     function resolveArtifactOnPlay(artifactOnBoard, owner) {
         if (!ON_PLAY_ARTIFACT_EFFECTS.includes(artifactOnBoard.effect)) return;
-        resolveSpell(artifactOnBoard, owner);
+        const before = snapshotForOutcome();
+        withLifeSource('artifact', () => resolveSpell(artifactOnBoard, owner));
         checkStateBasedActions();
+        reportAchievement('spell:resolved', describeOutcome(before, artifactOnBoard, owner));
         if (isOneShotArtifactEffect(artifactOnBoard.effect)) {
             sendBoardCardToGraveyard(artifactOnBoard.id, owner);
         }
     }
 
     function castInstant(card, caster) {
-        resolveSpell(card, caster);
+        const before = snapshotForOutcome();
+        withLifeSource(card.effect === 'drain' ? 'drain' : 'instant', () => resolveSpell(card, caster));
         moveCardToGraveyard(card, caster);
         checkStateBasedActions();
+        reportAchievement('spell:resolved', describeOutcome(before, card, caster));
     }
 
     // Untap step for one permanent. A Deep Frozen permanent skips one untap (EFFECTS.md E4).
@@ -6643,13 +7481,11 @@
                 // Heal life AND draw cards (e.g., Meditate)
                 if (isCasterPlayer) {
                     changePlayerLife(card.value);
-                    playSFX('playerHeal');
                     const playerInfoHD = document.querySelector('.player-area:not(.enemy-area) .player-info');
                     const rectHD = playerInfoHD.getBoundingClientRect();
                     createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
                 } else {
                     changeEnemyLife(card.value);
-                    playSFX('opponentHeals');
                     const enemyInfoHD = document.querySelector('.enemy-area .player-info');
                     const rectHD = enemyInfoHD.getBoundingClientRect();
                     createSparkles(rectHD.left + rectHD.width / 2, rectHD.top + rectHD.height / 2, 20);
@@ -6697,7 +7533,7 @@
                 const targetBoard = isCasterPlayer ? gameState.enemyBoard : gameState.playerBoard;
                 const creatures = targetBoard.filter(c => c.type === 'creature' && !c.abilities?.includes('hexproof'));
                 if (creatures.length > 0) {
-                    const target = creatures[Math.floor(Math.random() * creatures.length)];
+                    const target = creatures[Math.floor(gameplayRandom() * creatures.length)];
                     // Move to graveyard before removing from board
                     moveCardToGraveyard(target, isCasterPlayer ? 'enemy' : 'player');
                     if (isCasterPlayer) {
@@ -6717,7 +7553,7 @@
                 const friendlyBoard = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures = friendlyBoard.filter(c => c.type === 'creature');
                 if (friendlyCreatures.length > 0) {
-                    const buffTargets = card.targetAll ? friendlyCreatures : [friendlyCreatures[Math.floor(Math.random() * friendlyCreatures.length)]];
+                    const buffTargets = card.targetAll ? friendlyCreatures : [friendlyCreatures[Math.floor(gameplayRandom() * friendlyCreatures.length)]];
                     const isPowerOnly = card.buffType === 'power';
                     buffTargets.forEach(target => {
                         if (card.value > 0) {
@@ -6758,7 +7594,7 @@
                 const friendlyBoard2 = isCasterPlayer ? gameState.playerBoard : gameState.enemyBoard;
                 const friendlyCreatures2 = friendlyBoard2.filter(c => c.type === 'creature');
                 if (friendlyCreatures2.length > 0) {
-                    const defTargets = card.targetAll ? friendlyCreatures2 : [friendlyCreatures2[Math.floor(Math.random() * friendlyCreatures2.length)]];
+                    const defTargets = card.targetAll ? friendlyCreatures2 : [friendlyCreatures2[Math.floor(gameplayRandom() * friendlyCreatures2.length)]];
                     defTargets.forEach(target => {
                         target.toughness = (target.toughness || 0) + card.value;
                         if (card.grantAbilities) {
@@ -6790,7 +7626,7 @@
                 const untappedCreatures = tappable.filter(c => !c.tapped);
                 const tapPool = untappedCreatures.length > 0 || !card.skipUntap ? untappedCreatures : tappable;
                 if (tapPool.length > 0) {
-                    const target = tapPool[Math.floor(Math.random() * tapPool.length)];
+                    const target = tapPool[Math.floor(gameplayRandom() * tapPool.length)];
                     target.tapped = true;
                     if (card.skipUntap) {
                         target.frozen = true;
@@ -6811,7 +7647,7 @@
                 const bounceCount = Math.min(2, bounceable.length);
                 for (let i = 0; i < bounceCount; i++) {
                     if (bounceable.length > 0) {
-                        const idx = Math.floor(Math.random() * bounceable.length);
+                        const idx = Math.floor(gameplayRandom() * bounceable.length);
                         const target = bounceable[idx];
                         bounceable.splice(idx, 1);
                         enemyHand.push(asPrintedCard(target));
@@ -6834,7 +7670,7 @@
                     const [revived] = graveyard.splice(reviveIndex, 1);
                     revived.damage = 0;
                     revived.tapped = false;
-                    revived.id = Math.random(); // New ID
+                    revived.id = nextCardInstanceId(); // New ID
                     revived.summoningSick = !revived.abilities?.includes('haste');
                     board.push(revived);
                     showGameLog(`⛪ ${revived.emoji} ${revived.name} is revived!`, !isCasterPlayer);
@@ -6870,7 +7706,7 @@
                 for (let i = 0; i < tokenCount; i++) {
                     const printed = { power: tokenType.power, toughness: tokenType.toughness, abilities: [...tokenType.abilities] };
                     tokenBoard.push({
-                        id: Math.random(),
+                        id: nextCardInstanceId(),
                         emoji: tokenType.emoji,
                         type: 'creature',
                         cardType: 'Creature Token',
@@ -6898,7 +7734,7 @@
 
                 for (let i = 0; i < discardCount; i++) {
                     if (discardHand.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * discardHand.length);
+                        const randomIndex = Math.floor(gameplayRandom() * discardHand.length);
                         const discarded = discardHand.splice(randomIndex, 1)[0];
                         moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
@@ -6913,7 +7749,7 @@
 
                 for (let i = 0; i < discardDrawCount; i++) {
                     if (discardHand2.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * discardHand2.length);
+                        const randomIndex = Math.floor(gameplayRandom() * discardHand2.length);
                         const discarded = discardHand2.splice(randomIndex, 1)[0];
                         moveCardToGraveyard(discarded, isCasterPlayer ? 'enemy' : 'player');
                         showGameLog(`🗑️ ${discarded.emoji} ${discarded.name} is discarded!`, isCasterPlayer);
@@ -6930,6 +7766,7 @@
     }
 
     function enterAttackPhase() {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -7025,6 +7862,7 @@
     }
 
     function selectAttacker(cardId) {
+        if (gamePaused) return;
         if (gameState.matchFinalized || !attackPhase) return;
 
         const card = gameState.playerBoard.find(c => c.id === cardId);
@@ -7040,6 +7878,8 @@
         } else {
             gameState.attackers.push(cardId);
         }
+        playSFX('select');
+        haptic('select');
 
         updateUI();
     }
@@ -7071,6 +7911,7 @@
         setProcessingLock(5000);
 
         playSFX('attack');
+        haptic('impact');
         showGameLog(`⚔️ You attack with ${gameState.attackers.length} creature${gameState.attackers.length > 1 ? 's' : ''}!`, false);
 
         // AI declares blockers
@@ -7096,7 +7937,7 @@
         updateUI();
 
         // Release processing lock after combat resolves
-        setTimeout(() => {
+        matchDelay(() => {
             releaseProcessingLock();
         }, 300);
     }
@@ -7327,6 +8168,7 @@
 
     // End Turn
     function endTurn() {
+        if (gamePaused) return;
         if (gameState.matchFinalized) {
             return;
         }
@@ -7379,6 +8221,8 @@
         gameState.turn = 'enemy';
         gameState.phase = 'enemy';
         aiStatusText = 'Starting its turn';
+        enemyTurnStartIds = new Set(gameState.enemyBoard.map(c => c.id));
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
         document.getElementById('phaseIndicator').textContent = 'ENEMY TURN';
         document.getElementById('gameContainer').classList.add('enemy-turn');
 
@@ -7386,7 +8230,7 @@
 
         // AI turn (skipped if this match was left in the meantime)
         const serial = matchSerial;
-        setTimeout(() => {
+        matchDelay(() => {
             if (serial === matchSerial) aiTurn();
         }, 1500);
     }
@@ -7395,8 +8239,10 @@
     function processUpkeepEffects(isPlayer) {
         const board = isPlayer ? gameState.playerBoard : gameState.enemyBoard;
         const artifacts = board.filter(c => c.type === 'artifact');
+        const outcomeBefore = { deck: gameState.playerDeck.length, enemyLife: gameState.enemyLife };
 
-        artifacts.forEach(artifact => {
+        withLifeSource('upkeep', () => artifacts.forEach(artifact => {
+            if (gameState.matchFinalized) return;
             const snap = snapshotForHistory();
             switch(artifact.effect) {
                 case 'draw':
@@ -7429,7 +8275,14 @@
             }
             const changes = describeChangesSince(snap);
             if (changes.length) recordHistory(isPlayer ? 'player' : 'enemy', `${cardLabel(artifact)} at the start of the turn`, changes);
-        });
+        }));
+        if (artifacts.length) {
+            reportAchievement('upkeep', {
+                side: isPlayer ? 'player' : 'enemy',
+                drawn: isPlayer ? Math.max(0, outcomeBefore.deck - gameState.playerDeck.length) : 0,
+                enemyLifeChange: gameState.enemyLife - outcomeBefore.enemyLife
+            });
+        }
     }
 
     // Start player turn
@@ -7440,12 +8293,14 @@
         }
 
         document.getElementById('gameContainer').classList.remove('enemy-turn');
+        enemyCombatMarks = { attackers: new Set(), blockers: new Set() };
 
         gameState.turn = 'player';
         gameState.phase = 'main';
         gameState.round = (gameState.round || 1) + 1;
         aiStatusText = '';
         recordHistory('player', `🔔 Turn ${gameState.round}: your turn`);
+        reportAchievement('turn:start', { side: 'player', round: gameState.round });
         document.getElementById('phaseIndicator').textContent = 'MAIN PHASE';
 
         // CRITICAL FIX: Ensure attack phase is reset and button is restored
@@ -7455,10 +8310,12 @@
 
         // Draw card at start of turn
         drawCard('player');
+        if (gameState.matchFinalized) return;
         showGameLog('📜 You draw a card', false);
 
         // Process upkeep effects from artifacts
         processUpkeepEffects(true);
+        if (gameState.matchFinalized) return;
 
         // Untap and reset mana
         gameState.playerBoard.forEach(untapAtTurnStart);
@@ -7489,15 +8346,18 @@
         if (card.type === 'creature') {
             gameState.enemyBoard.push({...card, tapped: false, summoningSick: !card.abilities?.includes('haste'), damage: 0});
             showGameLog(`${card.emoji} Enemy summons ${card.name}`, true, card.theme === 'scifi');
+            GameFeedback.play('summon', { variant: card.theme === 'Science Fiction' ? 'scifi' : 'fantasy' });
             playedId = card.id;
         } else if (card.type === 'artifact') {
             const artifactOnBoard = {...card, tapped: false};
             gameState.enemyBoard.push(artifactOnBoard);
             showGameLog(`${card.emoji} Enemy plays ${card.name}`, true);
+            GameFeedback.play('artifact');
             resolveArtifactOnPlay(artifactOnBoard, 'enemy');
             playedId = artifactOnBoard.id;
         } else {
             showGameLog(`${card.emoji} Enemy casts ${card.name}`, true);
+            GameFeedback.play('spell');
             castInstant(card, 'enemy');
         }
 
@@ -7672,12 +8532,12 @@
         // A stale turn also cancels the failsafe below (it used to fire 12 s after every AI win).
         const turnIsStale = () => {
             const stale = gameState.matchFinalized || serial !== matchSerial;
-            if (stale) clearTimeout(emergencyTurnStart);
+            if (stale) clearMatchDelay(emergencyTurnStart);
             return stale;
         };
 
         // Emergency failsafe: ensure player turn starts even if something goes wrong
-        emergencyTurnStart = setTimeout(() => {
+        emergencyTurnStart = matchDelay(() => {
             if (gameState.matchFinalized || serial !== matchSerial || gameState.turn !== 'enemy') return;
             console.warn('Emergency turn transition triggered');
             startPlayerTurn();
@@ -7693,12 +8553,14 @@
 
             // Draw card
             drawCard('enemy');
+            if (turnIsStale()) return;
             showGameLog('🎴 Enemy draws a card', true);
 
             // Process upkeep effects from enemy artifacts
             processUpkeepEffects(false);
+            if (turnIsStale()) return;
 
-            setTimeout(() => {
+            matchDelay(() => {
             if (turnIsStale()) return;
             // Play lands
             const landInHand = aiChooseLand();
@@ -7715,7 +8577,7 @@
                 applyJuice(enemyLandEl || document.getElementById('enemyBoard'), 'juice-pop');
             }
 
-            setTimeout(() => {
+            matchDelay(() => {
                 if (turnIsStale()) return;
                 // Tap lands and mana artifacts for mana
                 setAiStatus('Tapping mana');
@@ -7727,7 +8589,7 @@
                     updateUI();
                 }
 
-                setTimeout(() => {
+                matchDelay(() => {
                     if (turnIsStale()) return;
                     const applyOldMainPhaseBehavior = () => {
                         const playableCreatures = gameState.enemyHand
@@ -7862,7 +8724,7 @@
                         applyOldMainPhaseBehavior();
                     }
 
-                        setTimeout(() => {
+                        matchDelay(() => {
                             if (turnIsStale()) return;
                             const fallbackAttackers = gameState.enemyBoard.filter(canAttack);
 
@@ -7872,7 +8734,7 @@
                             } catch (attackSelectionError) {
                                 console.warn('AI attack selection failed, using fallback behavior:', attackSelectionError);
                                 if (gameState.difficulty === 'easy') {
-                                    attackingCreatures = fallbackAttackers.filter(() => Math.random() > 0.3);
+                                    attackingCreatures = fallbackAttackers.filter(() => gameplayRandom() > 0.3);
                                 } else {
                                     attackingCreatures = fallbackAttackers;
                                 }
@@ -7887,9 +8749,9 @@
                             checkGameOver();
                             // The attack status stays up through the pause before the player's turn
 
-                            setTimeout(() => {
+                            matchDelay(() => {
                                 if (turnIsStale()) return;
-                                clearTimeout(emergencyTurnStart); // Clear emergency failsafe
+                                clearMatchDelay(emergencyTurnStart); // Clear emergency failsafe
                                 startPlayerTurn();
                             }, attackingCreatures.length ? 1500 : 500); // pacing: AI.md §5
                         }, mainPhaseActed ? 1500 : 300);
@@ -7898,9 +8760,9 @@
             }, 1000);
         } catch (error) {
             console.error('Error during AI turn:', error);
-            clearTimeout(emergencyTurnStart);
+            clearMatchDelay(emergencyTurnStart);
             // Ensure turn transitions back to player even on error
-            setTimeout(() => {
+            matchDelay(() => {
                 if (serial === matchSerial) startPlayerTurn();
             }, 1000);
         }
@@ -7959,7 +8821,7 @@
 
         const profile = AI_PROFILES[difficulty] || AI_PROFILES.easy;
         if (profile.attacks === 'random') {
-            return eligibleAttackers.filter(() => Math.random() > 0.3);
+            return eligibleAttackers.filter(() => gameplayRandom() > 0.3);
         }
 
         const blockers = gameState.playerBoard.filter(c => c.type === 'creature' && !c.tapped);
@@ -8023,6 +8885,10 @@
         }
 
         const playerBlockers = declarePlayerBlockers(attackingCreatures);
+        enemyCombatMarks = {
+            attackers: new Set(attackingCreatures.map(c => c.id)),
+            blockers: new Set(Object.values(playerBlockers).flat())
+        };
         if (Object.keys(playerBlockers).length > 0) {
             playSFX('block');
         }
@@ -8046,6 +8912,7 @@
         const oldLife = gameState.playerLife;
         gameState.playerLife = Math.max(0, gameState.playerLife + amount);
         const actualChange = gameState.playerLife - oldLife;
+        if (actualChange !== 0) reportAchievement('life:changed', { side: 'player', amount, change: actualChange, before: oldLife, after: gameState.playerLife, source: lifeChangeSource });
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('playerLife');
@@ -8066,23 +8933,19 @@
                 screenShake('med');
             }
 
+            const intensity = Math.min(1, absChange / 8);
             if (actualChange > 0) {
-                // Life increase - play heal sound for each point
-                for (let i = 0; i < actualChange; i++) {
-                    setTimeout(() => playSFX('playerHeal'), i * 100);
-                }
+                GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
-                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                    matchDelay(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
-                // Life decrease - play damage sound for each point
-                for (let i = 0; i < absChange; i++) {
-                    setTimeout(() => playSFX('playerTakeDamage'), i * 100);
-                }
+                GameFeedback.play('damageTaken', { intensity });
+                haptic('impact');
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
-                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                    matchDelay(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
 
@@ -8096,6 +8959,7 @@
         const oldLife = gameState.enemyLife;
         gameState.enemyLife = Math.max(0, gameState.enemyLife + amount);
         const actualChange = gameState.enemyLife - oldLife;
+        if (actualChange !== 0) reportAchievement('life:changed', { side: 'enemy', amount, change: actualChange, before: oldLife, after: gameState.enemyLife, source: lifeChangeSource });
 
         if (actualChange !== 0) {
             const lifeElement = document.getElementById('enemyLife');
@@ -8116,23 +8980,18 @@
                 screenShake('med');
             }
 
+            const intensity = Math.min(1, absChange / 8);
             if (actualChange > 0) {
-                // Life increase - play heal sound for each point
-                for (let i = 0; i < actualChange; i++) {
-                    setTimeout(() => playSFX('opponentHeals'), i * 100);
-                }
+                GameFeedback.play('heal', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-increase');
-                    setTimeout(() => lifeElement.classList.remove('life-increase'), 500);
+                    matchDelay(() => lifeElement.classList.remove('life-increase'), 500);
                 }
             } else {
-                // Life decrease - play damage sound for each point
-                for (let i = 0; i < absChange; i++) {
-                    setTimeout(() => playSFX('opponentTakeDamage'), i * 100);
-                }
+                GameFeedback.play('damageDealt', { intensity });
                 if (lifeElement) {
                     lifeElement.classList.add('life-decrease');
-                    setTimeout(() => lifeElement.classList.remove('life-decrease'), 300);
+                    matchDelay(() => lifeElement.classList.remove('life-decrease'), 300);
                 }
             }
 
@@ -8210,6 +9069,9 @@
                     cardEl.appendChild(chip);
                 }
             }
+
+            // Lifting a playable card makes a soft swish (pointer only; the play itself has its own sound)
+            if (!restriction) cardEl.addEventListener('pointerdown', () => GameFeedback.play('pickup'));
 
             // Tap/click/Enter plays; long-press, right-click or I shows details (bindCardPress)
             bindCardPress(cardEl, {
@@ -8353,6 +9215,10 @@
                     cardEl.title = `Can't attack: it ${restriction}`;
                     attackNote = `, can't attack: it ${restriction}`;
                 }
+            } else if (enemyCombatMarks.blockers.has(card.id)) {
+                cardEl.classList.add('auto-blocked');
+                addBoardMarker(cardEl, 'card-state-blocked', '🛡');
+                attackNote = ', blocked automatically';
             }
 
             // Tap: select as attacker (attack phase), use an artifact, otherwise show details.
@@ -8365,7 +9231,7 @@
             }
             bindCardPress(cardEl, {
                 label: describeCardForA11y(card, 'board') + (card.type === 'creature' && attackPhase
-                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : ''),
+                    ? (gameState.attackers.includes(card.id) ? `, attacking${attackNote}` : (attackNote || ', press to attack')) : attackNote),
                 onTap: boardAction,
                 onLongPress: () => showCardDetail(card)
             });
@@ -8456,7 +9322,21 @@
         enemyNonLands.forEach(card => {
             const cardEl = createCardElement(card, true, true);
             attachDesktopTooltip(cardEl, card);
-            const blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
+            let blockNote = attackPhase ? markPreviewOutcome(cardEl, card.id) : '';
+            if (enemyCombatMarks.attackers.has(card.id)) {
+                cardEl.classList.add('enemy-attacking');
+                addBoardMarker(cardEl, 'card-state-attacking', '⚔️');
+                blockNote += ', attacking you';
+            }
+            if (enemyTurnStartIds && !enemyTurnStartIds.has(card.id)) {
+                cardEl.classList.add('ai-new');
+                const chip = document.createElement('div');
+                chip.className = 'ai-new-chip';
+                chip.textContent = 'New';
+                chip.setAttribute('aria-hidden', 'true');
+                cardEl.appendChild(chip);
+                blockNote += ', played on its last turn';
+            }
 
             bindCardPress(cardEl, {
                 label: `Enemy ${describeCardForA11y(card, 'board')}${blockNote}`,
@@ -8665,6 +9545,9 @@
         { id: 'loseOverlay', close: null },
         { id: 'graveyardModal', close: () => hideGraveyard() },
         { id: 'historyModal', close: () => hideMatchHistory() },
+        { id: 'themeDialog', close: () => hideThemePicker() },
+        { id: 'soundDialog', close: () => hideSoundSettings() },
+        { id: 'achievementsDialog', close: () => hideAchievementsDialog() },
         { id: 'pauseModal', close: () => resumeGame() }
     ];
 
@@ -8768,7 +9651,7 @@
             }
 
             // Battle setup, How to Play and Stats go back to the menu too
-            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen']
+            const backScreen = ['elementSelectionScreen', 'howToPlayScreen', 'statsScreen', 'achievementsScreen']
                 .find(id => document.getElementById(id)?.style.display === 'block');
             if (startModal?.classList.contains('modal-visible') && backScreen) {
                 e.preventDefault();
@@ -8860,7 +9743,7 @@
         // Only check during active gameplay (not in menus)
         if (document.getElementById('gameContainer').style.display === 'flex') {
             // If it's the player's turn and processing has been locked for over 15 seconds, something is wrong
-            if (gameState.turn === 'player' && isProcessingAction) {
+            if (!gamePaused && !gameState.matchFinalized && gameState.turn === 'player' && isProcessingAction) {
                 const timeSinceLastCheck = Date.now() - lastProcessingCheckTime;
                 if (timeSinceLastCheck > 15000) {
                     console.warn('⚠️ Processing lock stuck for over 15 seconds - forcing release');

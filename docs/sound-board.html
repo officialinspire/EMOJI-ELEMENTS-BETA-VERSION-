@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcane">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Board</title>
+    <!-- For listening on a real phone or computer: every effect cue and haptic pattern the game uses, from the same
+         feedback.js. Open it from the deployed site (…/docs/sound-board.html) and tap a button. AUDIO.md §6. -->
+    <style>
+        :root { color-scheme: dark; }
+        body { margin: 0; padding: 16px; font: 15px/1.4 system-ui, sans-serif; background: #12101c; color: #f3eedd; }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        p { margin: 0 0 12px; color: #cfc8b4; }
+        .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 18px; }
+        button, select { min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1px solid #6b5c34; background: #241d36; color: #fff3cf; font: inherit; cursor: pointer; text-align: left; }
+        button:focus-visible, select:focus-visible { outline: 3px solid #fff1ba; outline-offset: 2px; }
+        button small { display: block; color: #bdb49a; font-size: 12px; }
+        h2 { font-size: 15px; margin: 18px 0 8px; letter-spacing: .06em; text-transform: uppercase; color: #f2cf72; }
+        #state { font-weight: 700; }
+        label { display: inline-flex; gap: 6px; align-items: center; }
+    </style>
+</head>
+<body>
+    <h1>Emoji Elements sound board</h1>
+    <p>Every effect and haptic pattern in the game. The first tap unlocks audio. Audio state: <span id="state">locked</span></p>
+    <div class="bar">
+        <label>Theme <select id="theme"><option value="arcane">Arcane Fantasy</option><option value="deep-space">Deep Space</option><option value="neon">Neon Sci-Fi</option></select></label>
+        <label>Effects volume <input id="volume" type="range" min="0" max="100" step="5" value="70"></label>
+        <button type="button" id="sequence">▶ Play all in turn</button>
+    </div>
+    <h2>Effects</h2>
+    <div class="grid" id="cues"></div>
+    <h2>Haptics (phones with vibration)</h2>
+    <div class="grid" id="haptics"></div>
+    <script src="../feedback.js"></script>
+    <script>
+        // The board's own volume and theme; it changes nothing the game saved.
+        const CUES = [
+            ['select', {}, 'Menu selection'], ['open', {}, 'Menu open'], ['close', {}, 'Menu close'], ['pickup', {}, 'Card pickup'],
+            ['summon', { variant: 'fantasy' }, 'Summon (fantasy)'], ['summon', { variant: 'scifi' }, 'Summon (sci-fi)'], ['artifact', {}, 'Artifact played'],
+            ['spell', {}, 'Spell resolves'], ['landTap', {}, 'Land tap'], ['landTap', { step: 4 }, 'Land tap, 5th quick tap'], ['turnStart', {}, 'Your turn'],
+            ['attack', {}, 'Attack'], ['block', {}, 'Block'], ['damageTaken', { intensity: 0.2 }, 'You take 2'], ['damageTaken', { intensity: 1 }, 'You take 8+'],
+            ['damageDealt', { intensity: 0.5 }, 'Enemy takes damage'], ['heal', {}, 'Healing'], ['destroy', {}, 'Creature destroyed'], ['packRip', {}, 'Pack rip'],
+            ['reveal', { rarity: 'common' }, 'Reveal: common'], ['reveal', { rarity: 'rare' }, 'Reveal: rare'], ['reveal', { rarity: 'epic' }, 'Reveal: epic'],
+            ['reveal', { rarity: 'legendary' }, 'Reveal: legendary'], ['achievement', {}, 'Achievement'], ['victory', {}, 'Victory'], ['defeat', {}, 'Defeat'], ['deny', {}, 'Not allowed']
+        ];
+        const HAPTICS = ['select', 'toggle', 'play', 'impact', 'reveal', 'revealRare', 'victory', 'defeat'];
+        const state = document.getElementById('state');
+        const refresh = () => { state.textContent = GameFeedback.state; };
+        const unlock = () => { GameFeedback.unlock(); setTimeout(refresh, 100); };
+        ['pointerdown', 'keydown'].forEach(type => document.addEventListener(type, unlock, { capture: true }));
+        document.getElementById('theme').addEventListener('change', e => { document.documentElement.dataset.theme = e.target.value; });
+        // Changes here are for this page only (persist: false): the game's saved sound settings stay as they are
+        const once = { persist: false };
+        document.getElementById('volume').addEventListener('input', e => GameFeedback.setSetting('sfxVolume', e.target.value / 100, once));
+        GameFeedback.setSetting('muted', false, once);
+        GameFeedback.setSetting('sfxOff', false, once);
+        GameFeedback.setSetting('haptics', true, once);
+        GameFeedback.setSetting('sfxVolume', 0.7, once);
+        const cueGrid = document.getElementById('cues');
+        CUES.forEach(([name, options, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = `${label}<small>${name}</small>`;
+            button.addEventListener('click', () => { GameFeedback.play(name, options); refresh(); });
+            cueGrid.appendChild(button);
+        });
+        const hapticGrid = document.getElementById('haptics');
+        HAPTICS.forEach(kind => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerHTML = `${kind}<small>${GameFeedback.hapticsSupported() ? 'vibrate' : 'not available here'}</small>`;
+            button.disabled = !GameFeedback.hapticsSupported();
+            button.addEventListener('click', () => GameFeedback.haptic(kind));
+            hapticGrid.appendChild(button);
+        });
+        document.getElementById('sequence').addEventListener('click', async () => {
+            for (const [name, options] of CUES) {
+                GameFeedback.play(name, options);
+                await new Promise(resolve => setTimeout(resolve, name === 'victory' || name === 'defeat' ? 1600 : 650));
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+name: Required browser engines
+on:
+  push:
+  pull_request:
+jobs:
+  browser:
+    name: Browser (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps ${{ matrix.engine }}
+      # No optional engine or continue-on-error path: missing/failed launch exits nonzero.
+      - run: npm run cross-browser -- --engine=${{ matrix.engine }}
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: browser-${{ matrix.engine }}
+          path: test-results/cross-browser/
+          retention-days: 14
+  soak:
+    name: Real-time soak
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run verify -- --group=soak
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: soak
+          path: test-results/soak/
+          retention-days: 14

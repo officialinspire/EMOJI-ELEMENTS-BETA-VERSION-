@@ -5,6 +5,7 @@
 //   node tests/card-faces.mjs                       # all profiles (npm run cards:ui)
 //   node tests/card-faces.mjs --profile=phone
 //   node tests/card-faces.mjs --label=before --report-only
+//   node tests/card-faces.mjs --theme=neon      # in a visual theme (arcane, deep-space, neon); label theme-neon
 //
 // It renders representative cards of every type, element and rarity through the game's own renderers
 // (createCardElement, performUIUpdate, showCardDetail, the pack reveal), on a crowded board with tapped,
@@ -32,7 +33,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(arg => {
     const [key, value] = arg.replace(/^--/, '').split('=');
     return [key, value ?? true];
 }));
-const LABEL = args.label || 'current';
+const LABEL = args.label || (args.theme ? `theme-${args.theme}` : 'current');
 const OUT = path.join(ROOT, 'test-results', 'cards', LABEL);
 const { chromium, devices } = loadPlaywright();
 
@@ -443,6 +444,7 @@ async function auditProfile(browser, url, profile) {
     fs.mkdirSync(path.join(OUT, profile), { recursive: true });
     const context = await browser.newContext({ ...options });
     await context.addInitScript(seededInit);
+    if (args.theme) await context.addInitScript(theme => { try { localStorage.setItem('emoji_elements_theme', theme); } catch (_) { /* about:blank */ } }, args.theme);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));

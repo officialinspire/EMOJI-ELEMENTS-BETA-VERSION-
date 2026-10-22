@@ -12,6 +12,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { ROOT, loadPlaywright, startServer } from './lib/harness.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).map(arg => {
@@ -55,6 +56,16 @@ const press = (page, touch, target, options = {}) => {
     const locator = typeof target === 'string' ? page.locator(target).first() : target;
     return touch ? locator.tap(options) : locator.click(options);
 };
+// Two real inputs at the original hit point, even if the first one opens an overlay.
+// Re-resolving a now-hidden locator waits for a timeout and does not produce a duplicate input.
+async function doublePress(page, touch, selector) {
+    const locator = typeof selector === 'string' ? page.locator(selector).first() : selector;
+    await locator.scrollIntoViewIfNeeded();
+    const box = await locator.boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    if (touch) { await page.touchscreen.tap(x, y); await page.touchscreen.tap(x, y); }
+    else await page.mouse.dblclick(x, y, { delay: 40 });
+}
 const menuButton = (page, text) => page.locator('#mainMenu button', { hasText: text }).first();
 const visible = (page, selector) => page.locator(selector).first().isVisible();
 const state = page => page.evaluate(() => ({
@@ -279,14 +290,12 @@ async function playthrough(browser, url, project, { existingSave }) {
     await press(page, touch, '#attackBtn');
     for (const emoji of ['🦢', '🦁']) await press(page, touch, page.locator('#playerBoard .card').filter({ hasText: emoji }));
     // Duplicate action: CONFIRM pressed twice quickly
-    await press(page, touch, '#attackBtn');
-    await press(page, touch, '#attackBtn').catch(() => {});
+    await doublePress(page, touch, '#attackBtn');
     await page.waitForFunction(() => document.getElementById('matchRewardOverlay').classList.contains('show'), null, { timeout: 10000 });
     const won = await state(page);
     check(label, 'result', 'attack through the UI wins the match; rewards recorded once (+25 credits, +1 win)', won.finalized && won.wins === start.wins + 1 && won.credits === start.credits + 25, JSON.stringify(won));
     await shot('rewards');
-    await press(page, touch, '#matchRewardOverlay .overlay-btn');                       // OPEN BOOSTER (free reward)
-    await press(page, touch, '#matchRewardOverlay .overlay-btn').catch(() => {});      // duplicate tap
+    await doublePress(page, touch, '#matchRewardOverlay .overlay-btn');      // duplicate tap
     const reward = await openPack(page, touch);
     await page.waitForFunction(() => document.getElementById('victoryOverlay').classList.contains('show'), null, { timeout: 8000 });
     const afterReward = await state(page);
@@ -297,8 +306,7 @@ async function playthrough(browser, url, project, { existingSave }) {
 
     // ---- pack purchase (with a duplicate tap)
     await press(page, touch, menuButton(page, 'PACK SHOP'));
-    await press(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
-    await press(page, touch, '.shop-pack-btn[data-theme="fantasy"]').catch(() => {});
+    await doublePress(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
     const bought = await openPack(page, touch);
     const afterBuy = await state(page);
     check(label, 'packs', 'shop purchase: charged 60 once, 5 cards, packs opened +1', bought.length === 5 && afterBuy.credits === afterReward.credits - 60 && afterBuy.packsOpened === afterReward.packsOpened + 1, JSON.stringify(afterBuy));
@@ -310,8 +318,7 @@ async function playthrough(browser, url, project, { existingSave }) {
     await page.evaluate(() => { gameState.difficulty = 'hard'; });
     const aiTurns = await page.evaluate(() => { window.__aiTurns = 0; const orig = window.aiTurn; window.aiTurn = function () { window.__aiTurns++; return orig.apply(this, arguments); }; return true; });
     void aiTurns;
-    await press(page, touch, '#endTurnBtn');
-    await press(page, touch, '#endTurnBtn').catch(() => {});
+    await doublePress(page, touch, '#endTurnBtn');
     await page.waitForFunction(() => document.getElementById('loseOverlay').classList.contains('show'), null, { timeout: 20000 });
     const lost = await state(page);
     const turnsRun = await page.evaluate(() => window.__aiTurns);
@@ -326,7 +333,7 @@ async function playthrough(browser, url, project, { existingSave }) {
     const reloaded = await state(page);
     const backupsAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('emoji_elements_meta_backups') || '[]').length);
     check(label, 'save', 'reloading a clean save writes no new backup', backupsAfterReload === prod.backups.length, `${prod.backups.length} → ${backupsAfterReload}`);
-    const mutedAfterReload = await page.evaluate(() => isMuted && document.getElementById('muteBtn').textContent === '🔇');
+    const mutedAfterReload = await page.evaluate(() => soundSettings.muted && document.getElementById('muteBtn').textContent === '🔇');
     check(label, 'save', 'reload keeps credits, collection, wins/losses, packs opened and mute', reloaded.credits === lost.credits && reloaded.collection === afterBuy.collection && reloaded.wins === lost.wins && reloaded.losses === lost.losses && reloaded.packsOpened === afterBuy.packsOpened && mutedAfterReload, JSON.stringify({ reloaded, mutedAfterReload }));
 
     // ---- resets (through STATS and the confirm dialog)
@@ -371,7 +378,8 @@ async function longMatch(browser, url) {
     watch(page, sink);
     await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
     await page.goto(url);
-    await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; });
+    await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+    await page.evaluate(() => { document.getElementById('clickToStart').style.display = 'none'; setGameplaySeed(20261022); });
     await page.evaluate(() => { showElementSelection(); setDeckMode('dual'); selectElement('fire'); selectElement('water'); selectDifficulty('hard'); startGame(); });
     await page.clock.runFor(1000);
     // Both sides at 999 life so the match runs to the turn limit; the player plays everything it can.
@@ -417,7 +425,7 @@ async function longMatch(browser, url) {
         if (await page.evaluate(() => gameState.matchFinalized)) break;
     }
     const board = await page.evaluate(() => ({
-        player: gameState.playerBoard.length, enemy: gameState.enemyBoard.length, finalized: gameState.matchFinalized,
+        player: gameState.playerBoard.length, enemy: gameState.enemyBoard.length, round: gameState.round, finalized: gameState.matchFinalized,
         life: [gameState.playerLife, gameState.enemyLife], decks: [gameState.playerDeck.length, gameState.enemyDeck.length],
         deckedOut: [!!gameState.playerDeckedOut, !!gameState.enemyDeckedOut]
     }));
@@ -427,12 +435,12 @@ async function longMatch(browser, url) {
     const avg = arr => arr.reduce((s, x) => s + x, 0) / arr.length;
     const early = avg(turnCosts.slice(0, 10));
     const late = avg(turnCosts.slice(-10));
-    check('desktop', 'performance', `long match reached ${last.turn} turns with ${board.player}+${board.enemy} permanents, no errors`, last.turn >= 50 && sink.errors.length === 0, `${JSON.stringify(board)} ${sink.errors.slice(0, 2).join(' | ')}`);
+    check('desktop', 'performance', `long match reached round ${board.round} after ${last.turn} iterations with ${board.player}+${board.enemy} permanents, no errors`, last.turn >= 50 && board.round >= 51 && !board.finalized && sink.errors.length === 0, `${JSON.stringify(board)} ${sink.errors.slice(0, 2).join(' | ')}`);
     check('desktop', 'performance', `heap after GC stays bounded (${first.heapMB} MB at turn ${first.turn} → ${last.heapMB} MB at turn ${last.turn})`, last.heapMB < first.heapMB * 1.5 + 5, JSON.stringify(samples));
     check('desktop', 'performance', `event listeners don't accumulate (${first.listeners} → ${last.listeners})`, last.listeners < first.listeners * 1.5 + 200, JSON.stringify(samples));
     check('desktop', 'performance', `script+layout time per turn stays flat (${(early * 1000).toFixed(0)} ms early → ${(late * 1000).toFixed(0)} ms late)`, late < early * 2 + 0.05, JSON.stringify(turnCosts));
     check('desktop', 'performance', 'no lingering floating numbers, sparkles or particles', last.floaters < 10 && last.particles < 300, JSON.stringify(last));
-    evidence.longMatch = { samples, board, earlyTurnMs: +(early * 1000).toFixed(1), lateTurnMs: +(late * 1000).toFixed(1) };
+    evidence.longMatch = { seed: 20261022, stoppedClock: true, samples, board, earlyTurnMs: +(early * 1000).toFixed(1), lateTurnMs: +(late * 1000).toFixed(1) };
     await context.close();
 }
 
@@ -456,7 +464,7 @@ async function main() {
         server.close();
     }
     const failed = results.filter(r => !r.ok);
-    fs.writeFileSync(path.join(OUT, 'release.json'), JSON.stringify({ date: new Date().toISOString(), browser: chromium.name(), results, evidence }, null, 2));
+    fs.writeFileSync(path.join(OUT, 'release.json'), JSON.stringify({ commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(), date: new Date().toISOString(), browser: chromium.name(), results, evidence }, null, 2));
     console.log(`\nSummary: ${results.length - failed.length} passed · ${failed.length} failed → test-results/release/release.json`);
     process.exit(failed.length ? 1 : 0);
 }

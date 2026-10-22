@@ -1,5 +1,140 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Unreleased: Achievements
+
+For players:
+- **150 achievements** across 13 categories. Some are milestones (first win, 50 wins, every card collected).
+  Most are about how you play: a Clean Sweep of three blockers, winning By a Thread on 1 life, freezing a
+  creature that was already tapped, or getting Phoenix and Phoenix Firebird out together. Four are hidden.
+- **🏆 Achievements screen** from the main menu and the pause menu: category filters, an Unlocked filter,
+  progress bars, unlock dates.
+- **Unlock notices:** a small pill at the top of the screen, one at a time, "· N more" when several arrive
+  together. They wait while you're paused or opening a pack, never cover your hand or turn buttons, and can
+  play a short sound and buzz (switch on the Achievements screen).
+- **Existing players** get credit for what their profile proves (wins, losses, packs, cards owned, credits) in
+  one quiet notice. Past plays and combos are never guessed.
+
+Under the hood:
+- `achievements.js` (`window.Achievements`): the catalog, lifetime counters, the current match's context, and
+  a versioned store under its own key (`emoji_elements_achievements_v1`). Unlocks are saved at once, counters
+  in batches. Migration keeps unknown ids, drops bad fields, backs up a corrupt store, and never overwrites a
+  newer version. Nothing is saved in QA mode.
+- `index.js` reports confirmed outcomes (`reportAchievement`) from the places they happen: card resolution,
+  combat, life changes (with their source), match end, packs, deck saves. A report can never throw into the game.
+- `ACHIEVEMENTS.md` documents the events and storage, and lists all 150 triggers. The table is generated from
+  the code (`npm run achievements:doc`).
+- `npm run achievements` unlocks each of the 150 from real game events and tests unlock-once, reloads,
+  migration, backfill, QA isolation, the screen, the notices and a long match. It is part of CI.
+
+## Unreleased: Sound and haptics
+
+For players:
+- **New sound effects for everything you do.**
+  - There are distinct sounds for menu clicks, picking up and playing cards (fantasy and sci-fi summons
+    differ), land taps (a quick run steps up in pitch), spells, artifacts, attacks, blocks, damage, healing,
+    deaths, the pack rip, card reveals (a rising arpeggio for rare, epic and legendary), victory, defeat and
+    "not allowed".
+  - All are short and quiet by design. Before, one sound served for selection, summons, spells and artifacts
+    alike, clicks rang for 2 seconds, and the defeat sting ran almost 10 seconds at full scale.
+  - Tonal sounds follow the visual theme.
+- **One sound per hit.** Damage and healing used to replay a sound once per life point. A heal spell also
+  played its sound twice.
+- **Pack opening has sound.**
+- **Settings:**
+  - Sound (everything), Music and Effects, each with a volume slider, and Haptics.
+  - In the pause menu and from the new **🔊 Sound** chip on the main menu.
+  - Remembered on this device, never in your profile.
+- **Haptics** (phones with vibration): short patterns when you play a card, attack, take damage, open a pack,
+  reveal a rare card, win or lose. Never for the AI's own actions, never before your first touch, single short
+  pulses with reduce motion, and nothing at all where vibration isn't available.
+- **Faster start on phones:** 2 audio files load before the first tap instead of 19.
+
+Under the hood:
+- **`feedback.js` (`window.GameFeedback`):** a Web Audio effects engine with per-cue cooldowns, a cap on
+  overlapping voices, pitch variation and a compressor. It also holds the sound settings and the one guarded
+  `haptic(kind)` helper.
+- **Unlock:** audio starts only after a gesture, and is resumed quietly after interruptions.
+- **Music and the intro are unchanged.** The 17 effect MP3s are removed.
+- **Achievements:** the game has none, so the achievement cue exists but nothing triggers it yet.
+- **New suite:** `tests/audio.test.mjs` (`npm run audio`, 15 tests, in CI).
+- **Sound board:** `docs/sound-board.html`, for listening on a device.
+- **[AUDIO.md](AUDIO.md):** the audit, measurements, settings, haptic patterns, and what was checked
+  automatically versus on a real device. Nothing has been heard on a real device yet.
+
+## Unreleased: Battle screen and pause
+
+For players:
+- **Pause really pauses.** Before, the pause menu only covered the screen. Behind it, the AI went on playing its
+  whole turn, your next turn began, and a message popped up over the menu.
+  - Now the AI's turn, its 12 s failsafe, the action locks and the messages all wait.
+  - The board takes no clicks, taps or keys while paused.
+  - RESUME carries on the same match with the time each step had left, and puts focus back where it was.
+  - The match also pauses itself when you switch tab or app.
+- **A new pause menu.**
+  - RESUME first, then switches for Sound, Music and Haptics, and the theme.
+  - A short Controls list (the keyboard keys are hidden on touch-only devices).
+  - MAIN MENU last, set apart, with the same confirmation as before. NO returns to the paused match.
+  - The subtitle shows the turn and both life totals.
+- **Messages never cover cards.** During a match they appear on the turn banner instead of over the middle of
+  the board.
+- **Easier to read at a glance.**
+  - Attackers (solid outline, ⚔️), creatures that could attack (dashed) and predicted blockers (dotted, 🛡)
+    now differ in shape, not only colour. Before, attackers and blockers were both red.
+  - The predicted ✓/☠ sits low on the card instead of over its art.
+  - Cards the AI put down since its turn began say **NEW**. During its attack, its attackers show ⚔️ and your
+    automatic blockers 🛡.
+  - A bar on the inner edge marks the side whose turn it is. Your side is only lightly dimmed during the
+    enemy's turn (it was 60 % opacity at 70 % brightness), so you can still read your cards.
+  - Life is the largest number on each side. Deck size is smaller and quieter, the enemy's hand size is new,
+    and all of them have labels for screen readers.
+  - Damage chips have a red rim, and in short landscape a reason like "Next turn" wraps instead of being cut.
+- **Theme picker on short landscape screens:** compact options, and the current theme is scrolled into view.
+- **Haptics** (phones that support vibration): a short buzz on long-press and when you take damage. It can be
+  switched off.
+
+Under the hood:
+- **Pausable timers:** `matchDelay` / `clearMatchDelay` / `freezeMatchTimers` / `thawMatchTimers` in
+  `index.js`. The AI turn, the action-lock failsafes and the toasts use them.
+- **Leaving a match** clears its paused state, timers and pending toasts. Before, a combat report's hold kept
+  menu messages queued.
+- **Settings keys:** `emojiElementsMusicOff`, `emojiElementsHaptics` (beside `emojiElementsMuted`). None of
+  them touch the profile.
+- **New suite:** `tests/battle.test.mjs` (`npm run battle`, 14 tests, in CI). The theme audit also checks the
+  docked toast, the pause panel and the counters.
+
+## Unreleased: Visual themes and logo
+
+For players:
+- **Three themes.** Pick one from **Theme: …** on the main menu or 🎨 THEME in the pause menu.
+  - **Arcane Fantasy** (default): violet ink, gold leaf, Uncial and Cinzel lettering.
+  - **Deep Space**: midnight navy, a sparse still starfield, ice-blue accents, Exo 2 lettering.
+  - **Neon Sci-Fi**: black glass, a faint grid with a magenta horizon, cyan accents, Orbitron and Chakra Petch.
+  - Themes change colours, type and backgrounds only. Card rarity colours and the body text are the same in
+    all three. The choice is saved on its own: it never touches your profile, and RESET PROGRESS keeps it.
+- **A new logo.** A sigil of the five elements and an "EMOJI / Elements" wordmark, as live text and a local SVG.
+  It is large on the start screen, beside the title in the menu and one compact line in the match header.
+- **Start screen:** one clear "▶ Click to start" button with the hint "Sound on · tap or click anywhere". It no
+  longer pulses.
+- **Main menu:** the theme chip sits beside V2 BETA. After your first battle, NEW GAME names the deck it will
+  start from ("Last deck: 🔥 Fire + 💧 Water"). The menu sits on the theme's own background.
+- **Calmer matches.** Nothing loops or pulses during a match any more: not the phase label, not ATTACK, not the
+  enemy turn, not the result banner. MULLIGAN and GRAVEYARD are quiet buttons, END TURN is the accent, ATTACK a
+  steady red. The victory and defeat banners are a dark scrim with a glow instead of a full-screen wash.
+- **Readability fixes:**
+  - MAIN MENU on the victory and defeat banners was white on light blue (3.3:1). It now passes AA in every theme.
+  - MULLIGAN no longer puts light text on bright blue.
+
+Under the hood:
+- **Semantic tokens:** each theme is one token set on `<html data-theme>`. 322 colour and font literals in older
+  rules now read tokens. Before any visual change, a computed-style fingerprint of 24 screen states was
+  identical.
+- **Picker:** `VISUAL_THEMES`, `applyVisualTheme`, `showThemePicker` in `index.js`. It is a radio group in the
+  shared dialog handling (Esc, focus trap, focus return); the theme is applied before the first paint from
+  `localStorage.emoji_elements_theme`.
+- **New suite:** `tests/theme-audit.mjs` (`npm run themes`). It runs axe and measured text contrast, overflow,
+  clipping and looping-animation checks for each theme at three sizes, plus the storage and keyboard checks.
+  `menu-audit`, `ui-audit` and `card-faces` take `--theme=`.
+
 ## Unreleased: Cleanup and final regression
 
 For players:

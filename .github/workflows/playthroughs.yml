@@ -1,0 +1,28 @@
+name: Desktop and mobile smoke and release
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  playthroughs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install pinned test dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run smoke and release playthroughs
+        run: npm run verify -- --group=playthroughs
+      - name: Upload playthrough results and screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playthrough-verification
+          path: test-results/
+          retention-days: 14

@@ -5,6 +5,7 @@
 //   node tests/ui-audit.mjs --profile=android-portrait
 //   node tests/ui-audit.mjs --label=before        # screenshot folder name (default: current)
 //   node tests/ui-audit.mjs --report-only         # never exit 1 (used to record a baseline)
+//   node tests/ui-audit.mjs --theme=neon      # in a visual theme (arcane, deep-space, neon); label theme-neon
 //
 // For each profile it walks the real flows (menus, element/deck selection, hand and battlefield, card
 // inspection, tapping lands, attacking, blocking feedback, graveyards, modals, pack ripping/swiping,
@@ -28,7 +29,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(arg => {
     const [key, value] = arg.replace(/^--/, '').split('=');
     return [key, value ?? true];
 }));
-const LABEL = args.label || 'current';
+const LABEL = args.label || (args.theme ? `theme-${args.theme}` : 'current');
 const OUT = path.join(ROOT, 'test-results', 'ui', LABEL);
 const { chromium, devices } = loadPlaywright();
 
@@ -324,6 +325,7 @@ async function auditProfile(browser, url, profile) {
     fs.mkdirSync(path.join(OUT, profile), { recursive: true });
     const context = await browser.newContext({ ...options });
     await context.addInitScript(seededInit);
+    if (args.theme) await context.addInitScript(theme => { try { localStorage.setItem('emoji_elements_theme', theme); } catch (_) { /* about:blank */ } }, args.theme);
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -605,6 +607,7 @@ async function auditReducedMotion(browser, url) {
     console.log('\n[reduced-motion] desktop, prefers-reduced-motion: reduce');
     const context = await browser.newContext({ viewport: { width: 1366, height: 768 }, reducedMotion: 'reduce' });
     await context.addInitScript(seededInit);
+    if (args.theme) await context.addInitScript(theme => { try { localStorage.setItem('emoji_elements_theme', theme); } catch (_) { /* about:blank */ } }, args.theme);
     const page = await context.newPage();
     await boot(page, false, url);
     const intro = await page.evaluate(() => ({ played: document.getElementById('introVideo').currentTime > 0 }));

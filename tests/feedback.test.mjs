@@ -71,7 +71,7 @@ function installSpies(page) {
     });
 }
 const fingerprint = page => page.evaluate(() => JSON.stringify({
-    gameState, meta: gameMeta, stats: gameStats, spies: window.__spies,
+    gameState, gameplayRandomState, meta: gameMeta, stats: gameStats,
     floating: document.querySelectorAll('.floating-number, .damage-number').length,
     overlays: ['victoryOverlay', 'loseOverlay', 'matchRewardOverlay'].map(id => document.getElementById(id).className)
 }));
@@ -84,7 +84,9 @@ async function previewThenResolve(page, attackerSide) {
         const attackers = side === 'player'
             ? gameState.attackers.map(id => gameState.playerBoard.find(c => c.id === id))
             : gameState.enemyBoard.filter(c => c.type === 'creature' && canAttack(c));
+        const spiesBefore = JSON.stringify({ spies: window.__spies, gameplayRandomState });
         const p = previewCombat(attackers, side === 'player' ? gameState.enemyBoard : gameState.playerBoard, side === 'player');
+        const spiesAfter = JSON.stringify({ spies: window.__spies, gameplayRandomState });
         const find = id => [...gameState.playerBoard, ...gameState.enemyBoard].find(c => c.id === id);
         return {
             life: p.life,
@@ -98,10 +100,12 @@ async function previewThenResolve(page, attackerSide) {
                 blockersDie: pair.blockersDie, lifeChange: pair.lifeChange
             }, side === 'player')),
             result: p.result,
+            spies: [spiesBefore, spiesAfter],
             attackerIds: attackers.map(c => c.id)
         };
     }, attackerSide);
-    assert.equal(await fingerprint(page), before, 'the preview changed nothing: cards, life, mana, randomness, timers, rewards');
+    assert.equal(await fingerprint(page), before, 'the preview changed nothing: cards, life, mana, gameplay RNG, rewards');
+    assert.equal(preview.spies[1], preview.spies[0], 'the preview uses no randomness and schedules no timers (checked synchronously, independent of notice timers)');
 
     const historyBefore = await page.evaluate(() => matchHistory.length);
     if (attackerSide === 'player') {
