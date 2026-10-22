@@ -62,7 +62,8 @@
     let gestureSeen = false;
     const stats = { played: {}, dropped: {} };
     const lastPlayed = {};
-    const activeVoices = [];     // { cue, end, nodes }
+    const activeVoices = [];     // each cue owns every source and processing node it schedules
+    let buildingVoice = null;
     const MAX_VOICES = 8;
 
     const count = (bucket, name) => { stats[bucket][name] = (stats[bucket][name] || 0) + 1; };
@@ -126,6 +127,30 @@
         else if (gestureSeen) ctx.resume().catch(() => {});
     });
 
+    function disposeVoice(voice) {
+        if (voice.disposed) return;
+        voice.disposed = true;
+        for (const source of voice.sources) {
+            try { source.stop(); } catch (_) { /* already ended */ }
+        }
+        for (const node of voice.nodes) {
+            try { node.disconnect(); } catch (_) { /* already disconnected */ }
+        }
+        const index = activeVoices.indexOf(voice);
+        if (index >= 0) activeVoices.splice(index, 1);
+    }
+
+    function ownSource(source, nodes) {
+        const voice = buildingVoice;
+        if (!voice) return;
+        voice.sources.push(source);
+        voice.nodes.push(...nodes);
+        voice.pending++;
+        source.addEventListener('ended', () => {
+            if (!voice.disposed && --voice.pending === 0) disposeVoice(voice);
+        }, { once: true });
+    }
+
     // ---- Synthesis helpers. Each takes the context, the bus and a start time; all envelopes end at zero.
     function env(context, param, t, peak, attack, decay) {
         param.setValueAtTime(0.0001, t);
@@ -141,15 +166,18 @@
         if (to) osc.frequency.exponentialRampToValueAtTime(to, t + attack + decay);
         osc.detune.value = detune;
         env(context, amp.gain, t, gain, attack, decay);
+        const nodes = [osc, amp];
         let node = osc;
         if (filter) {
             const f = context.createBiquadFilter();
             f.type = 'lowpass';
             f.frequency.value = filter;
+            nodes.push(f);
             node.connect(f);
             node = f;
         }
         node.connect(amp).connect(bus);
+        ownSource(osc, nodes);
         osc.start(t);
         osc.stop(t + attack + decay + 0.02);
         return t + attack + decay + 0.02;
@@ -166,6 +194,7 @@
         const amp = context.createGain();
         env(context, amp.gain, t, gain, attack, decay);
         src.connect(f).connect(amp).connect(bus);
+        ownSource(src, [src, f, amp]);
         src.start(t);
         src.stop(t + attack + decay + 0.02);
         return t + attack + decay + 0.02;
@@ -317,7 +346,7 @@
 
     function pruneVoices(now) {
         for (let i = activeVoices.length - 1; i >= 0; i--) {
-            if (activeVoices[i].end <= now) activeVoices.splice(i, 1);
+            if (activeVoices[i].end <= now) disposeVoice(activeVoices[i]);
         }
     }
 
@@ -335,30 +364,33 @@
         if (same >= cue.maxVoices) { count('dropped', `${name}:voices`); return false; }
         if (activeVoices.length >= MAX_VOICES) {
             if (!cue.priority) { count('dropped', `${name}:busy`); return false; }
-            activeVoices.splice(0, activeVoices.length - MAX_VOICES + 1);
+            while (activeVoices.length >= MAX_VOICES) disposeVoice(activeVoices[0]);
         }
         lastPlayed[name] = nowMs;
         const cents = cue.vary ? (Math.random() * 2 - 1) * cue.vary : 0;
         const v = Math.pow(2, cents / 1200);
+        const voice = { cue: name, sources: [], nodes: [], pending: 0, disposed: false };
+        buildingVoice = voice;
         try {
-            const end = cue.play(ctx, sfxGain, t, options, v);
-            activeVoices.push({ cue: name, end });
+            voice.end = cue.play(ctx, sfxGain, t, options, v);
+            activeVoices.push(voice);
             count('played', name);
             return true;
         } catch (_) {
+            disposeVoice(voice);
             count('dropped', `${name}:error`);
             return false;
-        }
+        } finally { buildingVoice = null; }
     }
 
     // Silences effects still ringing (leaving a match for the menu)
     function stopAll() {
         if (!ctx || !sfxGain) return;
-        const level = sfxLevel();
+        // Destroy scheduled sources, including notes that have not started yet. Gain recovery
+        // (unmute, settings changes or the next cue) can never bring an old effect back.
+        for (const voice of [...activeVoices]) disposeVoice(voice);
         sfxGain.gain.cancelScheduledValues(ctx.currentTime);
-        sfxGain.gain.setTargetAtTime(0, ctx.currentTime, 0.02);
-        sfxGain.gain.setTargetAtTime(level, ctx.currentTime + 0.15, 0.02);
-        activeVoices.length = 0;
+        sfxGain.gain.setValueAtTime(sfxLevel(), ctx.currentTime);
     }
 
     // Renders a cue offline (no speakers, no unlock needed): for tests and the sound board's measurements.
@@ -371,10 +403,16 @@
         bus.gain.value = options.volume ?? DEFAULTS.sfxVolume;
         const savedNoise = noiseBuffer;
         noiseBuffer = makeNoise(off);
-        const end = cue.play(off, bus, 0.01, options, 1);
-        noiseBuffer = savedNoise;
-        const buffer = await off.startRendering();
-        return { buffer, scheduledEnd: end };
+        const previousVoice = buildingVoice;
+        const voice = { sources: [], nodes: [], pending: 0, disposed: false };
+        buildingVoice = voice;
+        let end;
+        try {
+            try { end = cue.play(off, bus, 0.01, options, 1); }
+            finally { buildingVoice = previousVoice; noiseBuffer = savedNoise; }
+            const buffer = await off.startRendering();
+            return { buffer, scheduledEnd: end };
+        } finally { disposeVoice(voice); bus.disconnect(); }
     }
 
     // ---- Haptics: one guarded helper with brief patterns

@@ -138,6 +138,10 @@
             return;
         }
         if (audioSystem[soundName]) {
+            // A previous transition must not restore volume or stop a newly started session later.
+            const fade = activeAudioFades.get(audioSystem[soundName]);
+            if (fade) clearInterval(fade);
+            activeAudioFades.delete(audioSystem[soundName]);
             try {
                 audioSystem[soundName].pause();
                 audioSystem[soundName].currentTime = 0;

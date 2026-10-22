@@ -230,3 +230,8 @@ without running the game. They were shared with this pass, not committed.
 - **Achievements:** earned notices use the cue; saved-history backfill stays quiet.
 - **Card pickup** sounds on pointer press only. Keyboard play goes straight to the play sound.
 - **Measurements** are the synthesised signal. A phone speaker will thin out the low thuds (damage, summon).
+
+Release hardening: each synthesized cue now owns its sources, filters and envelopes. Priority eviction
+stops/disconnects the evicted cue, natural completion disconnects its nodes, and `stopAll()` destroys
+future notes before gain recovery. `tests/audio-lifecycle.test.mjs` independently observes real Web Audio
+nodes; the three-node processing bus remains for subsequent cues. See RELEASE.md for measured soak limits.

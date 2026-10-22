@@ -55,6 +55,16 @@ const press = (page, touch, target, options = {}) => {
     const locator = typeof target === 'string' ? page.locator(target).first() : target;
     return touch ? locator.tap(options) : locator.click(options);
 };
+// Two real inputs at the original hit point, even if the first one opens an overlay.
+// Re-resolving a now-hidden locator waits for a timeout and does not produce a duplicate input.
+async function doublePress(page, touch, selector) {
+    const locator = typeof selector === 'string' ? page.locator(selector).first() : selector;
+    await locator.scrollIntoViewIfNeeded();
+    const box = await locator.boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    if (touch) { await page.touchscreen.tap(x, y); await page.touchscreen.tap(x, y); }
+    else await page.mouse.dblclick(x, y, { delay: 40 });
+}
 const menuButton = (page, text) => page.locator('#mainMenu button', { hasText: text }).first();
 const visible = (page, selector) => page.locator(selector).first().isVisible();
 const state = page => page.evaluate(() => ({
@@ -279,14 +289,12 @@ async function playthrough(browser, url, project, { existingSave }) {
     await press(page, touch, '#attackBtn');
     for (const emoji of ['🦢', '🦁']) await press(page, touch, page.locator('#playerBoard .card').filter({ hasText: emoji }));
     // Duplicate action: CONFIRM pressed twice quickly
-    await press(page, touch, '#attackBtn');
-    await press(page, touch, '#attackBtn').catch(() => {});
+    await doublePress(page, touch, '#attackBtn');
     await page.waitForFunction(() => document.getElementById('matchRewardOverlay').classList.contains('show'), null, { timeout: 10000 });
     const won = await state(page);
     check(label, 'result', 'attack through the UI wins the match; rewards recorded once (+25 credits, +1 win)', won.finalized && won.wins === start.wins + 1 && won.credits === start.credits + 25, JSON.stringify(won));
     await shot('rewards');
-    await press(page, touch, '#matchRewardOverlay .overlay-btn');                       // OPEN BOOSTER (free reward)
-    await press(page, touch, '#matchRewardOverlay .overlay-btn').catch(() => {});      // duplicate tap
+    await doublePress(page, touch, '#matchRewardOverlay .overlay-btn');      // duplicate tap
     const reward = await openPack(page, touch);
     await page.waitForFunction(() => document.getElementById('victoryOverlay').classList.contains('show'), null, { timeout: 8000 });
     const afterReward = await state(page);
@@ -297,8 +305,7 @@ async function playthrough(browser, url, project, { existingSave }) {
 
     // ---- pack purchase (with a duplicate tap)
     await press(page, touch, menuButton(page, 'PACK SHOP'));
-    await press(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
-    await press(page, touch, '.shop-pack-btn[data-theme="fantasy"]').catch(() => {});
+    await doublePress(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
     const bought = await openPack(page, touch);
     const afterBuy = await state(page);
     check(label, 'packs', 'shop purchase: charged 60 once, 5 cards, packs opened +1', bought.length === 5 && afterBuy.credits === afterReward.credits - 60 && afterBuy.packsOpened === afterReward.packsOpened + 1, JSON.stringify(afterBuy));
@@ -310,8 +317,7 @@ async function playthrough(browser, url, project, { existingSave }) {
     await page.evaluate(() => { gameState.difficulty = 'hard'; });
     const aiTurns = await page.evaluate(() => { window.__aiTurns = 0; const orig = window.aiTurn; window.aiTurn = function () { window.__aiTurns++; return orig.apply(this, arguments); }; return true; });
     void aiTurns;
-    await press(page, touch, '#endTurnBtn');
-    await press(page, touch, '#endTurnBtn').catch(() => {});
+    await doublePress(page, touch, '#endTurnBtn');
     await page.waitForFunction(() => document.getElementById('loseOverlay').classList.contains('show'), null, { timeout: 20000 });
     const lost = await state(page);
     const turnsRun = await page.evaluate(() => window.__aiTurns);

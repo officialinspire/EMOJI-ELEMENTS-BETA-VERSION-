@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 22
       - name: Install Playwright (version pinned in package.json)
-        run: npm install --package-lock=false --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run catalog and all browser logic suites

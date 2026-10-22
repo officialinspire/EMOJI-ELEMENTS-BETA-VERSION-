@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// One Chromium verification plan, also split into the three CI jobs. Continue after failures; preserve exits.
+// Complete verification plan, also split into CI jobs. Continue after failures; preserve exits.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { ROOT } from './lib/harness.mjs';
 
 const group = process.argv[2]?.replace(/^--group=/, '') || 'all';
-if (!['all', 'logic', 'visual', 'playthroughs'].includes(group) || process.argv.length > 3) {
-    console.error('Usage: npm run verify [-- --group=logic|visual|playthroughs]');
+if (!['all', 'logic', 'visual', 'playthroughs', 'browsers', 'soak'].includes(group) || process.argv.length > 3) {
+    console.error('Usage: npm run verify [-- --group=logic|visual|playthroughs|browsers|soak]');
     process.exit(2);
 }
 const suites = fs.readdirSync(path.join(ROOT, 'tests')).filter(name => name.endsWith('.test.mjs')).sort();
@@ -19,7 +19,9 @@ const plan = [
     ['visual', 'menu', ['tests/menu-audit.mjs', '--label=ci']],
     ['visual', 'cards', ['tests/card-faces.mjs', '--label=ci']],
     ['playthroughs', 'smoke', ['tests/smoke.mjs']],
-    ['playthroughs', 'release', ['tests/release.mjs']]
+    ['playthroughs', 'release', ['tests/release.mjs']],
+    ['browsers', 'cross-browser', ['tests/cross-browser.mjs']],
+    ['soak', 'soak', ['tests/soak.mjs']]
 ].filter(([g]) => group === 'all' || g === group);
 const git = args => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const report = {
@@ -44,4 +46,5 @@ for (const [, name, args] of plan) {
 }
 report.completed = new Date().toISOString();
 fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify(report, null, 2) + '\n');
+if (group === 'all') spawnSync(process.execPath, ['tests/release-report.mjs'], { cwd: ROOT, stdio: 'inherit' });
 process.exit(report.results.every(row => row.exitCode === 0) ? 0 : 1);

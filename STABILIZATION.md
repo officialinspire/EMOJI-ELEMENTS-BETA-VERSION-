@@ -6,9 +6,9 @@ The stabilization branch starts at `02a5534` (`origin/claude/audio-feedback`). I
 
 Present: Arcane Fantasy, Deep Space and Neon Sci-Fi themes, saved theme selection, real battle pause,
 AI delay suspension, board feedback, synthesized sound effects, separate audio settings and guarded
-haptics. No achievement system or achievement branch/commit was found in the fetched remote heads;
+haptics. At the first pass, no achievement system or achievement branch/commit was found in the fetched remote heads;
 the audio engine has an achievement cue, and a future-save fixture mentions achievements, but those
-are not an achievement feature. The starting checkout had no uncommitted changes or AGENTS.md.
+were not an achievement feature. Achievements were subsequently integrated and hardened; see ACHIEVEMENTS.md. The starting checkout had no uncommitted changes or AGENTS.md.
 
 ## Reproductions and fixes
 
@@ -39,13 +39,13 @@ The release runner also referenced the removed `isMuted` global from before the 
 change. It now reads `soundSettings.muted` and keeps the existing header-icon and saved-profile
 assertions on reload.
 
-## Full Chromium verification
+## Full verification
 
 From the checkout, with Node 22+:
 
 ```sh
-npm install --package-lock=false --no-audit --no-fund
-npx playwright install --with-deps chromium
+npm ci --no-audit --no-fund
+npx playwright install --with-deps chromium firefox webkit
 npm run verify
 ```
 
@@ -57,21 +57,23 @@ full HEAD SHA, dirty status, Node version, commands, exit codes, signals and run
 runners retain their own detailed JSON and screenshots. Consult current-run logs for test counts;
 a successful process launch is not a test pass.
 
-CI uses the same plan in three groups:
+CI uses the same plan in five groups (see RELEASE.md for the strict browser matrix and soak):
 
 ```sh
 npm run verify -- --group=logic
 npm run verify -- --group=visual
 npm run verify -- --group=playthroughs
+npm run verify -- --group=browsers
+npm run verify -- --group=soak
 ```
 
 The rules job covers catalog, gameplay, saves, battle, audio and pack stabilization.
 The UI job includes the theme audit; the playthrough job includes smoke and release. Each uploads
-results even when checks fail. `npm run cross-browser` (requires Firefox/WebKit too) and the larger
-`npm run ai:sim` statistical sample are optional additional coverage, outside this Chromium gate.
+results even when checks fail. The strict `npm run cross-browser` and real-time soak are now included in the full gate. The larger
+`npm run ai:sim` statistical sample remains optional additional coverage.
 There is no build step or application server dependency; runners serve the checkout themselves.
 
-In the onboarding machine, Playwright's bundled Chromium download and Google Fonts were blocked
+During initial onboarding, Playwright's bundled Chromium download and Google Fonts were blocked
 by network policy. The installed system Chromium can be selected with the environment-local
 launcher provided during setup:
 

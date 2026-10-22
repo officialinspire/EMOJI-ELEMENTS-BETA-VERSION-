@@ -245,10 +245,10 @@ location.reload();
 
 ## Testing
 
-Full Chromium verification: `npm run verify` (after installing dependencies and Chromium below).
+Full release verification: `npm run verify` (after installing dependencies and all three browsers below).
 See [STABILIZATION.md](STABILIZATION.md#full-chromium-verification) for coverage, CI groups, logs and environment limitations.
 
-Automated checks (Node 22+ and Playwright; `npm install` then `npx playwright install chromium`):
+Automated checks (Node 22+ and Playwright; `npm ci` then `npx playwright install --with-deps chromium firefox webkit`):
 
 | Command | What it covers |
 |---|---|
@@ -283,3 +283,5 @@ QA mode (debug logs and `window.__qa*` helpers) is off for players. Add `?qa=1` 
 Built by Inspire Software / EMOJI ELEMENTS team.
 
 🌐 https://www.inspireclothing.art
+
+Release hardening and complete verification: [RELEASE.md](RELEASE.md).
