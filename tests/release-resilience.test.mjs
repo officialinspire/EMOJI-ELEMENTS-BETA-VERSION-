@@ -6,12 +6,25 @@ import {ROOT} from './lib/harness.mjs';
 import {useGameBrowser,openGamePage} from './lib/game.mjs';
 import {boot,click,start,ready} from './lib/release-ui.mjs';
 useGameBrowser();
+test('DOM-ready startup does not wait for stalled font CSS or media', {timeout:60000}, async t=>{
+    // Test a cold network failure, not a worker satisfying the request from its offline cache.
+    const {page,close}=await openGamePage({contextOptions:{serviceWorkers:'block'}});t.after(close);
+    let fonts=0,media=0;
+    await page.route(/fonts\.(googleapis|gstatic)\.com|\.(mp3|mp4)(\?|$)/,route=>{if(route.request().url().includes('fonts.'))fonts++;else media++;});
+    await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+    await boot(page);
+    assert.ok(fonts>0,'font stylesheet request is still held open');
+    assert.ok(media>0,'media requests are still held open');
+    assert.equal(await page.evaluate(()=>document.readyState),'interactive','the load event has not fired');
+    await click(page,'#mainMenu [data-menu-target="binderScreen"]');
+    assert.equal(await page.locator('#binderList .binder-row').count(),268);
+});
 test('real startup and a UI turn survive absent device APIs and failed media/fonts', {timeout:60000}, async t=>{
     const {page,close}=await openGamePage({initScript:()=>{
         Object.defineProperty(window,'AudioContext',{value:undefined,configurable:true});
         Object.defineProperty(window,'webkitAudioContext',{value:undefined,configurable:true});
         Object.defineProperty(navigator,'vibrate',{value:undefined,configurable:true});
-    },contextOptions:{reducedMotion:'reduce'}});t.after(close);
+    },contextOptions:{reducedMotion:'reduce',serviceWorkers:'block'}});t.after(close);
     let failed=0;
     await page.route(/fonts\.(googleapis|gstatic)\.com|\.(mp3|mp4)(\?|$)/,route=>{failed++;return route.abort('failed');});
     await page.reload();await boot(page);

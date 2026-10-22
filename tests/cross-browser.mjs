@@ -30,11 +30,12 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
         await context.addInitScript(save => { if (!sessionStorage.seeded) { localStorage.setItem('emoji_elements_meta_v1',save); sessionStorage.seeded='1'; } }, save);
         const page = await context.newPage();
         page.setDefaultTimeout(15000);
+        page.setDefaultNavigationTimeout(30000);
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
         const shot = async name => { const file = `${engine}-${profile}-${name}.png`; await page.screenshot({path:path.join(OUT,file)}); row.screenshots.push(file); };
         try {
-            await page.goto(url); await boot(page); row.checks.push('startup');
+            await page.goto(url, { waitUntil: 'domcontentloaded' }); await boot(page); row.checks.push('startup');
             await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
             await click(page, '#mainMenu [data-menu-target="binderScreen"]');
             assert.equal(await page.locator('#binderList .binder-row').count(),268);
@@ -69,7 +70,7 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             }
             await backFromPack(page);
             const persisted = await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme}));
-            await page.reload(); await boot(page);
+            await page.reload({ waitUntil: 'domcontentloaded' }); await boot(page);
             assert.deepEqual(await page.evaluate(() => ({meta:localStorage.getItem(META_STORAGE_KEY), achievements:localStorage.getItem('emoji_elements_achievements_v1'), theme:document.documentElement.dataset.theme})),persisted);
             assert.deepEqual(errors,[]); row.checks.push('purchase, reveal, summary, rotation/zoom, save reload'); row.status='PASS';
         } catch (error) { row.error=error.stack; reportFailure(`${engine}/${profile}: FAIL`, row.error); await shot('failure').catch(()=>{}); }
