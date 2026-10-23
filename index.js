@@ -5317,7 +5317,7 @@
 
     function deckBuilderPageSize() {
         if (window.matchMedia('(max-height: 640px)').matches) return 4;
-        return window.matchMedia('(max-width: 519px)').matches ? 6 : 12;
+        return window.matchMedia('(max-width: 519px)').matches ? 4 : 8;
     }
 
     function paginateDeckBuilder(container, pagerId, kind, perPage = deckBuilderPageSize()) {
@@ -6213,6 +6213,15 @@
         syncElementSelectionUI();
     }
 
+    // The veil makes either direction feel continuous without delaying the match state or swallowing input.
+    function fadeMatchScene() {
+        const veil = document.getElementById('sceneTransition');
+        if (!veil) return;
+        veil.classList.remove('scene-transition-active');
+        void veil.offsetWidth;
+        veil.classList.add('scene-transition-active');
+    }
+
     function returnToMainMenu() {
         cancelMatchWork();
         clearMatchPause();
@@ -6238,6 +6247,7 @@
 
         const gameContainer = document.getElementById('gameContainer');
         const startModal = document.getElementById('startModal');
+        fadeMatchScene();
         gameContainer.classList.remove('enemy-turn');
         gameContainer.style.display = 'none';
         startModal.style.display = 'flex';
@@ -7023,6 +7033,7 @@
         }
 
         const modal = document.getElementById('startModal');
+        fadeMatchScene();
         modal.classList.remove('modal-visible');
         modal.style.display = 'none';
         const gameContainer = document.getElementById('gameContainer');
@@ -9268,9 +9279,24 @@
             handEl.appendChild(cardEl);
         });
 
+        // Keep lands in their own lane while preserving the board's id for focus, events and selectors.
+        function resetBoardLanes(board, owner) {
+            board.replaceChildren();
+            const permanents = document.createElement('div');
+            permanents.className = 'board-lane board-permanents';
+            permanents.setAttribute('role', 'group');
+            permanents.setAttribute('aria-label', `${owner} creatures and artifacts`);
+            const lands = document.createElement('div');
+            lands.className = 'board-lane board-lands';
+            lands.setAttribute('role', 'group');
+            lands.setAttribute('aria-label', `${owner} lands`);
+            board.append(permanents, lands);
+            return { permanents, lands };
+        }
+
         // Update player board with STACKING for lands
         const boardEl = document.getElementById('playerBoard');
-        boardEl.innerHTML = '';
+        const playerLanes = resetBoardLanes(boardEl, 'Your');
         
         // Group lands by element
         const landStacks = {};
@@ -9370,7 +9396,7 @@
                 }
             });
 
-            boardEl.appendChild(stackCard);
+            playerLanes.lands.appendChild(stackCard);
         });
 
         // Display non-land cards normally
@@ -9421,12 +9447,12 @@
                 onLongPress: () => showCardDetail(card)
             });
 
-            boardEl.appendChild(cardEl);
+            playerLanes.permanents.appendChild(cardEl);
         });
 
         // Update enemy board with STACKING for lands
         const enemyBoardEl = document.getElementById('enemyBoard');
-        enemyBoardEl.innerHTML = '';
+        const enemyLanes = resetBoardLanes(enemyBoardEl, 'Enemy');
         
         // Group enemy lands by element
         const enemyLandStacks = {};
@@ -9500,7 +9526,7 @@
                 onLongPress: () => showCardDetail(representativeCard)
             });
 
-            enemyBoardEl.appendChild(stackCard);
+            enemyLanes.lands.appendChild(stackCard);
         });
 
         // Display enemy non-land cards normally
@@ -9529,7 +9555,7 @@
                 onLongPress: () => showCardDetail(card)
             });
 
-            enemyBoardEl.appendChild(cardEl);
+            enemyLanes.permanents.appendChild(cardEl);
         });
 
         restoreRowFocus(savedRowFocus);
