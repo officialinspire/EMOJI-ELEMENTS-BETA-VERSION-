@@ -607,36 +607,45 @@
 
             <div id="deckBuilderScreen" style="display: none;">
                 <div class="modal-subtitle" tabindex="-1">Deck Builder</div>
-                <div class="deck-builder-subtitle">Build from your collection. Win packs. Upgrade your standard decks.</div>
                 <div class="deck-builder-controls">
                     <label for="deckBuilderDeckKey">Deck:</label>
                     <select id="deckBuilderDeckKey" aria-label="Deck to edit"></select>
                     <span class="deck-builder-unsaved" id="deckBuilderUnsaved" style="display:none;">● Unsaved changes</span>
                 </div>
-                <!-- Counts and mana curve of the working deck, and what stops it saving: renderDeckBuilder -->
-                <div class="deck-summary-panel" id="deckBuilderSummary"></div>
-                <div class="deck-issues" id="deckBuilderIssues" aria-live="polite"></div>
+                <div class="deck-builder-tabs" role="tablist" aria-label="Deck builder views">
+                    <button type="button" id="deckTabInventory" role="tab" aria-controls="deckPanelInventory" aria-selected="true" onclick="setDeckBuilderTab('inventory')">Inventory</button>
+                    <button type="button" id="deckTabDeck" role="tab" aria-controls="deckPanelDeck" aria-selected="false" tabindex="-1" onclick="setDeckBuilderTab('deck')">Deck <span id="deckTabCount"></span></button>
+                    <button type="button" id="deckTabOverview" role="tab" aria-controls="deckPanelOverview" aria-selected="false" tabindex="-1" onclick="setDeckBuilderTab('overview')">Overview</button>
+                </div>
                 <div class="deck-builder-columns">
-                    <div class="deck-builder-column">
-                        <div class="deck-builder-column-title">Cards for this deck</div>
+                    <div class="deck-builder-column" id="deckPanelInventory" role="tabpanel" aria-labelledby="deckTabInventory">
                         <div class="card-filters" id="deckBuilderFilters" role="search" aria-label="Search and filter cards for this deck"></div>
                         <div class="card-list-showing" id="deckBuilderShowing" aria-live="polite"></div>
-                        <div class="deck-builder-list" id="deckBuilderPool" tabindex="0" role="region" aria-label="Cards you can add"></div>
+                        <div class="deck-builder-list" id="deckBuilderPool" role="group" aria-label="Cards you can add"></div>
+                        <div class="deck-page-controls" id="deckPoolPager" aria-label="Inventory pages"></div>
                     </div>
-                    <div class="deck-builder-column">
-                        <div class="deck-builder-column-title">Deck List</div>
-                        <div class="deck-builder-list" id="deckBuilderDeck" tabindex="0" role="region" aria-label="Deck list"></div>
+                    <div class="deck-builder-column" id="deckPanelDeck" role="tabpanel" aria-labelledby="deckTabDeck" hidden>
+                        <div class="deck-builder-column-title">Tap a card to remove one copy · ⓘ for rules</div>
+                        <div class="deck-builder-list" id="deckBuilderDeck" role="group" aria-label="Cards in this deck"></div>
+                        <div class="deck-page-controls" id="deckDeckPager" aria-label="Deck pages"></div>
+                    </div>
+                    <div class="deck-builder-column deck-overview" id="deckPanelOverview" role="tabpanel" aria-labelledby="deckTabOverview" hidden>
+                        <div class="deck-summary-panel" id="deckBuilderSummary"></div>
+                        <div class="deck-issues" id="deckBuilderIssues" aria-live="polite"></div>
+                        <div class="deck-page-controls" id="deckIssuesPager" aria-label="Deck issue pages"></div>
+                        <div class="deck-overview-actions">
+                            <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
+                            <button class="menu-btn" onclick="openDeckBuilderGuide()">📘 DECK BUILDER GUIDE</button>
+                        </div>
                     </div>
                 </div>
                 <div class="deck-builder-footer">
                     <div id="deckBuilderStatus" role="status" aria-live="polite"></div>
                     <div class="deck-builder-footer-buttons">
-                        <button class="menu-btn" onclick="resetDeckBuilderDeck()">↺ RESET TO STARTER</button>
-                        <button class="menu-btn" onclick="openDeckBuilderGuide()">📘 DECK BUILDER GUIDE</button>
                         <button class="menu-btn" onclick="saveDeckBuilderDeck()">💾 SAVE DECK</button>
+                        <button class="menu-btn menu-back" onclick="backToMenu()">← MENU</button>
                     </div>
                 </div>
-                <button class="menu-btn menu-back" onclick="backToMenu()">← BACK TO MENU</button>
             </div>
 
             <div id="deckBuilderGuideOverlay" class="guide-overlay" style="display:none;">

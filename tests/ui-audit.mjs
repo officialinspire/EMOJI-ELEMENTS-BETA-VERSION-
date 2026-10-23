@@ -563,15 +563,17 @@ async function auditProfile(browser, url, profile) {
     // Menus that hold lists.
     await page.evaluate(() => showDeckBuilder());
     await page.waitForTimeout(400);
-    await scene(ctx, '15-deck-builder', { essentials: ['#deckBuilderDeckKey', '#deckBuilderPool', '#deckBuilderDeck'], scrollable: true });
+    await scene(ctx, '15-deck-builder', { essentials: ['#deckBuilderDeckKey', '#deckBuilderPool', '#deckPoolPager'] });
     if (touch) {
-        // A finger swipe scrolls a long menu screen (the backdrop blocks touch scrolling, the content must not).
-        await page.evaluate(() => { document.querySelector('#startModal .modal-content').scrollTop = 0; });
-        const box = await page.locator('#startModal .modal-content').boundingBox();
-        const x = box.x + 20;
-        await swipe(page, touch, { x, y: box.y + box.height * 0.8 }, { x, y: box.y + box.height * 0.3 }, 10);
-        const top = await page.evaluate(() => document.querySelector('#startModal .modal-content').scrollTop);
-        check(profile, 'touch', 'a finger swipe scrolls a long menu screen', top > 20, `scrollTop ${top}`);
+        await page.locator('#deckPoolPager button:last-child').tap();
+        check(profile, 'touch', 'inventory advances by page', /Page 2/.test(await page.locator('#deckPoolPager').innerText()));
+        await page.locator('#deckTabDeck').tap();
+        await scene(ctx, '15b-deck-grid', { essentials: ['#deckBuilderDeck', '#deckDeckPager'] });
+        const fits = await page.evaluate(() => {
+            const modal = document.querySelector('#startModal .modal-content');
+            return modal.scrollHeight <= modal.clientHeight + 1;
+        });
+        check(profile, 'touch', 'deck builder uses fixed viewport', fits);
     }
     await page.evaluate(() => backToMenu());
     await page.evaluate(() => showBinder());

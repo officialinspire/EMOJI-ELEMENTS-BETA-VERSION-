@@ -2465,7 +2465,9 @@
         deckKey: null,
         workingCardIds: [],
         debugWarning: '',
-        validationErrors: []
+        validationErrors: [],
+        tab: 'inventory',
+        pages: { pool: 0, deck: 0, issues: 0 }
     };
 
     let gameMeta;
@@ -4655,8 +4657,34 @@
     function showDeckBuilder() {
         playSFX('menuOpen');
         setStartMenuScreen('deckBuilderScreen');
+        setDeckBuilderTab('inventory');
         initializeDeckBuilder();
     }
+
+    function setDeckBuilderTab(tab) {
+        if (!['inventory', 'deck', 'overview'].includes(tab)) return;
+        deckBuilderState.tab = tab;
+        for (const [key, label] of [['inventory', 'Inventory'], ['deck', 'Deck'], ['overview', 'Overview']]) {
+            const button = document.getElementById(`deckTab${label}`);
+            const panel = document.getElementById(`deckPanel${label}`);
+            if (button) {
+                button.setAttribute('aria-selected', String(key === tab));
+                button.tabIndex = key === tab ? 0 : -1;
+            }
+            if (panel) panel.hidden = key !== tab;
+        }
+    }
+
+    document.querySelector('.deck-builder-tabs')?.addEventListener('keydown', event => {
+        const tabs = ['inventory', 'deck', 'overview'];
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const current = tabs.indexOf(deckBuilderState.tab);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2
+            : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        setDeckBuilderTab(tabs[next]);
+        document.getElementById(`deckTab${['Inventory', 'Deck', 'Overview'][next]}`)?.focus();
+    });
 
     function updatePackShopCreditsBadge() {
         const creditsEl = document.getElementById('shopCreditsBadge');
@@ -4929,7 +4957,7 @@
             // The selects fold away on narrow screens (search stays visible); open by default elsewhere
             const more = document.createElement('details');
             more.className = 'card-filter-more';
-            more.open = !window.matchMedia('(max-width: 519px)').matches;
+            more.open = scopeId !== 'deckBuilderFilters' && !window.matchMedia('(max-width: 519px)').matches;
             const summary = document.createElement('summary');
             summary.className = 'card-filter-summary';
             summary.textContent = 'Filters & sort';
@@ -5287,6 +5315,47 @@
         rows.forEach(row => container.appendChild(row));
     }
 
+    function deckBuilderPageSize() {
+        if (window.matchMedia('(max-height: 640px)').matches) return 4;
+        return window.matchMedia('(max-width: 519px)').matches ? 6 : 12;
+    }
+
+    function paginateDeckBuilder(container, pagerId, kind, perPage = deckBuilderPageSize()) {
+        const pager = document.getElementById(pagerId);
+        if (!container || !pager) return;
+        const rows = [...container.children];
+        const total = Math.max(1, Math.ceil(rows.length / perPage));
+        const page = deckBuilderState.pages[kind] = Math.min(Math.max(0, deckBuilderState.pages[kind]), total - 1);
+        rows.forEach((row, index) => { row.hidden = index < page * perPage || index >= (page + 1) * perPage; });
+        pager.replaceChildren();
+        pager.hidden = total === 1;
+        const makeButton = (label, delta, disabled) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.disabled = disabled;
+            button.setAttribute('aria-label', `${delta < 0 ? 'Previous' : 'Next'} ${kind} page`);
+            button.addEventListener('click', () => {
+                deckBuilderState.pages[kind] += delta;
+                paginateDeckBuilder(container, pagerId, kind, perPage);
+                pager.querySelector(delta < 0 ? 'button:first-child' : 'button:last-child')?.focus();
+            });
+            return button;
+        };
+        pager.append(makeButton('‹', -1, page === 0));
+        const label = document.createElement('span');
+        label.textContent = `Page ${page + 1} / ${total}`;
+        label.setAttribute('aria-live', 'polite');
+        pager.append(label, makeButton('›', 1, page === total - 1));
+    }
+
+    window.addEventListener('resize', () => {
+        if (document.getElementById('deckBuilderScreen')?.style.display !== 'flex') return;
+        paginateDeckBuilder(document.getElementById('deckBuilderPool'), 'deckPoolPager', 'pool');
+        paginateDeckBuilder(document.getElementById('deckBuilderDeck'), 'deckDeckPager', 'deck');
+        paginateDeckBuilder(document.getElementById('deckBuilderIssues'), 'deckIssuesPager', 'issues', 2);
+    });
+
     function updateDeckBuilderStatus(deck) {
         const status = document.getElementById('deckBuilderStatus');
         if (!status) return;
@@ -5371,12 +5440,15 @@
             }
             container.appendChild(item);
         });
+        paginateDeckBuilder(container, 'deckIssuesPager', 'issues', 2);
     }
 
     function createDeckBuilderRow(card, { button, count, reason }) {
         const row = document.createElement('div');
         row.className = 'deck-builder-row';
         row.dataset.cardId = card.__id;
+        row.dataset.rarity = getCardRarity(card);
+        applyCardIdentity(row, card);
         row.appendChild(button);
         const body = document.createElement('div');
         body.className = 'deck-builder-card';
@@ -5426,6 +5498,11 @@
         const ownedOf = card => gameMeta.collection[card.__id] || 0;
         buildCardFilterBar('deckBuilderFilters', renderDeckBuilder);
         const filters = cardFilterState.deckBuilderFilters;
+        const filterSignature = JSON.stringify(filters);
+        if (deckBuilderState.filterSignature !== filterSignature) {
+            deckBuilderState.pages.pool = 0;
+            deckBuilderState.filterSignature = filterSignature;
+        }
         const eligible = eligibleCardIds.map(id => __CARD_BY_ID[id]);
         const shown = sortCardsForList(eligible.filter(card => cardMatchesFilters(card, filters, ownedOf(card))), filters.sort, ownedOf);
         const showingEl = document.getElementById('deckBuilderShowing');
@@ -5471,18 +5548,12 @@
             return row;
         });
 
-        // The deck list, grouped by type, cheapest first within each group
+        // One inventory tile per unique card; quantity is a stack badge, not repeated tiles.
         const deckRows = [];
         CARD_TYPE_ORDER.forEach(type => {
             const ids = Object.keys(counts)
                 .filter(id => (__CARD_BY_ID[id]?.type || 'unknown') === type)
                 .sort((a, b) => getCardManaValue(__CARD_BY_ID[a]) - getCardManaValue(__CARD_BY_ID[b]) || __CARD_BY_ID[a].name.localeCompare(__CARD_BY_ID[b].name));
-            if (!ids.length) return;
-            const title = document.createElement('div');
-            title.className = 'deck-group-title';
-            const copies = ids.reduce((sum, id) => sum + counts[id], 0);
-            title.textContent = `${CARD_TYPE_INFO[type].icon} ${type === 'instant' ? 'Spells' : `${CARD_TYPE_INFO[type].label}s`} · ${copies}`;
-            deckRows.push(title);
             ids.forEach(cardId => {
                 const card = __CARD_BY_ID[cardId];
                 const btn = document.createElement('button');
@@ -5503,12 +5574,16 @@
         renderDeckBuilderListRows(poolContainer, poolRows, filters.owned === 'owned' && !eligible.some(card => ownedOf(card) > 0)
             ? 'No owned cards are legal for this deck.' : 'No cards match these filters.');
         renderDeckBuilderListRows(deckContainer, deckRows, 'Deck is empty.');
+        paginateDeckBuilder(poolContainer, 'deckPoolPager', 'pool');
+        paginateDeckBuilder(deckContainer, 'deckDeckPager', 'deck');
 
         if (saveBtn) {
             saveBtn.disabled = deckBuilderState.workingCardIds.length !== targetSize;
         }
         const unsaved = document.getElementById('deckBuilderUnsaved');
         if (unsaved) unsaved.style.display = isDeckBuilderDirty() ? '' : 'none';
+        const tabCount = document.getElementById('deckTabCount');
+        if (tabCount) tabCount.textContent = `${deckBuilderState.workingCardIds.length}/${targetSize}`;
         renderDeckBuilderSummary(deck);
         renderDeckIssues();
         updateDeckBuilderStatus(deck);
@@ -5527,8 +5602,8 @@
 
     function restoreDeckBuilderFocus(saved) {
         if (!saved) return;
-        const rows = [...(document.getElementById(saved.listId)?.querySelectorAll('.deck-builder-row') || [])];
-        const row = rows.find(r => r.dataset.cardId === saved.cardId) || rows[Math.min(saved.index, rows.length - 1)];
+        const rows = [...(document.getElementById(saved.listId)?.querySelectorAll('.deck-builder-row:not([hidden])') || [])];
+        const row = rows.find(r => r.dataset.cardId === saved.cardId) || rows[Math.min(saved.index % deckBuilderPageSize(), rows.length - 1)];
         const target = row?.querySelectorAll('button')[Math.max(saved.button, 0)] || document.querySelector('#deckBuilderFilters .card-filter-search');
         target?.focus({ preventScroll: true });
     }
@@ -5540,6 +5615,7 @@
         deckBuilderState.workingCardIds = [...(gameMeta.decks?.[deckKey]?.cardIds || [])];
         deckBuilderState.debugWarning = '';
         deckBuilderState.validationErrors = [];
+        deckBuilderState.pages = { pool: 0, deck: 0, issues: 0 };
         renderDeckBuilder();
     }
 
@@ -5643,7 +5719,7 @@
             if (!element) return;
             if (id === activeScreenId) {
                 // mainMenu needs 'flex' to preserve the column layout from .menu-buttons
-                element.style.display = id === 'mainMenu' ? 'flex' : 'block';
+                element.style.display = id === 'mainMenu' || id === 'deckBuilderScreen' ? 'flex' : 'block';
             } else {
                 element.style.display = 'none';
             }
@@ -9739,7 +9815,7 @@
             }
 
             const deckBuilderScreen = document.getElementById('deckBuilderScreen');
-            if (startModal?.classList.contains('modal-visible') && deckBuilderScreen?.style.display === 'block') {
+            if (startModal?.classList.contains('modal-visible') && deckBuilderScreen?.style.display === 'flex') {
                 e.preventDefault();
                 backToMenu();
                 return;

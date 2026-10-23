@@ -91,13 +91,14 @@ Saving a deck requires all of these:
 - **Land caps:** mono decks at most 20 lands; dual decks at most 11 per colour (22 total).
 
 In the Deck Builder:
-- Every card row shows a preview (cost, type, stats, keywords, rarity), how many you own and how many are in
-  the deck, and an ⓘ button for its full rules.
-- A greyed Add button says why it can't add: not owned, no owned copies left, copy limit, or deck full.
-- A summary shows cards out of 60, lands, creatures, spells and artifacts, and the mana curve of the deck
-  you're editing.
+- **Inventory**, **Deck** and **Overview** tabs keep the editor inside the screen on phones and desktops.
+  Inventory and Deck show a paged card grid; each unique card is one tile with its owned/in-deck quantity
+  or a stacked copy count. Tap a tile to add/remove one copy, or ⓘ to read its full rules.
+- Search and filters narrow the inventory without touching the draft. Page arrows replace long scrolling.
+- A blocked tile explains why it cannot add: not owned, no copies left, copy limit, or deck full.
+- Overview shows cards out of 60, type counts, mana curve, and any save issues with one-tap fixes.
 - Anything that would stop a save is listed with a one-tap fix where there is one.
-- Filters never touch your edits, and leaving with unsaved changes asks first.
+- Save remains available under every tab; leaving with unsaved changes asks first.
 
 ## Booster Packs & Economy
 

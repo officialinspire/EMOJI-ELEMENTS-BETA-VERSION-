@@ -370,7 +370,7 @@ describe('Deck Builder', () => {
         await page.evaluate(() => backToMenu());
         assert.ok(await confirmShown(), 'BACK asks before discarding');
         await page.evaluate(() => document.getElementById('gameConfirmNoBtn').click());
-        assert.equal(await page.evaluate(() => document.getElementById('deckBuilderScreen').style.display), 'block');
+        assert.equal(await page.evaluate(() => document.getElementById('deckBuilderScreen').style.display), 'flex');
         assert.deepEqual(await working(page), draft, 'No keeps the draft');
 
         await page.evaluate(() => { const s = document.getElementById('deckBuilderDeckKey'); s.value = 'FIRE'; s.dispatchEvent(new Event('change')); });

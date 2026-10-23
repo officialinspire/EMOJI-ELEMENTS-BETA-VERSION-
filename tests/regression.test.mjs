@@ -43,7 +43,11 @@ describe('filters and lists', () => {
             // − on a deck row whose card has two copies: the row stays and keeps focus
             const twoCopies = Object.entries(deckBuilderState.workingCardIds.reduce((a, id) => ({ ...a, [id]: (a[id] || 0) + 1 }), {}))
                 .find(([id, n]) => n === 2 && __CARD_BY_ID[id].type !== 'land')[0];
+            setDeckBuilderTab('deck');
             let row = document.querySelector(`#deckBuilderDeck .deck-builder-row[data-card-id="${twoCopies}"]`);
+            const index = [...row.parentElement.querySelectorAll('.deck-builder-row')].indexOf(row);
+            deckBuilderState.pages.deck = Math.floor(index / deckBuilderPageSize());
+            paginateDeckBuilder(row.parentElement, 'deckDeckPager', 'deck');
             const deckList = document.getElementById('deckBuilderDeck');
             row.scrollIntoView({ block: 'center' });
             const deckScroll = deckList.scrollTop;
@@ -55,6 +59,7 @@ describe('filters and lists', () => {
             document.activeElement.click();
             out.lastCopyFocus = document.activeElement.classList.contains('deck-builder-remove');
             // + on an addable pool row keeps focus on that row
+            setDeckBuilderTab('inventory');
             const addable = [...document.querySelectorAll('#deckBuilderPool .deck-builder-row')].find(r => !r.querySelector('button[aria-disabled="true"]'));
             const id = addable.dataset.cardId;
             addable.querySelector('button').focus();

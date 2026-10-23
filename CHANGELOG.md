@@ -1,5 +1,10 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Deck Builder grid and tabs
+
+- Replaced the long mobile card lists with Inventory, Deck and Overview tabs. A paged grid shows one tile per unique card, with its stack count, available copies and a separate rules button. Search and advanced filters remain available.
+- The builder fits portrait and landscape phone viewports without scrolling; Save and Menu stay visible. Existing deck selection, copy limits, color legality, validation, reset, unsaved-edit protection and saved decks continue to use the same data and rules.
+
 ## Battle score and board theme
 
 - Battles use the new winning or losing variation when the player's life lead reaches seven points in either direction. A 1.8-second crossfade follows the song's position; a three-point exit threshold prevents small heals and hits from repeatedly changing tracks.
