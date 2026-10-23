@@ -37,13 +37,14 @@ const played = async (page, name) => (await cues(page)).filter(c => c.name === n
 const buzz = page => page.evaluate(() => window.__buzz);
 const gesture = page => page.mouse.click(3, 3);    // a real user gesture (unlocks audio and haptics)
 
-test('nothing plays before the first gesture; effect files are no longer downloaded', { timeout: 60000 }, async t => {
+test('nothing plays or fetches the SFX bank before the first gesture', { timeout: 60000 }, async t => {
     const { page, close } = await openGamePage();
     t.after(close);
     const before = await page.evaluate(() => ({ state: GameFeedback.state, played: GameFeedback.play('select'), buzz: GameFeedback.haptic('select') }));
     assert.deepEqual(before, { state: 'locked', played: false, buzz: false });
     const media = await page.evaluate(() => performance.getEntriesByType('resource').map(e => decodeURIComponent(e.name.split('/').pop())).filter(n => /\.(mp3|mp4)$/.test(n)));
     for (const name of media) assert.ok(['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'].includes(name), name);
+    assert.equal(await page.evaluate(() => GameFeedback.sampleState), 'idle');
     await gesture(page);
     await page.waitForFunction(() => GameFeedback.state === 'running', null, { timeout: 5000 });
     assert.equal(await page.evaluate(() => GameFeedback.play('select')), true);
@@ -56,7 +57,8 @@ test('every cue renders short and below clipping; tails stay short', { timeout: 
         for (const [name, options] of [['select'], ['open'], ['close'], ['pickup'], ['summon', { variant: 'scifi' }], ['artifact'], ['spell'], ['landTap'],
             ['turnStart'], ['attack'], ['block'], ['damageTaken', { intensity: 1 }], ['damageDealt'], ['heal'], ['destroy'], ['packRip'],
             ['reveal', { rarity: 'legendary' }], ['achievement'], ['victory'], ['defeat'], ['deny']]) {
-            const { buffer } = await GameFeedback.renderCue(name, options || {}, 2);
+            const { buffer, engine } = await GameFeedback.renderCue(name, options || {}, 2);
+            if (engine !== 'samples') throw new Error('Expected recorded samples for ' + name);
             const d = buffer.getChannelData(0);
             let peak = 0, last = 0;
             for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; if (a > 0.001) last = i; }

@@ -1,0 +1,141 @@
+{
+  "creator": "Kenney / Kenney.nl",
+  "license": "CC0-1.0",
+  "sampleRate": 22050,
+  "clips": {
+    "select0": [
+      0,
+      783
+    ],
+    "select1": [
+      1554,
+      256
+    ],
+    "select2": [
+      2581,
+      157
+    ],
+    "open": [
+      3509,
+      3969
+    ],
+    "close": [
+      8249,
+      3748
+    ],
+    "pickup": [
+      12768,
+      3087
+    ],
+    "summon": [
+      16626,
+      4613
+    ],
+    "summonScifi": [
+      22010,
+      6394
+    ],
+    "artifact": [
+      29175,
+      3969
+    ],
+    "spell": [
+      33915,
+      3969
+    ],
+    "landTap": [
+      38655,
+      2205
+    ],
+    "turnStart": [
+      41631,
+      4185
+    ],
+    "attack": [
+      46587,
+      6174
+    ],
+    "block": [
+      53532,
+      5512
+    ],
+    "damageTaken": [
+      59815,
+      5733
+    ],
+    "damageDealt": [
+      66319,
+      4410
+    ],
+    "heal": [
+      71500,
+      4039
+    ],
+    "destroy": [
+      76310,
+      6615
+    ],
+    "packRip": [
+      83696,
+      7497
+    ],
+    "reveal": [
+      91964,
+      2866
+    ],
+    "revealRare": [
+      95601,
+      5803
+    ],
+    "revealEpic": [
+      102175,
+      7715
+    ],
+    "revealLegendary": [
+      110661,
+      17639
+    ],
+    "achievement": [
+      129071,
+      8596
+    ],
+    "victory": [
+      138438,
+      22045
+    ],
+    "defeat": [
+      161254,
+      13230
+    ],
+    "deny": [
+      175255,
+      4223
+    ]
+  },
+  "sources": {
+    "interface/click_001.ogg": "ccfb7fa0cccdd9faec0eb16033c732b1e308d139d80f799161495d58f7adcdb9",
+    "interface/click_002.ogg": "adcd1f4adc35f1b41bc1b5bbefeff7aa44f2f3f0d96d3199b544140c7c1e761c",
+    "interface/click_003.ogg": "2fa929138bc3a0f432696588f66eac94b8f6d463905ec8808c6461ce4b054292",
+    "casino/card-slide-1.ogg": "006cf9822d15d7063f8899e56041f41646df30adb6fbd8b974ee5d5420012690",
+    "casino/card-place-3.ogg": "1d988631a6e5201ed1bb0d728f2e43a3ec79401258426858793598044ac95841",
+    "casino/card-fan-1.ogg": "7a9758ccad8899baef1b9f60b4064e4baa724a548293832fdaea07e6e07e638d",
+    "impact/impactGlass_light_000.ogg": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+    "impact/impactWood_light_000.ogg": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+    "impact/impactPunch_medium_000.ogg": "486988aa2d6440ffc4c62a0e8ccf3c23673ba84424bd4723378d451b7255eb5c",
+    "rpg/knifeSlice2.ogg": "6c2064d0ef988d1ec3d56868e823ea8823a5cac00f2742560052633529407def",
+    "impact/impactBell_heavy_000.ogg": "94b8bb5f2d43ab65e4bcc32b28562416e9bc2c51d9fd4be1e333660ee52f977f",
+    "casino/card-shove-1.ogg": "1ea667aa6795d5f14239192116ebcbd8f3f47eb1c7faaf2ec56844b9067b8b06",
+    "rpg/bookPlace1.ogg": "26f3ce60fbde85b678b0ad7f6624d80535fe540d88232ad1e38e47a96662d977",
+    "scifi/forceField_000.ogg": "c2916f2a062c8ddd1aca2826d134fe90847037db31342726ffb0f9097afe339c",
+    "rpg/metalClick.ogg": "9851a69d0c613e13bceef08060ecc4148f098ef487927cbebe270d642398a3b3",
+    "casino/chip-lay-1.ogg": "4b2111252ccb64eed67f171e061053849cfbb29873536c03948646f244a3905c",
+    "impact/impactMetal_medium_000.ogg": "a96f879fec0864a8938e0c745b6996a6c5679c16a234ce31a01cc995e8401003",
+    "impact/impactPunch_heavy_000.ogg": "b33a8f14068aec24ec69ba85e5e87fdc41228975f6a1a3e44a6e7d6fc3d9f8d8",
+    "impact/impactPlank_medium_000.ogg": "8403cd7a043f0391574c88c55dd205743725b5363d2407f6de145f201690b68f",
+    "casino/cards-pack-open-1.ogg": "1214059fdfbf1c396c0702244fc833739cc346d326a71e450b731f456e54d6fb",
+    "rpg/handleCoins.ogg": "8a91f969e932df709df80ee124d86a51389eed9b67f22e5e716bc2bbf60d8dab",
+    "impact/impactMetal_heavy_000.ogg": "e07045693e4a2b3d165c424e3dab4c781d9ff8880a386880ac89a51315d7f831",
+    "rpg/cloth3.ogg": "a48632d17a4f1416541d261a32a31612e01267144c407fa3ecab3ff410f0085b"
+  },
+  "bankSha256": "e9eee3b46245c25654c7e0b5f3f76073c8e11b5fd90ff40777f2ff90b341d4f3"
+}

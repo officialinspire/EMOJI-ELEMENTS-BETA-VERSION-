@@ -56,6 +56,13 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             else assert.ok(Math.abs(music.mediaVolume - music.level) < 0.001,
                 'a blocked audio context must retain playable HTML music at the selected level');
             row.checks.push('new menu track decoded; streaming gain and quiet default mix');
+            assert.equal(await page.evaluate(() => GameFeedback.samplesReady()), true, 'recorded SFX bank decodes');
+            const sampleRender = await page.evaluate(async () => {
+                const result = await GameFeedback.renderCue('attack');
+                return { engine: result.engine, duration: result.buffer.duration };
+            });
+            assert.equal(sampleRender.engine, 'samples');
+            row.checks.push('recorded combat SFX decoded and rendered through Web Audio');
             await themes(page, shot); row.checks.push('all themes, reduced motion, Escape focus return');
             await click(page, '#mainMenu [data-menu-target="binderScreen"]');
             assert.equal(await page.locator('#binderList .binder-row').count(),268);

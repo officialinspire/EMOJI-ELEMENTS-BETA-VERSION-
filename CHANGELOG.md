@@ -1,5 +1,14 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Recorded SFX polish
+
+- Replaced normal-play oscillator beeps with 27 curated CC0 Kenney recordings: tactile clicks,
+  card/paper handling, pack tears, layered combat impacts, metal blocks and glass/bell magic/rewards.
+- One small local WAV sprite, lazy-loaded after a gesture, with offline PWA support and no new runtime library.
+- Preserved music ducking, saved controls, cue timing/intensity/rarity, voice limits and haptics.
+- Sample voices share the existing cleanup/eviction path. Failed downloads remain safe and never replay stale input.
+- Added source licenses, provenance/hashes and a reproducible authoring script.
+
 ## Soundtrack refresh and audio hardening
 
 - Main menu now plays **minimalist menu theme**; matches play **Emoji Elements – Celestial Battle Theme**.

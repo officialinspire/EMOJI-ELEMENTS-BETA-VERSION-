@@ -7,7 +7,7 @@ export function installAudioProbe() {
         begin() { return ++cue; },
         snapshot() {
             const live = rows.filter(r => r.source && r.started && !r.ended && r.connected);
-            return { created: rows.length, sources: rows.filter(r => r.source).length,
+            return { created: rows.length, bufferSources: rows.filter(r => r.kind === 'createBufferSource').length, oscillators: rows.filter(r => r.kind === 'createOscillator').length, sources: rows.filter(r => r.source).length,
                 liveSources: live.length, liveCues: new Set(live.map(r => r.cue)).size,
                 connected: rows.filter(r => r.connected).length,
                 stopped: rows.filter(r => r.stopped).length, ended: rows.filter(r => r.ended).length };
@@ -17,7 +17,7 @@ export function installAudioProbe() {
         const original = BaseAudioContext.prototype[name];
         BaseAudioContext.prototype[name] = function (...args) {
             const node = original.apply(this, args);
-            const row = { cue, source: /Oscillator|BufferSource/.test(name), connected: false };
+            const row = { cue, kind: name, source: /Oscillator|BufferSource/.test(name), connected: false };
             ids.set(node, row); rows.push(row);
             if (row.source) {
                 for (const method of ['start', 'stop']) {

@@ -14,7 +14,7 @@ const base=new URL(target);if(!base.pathname.endsWith('/'))base.pathname+='/';
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'}).trim();
 const out=path.join(ROOT,'test-results/live-pages');fs.mkdirSync(out,{recursive:true});
 const files=['index.html','index.js','styles.css','feedback.js','achievements.js'];
-const media=['minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3','inspiresoftwareintro.mp4'];
+const media=['audio/sfx/sfx-bank.wav','minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3','inspiresoftwareintro.mp4'];
 const digest=data=>createHash('sha256').update(data).digest('hex');
 const expected=Object.fromEntries(files.map(file=>[file,digest(fs.readFileSync(path.join(ROOT,file)))]));
 const report={commit,url:base.href,status:'FAIL',started:new Date().toISOString(),assets:[],screenshots:[],checks:[]};
@@ -44,6 +44,9 @@ try{
     const shot=async name=>{await page.screenshot({path:path.join(out,`${name}.png`)});report.screenshots.push(`${name}.png`);};
     const live=new URL(base);live.searchParams.set('release',commit);
     await page.goto(live.href,{waitUntil:'domcontentloaded'});await boot(page);
+    assert.equal(await page.evaluate(()=>GameFeedback.samplesReady()),true);
+    assert.equal(await page.evaluate(()=>GameFeedback.sampleState),'ready');
+    report.checks.push('deployed recorded SFX bank fetched and decoded');
     assert.equal(await page.evaluate(()=>QA_MODE),false);await shot('startup');
     await page.evaluate(()=>setGameplaySeed(20261022));
     await themes(page,shot);report.checks.push('real startup, all three themes and keyboard focus return');
