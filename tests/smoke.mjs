@@ -260,7 +260,7 @@ scenario('menu-navigation', async ({ page, touch, t, url }) => {
 
     const screens = [
         ['NEW GAME', 'elementSelectionScreen', '#elementSelectionScreen button:has-text("BACK")'],
-        ['DECK BUILDER', 'deckBuilderScreen', '#deckBuilderScreen > button:has-text("BACK TO MENU")'],
+        ['DECK BUILDER', 'deckBuilderScreen', '#deckBuilderScreen .menu-back'],
         ['PACK SHOP', 'packShopScreen', '#packShopScreen button:has-text("BACK TO MENU")'],
         ['COLLECTION', 'binderScreen', '#binderScreen button:has-text("BACK TO MENU")'],
         ['HOW TO PLAY', 'howToPlayScreen', '#howToPlayScreen > button:has-text("BACK TO MENU")'],
@@ -294,19 +294,25 @@ scenario('deck-builder', async ({ page, touch, t, url }) => {
     t.check('FIRE starter shows 60/60', status.includes('Deck size: 60/60'), status);
 
     // Remove one non-land card, re-add the same card: count and Save-button gating.
-    const label = await page.evaluate(() => {
-        const card = window.__CARD_BY_ID[deckBuilderState.workingCardIds.find(id => window.__CARD_BY_ID[id].type !== 'land')];
-        return `${card.emoji} ${card.name}`;
-    });
-    const rowFor = list => page.locator(`${list} .deck-builder-row`)
-        .filter({ has: page.getByText(label, { exact: true }) }).locator('button').first(); // add/remove; ⓘ is second
-    await act(page, touch, rowFor('#deckBuilderDeck'));
+    const cardId = await page.evaluate(() => deckBuilderState.workingCardIds.find(id => __CARD_BY_ID[id].type !== 'land'));
+    const showTile = async (kind) => page.evaluate(({ kind, id }) => {
+        setDeckBuilderTab(kind === 'deck' ? 'deck' : 'inventory');
+        const list = document.getElementById(kind === 'deck' ? 'deckBuilderDeck' : 'deckBuilderPool');
+        const rows = [...list.querySelectorAll('.deck-builder-row')];
+        const index = rows.findIndex(row => row.dataset.cardId === id);
+        deckBuilderState.pages[kind] = Math.floor(index / deckBuilderPageSize());
+        paginateDeckBuilder(list, kind === 'deck' ? 'deckDeckPager' : 'deckPoolPager', kind);
+    }, { kind, id: cardId });
+    await showTile('deck');
+    await act(page, touch, `#deckBuilderDeck .deck-builder-row[data-card-id="${cardId}"] .deck-builder-remove`);
     t.check('removing a card → 59/60', (await page.textContent('#deckBuilderStatus')).includes('59/60'));
     t.check('save disabled when size ≠ 60', await page.locator('#deckBuilderScreen button:has-text("SAVE DECK")').isDisabled());
-    await act(page, touch, rowFor('#deckBuilderPool'));
+    await showTile('pool');
+    await act(page, touch, `#deckBuilderPool .deck-builder-row[data-card-id="${cardId}"] .deck-builder-add`);
     t.check('re-adding a card → 60/60', (await page.textContent('#deckBuilderStatus')).includes('60/60'));
 
     // Saving an untouched starter deck must succeed (was D2: basic lands hit the 2-copy limit).
+    await act(page, touch, '#deckTabOverview');
     await act(page, touch, '#deckBuilderScreen button:has-text("RESET TO STARTER")');
     await act(page, touch, '#deckBuilderScreen button:has-text("SAVE DECK")');
     const afterSave = await page.textContent('#deckBuilderStatus');
@@ -678,6 +684,8 @@ async function main() {
             if (only && !only.some(part => name.includes(part))) continue;
             console.log(`\n[${projectName}] ${name}`);
             const context = await browser.newContext(project.contextOptions);
+            // The game has font fallbacks; the smoke run must remain deterministic when the font CDN is unreachable.
+            await context.route('https://fonts.googleapis.com/**', route => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
             const page = await context.newPage();
             page.setDefaultTimeout(10000);
             const pageErrors = [];
