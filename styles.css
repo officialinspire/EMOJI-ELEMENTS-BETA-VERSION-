@@ -3266,8 +3266,7 @@ html {
     margin-bottom: auto;
 }
 
-/* Phone portrait controls: MULLIGAN · GRAVEYARD · END TURN, then a full-width ATTACK
-   (END TURN used to sit alone on a third row) */
+/* Phone portrait control columns; the final layout below assigns the primary actions to row one. */
 @media (max-width: 767px) {
     .controls {
         grid-template-columns: repeat(3, 1fr);
@@ -8752,13 +8751,14 @@ html {
 .board-lands .partially-tapped { border-style: dashed; }
 .board-lands .all-untapped { border-style: solid; }
 
-/* Two fixed rows keep Attack visible even when the battlefield is busy. */
-@media (max-width: 767px) and (min-height: 501px) {
+/* Put primary actions directly below the field, above the hand and mobile browser toolbar.
+   Apply this to short portrait viewports too; the landscape sidebar has its own grid. */
+@media (max-width: 767px) and (orientation: portrait) {
     .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(44px, auto)); }
-    .controls #mulliganBtn { grid-column: 1; grid-row: 1; }
-    .controls #graveyardBtn { grid-column: 2; grid-row: 1; }
-    .controls #attackBtn { grid-column: 1; grid-row: 2; }
-    .controls #endTurnBtn { grid-column: 2; grid-row: 2; }
+    .controls #attackBtn { grid-column: 1; grid-row: 1; }
+    .controls #endTurnBtn { grid-column: 2; grid-row: 1; }
+    .controls #mulliganBtn { grid-column: 1; grid-row: 2; }
+    .controls #graveyardBtn { grid-column: 2; grid-row: 2; }
 }
 @media (orientation: landscape) and (max-height: 500px) {
     .player-area { flex-direction: row; }
