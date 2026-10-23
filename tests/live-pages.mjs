@@ -15,7 +15,8 @@ const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'})
 const out=path.join(ROOT,'test-results/live-pages');fs.mkdirSync(out,{recursive:true});
 const files=['index.html','index.js','styles.css','feedback.js','achievements.js',
     'manifest.json','icon.svg','icon-192.png','icon-512.png','apple-touch-icon.png'];
-const media=['audio/sfx/sfx-bank.wav','minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3','inspiresoftwareintro.mp4'];
+const media=['audio/sfx/sfx-bank.wav','minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3',
+    'Emoji Elements - Winning Battle Theme.mp3','Emoji Elements - Losing Battle Theme.mp3','inspiresoftwareintro.mp4'];
 const digest=data=>createHash('sha256').update(data).digest('hex');
 const expected=Object.fromEntries(files.map(file=>[file,digest(fs.readFileSync(path.join(ROOT,file)))]));
 const report={commit,url:base.href,status:'FAIL',started:new Date().toISOString(),assets:[],screenshots:[],checks:[]};

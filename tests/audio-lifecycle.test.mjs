@@ -108,7 +108,9 @@ test('new streaming tracks stay silent through initialization and intro; effects
     await page.evaluate(() => document.getElementById('introVideo').dispatchEvent(new Event('ended')));
     await page.clock.runFor(1200);
     await page.waitForFunction(() => !audioSystem.startMenuMusic.paused &&
-        Object.values(audioSystem).every(audio => audio.readyState >= 2 && audio.duration > 170));
+        [audioSystem.startMenuMusic, audioSystem.gameplayMusic].every(audio => audio.readyState >= 2 && audio.duration > 170));
+    assert.equal(await page.evaluate(() => [audioSystem.winningMusic, audioSystem.losingMusic]
+        .every(audio => audio.paused && audio.preload === 'none')), true, 'battle variations wait for a match');
     const tracks = await page.evaluate(() => __musicProbe());
     assert.deepEqual(tracks.map(track => track.file), ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3']);
     assert.equal(tracks[0].volume, 1, 'gain owns volume, including on browsers ignoring media.volume');
