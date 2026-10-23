@@ -1,5 +1,7 @@
 # ⚔️ EMOJI ELEMENTS v2 (Beta)
 
+![Emoji Elements: Arcane duels. Elemental strategy. An INSPIRE game.](emoji-elements-banner-2026.jpg)
+
 EMOJI ELEMENTS v2 is a fast, browser-based elemental card battler with a real progression loop: build decks from cards you own, earn credits from every match, crack themed booster packs, and tune mono/dual-color lists for your next run. It’s pure HTML/CSS/JS, runs on desktop and mobile, and saves your meta progress locally.
 
 ## Features

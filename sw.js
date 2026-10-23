@@ -1,7 +1,7 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '8319dc1cc509';
+const BUILD_ID = '7b570e9c5709';
 const REQUIRED = {
-  "index.html": "69674a3c47a3800be8bcc3bf994dd30388faf542328592bdd7558ec15246d2ce",
+  "index.html": "e511d7fb4200b8aba5c26ab48ac35d27e1d6277470cf4c2e98343b33943f6158",
   "index.js": "597c0fccfb2f9caa20144a41c3003b421e552e8510c0b18757d1503a2aa572f7",
   "styles.css": "53bcba93eeb0e3dded70008efe9cc28c91d79808ea79bdb209aaf79b3ec3029a",
   "feedback.js": "c7b392cec153a85b8493b3eecf0f3cda517cc2e1db6139915384e63bf81ef393",
@@ -15,7 +15,7 @@ const REQUIRED = {
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
   "audio/sfx/sfx-bank.wav": "e9eee3b46245c25654c7e0b5f3f76073c8e11b5fd90ff40777f2ff90b341d4f3",
-  "pwa-build.js": "5d3b4a65720b2b3eabf696a9ad08b75cb1750bfb0baeb6ba4dec293015992b37"
+  "pwa-build.js": "c0706fb7909ad55939c5361f0b8e2d68a4dcd12763f91fa94a4a6de40aa6aa2b"
 };
 const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;
