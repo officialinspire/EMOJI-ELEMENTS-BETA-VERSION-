@@ -30,6 +30,7 @@ cosmetic PRNG, independent of game/deck randomness. The PWA validates/caches the
 
 - Main menu: `minimalist menu theme.mp3` (175.9 s; source mean −15.4 dBFS, peak −0.6 dBFS).
 - Gameplay: `Emoji Elements - Celestial Battle Theme.mp3` (174.0 s; source mean −16.9 dBFS, peak −1.0 dBFS).
+- A seven-life-point player lead or deficit starts the corresponding winning/losing battle variation. The soundtrack stays in that mood until the lead falls to three points, with a 1.8-second crossfade aligned to the outgoing track's time. A failed variation leaves the current music playing. The new recordings are about 173 seconds and have similar integrated loudness to the base track (−14.7 / −15.1 versus −15.2 LUFS). Their embedded cover art was removed without re-encoding the audio stream.
 - Fresh installs start at Music 30% and Effects 70%. Existing saved preferences are preserved.
   Music has a 0.45 mix trim: at the defaults its mean is approximately −32.8 / −34.3 dBFS.
   Successful effects briefly duck music to 35% of its current level, then recover with a gentle envelope.
@@ -44,7 +45,7 @@ cosmetic PRNG, independent of game/deck randomness. The PWA validates/caches the
 - Settings changed during a fade use the latest volume. Rapid transitions cancel stale fades.
   Hidden pages pause music; foregrounding resumes the same position, and gameplay remains paused
   until the player resumes it. Stopping a track while hidden prevents an unwanted restart.
-- The PWA caches the two new filenames, including URL-encoded spaces, with offline range support.
+- The PWA caches menu, base battle and both variations, including URL-encoded spaces, with offline range support.
   Run `npm run pwa:build` after changing soundtrack files and commit both generated files.
 
 The sections below document the original effects pass and its historical measurements. For this

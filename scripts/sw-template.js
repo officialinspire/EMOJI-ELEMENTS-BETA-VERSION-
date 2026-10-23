@@ -1,7 +1,8 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
 const BUILD_ID = '__EE_BUILD__';
 const REQUIRED = __EE_REQUIRED__;
-const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
+const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
+    'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;
 const PREFIX = `emoji-elements@${SCOPE}:`;
 const CACHE = `${PREFIX}${BUILD_ID}`;

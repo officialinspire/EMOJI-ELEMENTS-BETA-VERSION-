@@ -6753,6 +6753,26 @@ html {
     background: var(--stage-bg);
 }
 
+/* Carry the selected menu theme through the entire board, not just its panels. */
+.game-container {
+    background: var(--stage-bg);
+}
+
+:root[data-theme="deep-space"] .game-container {
+    background:
+        radial-gradient(circle 1px at 13% 25%, rgb(255 255 255 / 0.45) 0 60%, transparent 100%),
+        radial-gradient(circle 1px at 83% 68%, rgb(207 234 255 / 0.4) 0 60%, transparent 100%),
+        radial-gradient(circle 1px at 61% 11%, rgb(255 255 255 / 0.45) 0 60%, transparent 100%),
+        var(--stage-bg);
+}
+
+:root[data-theme="neon"] .game-container {
+    background:
+        linear-gradient(rgb(34 227 255 / 0.035) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(90deg, rgb(34 227 255 / 0.035) 1px, transparent 1px) 0 0 / 44px 44px,
+        var(--stage-bg);
+}
+
 /* Deep Space: a sparse fixed starfield and two faint nebulae */
 :root[data-theme="deep-space"] body::before {
     background:

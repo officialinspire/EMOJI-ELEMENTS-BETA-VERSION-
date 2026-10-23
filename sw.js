@@ -1,9 +1,9 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '7b570e9c5709';
+const BUILD_ID = 'e4bc04a781a0';
 const REQUIRED = {
-  "index.html": "e511d7fb4200b8aba5c26ab48ac35d27e1d6277470cf4c2e98343b33943f6158",
-  "index.js": "597c0fccfb2f9caa20144a41c3003b421e552e8510c0b18757d1503a2aa572f7",
-  "styles.css": "53bcba93eeb0e3dded70008efe9cc28c91d79808ea79bdb209aaf79b3ec3029a",
+  "index.html": "79ea539aaaf58166ee49701c642c0d22b83a28649b2f9596c0e33fb58e5e5d2e",
+  "index.js": "d9f0f5f7dfeb8721bcec25ec7f206fa8a1cbcace2d8f9fa3403a872735d01f9d",
+  "styles.css": "8ed08e765a0d7b709ce0f97f6a0143c1f8d1f973904dc24460a2b53c4d2ad22b",
   "feedback.js": "c7b392cec153a85b8493b3eecf0f3cda517cc2e1db6139915384e63bf81ef393",
   "achievements.js": "51c179c9e0f59a96c16a71aac13c72947542b40405e66bc65f07c957d1624cb4",
   "pwa.js": "9d98249f5c0ff1dae1836bd930e4eccd03bf3f501b7256c3f2025ee01715fdb0",
@@ -15,9 +15,10 @@ const REQUIRED = {
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
   "audio/sfx/sfx-bank.wav": "e9eee3b46245c25654c7e0b5f3f76073c8e11b5fd90ff40777f2ff90b341d4f3",
-  "pwa-build.js": "c0706fb7909ad55939c5361f0b8e2d68a4dcd12763f91fa94a4a6de40aa6aa2b"
+  "pwa-build.js": "9f8c045b1765edfbe0867e1f9a1e5cea4c6538316761baf30d1beeccd18e15f9"
 };
-const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
+const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
+    'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3', 'inspiresoftwareintro.mp4'];
 const SCOPE = new URL('./', self.location).href;
 const PREFIX = `emoji-elements@${SCOPE}:`;
 const CACHE = `${PREFIX}${BUILD_ID}`;

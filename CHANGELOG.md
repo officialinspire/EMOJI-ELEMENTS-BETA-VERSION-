@@ -1,5 +1,11 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## Battle score and board theme
+
+- Battles use the new winning or losing variation when the player's life lead reaches seven points in either direction. A 1.8-second crossfade follows the song's position; a three-point exit threshold prevents small heals and hits from repeatedly changing tracks.
+- Match music remains below effects, follows the existing mute, volume, pause and background settings, and stops when a match ends or the player leaves it. Variations are included in the offline PWA cache.
+- The selected Arcane, Deep Space or Neon theme now colors the whole gameboard. The intro credit reads “MADE WITH LOVE by #teamInspire” and shows the existing website.
+
 ## PWA icon refresh
 
 - Replaced the old swords/EE installed-app badge with the title screen's five-color sigil and gold

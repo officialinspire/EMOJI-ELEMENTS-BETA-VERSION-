@@ -75,15 +75,24 @@
         // 2) Start match -> confirm no red errors.
     }
 
-    // Audio System. Music stays on HTML media elements; every sound effect is synthesised by feedback.js
-    // (GameFeedback), which also holds the sound and haptics settings.
+    // Music stays on HTML media elements; GameFeedback owns the SFX, haptics and saved controls.
+    // Variations wait for a match to need them, so they never start over the intro or main menu.
+    function battleVariation(file) {
+        const media = new Audio();
+        media.preload = 'none';
+        media.src = file;
+        return media;
+    }
     const audioSystem = {
         startMenuMusic: new Audio('minimalist menu theme.mp3'),
-        gameplayMusic: new Audio('Emoji Elements - Celestial Battle Theme.mp3')
+        gameplayMusic: new Audio('Emoji Elements - Celestial Battle Theme.mp3'),
+        winningMusic: battleVariation('Emoji Elements - Winning Battle Theme.mp3'),
+        losingMusic: battleVariation('Emoji Elements - Losing Battle Theme.mp3')
     };
 
     audioSystem.startMenuMusic.loop = true;
-    audioSystem.gameplayMusic.loop = true;
+    const BATTLE_TRACKS = ['gameplayMusic', 'winningMusic', 'losingMusic'];
+    BATTLE_TRACKS.forEach(name => { audioSystem[name].loop = true; });
     Object.values(audioSystem).forEach(audio => GameFeedback.setMusicLevel(audio, 0));
 
     const soundSettings = GameFeedback.settings;
@@ -92,6 +101,10 @@
     const MUSIC_MIX_GAIN = 0.45;
     const activeAudioFades = new WeakMap();
     const backgroundPausedMusic = new Set();
+    let battleMusicKey = 'gameplayMusic';
+    let battleMusicPending = null;
+    let battleMusicSerial = 0;
+    const unavailableBattleTracks = new Set();
 
     // The old effect names, as cues (feedback.js). Callers that know more (a summon's theme, a reveal's rarity,
     // how much life changed) call GameFeedback.play directly.
@@ -640,7 +653,7 @@
 
     function musicTarget(audio) {
         return soundSettings.musicVolume * MUSIC_MIX_GAIN *
-            (gamePaused && audio === audioSystem.gameplayMusic ? 0.4 : 1);
+            (gamePaused && BATTLE_TRACKS.some(name => audio === audioSystem[name]) ? 0.4 : 1);
     }
 
     function isAudioPlaying(audioElement) {
@@ -648,7 +661,7 @@
     }
 
     function ensureStartMenuMusic() {
-        stopSFX('gameplayMusic');
+        stopBattleMusic();
 
         if (!isAudioPlaying(audioSystem.startMenuMusic)) {
             GameFeedback.setMusicLevel(audioSystem.startMenuMusic, 0);
@@ -659,6 +672,7 @@
     }
 
     function transitionToGameplayMusic() {
+        stopBattleMusic();
         fadeAudio(audioSystem.startMenuMusic, 0, 500, () => {
             stopSFX('startMenuMusic');
         });
@@ -669,6 +683,70 @@
         }
 
         fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 800);
+    }
+
+    function stopBattleMusic() {
+        battleMusicSerial++;
+        battleMusicPending = null;
+        battleMusicKey = 'gameplayMusic';
+        BATTLE_TRACKS.forEach(stopSFX);
+        document.getElementById('gameContainer')?.removeAttribute('data-battle-mood');
+    }
+
+    // A seven-point life lead changes the score; keep it until the lead shrinks to three.
+    // The gap avoids a new track on every small heal or attack near the boundary.
+    function desiredBattleMusic() {
+        const lead = gameState.playerLife - gameState.enemyLife;
+        if (lead >= 7 || (battleMusicKey === 'winningMusic' && lead > 3)) return 'winningMusic';
+        if (lead <= -7 || (battleMusicKey === 'losingMusic' && lead < -3)) return 'losingMusic';
+        return 'gameplayMusic';
+    }
+
+    function updateBattleMusicMood() {
+        const board = document.getElementById('gameContainer');
+        if (gameState.matchFinalized || gamePaused || document.hidden || board?.style.display !== 'flex' || battleMusicPending) return;
+        const nextKey = desiredBattleMusic();
+        if (nextKey === battleMusicKey || unavailableBattleTracks.has(nextKey)) return;
+        const oldKey = battleMusicKey;
+        const current = audioSystem[oldKey];
+        const next = audioSystem[nextKey];
+        const serial = ++battleMusicSerial;
+        battleMusicPending = nextKey;
+        GameFeedback.setMusicLevel(next, 0);
+        // The recordings share an approximately 174-second arrangement. Start at the same
+        // musical position and crossfade without ever waiting on media to update the game.
+        try {
+            const duration = next.duration;
+            next.currentTime = Number.isFinite(duration) && duration > 0
+                ? Math.min(current.currentTime % duration, duration - 0.25) : current.currentTime;
+        } catch (_) { /* a decoder may not have metadata yet: the fade still works */ }
+        try {
+            Promise.resolve(next.play()).then(() => {
+                if (serial !== battleMusicSerial) return;
+                battleMusicPending = null;
+                if (gameState.matchFinalized || gamePaused || document.hidden || board.style.display !== 'flex' || desiredBattleMusic() !== nextKey) {
+                    stopSFX(nextKey);
+                    updateBattleMusicMood();
+                    return;
+                }
+                BATTLE_TRACKS.filter(name => name !== oldKey && name !== nextKey).forEach(stopSFX);
+                battleMusicKey = nextKey;
+                board.dataset.battleMood = nextKey === 'gameplayMusic' ? 'neutral' : nextKey === 'winningMusic' ? 'winning' : 'losing';
+                fadeAudio(current, 0, 1800, () => {
+                    if (serial === battleMusicSerial) stopSFX(oldKey);
+                });
+                fadeAudio(next, () => musicTarget(next), 1800);
+            }).catch(() => {
+                if (serial !== battleMusicSerial) return;
+                battleMusicPending = null;
+                unavailableBattleTracks.add(nextKey);
+                stopSFX(nextKey);
+            });
+        } catch (_) {
+            battleMusicPending = null;
+            unavailableBattleTracks.add(nextKey);
+            stopSFX(nextKey);
+        }
     }
 
     // Game State
@@ -3880,7 +3958,7 @@
                 });
             }
 
-            stopSFX('gameplayMusic');
+            stopBattleMusic();
             playSFX('gameVictory');
             haptic('victory');
             reportAchievement('wallet', {});
@@ -3918,7 +3996,7 @@
             console.log('[QA] finalizeMatch result=LOSS awardedPack=false');
         }
 
-        stopSFX('gameplayMusic');
+        stopBattleMusic();
         playSFX('gameLose');
         haptic('defeat');
         reportAchievement('wallet', {});
@@ -6063,7 +6141,7 @@
         cancelMatchWork();
         clearMatchPause();
         resetGameLog();
-        stopSFX('gameplayMusic');
+        stopBattleMusic();
         stopSFX('gameVictory');
         stopSFX('gameLose');
 
@@ -6130,7 +6208,9 @@
         // Effect particles are only decoration: drop them rather than draw them over the pause panel
         particles = [];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 250);
+        BATTLE_TRACKS.forEach(name => {
+            if (isAudioPlaying(audioSystem[name])) fadeAudio(audioSystem[name], () => musicTarget(audioSystem[name]), 250);
+        });
         updatePausePanel();
         renderSoundSettings(document.querySelector('#pauseModal .pause-settings'), 'pause');
         playSFX('menuOpen');
@@ -6156,7 +6236,10 @@
         if (gamePaused) {
             gamePaused = false;
             thawMatchTimers();
-            fadeAudio(audioSystem.gameplayMusic, () => musicTarget(audioSystem.gameplayMusic), 250);
+            BATTLE_TRACKS.forEach(name => {
+                if (isAudioPlaying(audioSystem[name])) fadeAudio(audioSystem[name], () => musicTarget(audioSystem[name]), 250);
+            });
+            updateBattleMusicMood();
         }
     }
 
@@ -8973,6 +9056,7 @@
             }
 
             checkGameOver();
+            updateBattleMusicMood();
         }
     }
 
@@ -9019,6 +9103,7 @@
             }
 
             checkGameOver();
+            updateBattleMusicMood();
         }
     }
 
@@ -9060,6 +9145,7 @@
         // Update life totals
         document.getElementById('playerLife').textContent = gameState.playerLife;
         document.getElementById('enemyLife').textContent = gameState.enemyLife;
+        updateBattleMusicMood();
 
         // Update deck counters
         updateDeckCounters();

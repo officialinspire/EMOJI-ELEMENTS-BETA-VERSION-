@@ -12,7 +12,9 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     const files = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
         'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
         'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav',
-        'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
+        'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
+        'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3',
+        'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
     for (const file of files) {
         fs.mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
         fs.copyFileSync(path.join(ROOT, file), path.join(folder, file));
@@ -74,13 +76,14 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     await page.locator('#pwaUpdateButton').tap();
     await page.waitForFunction(() => /Offline/.test(document.getElementById('pwaUpdateStatus').textContent));
     const ranges = await page.evaluate(async () => {
-        return Promise.all(['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3'].map(async file => {
+        return Promise.all(['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
+            'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3'].map(async file => {
             const res = await fetch(new URL(file, location.href), { headers: { Range: 'bytes=0-31' } });
             return { status: res.status, bytes: (await res.arrayBuffer()).byteLength };
         }));
     });
-    assert.deepEqual(ranges, [{ status: 206, bytes: 32 }, { status: 206, bytes: 32 }],
-        'both new tracks with URL-encoded spaces support offline ranges');
+    assert.deepEqual(ranges, Array.from({ length: 4 }, () => ({ status: 206, bytes: 32 })),
+        'all music tracks support offline ranges');
     await context.setOffline(false);
     // Keep a second running client on the old generation: updating this page must not reload it.
     const other = await context.newPage();
