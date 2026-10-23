@@ -8583,7 +8583,7 @@ html {
 #startModal .deck-builder-list {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
     gap: 6px;
     max-height: none;
     min-height: 0;
@@ -8634,9 +8634,9 @@ html {
 #startModal .deck-builder-row > .deck-builder-add[aria-disabled="true"]::after { color: var(--text-dim); }
 #startModal .deck-builder-card, #startModal .deck-builder-count { pointer-events: none; }
 #startModal .deck-builder-card { min-width: 0; }
-#startModal .deck-builder-name { display: block; padding-right: 38px; line-height: 1.12; font-size: 12px; max-height: 58px; overflow: hidden; }
-#startModal .deck-builder-name .card-row-art { display: grid; width: 28px; height: 28px; margin-bottom: 3px; font-size: 19px; }
-#startModal .deck-builder-meta { flex-wrap: nowrap; white-space: nowrap; max-height: 17px; overflow: hidden; margin-top: 2px; padding-right: 30px; font-size: 10px; }
+#startModal .deck-builder-name { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 4px; padding-right: 32px; line-height: 1.2; font-size: 12px; overflow-wrap: anywhere; }
+#startModal .deck-builder-name .card-row-art { display: grid; width: 28px; height: 28px; font-size: 19px; }
+#startModal .deck-builder-meta { flex-wrap: wrap; white-space: normal; margin-top: 4px; padding-right: 24px; font-size: 10px; }
 #startModal .deck-builder-meta > :not(.row-cost):not(.row-type):not(.row-pt) { display: none; }
 #startModal .deck-builder-count { flex-direction: row; align-self: flex-start; gap: 3px; margin-top: auto; font-size: 10px; white-space: nowrap; }
 #startModal .deck-builder-count span { padding: 1px 3px; border-radius: 5px; background: rgb(var(--accent-rgb) / 0.2); }
@@ -8691,11 +8691,102 @@ html {
 #startModal .deck-overview-actions .menu-btn { flex: 1; min-height: 44px; font-size: 11px; padding: 4px; }
 
 @media (max-width: 519px) {
-    #startModal .deck-builder-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #startModal .deck-builder-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
     #startModal .deck-builder-row { display: flex; }
     #startModal .deck-builder-count { grid-column: auto; grid-row: auto; }
     #startModal .deck-builder-info-btn { grid-column: auto; grid-row: auto; }
     #startModal .deck-summary-panel { justify-content: space-between; }
+}
+
+/* Battlefield lanes: creatures and artifacts above a compact, clearly marked land row. */
+.cards-row:has(.board-lane) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    padding: 2px;
+    gap: 3px;
+}
+.board-lane {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+.board-permanents { flex: 1; min-height: 0; }
+.board-lands {
+    flex: none;
+    min-height: 52px;
+    padding: 2px 4px;
+    border-top: 1px solid var(--gold-line);
+    border-radius: 7px;
+    background: var(--panel-inset);
+}
+.board-lands::before {
+    content: 'LANDS';
+    position: sticky;
+    left: 0;
+    align-self: center;
+    padding: 3px;
+    font: 700 9px var(--font-heading);
+    letter-spacing: .05em;
+    color: var(--gold-1);
+    background: var(--panel-inset);
+    z-index: 1;
+}
+.board-lands .land-stack-card {
+    min-width: 48px;
+    height: 46px;
+    margin: 0;
+    padding: 2px;
+}
+.board-lands .land-stack-emoji { font-size: 18px; }
+.board-lands .land-stack-count { font-size: 10px; }
+.board-lands .land-stack-total { display: none; }
+.board-lands .all-tapped { filter: grayscale(.7); opacity: .68; border-style: dashed; }
+.board-lands .partially-tapped { border-style: dashed; }
+.board-lands .all-untapped { border-style: solid; }
+
+/* Two fixed rows keep Attack visible even when the battlefield is busy. */
+@media (max-width: 767px) and (min-height: 501px) {
+    .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(44px, auto)); }
+    .controls #mulliganBtn { grid-column: 1; grid-row: 1; }
+    .controls #graveyardBtn { grid-column: 2; grid-row: 1; }
+    .controls #attackBtn { grid-column: 1; grid-row: 2; }
+    .controls #endTurnBtn { grid-column: 2; grid-row: 2; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+    .player-area { flex-direction: row; }
+    .board-permanents .card { height: 42px; min-height: 42px; padding: 2px; }
+    .board-permanents .card > div:first-child { font-size: 18px !important; }
+    .board-lands { min-height: 32px; }
+    .board-lands .land-stack-card { height: 30px; min-width: 44px; }
+    .board-lands .land-stack-emoji { font-size: 13px; }
+    .board-lands .land-stack-count { font-size: 10px; margin: 0; }
+    .board-lands::before { font-size: 8px; }
+}
+
+/* A visual veil adds a short fade through both scene changes without changing input timing. */
+.scene-transition {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    pointer-events: none;
+    opacity: 0;
+    background: var(--stage-bg);
+}
+.scene-transition-active { animation: scene-fade 360ms ease-in-out both; }
+@keyframes scene-fade {
+    0%, 100% { opacity: 0; }
+    42% { opacity: .86; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .scene-transition-active { animation: none; }
 }
 
 @media (max-height: 640px) {

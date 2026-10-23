@@ -34,6 +34,21 @@ for (const [label, viewport] of [
         assert.equal((await layout()).panel, 'deckPanelInventory');
         assert.ok((await layout()).shown <= (label === 'landscape' ? 4 : 6));
         assert.ok((await layout()).page?.includes('/'));
+        const longName = await page.evaluate(() => [...document.querySelectorAll('#deckBuilderPool .deck-builder-row')]
+            .map(row => __CARD_BY_ID[row.dataset.cardId]?.name).filter(Boolean).sort((a, b) => b.length - a.length)[0]);
+        await page.locator('#deckBuilderFilters .card-filter-search').fill(longName);
+        const nameFits = await page.evaluate(() => {
+            const row = document.querySelector('#deckBuilderPool .deck-builder-row:not([hidden])');
+            const name = row.querySelector('.deck-builder-name');
+            const text = [...name.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            const bounds = range.getBoundingClientRect();
+            const tile = row.getBoundingClientRect();
+            return bounds.bottom <= tile.bottom - 4 && bounds.right <= tile.right - 4;
+        });
+        assert.ok(nameFits, `${label}: longest card name fits inside its tile`);
+        await page.locator('#deckBuilderFilters .card-filter-search').fill('');
         await page.locator('#deckPoolPager button:last-child').tap();
         assert.match((await layout()).page, /Page 2/);
         if (label === 'portrait') {
