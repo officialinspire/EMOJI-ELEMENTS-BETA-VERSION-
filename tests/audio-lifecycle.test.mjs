@@ -25,6 +25,7 @@ test('priority eviction caps actual connected cues; stopAll destroys future note
     t.after(close);
     await page.mouse.click(3, 3);
     await page.waitForFunction(() => GameFeedback.state === 'running');
+    await page.evaluate(() => GameFeedback.samplesReady());
     const result = await page.evaluate(() => {
         GameFeedback.stopAll();
         const samples = [];
@@ -58,6 +59,7 @@ test('naturally completed effects release their processing nodes', async t => {
     t.after(close);
     await page.mouse.click(3, 3);
     await page.waitForFunction(() => GameFeedback.state === 'running');
+    await page.evaluate(() => GameFeedback.samplesReady());
     await page.evaluate(() => { GameFeedback.stopAll(); __audioProbe.begin(); GameFeedback.play('victory'); });
     await page.waitForTimeout(2000);
     const result = await page.evaluate(() => __audioProbe.snapshot());

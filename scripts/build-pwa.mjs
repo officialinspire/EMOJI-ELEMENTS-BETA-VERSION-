@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
-    'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg'];
+    'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav'];
 const hash = data => createHash('sha256').update(data).digest('hex');
 
 export function buildPwa(root = ROOT, check = false) {

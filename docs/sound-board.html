@@ -23,7 +23,8 @@
 </head>
 <body>
     <h1>Emoji Elements sound board</h1>
-    <p>Every effect and haptic pattern in the game. The first tap unlocks audio. Audio state: <span id="state">locked</span></p>
+    <p>Recorded clicks, card foley, combat and magic from Kenney's CC0 packs. The first tap unlocks audio and loads the sound bank. Audio state: <span id="state">locked</span></p>
+    <p><a href="../audio/sfx/README.md">Sources, licenses and cue details</a></p>
     <div class="bar">
         <label>Theme <select id="theme"><option value="arcane">Arcane Fantasy</option><option value="deep-space">Deep Space</option><option value="neon">Neon Sci-Fi</option></select></label>
         <label>Effects volume <input id="volume" type="range" min="0" max="100" step="5" value="70"></label>
@@ -47,9 +48,9 @@
         ];
         const HAPTICS = ['select', 'toggle', 'play', 'impact', 'reveal', 'revealRare', 'victory', 'defeat'];
         const state = document.getElementById('state');
-        const refresh = () => { state.textContent = GameFeedback.state; };
-        const unlock = () => { GameFeedback.unlock(); setTimeout(refresh, 100); };
-        ['pointerdown', 'keydown'].forEach(type => document.addEventListener(type, unlock, { capture: true }));
+        const refresh = () => { state.textContent = `${GameFeedback.state} · recordings: ${GameFeedback.sampleState}`; };
+        const unlock = () => { GameFeedback.unlock(); refresh(); GameFeedback.samplesReady().then(refresh); };
+        ['pointerdown', 'pointerup', 'click', 'touchend', 'keydown'].forEach(type => document.addEventListener(type, event => { if (event.isTrusted) unlock(); }, { capture: true }));
         document.getElementById('theme').addEventListener('change', e => { document.documentElement.dataset.theme = e.target.value; });
         // Changes here are for this page only (persist: false): the game's saved sound settings stay as they are
         const once = { persist: false };
@@ -63,7 +64,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.innerHTML = `${label}<small>${name}</small>`;
-            button.addEventListener('click', () => { GameFeedback.play(name, options); refresh(); });
+            button.addEventListener('click', async () => { await GameFeedback.samplesReady(); GameFeedback.play(name, options); refresh(); });
             cueGrid.appendChild(button);
         });
         const hapticGrid = document.getElementById('haptics');
@@ -76,6 +77,7 @@
             hapticGrid.appendChild(button);
         });
         document.getElementById('sequence').addEventListener('click', async () => {
+            await GameFeedback.samplesReady();
             for (const [name, options] of CUES) {
                 GameFeedback.play(name, options);
                 await new Promise(resolve => setTimeout(resolve, name === 'victory' || name === 'defeat' ? 1600 : 650));

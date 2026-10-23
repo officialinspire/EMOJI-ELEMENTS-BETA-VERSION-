@@ -23,7 +23,7 @@ export function loadPlaywright() {
 const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
     '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
-    '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4'
+    '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4'
 };
 
 export function startServer() {

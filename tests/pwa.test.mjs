@@ -10,7 +10,7 @@ import { buildPwa } from '../scripts/build-pwa.mjs';
 test('real PWA: offline startup, explicit two-build update, failed deployment and preserved progress', { timeout: 120000 }, async t => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ee-pwa-'));
     const files = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
-        'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg',
+        'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav',
         'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
     for (const file of files) {
         fs.mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
@@ -26,7 +26,7 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     }
     let current = 0;
     const mime = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json',
-        '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
+        '.svg': 'image/svg+xml', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://localhost');
         if (url.pathname === '/sibling/') { res.end('<!doctype html><title>Sibling app</title>'); return; }
@@ -135,6 +135,13 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     await page.locator('.element-btn[data-element="fire"]').tap();
     await page.locator('#startBtn').tap();
     await page.waitForFunction(() => gameState.playerHand.length === 7 && gameState.playerLife === 20);
+    assert.equal(await page.evaluate(() => GameFeedback.samplesReady()), true, 'recorded bank decodes from the offline cache');
+    const offlineSample = await page.evaluate(() => {
+        GameFeedback.play('spell');
+        return { state: GameFeedback.sampleState, played: GameFeedback.stats().sampled.spell };
+    });
+    assert.equal(offlineSample.state, 'ready');
+    assert.ok(offlineSample.played > 0, 'offline gameplay uses recorded SFX, not the synthesis fallback');
     assert.equal(await page.locator('#pwaUpdateButton').isVisible(), false, 'update action is not exposed during a match');
     assert.deepEqual(errors, []);
     await context.close();

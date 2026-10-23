@@ -9,6 +9,23 @@ Branch `claude/audio-feedback`, built on the battle-screen and pause pass (`clau
 | Tests | `tests/audio.test.mjs` (`npm run audio`) |
 | Listening page | `docs/sound-board.html` |
 
+## Current recorded SFX library
+
+The default effects now use 27 edited, normalized CC0 recordings from Kenney's Interface, Casino,
+RPG, Impact and Sci-fi packs. Button clicks, card handling, pack tears, swishes, impacts, metal,
+glass and bell layers replace the oscillator cues in normal play. See [sources, license notices,
+clip hashes and rebuild instructions](audio/sfx/README.md).
+
+The 361 KB local WAV sprite fetches/decodes once after the first trusted gesture. It never blocks
+startup or credits. All 21 existing cue hooks use the recorded bank when ready; the prior synthesis
+remains a temporary fallback for cold, failed or unsupported loads. Failed loads have a bounded
+retry cooldown, and loading never replays old inputs. No external playback framework or CDN is used.
+
+Measured default-volume peaks across the main cue set are about −26 to −9.5 dBFS, with shorter
+UI tails and larger reward flourishes. Effects retain the same volume controls, ducking, intensity,
+rarity, theme, cooldown, eight-voice, cleanup and haptic behavior. Sample variations use their own
+cosmetic PRNG, independent of game/deck randomness. The PWA validates/caches the WAV bank.
+
 ## Current soundtrack and mix
 
 - Main menu: `minimalist menu theme.mp3` (175.9 s; source mean −15.4 dBFS, peak −0.6 dBFS).
