@@ -1,11 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Emoji Elements: five-element sigil and gold wordmark</title>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a0f20" />
-      <stop offset="100%" stop-color="#320f2a" />
+    <radialGradient id="night" cx="50%" cy="39%" r="74%">
+      <stop stop-color="#301543"/>
+      <stop offset="62%" stop-color="#1a0c29"/>
+      <stop offset="100%" stop-color="#0a0510"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff5c9"/>
+      <stop offset="48%" stop-color="#f4d477"/>
+      <stop offset="100%" stop-color="#ba8138"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)" />
-  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="220">⚔️</text>
-  <text x="50%" y="80%" text-anchor="middle" fill="#ffd700" font-family="serif" font-size="54">EE</text>
+  <!-- The artwork fits inside the central maskable safe area on phone launchers. -->
+  <rect width="512" height="512" fill="url(#night)"/>
+  <circle cx="256" cy="215" r="164" fill="none" stroke="#f2cf72" stroke-opacity=".12" stroke-width="2"/>
+  <circle cx="256" cy="215" r="151" fill="none" stroke="#f2cf72" stroke-opacity=".09" stroke-width="1" stroke-dasharray="2 10"/>
+  <!-- Same five-element geometry and color order as the title-screen #ee-sigil. -->
+  <g transform="translate(148 70) scale(3.375)" stroke-linejoin="round">
+    <circle cx="32" cy="32" r="28" fill="none" stroke="#f2cf72" stroke-width="2.5" opacity=".95"/>
+    <circle cx="32" cy="32" r="21" fill="none" stroke="#f2cf72" stroke-width="1" opacity=".52"/>
+    <path d="M32 9 L45.5 50.6 L10.1 24.9 L53.9 24.9 L18.5 50.6 Z" fill="none" stroke="#f2cf72" stroke-width="1.4" opacity=".7"/>
+    <circle cx="32" cy="9" r="5" fill="#f4df97"/>
+    <circle cx="53.9" cy="24.9" r="5" fill="#ff7256"/>
+    <circle cx="45.5" cy="50.6" r="5" fill="#b7d982"/>
+    <circle cx="18.5" cy="50.6" r="5" fill="#74c9ff"/>
+    <circle cx="10.1" cy="24.9" r="5" fill="#bc86d9"/>
+    <path d="M32 24 L38 32 L32 40 L26 32 Z" fill="#f2cf72"/>
+  </g>
+  <text x="256" y="329" text-anchor="middle" fill="#eadfb8" font-family="Georgia,serif" font-weight="bold" font-size="29" letter-spacing="12">EMOJI</text>
+  <text x="256" y="389" text-anchor="middle" fill="url(#gold)" font-family="Georgia,serif" font-weight="bold" font-size="54" textLength="292" lengthAdjust="spacingAndGlyphs">ELEMENTS</text>
+  <path d="M169 411h70l17 8 17-8h70" fill="none" stroke="#f2cf72" stroke-opacity=".65" stroke-width="2"/>
 </svg>

@@ -10,7 +10,8 @@ import { buildPwa } from '../scripts/build-pwa.mjs';
 test('real PWA: offline startup, explicit two-build update, failed deployment and preserved progress', { timeout: 120000 }, async t => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ee-pwa-'));
     const files = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
-        'manifest.json', 'icon.svg', 'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav',
+        'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
+        'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav',
         'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3', 'inspiresoftwareintro.mp4', 'scripts/sw-template.js'];
     for (const file of files) {
         fs.mkdirSync(path.dirname(path.join(folder, file)), { recursive: true });
@@ -26,7 +27,7 @@ test('real PWA: offline startup, explicit two-build update, failed deployment an
     }
     let current = 0;
     const mime = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json',
-        '.svg': 'image/svg+xml', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
+        '.svg': 'image/svg+xml', '.png': 'image/png', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://localhost');
         if (url.pathname === '/sibling/') { res.end('<!doctype html><title>Sibling app</title>'); return; }
@@ -154,4 +155,15 @@ test('manifest preserves the identity and launch URL of existing installs', () =
     assert.equal(manifest.start_url, './index.html');
     assert.equal(manifest.id, undefined, 'preserve the original start_url-derived identity across project paths');
     assert.equal(manifest.scope, './');
+    assert.deepEqual(manifest.icons.slice(0, 2).map(icon => [icon.src, icon.sizes, icon.type, icon.purpose]), [
+        ['icon-192.png', '192x192', 'image/png', 'any maskable'],
+        ['icon-512.png', '512x512', 'image/png', 'any maskable']
+    ]);
+    for (const [file, size] of [['icon-192.png', 192], ['icon-512.png', 512], ['apple-touch-icon.png', 180]]) {
+        const image = fs.readFileSync(path.join(ROOT, file));
+        assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+        assert.equal(image.readUInt32BE(16), size);
+        assert.equal(image.readUInt32BE(20), size);
+    }
+    assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /rel="apple-touch-icon" href="apple-touch-icon\.png"/);
 });
