@@ -1,5 +1,12 @@
 # EMOJI ELEMENTS - Beta Version Changelog
 
+## PWA icon refresh
+
+- Replaced the old swords/EE installed-app badge with the title screen's five-color sigil and gold
+  Emoji Elements wordmark. Added 192px and 512px PNGs for Android and a 180px iOS touch icon.
+- Included the new artwork in the verified offline build; the existing installed-app identity and
+  explicit startup update flow are unchanged.
+
 ## Recorded SFX polish
 
 - Replaced normal-play oscillator beeps with 27 curated CC0 Kenney recordings: tactile clicks,

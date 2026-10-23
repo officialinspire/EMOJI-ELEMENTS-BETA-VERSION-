@@ -13,7 +13,8 @@ if(!target)throw Error('Usage: node tests/live-pages.mjs --url=https://owner.git
 const base=new URL(target);if(!base.pathname.endsWith('/'))base.pathname+='/';
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'}).trim();
 const out=path.join(ROOT,'test-results/live-pages');fs.mkdirSync(out,{recursive:true});
-const files=['index.html','index.js','styles.css','feedback.js','achievements.js'];
+const files=['index.html','index.js','styles.css','feedback.js','achievements.js',
+    'manifest.json','icon.svg','icon-192.png','icon-512.png','apple-touch-icon.png'];
 const media=['audio/sfx/sfx-bank.wav','minimalist menu theme.mp3','Emoji Elements - Celestial Battle Theme.mp3','inspiresoftwareintro.mp4'];
 const digest=data=>createHash('sha256').update(data).digest('hex');
 const expected=Object.fromEntries(files.map(file=>[file,digest(fs.readFileSync(path.join(ROOT,file)))]));

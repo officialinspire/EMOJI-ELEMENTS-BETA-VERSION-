@@ -8,6 +8,10 @@ achievements, preferences, or another INSPIRE game's caches.
 
 The original `start_url` stays `./index.html` and the manifest keeps its original inferred app identity;
 adding an origin-relative `id` would make browsers treat the project as a different installed app.
+The home-screen artwork matches the five-element sigil and gold title wordmark. Android uses the
+192/512 PNG icons (with room for maskable crops), iOS uses the 180px touch icon, and the SVG remains
+the scalable browser favicon. If an OS keeps the old icon after an app update, remove and reinstall
+the shortcut; in-game progress remains in site storage unless the browser also clears site data.
 
 `sw.js` caches one complete app shell per build. Required assets are verified against SHA-256 hashes;
 missing or mismatched files reject the new install and preserve the previous generation. Music/video
