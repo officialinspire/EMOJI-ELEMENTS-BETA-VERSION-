@@ -286,7 +286,7 @@ async function auditProfile(browser, url, profile) {
         await press(page, touch, entry(page, label));
         const opened = await shown(page, screen);
         if (label !== 'New Game') await scene(ctx, `03-${screen}`);
-        await press(page, touch, page.locator(`#${screen} button`, { hasText: 'BACK' }).last());
+        await press(page, touch, page.locator(`#${screen} .menu-back`).last());
         check(profile, 'routing', `${label}: opens and BACK returns to the menu`, opened && await shown(page, 'mainMenu'), `opened=${opened}`);
     }
 

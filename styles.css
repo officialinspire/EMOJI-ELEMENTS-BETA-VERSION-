@@ -8635,9 +8635,9 @@ html {
 #startModal .deck-builder-card { min-width: 0; }
 #startModal .deck-builder-name { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 4px; padding-right: 32px; line-height: 1.2; font-size: 12px; overflow-wrap: anywhere; }
 #startModal .deck-builder-name .card-row-art { display: grid; width: 28px; height: 28px; font-size: 19px; }
-#startModal .deck-builder-meta { flex-wrap: wrap; white-space: normal; margin-top: 4px; padding-right: 24px; font-size: 10px; }
+#startModal .deck-builder-meta { flex-wrap: wrap; white-space: normal; margin-top: 4px; padding-right: 24px; font-size: 11px; }
 #startModal .deck-builder-meta > :not(.row-cost):not(.row-type):not(.row-pt) { display: none; }
-#startModal .deck-builder-count { flex-direction: row; align-self: flex-start; gap: 3px; margin-top: auto; font-size: 10px; white-space: nowrap; }
+#startModal .deck-builder-count { flex-direction: row; align-self: flex-start; gap: 3px; margin-top: auto; font-size: 11px; white-space: nowrap; }
 #startModal .deck-builder-count span { padding: 1px 3px; border-radius: 5px; background: rgb(var(--accent-rgb) / 0.2); }
 #startModal .deck-builder-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 #startModal .deck-builder-row > .deck-builder-info-btn {
@@ -8803,7 +8803,8 @@ html {
     #startModal .deck-builder-tabs button { min-height: 32px; }
     #startModal #deckBuilderFilters .card-filter-search,
     #startModal #deckBuilderFilters .card-filter-summary { min-height: 32px; }
-    #startModal #deckBuilderShowing { display: none; }
+    /* Keep the empty grid track so the inventory remains in the flexible row and the pager gets its own row. */
+    #startModal #deckBuilderShowing { display: block; visibility: hidden; height: 0; margin: 0; font-size: 0; line-height: 0; overflow: hidden; }
     #startModal .deck-page-controls { min-height: 30px; }
     #startModal .deck-page-controls button { min-height: 28px; }
     #startModal .deck-builder-footer-buttons .menu-btn { min-height: 36px; }
@@ -8816,6 +8817,7 @@ html {
 }
 
 @media (min-height: 501px) and (max-height: 640px) {
+    #startModal .deck-page-controls { min-height: 44px; }
     #startModal .deck-builder-controls select,
     #startModal .deck-builder-tabs button,
     #startModal #deckBuilderFilters .card-filter-search,
