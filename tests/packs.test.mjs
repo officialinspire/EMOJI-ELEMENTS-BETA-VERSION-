@@ -18,7 +18,7 @@ import { ROOT } from './lib/harness.mjs';
 useGameBrowser();
 
 const META = 'emoji_elements_meta_v1';
-const PACKS = ['fantasy', 'scifi', 'tech', 'alien', 'robot', 'lands'];
+const PACKS = ['fantasy', 'scifi', 'tech', 'alien', 'robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'lands'];
 const fixture = name => fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'saves', name), 'utf8');
 const total = collection => Object.values(collection).reduce((a, b) => a + b, 0);
 const isOpen = (page, id) => page.evaluate(id => document.getElementById(id).classList.contains('show'), id);
@@ -121,7 +121,7 @@ describe('pack pools', () => {
 
     test('per-card odds from getPackOdds match how often each card is really pulled', { timeout: 120000 }, async t => {
         const page = await openGame(t, { seed: 32 });
-        const r = await page.evaluate(() => ['robot', 'lands', 'alien'].map(key => {
+        const r = await page.evaluate(() => ['robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'lands', 'alien'].map(key => {
             const odds = getPackOdds(key);
             const hits = {};
             const N = 6000;
@@ -158,10 +158,10 @@ describe('pack pools', () => {
         const page = await openGame(t);
         const r = await page.evaluate(() => ({ costs: PACK_SHOP_COSTS, size: PACK_SIZE, win: BASE_WIN_CREDITS,
             weights: Object.fromEntries(PACK_THEMES.map(theme => [theme.key, theme.weight])) }));
-        assert.deepEqual(r.costs, { fantasy: 60, scifi: 60, tech: 60, alien: 60, robot: 60, lands: 40 });
+        assert.deepEqual(r.costs, { fantasy: 60, scifi: 60, tech: 60, alien: 60, robot: 60, lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60 });
         assert.equal(r.size, 5);
         assert.equal(r.win, 25);
-        assert.deepEqual(r.weights, { fantasy: 24, scifi: 18, tech: 16, alien: 14, robot: 14, lands: 14 });
+        assert.deepEqual(r.weights, { fantasy: 24, scifi: 18, tech: 16, alien: 14, robot: 14, lands: 14, fire: 0, water: 0, earth: 0, swamp: 0, light: 0, artifacts: 0 });
     });
 });
 

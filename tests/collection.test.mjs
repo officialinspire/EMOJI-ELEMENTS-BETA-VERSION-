@@ -77,7 +77,7 @@ const binderRows = page => page.evaluate(() => [...document.querySelectorAll('#b
     name: r.querySelector('.binder-row-name').firstChild.textContent.trim(),
     count: Number(r.querySelector('.binder-row-count').textContent.replace(/\D/g, '')),
     unowned: r.classList.contains('is-unowned'),
-    text: r.innerText.replace(/\s+/g, ' ')
+    text: r.textContent.replace(/\s+/g, ' ')
 })));
 
 const poolRows = page => page.evaluate(() => [...document.querySelectorAll('#deckBuilderPool .deck-builder-row')].map(r => {
@@ -88,7 +88,7 @@ const poolRows = page => page.evaluate(() => [...document.querySelectorAll('#dec
         blocked: add.disabled || add.getAttribute('aria-disabled') === 'true',
         reason: add.dataset.reason || '',
         reasonText: r.querySelector('.deck-builder-reason')?.textContent || '',
-        text: r.innerText.replace(/\s+/g, ' ')
+        text: r.textContent.replace(/\s+/g, ' ')
     };
 }));
 

@@ -139,8 +139,14 @@ The block below is generated and verified by the check.
 | Pack | Cards |
 |---|---|
 | fantasy | 187 |
+| light | 63 |
 | tech | 60 |
+| fire | 57 |
+| earth | 56 |
 | scifi | 56 |
+| swamp | 51 |
+| water | 49 |
+| artifacts | 29 |
 | alien | 17 |
 | robot | 16 |
 | lands | 8 |
@@ -149,10 +155,11 @@ The block below is generated and verified by the check.
 
 | Packs | Cards |
 |---|---|
-| in 1 pack | 209 |
-| in 2 packs | 44 |
-| in 3 packs | 13 |
-| in 4 packs | 2 |
+| in 2 packs | 185 |
+| in 3 packs | 47 |
+| in 4 packs | 26 |
+| in 5 packs | 6 |
+| in 1 pack | 4 |
 
 **By inferred rarity (`inferRarity`)**
 
@@ -232,6 +239,12 @@ The block below is generated and verified by the check.
 | tech | 60 | 60 | 50 / 8 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 6.0% / 13% / 50% |
 | alien | 60 | 17 | 7 / 8 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 43% / 13% / 50% |
 | robot | 60 | 16 | 12 / 3 / 1 | 3 × Common · 1 × Rare · 1 × Epic/Legendary or Rare | 25% / 56% / 33% |
+| fire | 60 | 57 | 43 / 6 / 8 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 7.0% / 17% / 13% |
+| water | 60 | 49 | 39 / 7 / 3 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 7.7% / 14% / 33% |
+| earth | 60 | 56 | 48 / 5 / 3 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 6.3% / 20% / 33% |
+| swamp | 60 | 51 | 34 / 13 / 4 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 8.8% / 7.7% / 25% |
+| light | 60 | 63 | 41 / 18 / 4 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 7.3% / 5.6% / 25% |
+| artifacts | 60 | 29 | 29 / 0 / 0 | 3 × Common · 1 × Rare or Common · 1 × Epic/Legendary or Rare or Common | 17% / – / – |
 | lands | 40 | 8 | 4 / 2 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 75% / 50% / 50% |
 
 **Availability:** 153 in the starter collection · 268 in at least one pack pool · 115 pack-only · 255 can appear in AI decks · 267 legal in at least one standard deck.

@@ -689,6 +689,8 @@
         battleMusicSerial++;
         battleMusicPending = null;
         battleMusicKey = 'gameplayMusic';
+        announcedBattleMood = 'gameplayMusic';
+        document.getElementById('leadNotice')?.classList.remove('show');
         BATTLE_TRACKS.forEach(stopSFX);
         document.getElementById('gameContainer')?.removeAttribute('data-battle-mood');
     }
@@ -702,10 +704,18 @@
         return 'gameplayMusic';
     }
 
+    let announcedBattleMood = 'gameplayMusic';
     function updateBattleMusicMood() {
         const board = document.getElementById('gameContainer');
         if (gameState.matchFinalized || gamePaused || document.hidden || board?.style.display !== 'flex' || battleMusicPending) return;
         const nextKey = desiredBattleMusic();
+        if (nextKey !== announcedBattleMood) {
+            announcedBattleMood = nextKey;
+            const notice = document.getElementById('leadNotice');
+            notice.textContent = nextKey === 'winningMusic' ? 'GAINED THE LEAD' : nextKey === 'losingMusic' ? 'LOSING' : '';
+            notice.classList.remove('show');
+            if (notice.textContent) { void notice.offsetWidth; notice.classList.add('show'); }
+        }
         if (nextKey === battleMusicKey || unavailableBattleTracks.has(nextKey)) return;
         const oldKey = battleMusicKey;
         const current = audioSystem[oldKey];
@@ -2781,6 +2791,8 @@
         { key: 'tech', label: 'Tech', weight: 16, icon: '⚙️', tagline: 'Gadgets, machines and modern life' },
         { key: 'alien', label: 'Alien', weight: 14, icon: '👽', tagline: 'Aliens, spacecraft and the cosmos' },
         { key: 'robot', label: 'Robot', weight: 14, icon: '🤖', tagline: 'Robots, drones, mechs and machine minds' },
+        ...['fire','water','earth','swamp','light'].map(key => ({ key, label: key[0].toUpperCase() + key.slice(1), weight: 0, icon: ELEMENTS[key].emoji, tagline: `Build around ${key}: creatures, spells and artifacts` })),
+        { key: 'artifacts', label: 'Artifacts', weight: 0, icon: '💎', tagline: 'Tools and engines for creative combinations' },
         { key: 'lands', label: 'Lands', weight: 14, icon: '🌍', tagline: 'Only lands: basic, dual and special' }
     ];
 
@@ -2790,7 +2802,7 @@
         tech: 60,
         alien: 60,
         robot: 60,
-        lands: 40
+        lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60
     };
 
     const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
@@ -3083,12 +3095,17 @@
 
     function getPackMemberships(cardOrId) {
         const id = typeof cardOrId === 'string' ? cardOrId : cardOrId?.__id;
-        return PACK_MEMBERSHIP[id] || [];
+        const card = typeof cardOrId === 'string' ? __CARD_BY_ID[id] : cardOrId;
+        const extra = card?.type === 'land' ? [] : Object.keys(card?.cost || {}).filter(key => ['fire','water','earth','swamp','light'].includes(key));
+        if (card?.type === 'artifact') extra.push('artifacts');
+        return [...(PACK_MEMBERSHIP[id] || []), ...extra];
     }
 
     // Every card a pack can contain, in catalog order
     function getThemePool(themeKey) {
         const key = String(themeKey || '').trim().toLowerCase();
+        if (['fire','water','earth','swamp','light'].includes(key)) return __ALL_CARDS.filter(card => card.type !== 'land' && Object.keys(card.cost || {}).includes(key));
+        if (key === 'artifacts') return __ALL_CARDS.filter(card => card.type === 'artifact');
         return __ALL_CARDS.filter(card => getPackMemberships(card).includes(key));
     }
 
@@ -4752,6 +4769,7 @@
                 grid.appendChild(tile);
             });
         }
+        renderSingleCardShop();
         updatePackShopTiles();
     }
 
@@ -5029,6 +5047,8 @@
     }
 
     // The Binder lists the whole catalog: owned cards with their count, the rest marked "Not owned".
+    let binderPage = 0;
+    let binderFilterKey = "";
     function renderBinderCollection() {
         const listEl = document.getElementById('binderList');
         const summaryEl = document.getElementById('binderSummaryBadge');
@@ -5047,6 +5067,7 @@
         if (showingEl) showingEl.textContent = `Showing ${shown.length} of ${__ALL_CARDS.length} cards`;
 
         listEl.innerHTML = '';
+        document.getElementById('binderPager').hidden = !shown.length;
         if (!shown.length) {
             const empty = document.createElement('div');
             empty.className = 'deck-builder-empty';
@@ -5055,10 +5076,25 @@
             return;
         }
 
-        shown.forEach(card => {
+        const filterKey = JSON.stringify(filters);
+        if (filterKey !== binderFilterKey) { binderPage = 0; binderFilterKey = filterKey; }
+        const perPage = window.matchMedia('(max-height: 500px)').matches ? 2 : window.matchMedia('(max-width: 519px)').matches ? 4 : 6;
+        const pages = Math.max(1, Math.ceil(shown.length / perPage));
+        binderPage = Math.min(binderPage, pages - 1);
+        const pager = document.getElementById('binderPager');
+        pager.replaceChildren();
+        for (const [label, delta] of [['Previous', -1], [`Page ${binderPage + 1} / ${pages}`, 0], ['Next', 1]]) {
+            const el = document.createElement(delta ? 'button' : 'span');
+            el.textContent = label;
+            if (delta) { el.type = 'button'; el.disabled = delta < 0 ? binderPage === 0 : binderPage === pages - 1;
+                el.onclick = () => { binderPage += delta; renderBinderCollection(); pager.querySelector(delta < 0 ? 'button:first-child' : 'button:last-child')?.focus(); }; }
+            pager.appendChild(el);
+        }
+        shown.forEach((card, index) => {
             const count = ownedOf(card);
             const row = document.createElement('div');
             row.className = 'binder-row';
+            row.hidden = index < binderPage * perPage || index >= (binderPage + 1) * perPage;
             row.dataset.cardId = card.__id;
             row.classList.toggle('is-unowned', count === 0);
             row.appendChild(createCardRowArt(card, 'binder-row-emoji card-row-art'));
@@ -5072,7 +5108,7 @@
             row.appendChild(nameEl);
             const countEl = document.createElement('div');
             countEl.className = 'binder-row-count';
-            countEl.textContent = `x${count}`;
+            countEl.textContent = count ? `x${count}` : 'Not owned · x0';
             row.appendChild(countEl);
             row.title = getCardTooltipText(card);
             bindCardPress(row, {
@@ -5094,6 +5130,37 @@
         playSFX('menuClose');
         setStartMenuScreen('mainMenu');
         focusSafeElement();
+    }
+
+    const SINGLE_PRICES = { common: 20, rare: 65, epic: 140, legendary: 250 };
+    function singleCardPrice(card) { return SINGLE_PRICES[getCardRarity(card)] || 65; }
+    function renderSingleCardShop() {
+        const select = document.getElementById('singleCardSelect');
+        if (!select.options.length) [...__ALL_CARDS].sort((a,b) => a.name.localeCompare(b.name)).forEach(card => {
+            const option = document.createElement('option'); option.value = card.__id;
+            option.textContent = `${card.emoji} ${card.name} · ${singleCardPrice(card)} credits`;
+            select.appendChild(option);
+        });
+        const card = __CARD_BY_ID[select.value];
+        document.getElementById('singleCardOwned').textContent = `Owned: ${gameMeta.collection[card.__id] || 0} · Price: ${singleCardPrice(card)} credits`;
+    }
+    function purchaseSingleCard() {
+        if (!canSaveProfile() || packOpeningState.active) return false;
+        const card = __CARD_BY_ID[document.getElementById('singleCardSelect').value];
+        if (!card) return false;
+        const price = singleCardPrice(card);
+        if (getShopCredits() < price) { setPackShopMessage(`Need ${price - getShopCredits()} more credits.`, 'error'); return false; }
+        const before = gameMeta;
+        gameMeta = JSON.parse(JSON.stringify(before));
+        gameMeta.wallet.credits -= price;
+        gameMeta.collection[card.__id] = (gameMeta.collection[card.__id] || 0) + 1;
+        if (!metaSave(gameMeta)) { gameMeta = before; setPackShopMessage('Purchase could not be saved. No credits spent.', 'error'); return false; }
+        reportAchievement('collection', {});
+        reportAchievement('wallet', {});
+        playSFX('select');
+        setPackShopMessage(`Bought ${card.name} for ${price} credits.`, 'success');
+        updatePackShopCreditsBadge(); renderSingleCardShop();
+        return true;
     }
 
     function purchasePack(themeKey) {
@@ -9968,3 +10035,5 @@
             }
         }
     }, 5000); // Check every 5 seconds
+
+window.addEventListener('resize', () => { if (document.getElementById('binderScreen')?.style.display !== 'none') renderBinderCollection(); });

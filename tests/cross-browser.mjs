@@ -71,8 +71,8 @@ for (const engine of selected ? [selected] : ['chromium','firefox','webkit']) {
             await shot('inspect'); await click(page,'#cardDetailPopup .close-detail');
             await click(page,'#binderScreen .menu-back'); row.checks.push('collection, trusted card inspection');
             await click(page,'#mainMenu [data-menu-target="achievementsScreen"]');
-            assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),150);
-            await shot('achievements'); await click(page,'#achievementsScreen .menu-back'); row.checks.push('150 achievement entries');
+            assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),400);
+            await shot('achievements'); await click(page,'#achievementsScreen .menu-back'); row.checks.push('400 achievement entries');
             await start(page); row.checks.push('battle setup');
             await page.waitForFunction(() => !audioSystem.gameplayMusic.paused &&
                 audioSystem.gameplayMusic.readyState >= 2 && audioSystem.startMenuMusic.paused);

@@ -436,7 +436,7 @@
                 <div class="shop-credits-badge" id="shopCreditsBadge">💳 Credits: 0</div>
                 <p class="shop-intro">Each pack holds 5 different cards for your collection. Tap “What’s inside” to see every card a pack can contain and the odds.</p>
                 <!-- One tile per pack (art, price, affordability, contents): built by renderPackShop() -->
-                <div class="pack-shop-grid" id="packShopGrid"></div>
+                <section class="single-card-shop" aria-label="Buy individual cards"><h3>Card Exchange</h3><p>Choose exactly the card you need. One copy per purchase.</p><label for="singleCardSelect">Card</label><select id="singleCardSelect" onchange="renderSingleCardShop()"></select><p id="singleCardOwned"></p><button type="button" class="menu-btn" onclick="showCardDetail(__CARD_BY_ID[document.getElementById('singleCardSelect').value])">Inspect card</button><button type="button" class="menu-btn" onclick="purchaseSingleCard()">Buy one copy</button></section><div class="pack-shop-grid" id="packShopGrid"></div>
                 <div class="pack-shop-message" id="packShopMessage" aria-live="polite"></div>
                 <button class="menu-btn menu-back" onclick="hidePackShop()">← BACK TO MENU</button>
             </div>
@@ -448,7 +448,7 @@
                 <!-- Search, filters and sorting: built by buildCardFilterBar -->
                 <div class="card-filters" id="binderFilters" role="search" aria-label="Search and filter the collection"></div>
                 <div class="card-list-showing" id="binderShowing" aria-live="polite"></div>
-                <div class="binder-list" id="binderList"></div>
+                <div class="binder-list" id="binderList"></div><nav id="binderPager" class="binder-pager" aria-label="Binder pages"></nav>
                 <button class="menu-btn menu-back" onclick="hideBinder()">← BACK TO MENU</button>
             </div>
 
@@ -751,6 +751,7 @@
         <div class="hand-area" id="playerHand"></div>
     </div>
 
+    <div id="leadNotice" role="status" aria-live="polite"></div>
     <div id="cardHoverTooltip" class="card-hover-tooltip"></div>
     <div id="sceneTransition" class="scene-transition" aria-hidden="true"></div>
 

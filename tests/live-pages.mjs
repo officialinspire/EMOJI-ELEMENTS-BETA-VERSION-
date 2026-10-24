@@ -53,14 +53,14 @@ try{
     await page.evaluate(()=>setGameplaySeed(20261022));
     await themes(page,shot);report.checks.push('real startup, all three themes and keyboard focus return');
     await click(page,'#mainMenu [data-menu-target="achievementsScreen"]');
-    assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),150);
+    assert.equal(await page.locator('#achievementsMenuView .ach-item').count(),400);
     await shot('achievements');await click(page,'#achievementsScreen .menu-back');
     await start(page);
     await page.locator('#playerHand .card').first().click({button:'right'});
     await page.locator('#cardDetailPopup').waitFor({state:'visible'});
     await click(page,'#cardDetailPopup .close-detail');
     await click(page,'#endTurnBtn');await ready(page);await shot('battle');
-    await quit(page);report.checks.push('150 achievements, battle setup, card inspection, AI turn and pause/quit');
+    await quit(page);report.checks.push('400 achievements, battle setup, card inspection, AI turn and pause/quit');
     await purchase(page);await shot('pack-summary');await backFromPack(page);
     const state=()=>page.evaluate(()=>({credits:gameMeta.wallet.credits,cards:Object.values(gameMeta.collection).reduce((a,b)=>a+b,0),packs:gameMeta.stats.packsOpened}));
     const bought=await state();assert.equal(bought.credits,40);assert.equal(bought.cards,305);assert.equal(bought.packs,1);
