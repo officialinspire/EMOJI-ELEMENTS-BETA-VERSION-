@@ -8825,3 +8825,33 @@ html {
     #startModal .deck-page-controls button,
     #startModal .deck-builder-footer-buttons .menu-btn { min-height: 44px; }
 }
+
+/* Paged collection binder: bounded sleeves and a spine, using the selected theme. */
+#startModal .modal-content[data-screen="binderScreen"] { width: min(96%, 900px); height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); overflow: hidden; display: flex; flex-direction: column; }
+#startModal .modal-content[data-screen="binderScreen"] > .modal-title,
+#startModal .modal-content[data-screen="binderScreen"] > .modal-footer-credit { display: none; }
+#startModal #binderScreen { min-height: 0; flex: 1; display: flex !important; flex-direction: column; gap: 4px; }
+#startModal #binderScreen[style*="none"] { display: none !important; }
+#startModal #binderFilters { flex: none; margin: 0; }
+#startModal #binderFilters .card-filter-selects { max-height: 130px; overflow: auto; }
+#startModal #binderList { display: grid; flex: 1; min-height: 0; max-height: none; overflow: hidden; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 8px; padding: 8px 8px 8px 18px; border: 2px solid var(--gold-line); border-left: 10px double var(--gold-1); border-radius: 12px; background: var(--panel-inset); }
+#startModal #binderList .binder-row { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; min-height: 0; margin: 0; padding: 6px; border: 1px solid var(--gold-line); border-radius: 8px; background: var(--panel-tile); text-align: center; overflow: hidden; }
+#startModal #binderList .binder-row-name { font-size: 12px; overflow-wrap: anywhere; }
+#startModal #binderList .binder-row-meta { display: none; }
+#startModal #binderList .binder-row-count { font-size: 12px; }
+.binder-pager { display: flex; justify-content: center; align-items: center; gap: 8px; flex: none; }
+.binder-pager button { min-height: 44px; padding: 6px 12px; background: var(--panel-tile); color: var(--gold-1); border: 1px solid var(--gold-line); border-radius: 8px; }
+.binder-pager button:disabled { opacity: .4; }
+.single-card-shop { padding: 12px; margin: 12px 0; border: 1px solid var(--gold-line); border-radius: 12px; background: var(--panel-inset); }
+.single-card-shop select { display: block; max-width: 100%; width: 100%; min-height: 44px; margin: 8px 0; background: var(--panel-tile); color: var(--text-main); font-size: 16px; }
+.single-card-shop .menu-btn { min-height: 44px; margin: 4px; font-size: 12px; }
+#leadNotice { position: fixed; top: max(80px, 18dvh); left: 50%; transform: translateX(-50%); padding: 10px 18px; border: 1px solid var(--gold-1); border-radius: 12px; background: var(--panel-strong); color: var(--gold-1); font: 700 18px var(--font-heading); z-index: 900; pointer-events: none; opacity: 0; white-space: nowrap; }
+#leadNotice.show { animation: lead-notice 2.4s ease both; }
+@keyframes lead-notice { 0%,100% { opacity: 0; } 12%,80% { opacity: 1; } }
+@media (max-width: 519px) { #startModal #binderList { grid-template-columns: repeat(2,minmax(0,1fr)); } #startModal #binderScreen .menu-back { min-height: 44px; padding: 6px; } }
+@media (max-height: 500px) { #startModal #binderList { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: minmax(0,1fr); } #startModal #binderScreen .modal-subtitle, #startModal #binderShowing { display:none; } #startModal #binderScreen .menu-back { padding:4px; min-height:32px; } }
+@media (prefers-reduced-motion: reduce) { #leadNotice.show { animation-timing-function: steps(1,end); } }
+
+#startModal #binderList .binder-row[hidden] { display: none !important; }
+
+.binder-pager[hidden] { display: none; }

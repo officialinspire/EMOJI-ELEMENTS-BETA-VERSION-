@@ -1,6 +1,6 @@
 # Achievements
 
-EMOJI ELEMENTS has 150 achievements in 13 categories. The catalog and the unlock logic are in `achievements.js` (`window.Achievements`). The game reports confirmed outcomes to it from `index.js`. The Achievements screen and the unlock notices are in `index.js` (`renderAchievements`, `queueAchievementNotice`), with styles under "Achievements" in `styles.css`.
+EMOJI ELEMENTS has 400 achievements in 13 categories. The catalog and the unlock logic are in `achievements.js` (`window.Achievements`). The game reports confirmed outcomes to it from `index.js`. The Achievements screen and the unlock notices are in `index.js` (`renderAchievements`, `queueAchievementNotice`), with styles under "Achievements" in `styles.css`.
 
 The full catalog, with every trigger, is in [§8](#8-the-catalog). That table is generated from the code by `npm run achievements:doc`. The test suite fails if the table no longer matches the code.
 
@@ -225,7 +225,7 @@ Helpers used in the triggers:
 | 9 | `first-deck` | 🛠️ Deckwright | common | Save a deck in the Deck Builder. | `deck:saved` | `true` |  |
 | 10 | `first-mulligan` | 🔄 Take-Backsies | common | Take a mulligan. | `mulligan` | `true` |  |
 
-### 🏁 Wins & losses (12)
+### 🏁 Wins & losses (22)
 
 | # | ID | Name | Tier | Description (shown in game) | Event | Exact trigger | Backfill |
 |---|---|---|---|---|---|---|---|
@@ -241,6 +241,16 @@ Helpers used in the triggers:
 | 20 | `marathon` | 🐢 War of Attrition | rare | Win a match that reached turn 20. | `match:end` | `won(e) && x.game.round >= 20` |  |
 | 21 | `so-close` | 🤏 So Close | common | Lose while the enemy had 3 life or less. | `match:end` | `e.result === 'loss' && x.game.enemyLife <= 3` |  |
 | 22 | `rematch` | 🥊 Rematch Royale | common | Win the match right after a loss. | `match:end` | `won(e) && x.c.previousResult === 'loss'` |  |
+| 391 | `mastery-career-3` | 🏆 Duelist career 1 | epic | Win 3 matches in total. | `match:end` | `x.wins ≥ 3` | yes |
+| 392 | `mastery-career-5` | 🏆 Duelist career 2 | epic | Win 5 matches in total. | `match:end` | `x.wins ≥ 5` | yes |
+| 393 | `mastery-career-15` | 🏆 Duelist career 3 | epic | Win 15 matches in total. | `match:end` | `x.wins ≥ 15` | yes |
+| 394 | `mastery-career-30` | 🏆 Duelist career 4 | epic | Win 30 matches in total. | `match:end` | `x.wins ≥ 30` | yes |
+| 395 | `mastery-career-75` | 🏆 Duelist career 5 | epic | Win 75 matches in total. | `match:end` | `x.wins ≥ 75` | yes |
+| 396 | `mastery-career-150` | 🏆 Duelist career 6 | legendary | Win 150 matches in total. | `match:end` | `x.wins ≥ 150` | yes |
+| 397 | `mastery-career-300` | 🏆 Duelist career 7 | legendary | Win 300 matches in total. | `match:end` | `x.wins ≥ 300` | yes |
+| 398 | `mastery-career-600` | 🏆 Duelist career 8 | legendary | Win 600 matches in total. | `match:end` | `x.wins ≥ 600` | yes |
+| 399 | `mastery-career-1200` | 🏆 Duelist career 9 | legendary | Win 1200 matches in total. | `match:end` | `x.wins ≥ 1200` | yes |
+| 400 | `mastery-career-2500` | 🏆 Duelist career 10 | legendary | Win 2500 matches in total. | `match:end` | `x.wins ≥ 2500` | yes |
 
 ### 🎚️ Difficulty (9)
 
@@ -256,7 +266,7 @@ Helpers used in the triggers:
 | 30 | `all-difficulties` | 🎚️ Full Spectrum | rare | Win on Easy, Medium and Hard. | `match:end` | `(x.c.difficultiesWon \|\| []).length ≥ 3` |  |
 | 31 | `hard-underdog` | 🐕 Underdog | epic | Win on Hard while the enemy has more creatures on the battlefield than you. | `match:end` | `won(e) && x.m.difficulty === 'hard' && creaturesOf(x.game.enemyBoard).length > creaturesOf(x.game.playerBoard).length` |  |
 
-### 🃏 Decks (15)
+### 🃏 Decks (165)
 
 | # | ID | Name | Tier | Description (shown in game) | Event | Exact trigger | Backfill |
 |---|---|---|---|---|---|---|---|
@@ -275,8 +285,158 @@ Helpers used in the triggers:
 | 44 | `deck-earth-swamp` | 🍂 Compost Heap | rare | Win a match with the Earth + Swamp deck. | `match:end` | `won(e) && x.m.deckKey === key` |  |
 | 45 | `deck-earth-light` | 🌻 Photosynthesis | rare | Win a match with the Earth + Light deck. | `match:end` | `won(e) && x.m.deckKey === key` |  |
 | 46 | `deck-swamp-light` | 🌗 Twilight | rare | Win a match with the Swamp + Light deck. | `match:end` | `won(e) && x.m.deckKey === key` |  |
+| 151 | `mastery-deck-fire-3` | 🔥 Pyromaniac: Mastery 1 | rare | Win 3 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 152 | `mastery-deck-fire-5` | 🔥 Pyromaniac: Mastery 2 | rare | Win 5 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 153 | `mastery-deck-fire-15` | 🔥 Pyromaniac: Mastery 3 | rare | Win 15 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 154 | `mastery-deck-fire-30` | 🔥 Pyromaniac: Mastery 4 | epic | Win 30 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 155 | `mastery-deck-fire-75` | 🔥 Pyromaniac: Mastery 5 | epic | Win 75 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 156 | `mastery-deck-fire-150` | 🔥 Pyromaniac: Mastery 6 | epic | Win 150 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 157 | `mastery-deck-fire-300` | 🔥 Pyromaniac: Mastery 7 | epic | Win 300 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 158 | `mastery-deck-fire-600` | 🔥 Pyromaniac: Mastery 8 | legendary | Win 600 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 159 | `mastery-deck-fire-1200` | 🔥 Pyromaniac: Mastery 9 | legendary | Win 1200 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 160 | `mastery-deck-fire-2500` | 🔥 Pyromaniac: Mastery 10 | legendary | Win 2500 matches with the FIRE deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 161 | `mastery-deck-water-3` | 💧 Making Waves: Mastery 1 | rare | Win 3 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 162 | `mastery-deck-water-5` | 💧 Making Waves: Mastery 2 | rare | Win 5 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 163 | `mastery-deck-water-15` | 💧 Making Waves: Mastery 3 | rare | Win 15 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 164 | `mastery-deck-water-30` | 💧 Making Waves: Mastery 4 | epic | Win 30 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 165 | `mastery-deck-water-75` | 💧 Making Waves: Mastery 5 | epic | Win 75 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 166 | `mastery-deck-water-150` | 💧 Making Waves: Mastery 6 | epic | Win 150 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 167 | `mastery-deck-water-300` | 💧 Making Waves: Mastery 7 | epic | Win 300 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 168 | `mastery-deck-water-600` | 💧 Making Waves: Mastery 8 | legendary | Win 600 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 169 | `mastery-deck-water-1200` | 💧 Making Waves: Mastery 9 | legendary | Win 1200 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 170 | `mastery-deck-water-2500` | 💧 Making Waves: Mastery 10 | legendary | Win 2500 matches with the WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 171 | `mastery-deck-earth-3` | 🌍 Down to Earth: Mastery 1 | rare | Win 3 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 172 | `mastery-deck-earth-5` | 🌍 Down to Earth: Mastery 2 | rare | Win 5 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 173 | `mastery-deck-earth-15` | 🌍 Down to Earth: Mastery 3 | rare | Win 15 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 174 | `mastery-deck-earth-30` | 🌍 Down to Earth: Mastery 4 | epic | Win 30 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 175 | `mastery-deck-earth-75` | 🌍 Down to Earth: Mastery 5 | epic | Win 75 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 176 | `mastery-deck-earth-150` | 🌍 Down to Earth: Mastery 6 | epic | Win 150 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 177 | `mastery-deck-earth-300` | 🌍 Down to Earth: Mastery 7 | epic | Win 300 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 178 | `mastery-deck-earth-600` | 🌍 Down to Earth: Mastery 8 | legendary | Win 600 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 179 | `mastery-deck-earth-1200` | 🌍 Down to Earth: Mastery 9 | legendary | Win 1200 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 180 | `mastery-deck-earth-2500` | 🌍 Down to Earth: Mastery 10 | legendary | Win 2500 matches with the EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 181 | `mastery-deck-swamp-3` | 💀 Swamp Thing: Mastery 1 | rare | Win 3 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 182 | `mastery-deck-swamp-5` | 💀 Swamp Thing: Mastery 2 | rare | Win 5 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 183 | `mastery-deck-swamp-15` | 💀 Swamp Thing: Mastery 3 | rare | Win 15 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 184 | `mastery-deck-swamp-30` | 💀 Swamp Thing: Mastery 4 | epic | Win 30 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 185 | `mastery-deck-swamp-75` | 💀 Swamp Thing: Mastery 5 | epic | Win 75 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 186 | `mastery-deck-swamp-150` | 💀 Swamp Thing: Mastery 6 | epic | Win 150 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 187 | `mastery-deck-swamp-300` | 💀 Swamp Thing: Mastery 7 | epic | Win 300 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 188 | `mastery-deck-swamp-600` | 💀 Swamp Thing: Mastery 8 | legendary | Win 600 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 189 | `mastery-deck-swamp-1200` | 💀 Swamp Thing: Mastery 9 | legendary | Win 1200 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 190 | `mastery-deck-swamp-2500` | 💀 Swamp Thing: Mastery 10 | legendary | Win 2500 matches with the SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 191 | `mastery-deck-light-3` | ☀️ Enlightened: Mastery 1 | rare | Win 3 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 192 | `mastery-deck-light-5` | ☀️ Enlightened: Mastery 2 | rare | Win 5 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 193 | `mastery-deck-light-15` | ☀️ Enlightened: Mastery 3 | rare | Win 15 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 194 | `mastery-deck-light-30` | ☀️ Enlightened: Mastery 4 | epic | Win 30 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 195 | `mastery-deck-light-75` | ☀️ Enlightened: Mastery 5 | epic | Win 75 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 196 | `mastery-deck-light-150` | ☀️ Enlightened: Mastery 6 | epic | Win 150 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 197 | `mastery-deck-light-300` | ☀️ Enlightened: Mastery 7 | epic | Win 300 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 198 | `mastery-deck-light-600` | ☀️ Enlightened: Mastery 8 | legendary | Win 600 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 199 | `mastery-deck-light-1200` | ☀️ Enlightened: Mastery 9 | legendary | Win 1200 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 200 | `mastery-deck-light-2500` | ☀️ Enlightened: Mastery 10 | legendary | Win 2500 matches with the LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 201 | `mastery-deck-fire-water-3` | ♨️ Steam Engine: Mastery 1 | rare | Win 3 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 202 | `mastery-deck-fire-water-5` | ♨️ Steam Engine: Mastery 2 | rare | Win 5 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 203 | `mastery-deck-fire-water-15` | ♨️ Steam Engine: Mastery 3 | rare | Win 15 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 204 | `mastery-deck-fire-water-30` | ♨️ Steam Engine: Mastery 4 | epic | Win 30 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 205 | `mastery-deck-fire-water-75` | ♨️ Steam Engine: Mastery 5 | epic | Win 75 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 206 | `mastery-deck-fire-water-150` | ♨️ Steam Engine: Mastery 6 | epic | Win 150 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 207 | `mastery-deck-fire-water-300` | ♨️ Steam Engine: Mastery 7 | epic | Win 300 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 208 | `mastery-deck-fire-water-600` | ♨️ Steam Engine: Mastery 8 | legendary | Win 600 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 209 | `mastery-deck-fire-water-1200` | ♨️ Steam Engine: Mastery 9 | legendary | Win 1200 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 210 | `mastery-deck-fire-water-2500` | ♨️ Steam Engine: Mastery 10 | legendary | Win 2500 matches with the FIRE + WATER deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 211 | `mastery-deck-fire-earth-3` | 🌋 Magma Flow: Mastery 1 | rare | Win 3 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 212 | `mastery-deck-fire-earth-5` | 🌋 Magma Flow: Mastery 2 | rare | Win 5 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 213 | `mastery-deck-fire-earth-15` | 🌋 Magma Flow: Mastery 3 | rare | Win 15 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 214 | `mastery-deck-fire-earth-30` | 🌋 Magma Flow: Mastery 4 | epic | Win 30 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 215 | `mastery-deck-fire-earth-75` | 🌋 Magma Flow: Mastery 5 | epic | Win 75 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 216 | `mastery-deck-fire-earth-150` | 🌋 Magma Flow: Mastery 6 | epic | Win 150 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 217 | `mastery-deck-fire-earth-300` | 🌋 Magma Flow: Mastery 7 | epic | Win 300 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 218 | `mastery-deck-fire-earth-600` | 🌋 Magma Flow: Mastery 8 | legendary | Win 600 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 219 | `mastery-deck-fire-earth-1200` | 🌋 Magma Flow: Mastery 9 | legendary | Win 1200 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 220 | `mastery-deck-fire-earth-2500` | 🌋 Magma Flow: Mastery 10 | legendary | Win 2500 matches with the FIRE + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 221 | `mastery-deck-fire-swamp-3` | 😈 Hellfire: Mastery 1 | rare | Win 3 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 222 | `mastery-deck-fire-swamp-5` | 😈 Hellfire: Mastery 2 | rare | Win 5 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 223 | `mastery-deck-fire-swamp-15` | 😈 Hellfire: Mastery 3 | rare | Win 15 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 224 | `mastery-deck-fire-swamp-30` | 😈 Hellfire: Mastery 4 | epic | Win 30 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 225 | `mastery-deck-fire-swamp-75` | 😈 Hellfire: Mastery 5 | epic | Win 75 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 226 | `mastery-deck-fire-swamp-150` | 😈 Hellfire: Mastery 6 | epic | Win 150 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 227 | `mastery-deck-fire-swamp-300` | 😈 Hellfire: Mastery 7 | epic | Win 300 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 228 | `mastery-deck-fire-swamp-600` | 😈 Hellfire: Mastery 8 | legendary | Win 600 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 229 | `mastery-deck-fire-swamp-1200` | 😈 Hellfire: Mastery 9 | legendary | Win 1200 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 230 | `mastery-deck-fire-swamp-2500` | 😈 Hellfire: Mastery 10 | legendary | Win 2500 matches with the FIRE + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 231 | `mastery-deck-fire-light-3` | 🌞 Solar Flare: Mastery 1 | rare | Win 3 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 232 | `mastery-deck-fire-light-5` | 🌞 Solar Flare: Mastery 2 | rare | Win 5 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 233 | `mastery-deck-fire-light-15` | 🌞 Solar Flare: Mastery 3 | rare | Win 15 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 234 | `mastery-deck-fire-light-30` | 🌞 Solar Flare: Mastery 4 | epic | Win 30 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 235 | `mastery-deck-fire-light-75` | 🌞 Solar Flare: Mastery 5 | epic | Win 75 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 236 | `mastery-deck-fire-light-150` | 🌞 Solar Flare: Mastery 6 | epic | Win 150 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 237 | `mastery-deck-fire-light-300` | 🌞 Solar Flare: Mastery 7 | epic | Win 300 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 238 | `mastery-deck-fire-light-600` | 🌞 Solar Flare: Mastery 8 | legendary | Win 600 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 239 | `mastery-deck-fire-light-1200` | 🌞 Solar Flare: Mastery 9 | legendary | Win 1200 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 240 | `mastery-deck-fire-light-2500` | 🌞 Solar Flare: Mastery 10 | legendary | Win 2500 matches with the FIRE + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 241 | `mastery-deck-water-earth-3` | 🟫 Mudslide: Mastery 1 | rare | Win 3 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 242 | `mastery-deck-water-earth-5` | 🟫 Mudslide: Mastery 2 | rare | Win 5 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 243 | `mastery-deck-water-earth-15` | 🟫 Mudslide: Mastery 3 | rare | Win 15 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 244 | `mastery-deck-water-earth-30` | 🟫 Mudslide: Mastery 4 | epic | Win 30 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 245 | `mastery-deck-water-earth-75` | 🟫 Mudslide: Mastery 5 | epic | Win 75 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 246 | `mastery-deck-water-earth-150` | 🟫 Mudslide: Mastery 6 | epic | Win 150 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 247 | `mastery-deck-water-earth-300` | 🟫 Mudslide: Mastery 7 | epic | Win 300 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 248 | `mastery-deck-water-earth-600` | 🟫 Mudslide: Mastery 8 | legendary | Win 600 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 249 | `mastery-deck-water-earth-1200` | 🟫 Mudslide: Mastery 9 | legendary | Win 1200 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 250 | `mastery-deck-water-earth-2500` | 🟫 Mudslide: Mastery 10 | legendary | Win 2500 matches with the WATER + EARTH deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 251 | `mastery-deck-water-swamp-3` | 🐸 Bog Standard: Mastery 1 | rare | Win 3 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 252 | `mastery-deck-water-swamp-5` | 🐸 Bog Standard: Mastery 2 | rare | Win 5 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 253 | `mastery-deck-water-swamp-15` | 🐸 Bog Standard: Mastery 3 | rare | Win 15 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 254 | `mastery-deck-water-swamp-30` | 🐸 Bog Standard: Mastery 4 | epic | Win 30 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 255 | `mastery-deck-water-swamp-75` | 🐸 Bog Standard: Mastery 5 | epic | Win 75 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 256 | `mastery-deck-water-swamp-150` | 🐸 Bog Standard: Mastery 6 | epic | Win 150 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 257 | `mastery-deck-water-swamp-300` | 🐸 Bog Standard: Mastery 7 | epic | Win 300 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 258 | `mastery-deck-water-swamp-600` | 🐸 Bog Standard: Mastery 8 | legendary | Win 600 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 259 | `mastery-deck-water-swamp-1200` | 🐸 Bog Standard: Mastery 9 | legendary | Win 1200 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 260 | `mastery-deck-water-swamp-2500` | 🐸 Bog Standard: Mastery 10 | legendary | Win 2500 matches with the WATER + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 261 | `mastery-deck-water-light-3` | 🌦️ Rainbow Maker: Mastery 1 | rare | Win 3 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 262 | `mastery-deck-water-light-5` | 🌦️ Rainbow Maker: Mastery 2 | rare | Win 5 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 263 | `mastery-deck-water-light-15` | 🌦️ Rainbow Maker: Mastery 3 | rare | Win 15 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 264 | `mastery-deck-water-light-30` | 🌦️ Rainbow Maker: Mastery 4 | epic | Win 30 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 265 | `mastery-deck-water-light-75` | 🌦️ Rainbow Maker: Mastery 5 | epic | Win 75 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 266 | `mastery-deck-water-light-150` | 🌦️ Rainbow Maker: Mastery 6 | epic | Win 150 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 267 | `mastery-deck-water-light-300` | 🌦️ Rainbow Maker: Mastery 7 | epic | Win 300 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 268 | `mastery-deck-water-light-600` | 🌦️ Rainbow Maker: Mastery 8 | legendary | Win 600 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 269 | `mastery-deck-water-light-1200` | 🌦️ Rainbow Maker: Mastery 9 | legendary | Win 1200 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 270 | `mastery-deck-water-light-2500` | 🌦️ Rainbow Maker: Mastery 10 | legendary | Win 2500 matches with the WATER + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 271 | `mastery-deck-earth-swamp-3` | 🍂 Compost Heap: Mastery 1 | rare | Win 3 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 272 | `mastery-deck-earth-swamp-5` | 🍂 Compost Heap: Mastery 2 | rare | Win 5 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 273 | `mastery-deck-earth-swamp-15` | 🍂 Compost Heap: Mastery 3 | rare | Win 15 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 274 | `mastery-deck-earth-swamp-30` | 🍂 Compost Heap: Mastery 4 | epic | Win 30 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 275 | `mastery-deck-earth-swamp-75` | 🍂 Compost Heap: Mastery 5 | epic | Win 75 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 276 | `mastery-deck-earth-swamp-150` | 🍂 Compost Heap: Mastery 6 | epic | Win 150 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 277 | `mastery-deck-earth-swamp-300` | 🍂 Compost Heap: Mastery 7 | epic | Win 300 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 278 | `mastery-deck-earth-swamp-600` | 🍂 Compost Heap: Mastery 8 | legendary | Win 600 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 279 | `mastery-deck-earth-swamp-1200` | 🍂 Compost Heap: Mastery 9 | legendary | Win 1200 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 280 | `mastery-deck-earth-swamp-2500` | 🍂 Compost Heap: Mastery 10 | legendary | Win 2500 matches with the EARTH + SWAMP deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 281 | `mastery-deck-earth-light-3` | 🌻 Photosynthesis: Mastery 1 | rare | Win 3 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 282 | `mastery-deck-earth-light-5` | 🌻 Photosynthesis: Mastery 2 | rare | Win 5 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 283 | `mastery-deck-earth-light-15` | 🌻 Photosynthesis: Mastery 3 | rare | Win 15 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 284 | `mastery-deck-earth-light-30` | 🌻 Photosynthesis: Mastery 4 | epic | Win 30 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 285 | `mastery-deck-earth-light-75` | 🌻 Photosynthesis: Mastery 5 | epic | Win 75 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 286 | `mastery-deck-earth-light-150` | 🌻 Photosynthesis: Mastery 6 | epic | Win 150 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 287 | `mastery-deck-earth-light-300` | 🌻 Photosynthesis: Mastery 7 | epic | Win 300 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 288 | `mastery-deck-earth-light-600` | 🌻 Photosynthesis: Mastery 8 | legendary | Win 600 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 289 | `mastery-deck-earth-light-1200` | 🌻 Photosynthesis: Mastery 9 | legendary | Win 1200 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 290 | `mastery-deck-earth-light-2500` | 🌻 Photosynthesis: Mastery 10 | legendary | Win 2500 matches with the EARTH + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
+| 291 | `mastery-deck-swamp-light-3` | 🌗 Twilight: Mastery 1 | rare | Win 3 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 3` |  |
+| 292 | `mastery-deck-swamp-light-5` | 🌗 Twilight: Mastery 2 | rare | Win 5 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 5` |  |
+| 293 | `mastery-deck-swamp-light-15` | 🌗 Twilight: Mastery 3 | rare | Win 15 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 15` |  |
+| 294 | `mastery-deck-swamp-light-30` | 🌗 Twilight: Mastery 4 | epic | Win 30 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 30` |  |
+| 295 | `mastery-deck-swamp-light-75` | 🌗 Twilight: Mastery 5 | epic | Win 75 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 75` |  |
+| 296 | `mastery-deck-swamp-light-150` | 🌗 Twilight: Mastery 6 | epic | Win 150 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 150` |  |
+| 297 | `mastery-deck-swamp-light-300` | 🌗 Twilight: Mastery 7 | epic | Win 300 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 300` |  |
+| 298 | `mastery-deck-swamp-light-600` | 🌗 Twilight: Mastery 8 | legendary | Win 600 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 600` |  |
+| 299 | `mastery-deck-swamp-light-1200` | 🌗 Twilight: Mastery 9 | legendary | Win 1200 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 1200` |  |
+| 300 | `mastery-deck-swamp-light-2500` | 🌗 Twilight: Mastery 10 | legendary | Win 2500 matches with the SWAMP + LIGHT deck. Counted from this update. | `match:end` | `x.c[`played.deck.${key}`] \|\| 0 ≥ 2500` |  |
 
-### 🔥 Elements (10)
+### 🔥 Elements (60)
 
 | # | ID | Name | Tier | Description (shown in game) | Event | Exact trigger | Backfill |
 |---|---|---|---|---|---|---|---|
@@ -290,8 +450,58 @@ Helpers used in the triggers:
 | 54 | `earth-heavy` | 🦣 Heavyweight | rare | Control an Earth creature with 7 or more power. | `board` | `creaturesOf(x.game.playerBoard).some(c => x.el(c).includes('earth') && c.power >= 7)` |  |
 | 55 | `swamp-necro` | ⚰️ Grave Robber | common | Bring a creature back with Necromancy. | `spell:resolved` | `e.side === 'player' && e.card.__id === 'spells-necromancy' && !!e.revived` |  |
 | 56 | `light-heal` | 😇 Holy Glow | rare | Gain 10 or more life in one match. | `life:changed` | `x.m.lifeGained >= 10` |  |
+| 301 | `mastery-element-fire-3` | 🪵 Kindling Collector: Practice 1 | rare | Play 3 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 3` |  |
+| 302 | `mastery-element-fire-5` | 🪵 Kindling Collector: Practice 2 | rare | Play 5 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 5` |  |
+| 303 | `mastery-element-fire-15` | 🪵 Kindling Collector: Practice 3 | rare | Play 15 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 15` |  |
+| 304 | `mastery-element-fire-30` | 🪵 Kindling Collector: Practice 4 | rare | Play 30 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 30` |  |
+| 305 | `mastery-element-fire-75` | 🪵 Kindling Collector: Practice 5 | rare | Play 75 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 75` |  |
+| 306 | `mastery-element-fire-150` | 🪵 Kindling Collector: Practice 6 | epic | Play 150 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 150` |  |
+| 307 | `mastery-element-fire-300` | 🪵 Kindling Collector: Practice 7 | epic | Play 300 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 300` |  |
+| 308 | `mastery-element-fire-600` | 🪵 Kindling Collector: Practice 8 | epic | Play 600 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 600` |  |
+| 309 | `mastery-element-fire-1200` | 🪵 Kindling Collector: Practice 9 | epic | Play 1200 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 1200` |  |
+| 310 | `mastery-element-fire-2500` | 🪵 Kindling Collector: Practice 10 | epic | Play 2500 non-land Fire cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 2500` |  |
+| 311 | `mastery-element-water-3` | 🚰 Hydrated: Practice 1 | rare | Play 3 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 3` |  |
+| 312 | `mastery-element-water-5` | 🚰 Hydrated: Practice 2 | rare | Play 5 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 5` |  |
+| 313 | `mastery-element-water-15` | 🚰 Hydrated: Practice 3 | rare | Play 15 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 15` |  |
+| 314 | `mastery-element-water-30` | 🚰 Hydrated: Practice 4 | rare | Play 30 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 30` |  |
+| 315 | `mastery-element-water-75` | 🚰 Hydrated: Practice 5 | rare | Play 75 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 75` |  |
+| 316 | `mastery-element-water-150` | 🚰 Hydrated: Practice 6 | epic | Play 150 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 150` |  |
+| 317 | `mastery-element-water-300` | 🚰 Hydrated: Practice 7 | epic | Play 300 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 300` |  |
+| 318 | `mastery-element-water-600` | 🚰 Hydrated: Practice 8 | epic | Play 600 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 600` |  |
+| 319 | `mastery-element-water-1200` | 🚰 Hydrated: Practice 9 | epic | Play 1200 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 1200` |  |
+| 320 | `mastery-element-water-2500` | 🚰 Hydrated: Practice 10 | epic | Play 2500 non-land Water cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 2500` |  |
+| 321 | `mastery-element-earth-3` | 🌳 Rooted: Practice 1 | rare | Play 3 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 3` |  |
+| 322 | `mastery-element-earth-5` | 🌳 Rooted: Practice 2 | rare | Play 5 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 5` |  |
+| 323 | `mastery-element-earth-15` | 🌳 Rooted: Practice 3 | rare | Play 15 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 15` |  |
+| 324 | `mastery-element-earth-30` | 🌳 Rooted: Practice 4 | rare | Play 30 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 30` |  |
+| 325 | `mastery-element-earth-75` | 🌳 Rooted: Practice 5 | rare | Play 75 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 75` |  |
+| 326 | `mastery-element-earth-150` | 🌳 Rooted: Practice 6 | epic | Play 150 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 150` |  |
+| 327 | `mastery-element-earth-300` | 🌳 Rooted: Practice 7 | epic | Play 300 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 300` |  |
+| 328 | `mastery-element-earth-600` | 🌳 Rooted: Practice 8 | epic | Play 600 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 600` |  |
+| 329 | `mastery-element-earth-1200` | 🌳 Rooted: Practice 9 | epic | Play 1200 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 1200` |  |
+| 330 | `mastery-element-earth-2500` | 🌳 Rooted: Practice 10 | epic | Play 2500 non-land Earth cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 2500` |  |
+| 331 | `mastery-element-swamp-3` | 🫧 Swamp Gas: Practice 1 | rare | Play 3 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 3` |  |
+| 332 | `mastery-element-swamp-5` | 🫧 Swamp Gas: Practice 2 | rare | Play 5 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 5` |  |
+| 333 | `mastery-element-swamp-15` | 🫧 Swamp Gas: Practice 3 | rare | Play 15 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 15` |  |
+| 334 | `mastery-element-swamp-30` | 🫧 Swamp Gas: Practice 4 | rare | Play 30 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 30` |  |
+| 335 | `mastery-element-swamp-75` | 🫧 Swamp Gas: Practice 5 | rare | Play 75 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 75` |  |
+| 336 | `mastery-element-swamp-150` | 🫧 Swamp Gas: Practice 6 | epic | Play 150 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 150` |  |
+| 337 | `mastery-element-swamp-300` | 🫧 Swamp Gas: Practice 7 | epic | Play 300 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 300` |  |
+| 338 | `mastery-element-swamp-600` | 🫧 Swamp Gas: Practice 8 | epic | Play 600 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 600` |  |
+| 339 | `mastery-element-swamp-1200` | 🫧 Swamp Gas: Practice 9 | epic | Play 1200 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 1200` |  |
+| 340 | `mastery-element-swamp-2500` | 🫧 Swamp Gas: Practice 10 | epic | Play 2500 non-land Swamp cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 2500` |  |
+| 341 | `mastery-element-light-3` | 😎 Sunbather: Practice 1 | rare | Play 3 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 3` |  |
+| 342 | `mastery-element-light-5` | 😎 Sunbather: Practice 2 | rare | Play 5 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 5` |  |
+| 343 | `mastery-element-light-15` | 😎 Sunbather: Practice 3 | rare | Play 15 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 15` |  |
+| 344 | `mastery-element-light-30` | 😎 Sunbather: Practice 4 | rare | Play 30 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 30` |  |
+| 345 | `mastery-element-light-75` | 😎 Sunbather: Practice 5 | rare | Play 75 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 75` |  |
+| 346 | `mastery-element-light-150` | 😎 Sunbather: Practice 6 | epic | Play 150 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 150` |  |
+| 347 | `mastery-element-light-300` | 😎 Sunbather: Practice 7 | epic | Play 300 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 300` |  |
+| 348 | `mastery-element-light-600` | 😎 Sunbather: Practice 8 | epic | Play 600 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 600` |  |
+| 349 | `mastery-element-light-1200` | 😎 Sunbather: Practice 9 | epic | Play 1200 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 1200` |  |
+| 350 | `mastery-element-light-2500` | 😎 Sunbather: Practice 10 | epic | Play 2500 non-land Light cards. | `card:played` | `x.c[`plays.${key}`] \|\| 0 ≥ 2500` |  |
 
-### 🗂️ Card types (8)
+### 🗂️ Card types (48)
 
 | # | ID | Name | Tier | Description (shown in game) | Event | Exact trigger | Backfill |
 |---|---|---|---|---|---|---|---|
@@ -303,6 +513,46 @@ Helpers used in the triggers:
 | 62 | `instants-turn-3` | 🎇 Combo Caster | epic | Cast 3 instants in one turn. | `card:played` | `x.m.instantsThisTurn >= 3` |  |
 | 63 | `tokens-10` | 🎟️ Token Gesture | common | Create 10 tokens. | `spell:resolved` | `x.c.tokens \|\| 0 ≥ 10` |  |
 | 64 | `legendary-play` | 🌟 Legend Has It | rare | Play a Legendary card. | `card:played` | `x.rarity(e.card) === 'legendary'` |  |
+| 351 | `mastery-type-creature-3` | 🃏 Creature specialist 1 | rare | Play 3 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 3` |  |
+| 352 | `mastery-type-creature-5` | 🃏 Creature specialist 2 | rare | Play 5 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 5` |  |
+| 353 | `mastery-type-creature-15` | 🃏 Creature specialist 3 | rare | Play 15 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 15` |  |
+| 354 | `mastery-type-creature-30` | 🃏 Creature specialist 4 | rare | Play 30 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 30` |  |
+| 355 | `mastery-type-creature-75` | 🃏 Creature specialist 5 | rare | Play 75 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 75` |  |
+| 356 | `mastery-type-creature-150` | 🃏 Creature specialist 6 | epic | Play 150 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 150` |  |
+| 357 | `mastery-type-creature-300` | 🃏 Creature specialist 7 | epic | Play 300 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 300` |  |
+| 358 | `mastery-type-creature-600` | 🃏 Creature specialist 8 | epic | Play 600 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 600` |  |
+| 359 | `mastery-type-creature-1200` | 🃏 Creature specialist 9 | epic | Play 1200 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 1200` |  |
+| 360 | `mastery-type-creature-2500` | 🃏 Creature specialist 10 | epic | Play 2500 creature cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 2500` |  |
+| 361 | `mastery-type-instant-3` | 🃏 Instant specialist 1 | rare | Play 3 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 3` |  |
+| 362 | `mastery-type-instant-5` | 🃏 Instant specialist 2 | rare | Play 5 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 5` |  |
+| 363 | `mastery-type-instant-15` | 🃏 Instant specialist 3 | rare | Play 15 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 15` |  |
+| 364 | `mastery-type-instant-30` | 🃏 Instant specialist 4 | rare | Play 30 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 30` |  |
+| 365 | `mastery-type-instant-75` | 🃏 Instant specialist 5 | rare | Play 75 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 75` |  |
+| 366 | `mastery-type-instant-150` | 🃏 Instant specialist 6 | epic | Play 150 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 150` |  |
+| 367 | `mastery-type-instant-300` | 🃏 Instant specialist 7 | epic | Play 300 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 300` |  |
+| 368 | `mastery-type-instant-600` | 🃏 Instant specialist 8 | epic | Play 600 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 600` |  |
+| 369 | `mastery-type-instant-1200` | 🃏 Instant specialist 9 | epic | Play 1200 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 1200` |  |
+| 370 | `mastery-type-instant-2500` | 🃏 Instant specialist 10 | epic | Play 2500 instant cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 2500` |  |
+| 371 | `mastery-type-artifact-3` | 🃏 Artifact specialist 1 | rare | Play 3 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 3` |  |
+| 372 | `mastery-type-artifact-5` | 🃏 Artifact specialist 2 | rare | Play 5 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 5` |  |
+| 373 | `mastery-type-artifact-15` | 🃏 Artifact specialist 3 | rare | Play 15 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 15` |  |
+| 374 | `mastery-type-artifact-30` | 🃏 Artifact specialist 4 | rare | Play 30 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 30` |  |
+| 375 | `mastery-type-artifact-75` | 🃏 Artifact specialist 5 | rare | Play 75 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 75` |  |
+| 376 | `mastery-type-artifact-150` | 🃏 Artifact specialist 6 | epic | Play 150 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 150` |  |
+| 377 | `mastery-type-artifact-300` | 🃏 Artifact specialist 7 | epic | Play 300 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 300` |  |
+| 378 | `mastery-type-artifact-600` | 🃏 Artifact specialist 8 | epic | Play 600 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 600` |  |
+| 379 | `mastery-type-artifact-1200` | 🃏 Artifact specialist 9 | epic | Play 1200 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 1200` |  |
+| 380 | `mastery-type-artifact-2500` | 🃏 Artifact specialist 10 | epic | Play 2500 artifact cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 2500` |  |
+| 381 | `mastery-type-land-3` | 🃏 Land specialist 1 | rare | Play 3 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 3` |  |
+| 382 | `mastery-type-land-5` | 🃏 Land specialist 2 | rare | Play 5 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 5` |  |
+| 383 | `mastery-type-land-15` | 🃏 Land specialist 3 | rare | Play 15 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 15` |  |
+| 384 | `mastery-type-land-30` | 🃏 Land specialist 4 | rare | Play 30 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 30` |  |
+| 385 | `mastery-type-land-75` | 🃏 Land specialist 5 | rare | Play 75 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 75` |  |
+| 386 | `mastery-type-land-150` | 🃏 Land specialist 6 | epic | Play 150 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 150` |  |
+| 387 | `mastery-type-land-300` | 🃏 Land specialist 7 | epic | Play 300 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 300` |  |
+| 388 | `mastery-type-land-600` | 🃏 Land specialist 8 | epic | Play 600 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 600` |  |
+| 389 | `mastery-type-land-1200` | 🃏 Land specialist 9 | epic | Play 1200 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 1200` |  |
+| 390 | `mastery-type-land-2500` | 🃏 Land specialist 10 | epic | Play 2500 land cards. | `card:played` | `x.c[`played.${type}`] \|\| 0 ≥ 2500` |  |
 
 ### ⚡ Mana & lands (10)
 
@@ -379,7 +629,7 @@ Helpers used in the triggers:
 | 118 | `own-scifi` | 🤓 Sci-Fi Nerd | epic | Own all 56 Science Fiction cards. | `collection` | `x.ownedTheme('Science Fiction') ≥ 56` | yes |
 | 119 | `packs-10` | 🐀 Pack Rat | common | Open 10 booster packs. | `pack:opened` | `x.packsOpened ≥ 10` | yes |
 | 120 | `packs-50` | ✂️ Shrink-Wrap Shredder | epic | Open 50 booster packs. | `pack:opened` | `x.packsOpened ≥ 50` | yes |
-| 121 | `pack-sampler` | 🍱 Sampler Platter | rare | Open one of each of the 6 pack types. | `pack:opened` | `(x.c.packTypes \|\| []).length ≥ 6` |  |
+| 121 | `pack-sampler` | 🍱 Sampler Platter | rare | Open each of the 6 original pack types. | `pack:opened` | `(x.c.packTypes \|\| []).filter(key => ['fantasy','scifi','tech','alien','robot','lands'].includes(key)).length ≥ 6` |  |
 | 122 | `golden-ticket` | 🎫 Golden Ticket | rare | Pull a Legendary card from a pack. | `pack:opened` | `e.cards.some(c => c.rarity === 'legendary')` |  |
 | 123 | `fresh-stock` | 🆕 Fresh Stock | common | Open a pack in which all 5 cards are new to you. | `pack:opened` | `e.cards.length === 5 && e.cards.every(c => c.isNew)` |  |
 | 124 | `deja-vu` | 🪞 Déjà Vu | common | Open a pack with no new cards in it. | `pack:opened` | `e.cards.length > 0 && e.cards.every(c => !c.isNew)` |  |

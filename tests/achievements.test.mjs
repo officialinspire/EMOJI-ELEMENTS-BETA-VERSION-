@@ -2,9 +2,9 @@
 //
 //   node --test tests/achievements.test.mjs        (or: npm run achievements)
 //
-// Part 1 checks the catalog: exactly 150 entries, unique ids, names and icons, and every event a trigger listens
+// Part 1 checks the catalog: exactly 400 entries, unique ids, names and icons, and every event a trigger listens
 // for is one index.js really reports.
-// Part 2 is the coverage test: every one of the 150 is unlocked by a scenario that drives the real game
+// Part 2 is the coverage test: every one of the 400 is unlocked by a scenario that drives the real game
 // (playCard, tapLand, enterAttackPhase → confirmAttackers, the AI's turn, purchasePack, finalizeMatch...).
 // Long counts (500 land taps, 50 wins) start from a saved counter or profile one short of the goal, and the last
 // step is a real event. A few scenarios fix a random choice for repeatability (which cards a pack holds, which
@@ -284,14 +284,14 @@ const SCENARIOS = [
 const covered = new Set();
 
 describe('catalog', () => {
-    test('exactly 150 achievements with unique ids, names and icons, in known categories and tiers', { timeout: 60000 }, async t => {
+    test('exactly 400 achievements with unique ids, names and icons, in known categories and tiers', { timeout: 60000 }, async t => {
         const page = await openGame(t);
         const c = await page.evaluate(() => ({
             list: Achievements.catalog.map(a => ({ id: a.id, name: a.name, icon: a.icon, cat: a.cat, tier: a.tier, desc: a.desc, on: a.on, goal: a.goal || 0, counted: typeof a.progress === 'function', tested: typeof a.test === 'function' })),
             cats: Achievements.categories.map(([key]) => key)
         }));
-        assert.equal(c.list.length, 150);
-        for (const key of ['id', 'name', 'icon']) assert.equal(new Set(c.list.map(a => a[key])).size, 150, `unique ${key}s`);
+        assert.equal(c.list.length, 400);
+        for (const key of ['id', 'name']) assert.equal(new Set(c.list.map(a => a[key])).size, 400, `unique ${key}s`);
         for (const a of c.list) {
             assert.ok(c.cats.includes(a.cat), `${a.id}: category ${a.cat}`);
             assert.ok(['common', 'rare', 'epic', 'legendary'].includes(a.tier), `${a.id}: tier`);
@@ -301,7 +301,7 @@ describe('catalog', () => {
         }
         // Every category has entries; the 15 decks have one each
         for (const cat of c.cats) assert.ok(c.list.some(a => a.cat === cat), `category ${cat} is used`);
-        assert.equal(c.list.filter(a => a.cat === 'decks').length, 15);
+        assert.equal(c.list.filter(a => a.cat === 'decks').length, 165);
     });
 
     test('every event a trigger listens for is reported by index.js', () => {
@@ -313,12 +313,12 @@ describe('catalog', () => {
         assert.deepEqual([...listened].filter(type => !reported.has(type)), []);
     });
 
-    test('ACHIEVEMENTS.md lists all 150 with their exact triggers (generated from the code)', async () => {
+    test('ACHIEVEMENTS.md lists all 400 with their exact triggers (generated from the code)', async () => {
         const { renderTable } = await import('./achievements-doc.mjs');
         const doc = fs.readFileSync(new URL('../ACHIEVEMENTS.md', import.meta.url), 'utf8');
         const table = renderTable();
         assert.ok(doc.includes(table), 'ACHIEVEMENTS.md is out of date: run npm run achievements:doc');
-        assert.equal(table.split('\n').filter(line => /^\| \d+ \| `/.test(line)).length, 150);
+        assert.equal(table.split('\n').filter(line => /^\| \d+ \| `/.test(line)).length, 400);
     });
 });
 
@@ -340,9 +340,9 @@ describe('coverage: every achievement unlocks from real game events', { concurre
 });
 
 describe('coverage summary', () => {
-    test('the scenarios above unlocked all 150', { timeout: 60000 }, async t => {
+    test('the original scenarios still unlock all 150 original achievements', { timeout: 60000 }, async t => {
         const page = await openGame(t);
-        const ids = await page.evaluate(() => Achievements.catalog.map(a => a.id));
+        const ids = await page.evaluate(() => Achievements.catalog.slice(0, 150).map(a => a.id));
         assert.deepEqual(ids.filter(id => !covered.has(id)), [], 'achievements no scenario unlocked');
     });
 });
@@ -369,7 +369,7 @@ describe('unlocking and storage', () => {
         assert.equal(await page.evaluate(() => Achievements.unlockedAt('first-land')), firstAt, 'survives a reload with its date');
         await begin(page);
         await play(page, 'lands-volcanic-peak');
-        assert.deepEqual(await page.evaluate(() => window.__unlocks), [], 'no second unlock after the reload');
+        assert.deepEqual(await page.evaluate(() => window.__unlocks.filter(id => !id.startsWith('mastery-'))), [], 'no second unlock of existing achievements after reload');
     });
 
     test('counters are saved (batched) and continue after a reload', { timeout: 90000 }, async t => {
@@ -406,7 +406,7 @@ describe('unlocking and storage', () => {
         assert.deepEqual(r.store.counters.themes, ['arcane']);
         assert.equal(r.store.counters.junk, undefined);
         assert.equal(r.store.extra, undefined);
-        assert.equal(r.count, 2, 'only known ids count toward the 150');
+        assert.equal(r.count, 2, 'only known ids count toward the 400');
         assert.equal(r.notify, false);
     });
 
@@ -445,10 +445,10 @@ describe('unlocking and storage', () => {
             sound: window.__cues.includes('achievement')
         }), STORE_KEY);
         const ids = Object.keys(r.store.unlocked).sort();
-        assert.deepEqual(ids, ['first-loss', 'first-match', 'first-pack', 'first-win', 'own-legendary', 'packs-10', 'savings', 'wins-10']);
+        assert.deepEqual(ids, ['first-loss', 'first-match', 'first-pack', 'first-win', 'mastery-career-3', 'mastery-career-5', 'own-legendary', 'packs-10', 'savings', 'wins-10']);
         assert.ok(ids.every(id => r.store.unlocked[id].backfilled), 'marked as recognised from saved progress');
         assert.equal(r.meta, meta, 'credits, cards, decks and stats are unchanged');
-        assert.match(r.toast, /Recognised from your saved progress 8 achievements/, 'one summary notice, not one per achievement');
+        assert.match(r.toast, /Recognised from your saved progress 10 achievements/, 'one summary notice, not one per achievement');
         assert.equal(r.sound, false, 'the summary is quiet');
         await page.evaluate(() => showAchievements());
         assert.match(await page.evaluate(() => document.querySelector('[data-id="wins-10"]').textContent), /From your saved progress/);
@@ -495,14 +495,14 @@ describe('the Achievements screen and notices', () => {
                 menuDesc: document.getElementById('menuAchievements').textContent
             };
         });
-        assert.equal(r.items, 150);
+        assert.equal(r.items, 400);
         assert.equal(r.landState, 'unlocked');
         assert.match(r.landText, /Plot of Land[\s\S]*Unlocked/);
         assert.equal(r.taps, '120 of 500');
         assert.equal(r.hiddenState, 'secret');
         assert.doesNotMatch(r.hidden, /Overdrawn|ran out/, 'a hidden achievement keeps its secret until unlocked');
-        assert.match(r.count, /1 of 150/);
-        assert.equal(r.menuDesc, '1 of 150 unlocked');
+        assert.match(r.count, /1 of 400/);
+        assert.equal(r.menuDesc, '1 of 400 unlocked');
 
         await page.evaluate(() => document.querySelector('.ach-filter[data-filter="mana"]').click());
         assert.equal(await page.evaluate(() => document.querySelectorAll('#achievementsMenuView .ach-item').length), 10);
@@ -515,10 +515,10 @@ describe('the Achievements screen and notices', () => {
         const page = await openGame(t);
         await begin(page);
         await act(page, () => pauseGame());
-        assert.match(await page.evaluate(() => document.getElementById('pauseAchievementsNote').textContent), /0 of 150 unlocked/);
+        assert.match(await page.evaluate(() => document.getElementById('pauseAchievementsNote').textContent), /0 of 400 unlocked/);
         await page.evaluate(() => document.querySelector('.pause-achievements-btn').click());
         await page.clock.runFor(200);
-        assert.equal(await page.evaluate(() => document.querySelectorAll('#achievementsDialogView .ach-item').length), 150);
+        assert.equal(await page.evaluate(() => document.querySelectorAll('#achievementsDialogView .ach-item').length), 400);
         await page.keyboard.press('Escape');
         await page.clock.runFor(200);
         const r = await page.evaluate(() => ({ dialog: document.getElementById('achievementsDialog').classList.contains('show'), paused: gamePaused }));

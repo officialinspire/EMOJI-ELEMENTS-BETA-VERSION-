@@ -1,7 +1,7 @@
 // Achievements for EMOJI ELEMENTS (window.Achievements). Loaded after feedback.js, before index.js.
 //
 // index.js reports confirmed outcomes as events (emit): a card resolved, a combat finished, a match ended, a
-// pack was opened. This file keeps the 150-entry catalog (ACHIEVEMENTS.md lists every trigger), lifetime
+// pack was opened. This file keeps the 400-entry catalog (ACHIEVEMENTS.md lists every trigger), lifetime
 // counters, the current match's context, and the unlocked set, stored under its own versioned key. Nothing here
 // reads hidden information: only the player's own plays, the public board, life totals and the saved profile.
 //
@@ -178,7 +178,7 @@
         { id: 'own-scifi', cat: 'collection', name: 'Sci-Fi Nerd', icon: '🤓', tier: 'epic', desc: 'Own all 56 Science Fiction cards.', on: ['collection'], goal: 56, progress: x => x.ownedTheme('Science Fiction'), backfill: x => x.ownedTheme('Science Fiction') >= 56 },
         { id: 'packs-10', cat: 'collection', name: 'Pack Rat', icon: '🐀', tier: 'common', desc: 'Open 10 booster packs.', on: ['pack:opened'], goal: 10, progress: x => x.packsOpened, backfill: x => x.packsOpened >= 10 },
         { id: 'packs-50', cat: 'collection', name: 'Shrink-Wrap Shredder', icon: '✂️', tier: 'epic', desc: 'Open 50 booster packs.', on: ['pack:opened'], goal: 50, progress: x => x.packsOpened, backfill: x => x.packsOpened >= 50 },
-        { id: 'pack-sampler', cat: 'collection', name: 'Sampler Platter', icon: '🍱', tier: 'rare', desc: 'Open one of each of the 6 pack types.', on: ['pack:opened'], goal: 6, progress: x => (x.c.packTypes || []).length },
+        { id: 'pack-sampler', cat: 'collection', name: 'Sampler Platter', icon: '🍱', tier: 'rare', desc: 'Open each of the 6 original pack types.', on: ['pack:opened'], goal: 6, progress: x => (x.c.packTypes || []).filter(key => ['fantasy','scifi','tech','alien','robot','lands'].includes(key)).length },
         { id: 'golden-ticket', cat: 'collection', name: 'Golden Ticket', icon: '🎫', tier: 'rare', desc: 'Pull a Legendary card from a pack.', on: ['pack:opened'], test: e => e.cards.some(c => c.rarity === 'legendary') },
         { id: 'fresh-stock', cat: 'collection', name: 'Fresh Stock', icon: '🆕', tier: 'common', desc: 'Open a pack in which all 5 cards are new to you.', on: ['pack:opened'], test: e => e.cards.length === 5 && e.cards.every(c => c.isNew) },
         { id: 'deja-vu', cat: 'collection', name: 'Déjà Vu', icon: '🪞', tier: 'common', desc: 'Open a pack with no new cards in it.', on: ['pack:opened'], test: e => e.cards.length > 0 && e.cards.every(c => !c.isNew) },
@@ -215,6 +215,26 @@
         { id: 'decorator', cat: 'playful', name: 'Interior Decorator', icon: '🎨', tier: 'common', desc: 'Try all three visual themes.', on: ['theme'], goal: 3, progress: x => (x.c.themes || []).length },
         { id: 'clown-car', cat: 'playful', name: 'Clown Car', icon: '🤡', tier: 'rare', hidden: true, desc: 'Control Demonic Clown and Dread Clown at once.', on: ['board'], test: (e, x) => onBoard(x.game.playerBoard, 'creatures-demonic-clown', 'creatures-dread-clown') }
     ];
+
+    // Additive mastery tracks: existing ids, timestamps and save format remain intact.
+    const masteryGoals = [3, 5, 15, 30, 75, 150, 300, 600, 1200, 2500];
+    DECKS.forEach(([key, name, icon]) => masteryGoals.forEach((goal, i) => CATALOG.push({
+        id: `mastery-deck-${key.toLowerCase().replaceAll('_', '-')}-${goal}`, cat: 'decks', name: `${name}: Mastery ${i + 1}`, icon,
+        tier: i < 3 ? 'rare' : i < 7 ? 'epic' : 'legendary', desc: `Win ${goal} matches with the ${key.replaceAll('_', ' + ')} deck. Counted from this update.`,
+        on: ['match:end'], goal, progress: x => x.c[`played.deck.${key}`] || 0
+    })));
+    ELEMENT_PLAYS.forEach(([key, name, icon, label]) => masteryGoals.forEach((goal, i) => CATALOG.push({
+        id: `mastery-element-${key}-${goal}`, cat: 'elements', name: `${name}: Practice ${i + 1}`, icon, tier: i < 5 ? 'rare' : 'epic',
+        desc: `Play ${goal} non-land ${label} cards.`, on: ['card:played'], goal, progress: x => x.c[`plays.${key}`] || 0
+    })));
+    ['creature','instant','artifact','land'].forEach(type => masteryGoals.forEach((goal, i) => CATALOG.push({
+        id: `mastery-type-${type}-${goal}`, cat: 'types', name: `${type[0].toUpperCase() + type.slice(1)} specialist ${i + 1}`, icon: '🃏', tier: i < 5 ? 'rare' : 'epic',
+        desc: `Play ${goal} ${type} cards.`, on: ['card:played'], goal, progress: x => x.c[`played.${type}`] || 0
+    })));
+    [3,5,15,30,75,150,300,600,1200,2500].forEach((goal,i) => CATALOG.push({
+        id: `mastery-career-${goal}`, cat: 'matches', name: `Duelist career ${i + 1}`, icon: '🏆', tier: i < 5 ? 'epic' : 'legendary',
+        desc: `Win ${goal} matches in total.`, on: ['match:end'], goal, progress: x => x.wins, backfill: x => x.wins >= goal
+    }));
 
     const CATEGORIES = [
         ['first', 'First steps', '👣'], ['matches', 'Wins & losses', '🏁'], ['difficulty', 'Difficulty', '🎚️'], ['decks', 'Decks', '🃏'],
@@ -283,7 +303,7 @@
                 out.counters[key] = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
             }
             else if (Array.isArray(value)) {
-                const allowed = { themes: ['arcane','deep-space','neon'], packTypes: ['fantasy','scifi','tech','alien','robot','lands'], difficultiesWon: ['easy','medium','hard'] }[key];
+                const allowed = { themes: ['arcane','deep-space','neon'], packTypes: ['fantasy','scifi','tech','alien','robot','lands','fire','water','earth','swamp','light','artifacts'], difficultiesWon: ['easy','medium','hard'] }[key];
                 out.counters[key] = [...new Set(value.filter(v => typeof v === 'string' && (!allowed || allowed.includes(v))))];
             }
             else if (Number.isFinite(value)) out.counters[key] = value;
@@ -432,6 +452,7 @@
         'match:end': e => {
             if (e.result === 'win') {
                 count('streak');
+                if (m?.deckKey) count(`played.deck.${m.deckKey}`);
                 if (m?.difficulty === 'hard') count('hardWins');
                 if (m?.difficulty) addToSet('difficultiesWon', m.difficulty);
             } else {

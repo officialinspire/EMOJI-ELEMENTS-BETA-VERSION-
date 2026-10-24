@@ -55,14 +55,21 @@
       "fantasy": 187,
       "scifi": 56,
       "alien": 17,
+      "fire": 57,
       "tech": 60,
-      "robot": 16
+      "water": 49,
+      "earth": 56,
+      "swamp": 51,
+      "light": 63,
+      "robot": 16,
+      "artifacts": 29
     },
     "byPackCount": {
-      "in 1 pack": 209,
-      "in 2 packs": 44,
-      "in 3 packs": 13,
-      "in 4 packs": 2
+      "in 1 pack": 4,
+      "in 2 packs": 185,
+      "in 3 packs": 47,
+      "in 4 packs": 26,
+      "in 5 packs": 6
     },
     "byRarity": {
       "common": 204,
@@ -195,6 +202,96 @@
           "common": 0.25,
           "rare": 0.5556,
           "epic+": 0.3333
+        }
+      },
+      "fire": {
+        "cost": 60,
+        "size": 57,
+        "byTier": {
+          "common": 43,
+          "rare": 6,
+          "epic+": 8
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.0698,
+          "rare": 0.1667,
+          "epic+": 0.125
+        }
+      },
+      "water": {
+        "cost": 60,
+        "size": 49,
+        "byTier": {
+          "common": 39,
+          "rare": 7,
+          "epic+": 3
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.0769,
+          "rare": 0.1429,
+          "epic+": 0.3333
+        }
+      },
+      "earth": {
+        "cost": 60,
+        "size": 56,
+        "byTier": {
+          "common": 48,
+          "rare": 5,
+          "epic+": 3
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.0625,
+          "rare": 0.2,
+          "epic+": 0.3333
+        }
+      },
+      "swamp": {
+        "cost": 60,
+        "size": 51,
+        "byTier": {
+          "common": 34,
+          "rare": 13,
+          "epic+": 4
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.0882,
+          "rare": 0.0769,
+          "epic+": 0.25
+        }
+      },
+      "light": {
+        "cost": 60,
+        "size": 63,
+        "byTier": {
+          "common": 41,
+          "rare": 18,
+          "epic+": 4
+        },
+        "slots": "3 × Common · 1 × Rare · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0.0732,
+          "rare": 0.0556,
+          "epic+": 0.25
+        }
+      },
+      "artifacts": {
+        "cost": 60,
+        "size": 29,
+        "byTier": {
+          "common": 29,
+          "rare": 0,
+          "epic+": 0
+        },
+        "slots": "3 × Common · 1 × Rare or Common · 1 × Epic/Legendary or Rare or Common",
+        "chancePerCard": {
+          "common": 0.1724,
+          "rare": 0,
+          "epic+": 0
         }
       },
       "lands": {
@@ -563,7 +660,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -604,7 +702,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -645,7 +744,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -687,7 +787,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -733,7 +834,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -773,7 +875,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -819,7 +922,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -863,7 +967,8 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -903,7 +1008,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -945,7 +1051,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -987,7 +1094,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1033,7 +1141,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1074,7 +1183,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1120,7 +1230,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1164,7 +1275,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1208,7 +1320,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1254,7 +1367,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1295,7 +1409,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1336,7 +1451,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1378,7 +1494,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1419,7 +1536,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1460,7 +1578,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1500,7 +1619,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1541,7 +1661,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1584,7 +1705,8 @@
           "WATER_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1628,7 +1750,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1672,7 +1795,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1714,7 +1838,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1758,7 +1883,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1804,7 +1930,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1846,7 +1973,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1892,7 +2020,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1932,7 +2061,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1973,7 +2103,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2017,7 +2148,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2060,7 +2192,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2106,7 +2239,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2152,7 +2286,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2194,7 +2329,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2235,7 +2371,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2276,7 +2413,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2316,7 +2454,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2356,7 +2495,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2402,7 +2542,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2444,7 +2585,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2484,7 +2626,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2524,7 +2667,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2564,7 +2708,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2610,7 +2755,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2656,7 +2802,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2702,7 +2849,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2743,7 +2891,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2785,7 +2934,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2827,7 +2977,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2867,7 +3018,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2909,7 +3061,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2951,7 +3104,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2991,7 +3145,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3031,7 +3186,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3071,7 +3227,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3115,7 +3272,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3156,7 +3314,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3198,7 +3357,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3241,7 +3401,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3284,7 +3445,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3327,7 +3489,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3370,7 +3533,8 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3410,7 +3574,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3452,7 +3617,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3498,7 +3664,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3540,7 +3707,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3583,7 +3751,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3629,7 +3798,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3669,7 +3839,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3710,7 +3881,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3750,7 +3922,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3796,7 +3969,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3836,7 +4010,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3877,7 +4052,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3918,7 +4094,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -3959,7 +4136,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4000,7 +4178,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4043,7 +4222,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4089,7 +4269,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4130,7 +4311,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4173,7 +4355,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4219,7 +4402,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4262,7 +4446,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4303,7 +4488,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4350,7 +4536,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4394,7 +4581,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4436,7 +4624,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4478,7 +4667,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4518,7 +4708,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4564,7 +4755,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4610,7 +4802,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4653,7 +4846,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "fire",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4693,7 +4888,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "water",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4732,7 +4929,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "fire",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4772,7 +4971,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "water",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4812,7 +5013,8 @@
           "scifi",
           "tech",
           "alien",
-          "robot"
+          "robot",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4855,7 +5057,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "alien"
+          "alien",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4898,7 +5101,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "earth",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4937,7 +5142,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "fire",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -4976,7 +5183,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "water",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5015,7 +5224,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "fire",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5056,7 +5267,9 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "fire",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5097,7 +5310,9 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "water",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5137,7 +5352,9 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "water",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5174,7 +5391,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "earth",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5217,7 +5436,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5261,7 +5481,9 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "water",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5300,7 +5522,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5342,7 +5566,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5385,7 +5610,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "alien"
+          "alien",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5428,7 +5654,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5466,7 +5694,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5509,7 +5738,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5552,7 +5782,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5593,7 +5824,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5641,7 +5873,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5685,7 +5918,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5728,7 +5962,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5768,7 +6004,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "swamp",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5811,7 +6049,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5858,7 +6097,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5905,7 +6145,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5952,7 +6193,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -5995,7 +6237,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6039,7 +6282,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6083,7 +6327,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "swamp",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6121,7 +6367,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6165,7 +6412,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "swamp",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6203,7 +6452,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6242,7 +6493,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6281,7 +6534,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "water",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6319,7 +6574,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "water",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6357,7 +6614,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6393,7 +6652,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6436,7 +6696,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6476,7 +6738,8 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6522,7 +6785,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6564,7 +6828,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6606,7 +6871,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6647,7 +6913,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6687,7 +6954,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6731,7 +6999,8 @@
         ],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6773,7 +7042,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6813,7 +7083,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6855,7 +7126,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6901,7 +7173,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6943,7 +7216,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -6987,7 +7261,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7027,7 +7302,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7067,7 +7343,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7107,7 +7384,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7149,7 +7427,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7190,7 +7469,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7236,7 +7516,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7278,7 +7559,8 @@
           "WATER"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7321,7 +7603,8 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7363,7 +7646,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7403,7 +7687,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7443,7 +7728,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7483,7 +7769,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7529,7 +7816,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7575,7 +7863,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7617,7 +7906,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7660,7 +7950,8 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7700,7 +7991,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7746,7 +8038,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7792,7 +8085,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7834,7 +8128,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7878,7 +8173,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7920,7 +8216,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -7960,7 +8257,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8002,7 +8300,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8044,7 +8343,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "tech"
+          "tech",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8086,7 +8386,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8132,7 +8433,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8174,7 +8476,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8219,7 +8522,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8259,7 +8563,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8300,7 +8605,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8341,7 +8647,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8382,7 +8689,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "robot"
+          "robot",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8428,7 +8736,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8468,7 +8777,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8508,7 +8818,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8548,7 +8859,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8594,7 +8906,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8636,7 +8949,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8678,7 +8992,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8721,7 +9036,8 @@
         ],
         "packThemes": [
           "fantasy",
-          "alien"
+          "alien",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8767,7 +9083,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8815,7 +9132,8 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8859,7 +9177,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8899,7 +9218,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8944,7 +9264,8 @@
           "WATER_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8990,7 +9311,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9030,7 +9352,8 @@
           "WATER"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9074,7 +9397,8 @@
           "WATER_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9123,7 +9447,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9169,7 +9494,8 @@
           "WATER_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9212,7 +9538,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9258,7 +9585,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9304,7 +9632,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9347,7 +9676,8 @@
           "EARTH"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9393,7 +9723,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9434,7 +9765,8 @@
           "FIRE_EARTH"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9480,7 +9812,8 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9521,7 +9854,8 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9567,7 +9901,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9611,7 +9946,8 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9651,7 +9987,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9695,7 +10032,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9741,7 +10079,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9785,7 +10124,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9831,7 +10171,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9873,7 +10214,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9913,7 +10255,8 @@
           "LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -9962,7 +10305,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10009,7 +10353,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "tech"
+          "tech",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10058,7 +10403,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10102,7 +10448,8 @@
           "FIRE_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10145,7 +10492,8 @@
           "FIRE"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10190,7 +10538,8 @@
           "EARTH_SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10230,7 +10579,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10269,7 +10620,9 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "alien"
+          "alien",
+          "fire",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10311,7 +10664,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10353,7 +10707,8 @@
           "SWAMP"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10398,7 +10753,9 @@
           "FIRE_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10443,7 +10800,9 @@
           "EARTH_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10483,7 +10842,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10523,7 +10884,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "water",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10563,7 +10926,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "fire",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10603,7 +10968,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10649,7 +11016,9 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10689,7 +11058,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "swamp",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10731,7 +11102,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10772,7 +11145,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10814,7 +11189,10 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire",
+          "water",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10850,7 +11228,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "tech"
+          "tech",
+          "earth",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10891,7 +11271,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "fire",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10937,7 +11319,10 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "earth",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -10973,7 +11358,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11017,7 +11404,9 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "light",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11070,7 +11459,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11133,7 +11523,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11199,7 +11590,8 @@
           "SWAMP_LIGHT"
         ],
         "packThemes": [
-          "scifi"
+          "scifi",
+          "artifacts"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -11248,7 +11640,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11305,7 +11698,8 @@
         ],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11354,7 +11748,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11403,7 +11798,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11452,7 +11848,8 @@
         "starterDecks": [],
         "packThemes": [
           "scifi",
-          "tech"
+          "tech",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11503,7 +11900,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "robot"
+          "robot",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11569,7 +11967,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "alien"
+          "alien",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11620,7 +12019,8 @@
           "scifi",
           "tech",
           "alien",
-          "robot"
+          "robot",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11686,7 +12086,8 @@
         "packThemes": [
           "scifi",
           "tech",
-          "alien"
+          "alien",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
@@ -11734,7 +12135,8 @@
         "starterCollectionCopies": 0,
         "starterDecks": [],
         "packThemes": [
-          "fantasy"
+          "fantasy",
+          "artifacts"
         ],
         "inAiDecks": false,
         "deckBuilderLegalIn": [
