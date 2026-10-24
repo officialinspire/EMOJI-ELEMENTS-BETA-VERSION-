@@ -128,7 +128,7 @@ const GAME_DECLARATIONS = [
     'DUAL_DECK_MAX_LANDS_PER_COLOR', 'DUAL_DECK_MAX_LANDS_TOTAL', 'getDeckLandCaps', 'inferLandElements',
     'getDeckColorsFromKey', 'getDeckKeyFromElements', 'getDeckCardCopyLimit', 'getDeckBuilderCopyLimit',
     'validateDeckBuild', 'buildStarterDeckFromColors', 'createInitialMeta', 'clampDeckCardIdsToOwned',
-    'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'readStoredNumber', 'sameCardMultiset', 'validateMeta', 'PACK_THEMES',
+    'getDeckTargetSize', 'inferCardElements', 'isCardEligibleForDeck', 'readStoredNumber', 'sameCardMultiset', 'validateMeta', 'ACHIEVEMENT_CARD_REWARDS', 'PACK_THEMES',
     'PACK_SHOP_COSTS', 'PACK_THEME_KEYS', 'PACK_SIZE', 'PACK_MEMBERSHIP', 'getPackMemberships', 'getThemePool',
     'PACK_TIER_OF_RARITY', 'PACK_TIER_LABELS', 'PACK_SLOT_TIERS', 'PACK_MIN_TIER_CHOICES', 'packTierOf', 'getPackSlotPlan',
     'generatePack', 'getPackOdds', 'describePackSlots',

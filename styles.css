@@ -8855,3 +8855,41 @@ html {
 #startModal #binderList .binder-row[hidden] { display: none !important; }
 
 .binder-pager[hidden] { display: none; }
+
+/* Shop pages keep the exit and paging controls reachable. */
+#startModal .modal-content[data-screen="packShopScreen"] { display:flex; flex-direction:column; width:min(96%,800px); height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); overflow:hidden; padding:12px; }
+#startModal .modal-content[data-screen="packShopScreen"] > .modal-title,
+#startModal .modal-content[data-screen="packShopScreen"] > .modal-footer-credit,
+#startModal #packShopScreen .shop-intro { display:none; }
+#startModal #packShopScreen { flex:1; min-height:0; display:flex !important; flex-direction:column; gap:4px; }
+#startModal #packShopScreen[style*="none"] { display:none !important; }
+.shop-tabs { display:flex; gap:6px; flex:none; }
+.shop-tabs button { flex:1; min-height:44px; background:var(--panel-tile); color:var(--gold-1); border:1px solid var(--gold-line); border-radius:8px; }
+.shop-tabs button[aria-pressed="true"] { background:var(--gold-fill); color:var(--ink); }
+#startModal #packShopGrid { flex:1; min-height:0; display:block; margin:0; }
+#startModal #packShopGrid .shop-pack { height:100%; display:flex; flex-direction:column; min-height:0; margin:0; }
+#startModal #packShopGrid .shop-pack-art { height:64px; min-height:50px; flex:none; padding:4px; }
+#startModal #packShopGrid .shop-pack-art-icon { font-size:30px; }
+#startModal #packShopGrid .shop-pack-art-strip { font-size:18px; }
+#startModal #packShopGrid .shop-pack-body { flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:5px; padding:8px; }
+#startModal #packShopScreen .shop-credits-badge { margin:0; padding:4px; }
+#startModal #packShopScreen .modal-subtitle { margin:0; font-size:18px; }
+#startModal #packShopScreen .modal-subtitle::after { display:none; }
+#startModal #packShopScreen .menu-back { flex:none; min-height:44px; padding:5px; margin:0; }
+#startModal #packShopScreen .single-card-shop { flex:1; min-height:0; margin:0; padding:8px; overflow:auto; }
+#startModal #shopFilters .card-filter-selects { grid-template-columns:repeat(2,minmax(0,1fr)); }
+#startModal #packShopGrid[hidden], #startModal #packShopGrid .shop-pack[hidden], #startModal .single-card-shop[hidden], #startModal #shopPager[hidden] { display:none !important; }
+#startModal #packShopMessage { flex:none; margin:0; font-size:12px; }
+.achievement-glyph { width:32px; height:40px; display:inline-block; vertical-align:middle; }
+.ach-filter .achievement-glyph { width:18px; height:22px; }
+.ach-toast-icon .achievement-glyph { width:36px; height:44px; }
+.ach-reward { display:block; padding:6px; font-size:12px; }
+.ach-reward button { min-height:44px; border:1px solid var(--gold-1); border-radius:7px; background:var(--panel-tile); color:var(--gold-1); padding:5px 10px; }
+@media (max-height:600px) { #startModal #packShopGrid .shop-pack-art { display:none; } #startModal #packShopScreen .shop-pack-tagline { display:none; } #startModal #packShopScreen .shop-pack-body { gap:2px; padding:5px; } #startModal #packShopScreen .shop-pack-owned, #startModal #packShopScreen .shop-pack-afford { font-size:11px; margin:0; } }
+@media (max-height:500px) { #startModal #packShopScreen .modal-subtitle, #startModal #packShopScreen .shop-pack-owned, #startModal #packShopScreen .shop-pack-afford { display:none; } #startModal #packShopScreen .shop-pack-head { margin:0; } #startModal #packShopScreen .shop-pack-name { font-size:16px; } }
+#startModal #packShopScreen .single-card-shop { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:4px; overflow:hidden; }
+.single-card-shop > :not(button) { grid-column:1 / -1; }
+#startModal #shopFilters { position:relative; }
+#startModal #shopFilters .card-filter-selects { position:absolute; z-index:10; top:100%; left:0; right:0; padding:8px; max-height:180px; overflow:auto; background:var(--panel-strong); border:1px solid var(--gold-line); }
+@media (max-height:500px) { #startModal .single-card-shop > h3, #startModal .single-card-shop > p:first-of-type, #startModal .single-card-shop > label { display:none; } #startModal .single-card-shop select { min-height:32px; margin:0; } #startModal .single-card-shop .menu-btn { min-height:32px; margin:0; padding:4px; } #startModal #shopFilters { display:flex; margin:0; gap:4px; } #startModal #shopFilters .card-filter-search { min-height:32px; width:60%; } #startModal #shopFilters .card-filter-summary { padding:4px; min-height:32px; } #startModal #singleCardOwned { font-size:11px; margin:0; } }
+@media (max-height:640px) { #startModal .single-card-shop > h3, #startModal .single-card-shop > p:first-of-type, #startModal .single-card-shop > label { display:none; } }

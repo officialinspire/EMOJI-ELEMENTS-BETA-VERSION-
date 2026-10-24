@@ -1,10 +1,10 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '8144d9903c8c';
+const BUILD_ID = '8ba6e4a50105';
 const REQUIRED = {
-  "index.html": "61e9c6a0b93810bad938e160cdf963e902575376cdc0d9427849a0249e55cb08",
-  "index.js": "763cec38e0501d42008c14b9cba4f6a5f80c4880d94f7d7c23e18172d532ce60",
-  "styles.css": "40eb7c163dd6e26fa582574a43fab4da3dc45ee3f1fb4b63e8a6200609c8e2a0",
-  "feedback.js": "c7b392cec153a85b8493b3eecf0f3cda517cc2e1db6139915384e63bf81ef393",
+  "index.html": "600e684bdb63dd833cc8160e56af5a55779dad03f04e749de78466acba0a3e5c",
+  "index.js": "b48e7fd9b44b6616fbfdd39c7a3ea76980d86b2e3a1a7455fc81f1e45d76490a",
+  "styles.css": "140cf700b2bd48142dfa1768b8dee96ca64557d5c6ac1852fef51dc020215fcd",
+  "feedback.js": "c016dd09c99e985796a8a68c72050dbb849d6bb15cb6c611ab3b0864585647d7",
   "achievements.js": "eb91b5201f2c96301ed2ccd913e55a1144279c7ad068b23bed4659c0374be247",
   "pwa.js": "9d98249f5c0ff1dae1836bd930e4eccd03bf3f501b7256c3f2025ee01715fdb0",
   "manifest.json": "2756814595e85f5a9c0f0ac6d7244286f476fb0f5ff9642b71b020412dd0b679",
@@ -15,7 +15,7 @@ const REQUIRED = {
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
   "audio/sfx/sfx-bank.wav": "e9eee3b46245c25654c7e0b5f3f76073c8e11b5fd90ff40777f2ff90b341d4f3",
-  "pwa-build.js": "a814b82bfe66411194390c464375f69a9b7cb540d1cedd0b07e3a350e7b42243"
+  "pwa-build.js": "b73eb6db83fc9029551ff2843112262251d37734aa6ed084f5d508b24cb0f4ff"
 };
 const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
     'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3', 'inspiresoftwareintro.mp4'];

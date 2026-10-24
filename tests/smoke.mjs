@@ -379,6 +379,7 @@ scenario('pack-shop', async ({ page, touch, t, url, project }) => {
     await act(page, touch, '.shop-pack-btn[data-theme="fantasy"]');
     const message = await page.textContent('#packShopMessage');
     t.check('second fantasy pack blocked (40/60 credits)', /Not enough credits/.test(message) && !(await isShown(page, 'packOpeningOverlay')), message);
+    while (await page.locator('.shop-pack:not([hidden])').getAttribute('data-theme') !== 'lands') await act(page, touch, '#shopPager button:last-child');
     await act(page, touch, '.shop-pack-btn[data-theme="lands"]');
     await openPackInOverlay(page, touch, t);
     await act(page, touch, '#packCloseBtn');

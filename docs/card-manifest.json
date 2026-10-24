@@ -56,6 +56,7 @@
       "scifi": 56,
       "alien": 17,
       "fire": 57,
+      "legendary": 9,
       "tech": 60,
       "water": 49,
       "earth": 56,
@@ -66,9 +67,9 @@
     },
     "byPackCount": {
       "in 1 pack": 4,
-      "in 2 packs": 185,
-      "in 3 packs": 47,
-      "in 4 packs": 26,
+      "in 2 packs": 177,
+      "in 3 packs": 54,
+      "in 4 packs": 27,
       "in 5 packs": 6
     },
     "byRarity": {
@@ -292,6 +293,21 @@
           "common": 0.1724,
           "rare": 0,
           "epic+": 0
+        }
+      },
+      "legendary": {
+        "cost": 1000,
+        "size": 9,
+        "byTier": {
+          "common": 0,
+          "rare": 0,
+          "epic+": 9
+        },
+        "slots": "3 × Common or Rare or Epic/Legendary · 1 × Rare or Common or Epic/Legendary · 1 × Epic/Legendary",
+        "chancePerCard": {
+          "common": 0,
+          "rare": 0,
+          "epic+": 0.5556
         }
       },
       "lands": {
@@ -661,7 +677,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "fire"
+          "fire",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -745,7 +762,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "fire"
+          "fire",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1410,7 +1428,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "fire"
+          "fire",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1452,7 +1471,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "fire"
+          "fire",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -1579,7 +1599,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "water"
+          "water",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2104,7 +2125,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "water"
+          "water",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2372,7 +2394,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "water"
+          "water",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -2414,7 +2437,8 @@
         "starterDecks": [],
         "packThemes": [
           "fantasy",
-          "earth"
+          "earth",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [
@@ -8344,7 +8368,8 @@
         "packThemes": [
           "fantasy",
           "tech",
-          "swamp"
+          "swamp",
+          "legendary"
         ],
         "inAiDecks": true,
         "deckBuilderLegalIn": [

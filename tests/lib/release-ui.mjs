@@ -37,6 +37,7 @@ export async function quit(page) {
 export async function purchase(page, theme = 'fantasy', cost = 60) {
     await click(page, '#mainMenu button[data-menu-target="packShopScreen"]');
     const before = await page.evaluate(() => gameMeta.wallet.credits);
+    await page.evaluate(theme => { setShopTab('packs'); shopPage = PACK_THEMES.findIndex(p => p.key === theme); renderShopPage(); }, theme);
     await click(page, `.shop-pack-btn[data-theme="${theme}"]`);
     await page.waitForFunction(() => document.querySelector('#packOpeningOverlay').classList.contains('show'));
     assert.equal(await page.evaluate(() => gameMeta.wallet.credits), before - cost);

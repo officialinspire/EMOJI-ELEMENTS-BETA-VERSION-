@@ -58,7 +58,7 @@ test('every cue renders short and below clipping; tails stay short', { timeout: 
             ['turnStart'], ['attack'], ['block'], ['damageTaken', { intensity: 1 }], ['damageDealt'], ['heal'], ['destroy'], ['packRip'],
             ['reveal', { rarity: 'legendary' }], ['achievement'], ['victory'], ['defeat'], ['deny']]) {
             const { buffer, engine } = await GameFeedback.renderCue(name, options || {}, 2);
-            if (engine !== 'samples') throw new Error('Expected recorded samples for ' + name);
+            if (engine !== (name === 'achievement' ? 'synthesis' : 'samples')) throw new Error('Expected recorded samples for ' + name);
             const d = buffer.getChannelData(0);
             let peak = 0, last = 0;
             for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; if (a > 0.001) last = i; }

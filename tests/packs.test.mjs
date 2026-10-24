@@ -18,7 +18,7 @@ import { ROOT } from './lib/harness.mjs';
 useGameBrowser();
 
 const META = 'emoji_elements_meta_v1';
-const PACKS = ['fantasy', 'scifi', 'tech', 'alien', 'robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'lands'];
+const PACKS = ['fantasy', 'scifi', 'tech', 'alien', 'robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'legendary', 'lands'];
 const fixture = name => fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'saves', name), 'utf8');
 const total = collection => Object.values(collection).reduce((a, b) => a + b, 0);
 const isOpen = (page, id) => page.evaluate(id => document.getElementById(id).classList.contains('show'), id);
@@ -121,7 +121,7 @@ describe('pack pools', () => {
 
     test('per-card odds from getPackOdds match how often each card is really pulled', { timeout: 120000 }, async t => {
         const page = await openGame(t, { seed: 32 });
-        const r = await page.evaluate(() => ['robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'lands', 'alien'].map(key => {
+        const r = await page.evaluate(() => ['robot', 'fire', 'water', 'earth', 'swamp', 'light', 'artifacts', 'legendary', 'lands', 'alien'].map(key => {
             const odds = getPackOdds(key);
             const hits = {};
             const N = 6000;
@@ -158,10 +158,10 @@ describe('pack pools', () => {
         const page = await openGame(t);
         const r = await page.evaluate(() => ({ costs: PACK_SHOP_COSTS, size: PACK_SIZE, win: BASE_WIN_CREDITS,
             weights: Object.fromEntries(PACK_THEMES.map(theme => [theme.key, theme.weight])) }));
-        assert.deepEqual(r.costs, { fantasy: 60, scifi: 60, tech: 60, alien: 60, robot: 60, lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60 });
+        assert.deepEqual(r.costs, { fantasy: 60, scifi: 60, tech: 60, alien: 60, robot: 60, legendary: 1000, lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60 });
         assert.equal(r.size, 5);
         assert.equal(r.win, 25);
-        assert.deepEqual(r.weights, { fantasy: 24, scifi: 18, tech: 16, alien: 14, robot: 14, lands: 14, fire: 0, water: 0, earth: 0, swamp: 0, light: 0, artifacts: 0 });
+        assert.deepEqual(r.weights, { fantasy: 24, scifi: 18, tech: 16, alien: 14, robot: 14, legendary: 0, lands: 14, fire: 0, water: 0, earth: 0, swamp: 0, light: 0, artifacts: 0 });
     });
 });
 
@@ -181,7 +181,7 @@ describe('Pack Shop', () => {
                 slots: tile.querySelector('.shop-pack-slots').textContent,
                 expectedSlots: describePackSlotsShort(key),
                 owned: tile.querySelector('[data-role="owned"]').textContent,
-                expectedOwned: `${getThemePool(key).length} cards · you have ${getThemePool(key).filter(c => gameMeta.collection[c.__id] > 0).length}`,
+                expectedOwned: `${getPackSlotPlan(key).pool.length} cards · you have ${getPackSlotPlan(key).pool.filter(c => gameMeta.collection[c.__id] > 0).length}`,
                 art: tile.querySelectorAll('.shop-pack-art-strip span').length,
                 unaffordable: tile.classList.contains('is-unaffordable'),
                 ariaLabel: buy.getAttribute('aria-label'),
@@ -191,17 +191,17 @@ describe('Pack Shop', () => {
         const tiles = await read();
         assert.deepEqual(tiles.map(t => t.key), PACKS);
         for (const tile of tiles) {
-            assert.equal(tile.price, `💳 ${tile.key === 'lands' ? 40 : 60}`);
+            assert.equal(tile.price, `💳 ${tile.key === 'lands' ? 40 : tile.key === 'legendary' ? 1000 : 60}`);
             assert.equal(tile.slots, tile.expectedSlots);
             assert.equal(tile.owned, tile.expectedOwned);
             assert.ok(tile.art >= 3, `${tile.key} art shows sample cards`);
             const affordable = tile.key === 'lands';
             assert.equal(tile.unaffordable, !affordable, tile.key);
-            assert.match(tile.ariaLabel, affordable ? /^Buy .* Pack for 40 credits$/ : /Pack: you need 10 more credits$/);
-            assert.equal(tile.label, affordable ? 'BUY · 💳 40' : 'NEED 10 MORE');
+            assert.match(tile.ariaLabel, affordable ? /^Buy .* Pack for 40 credits$/ : tile.key === 'legendary' ? /Pack: you need 950 more credits$/ : /Pack: you need 10 more credits$/);
+            assert.equal(tile.label, affordable ? 'BUY · 💳 40' : tile.key === 'legendary' ? 'NEED 950 MORE' : 'NEED 10 MORE');
         }
         await page.evaluate(() => { gameMeta.wallet.credits = 60; updatePackShopCreditsBadge(); });
-        assert.ok((await read()).every(tile => !tile.unaffordable), 'all affordable at 60');
+        assert.ok((await read()).every(tile => tile.unaffordable === (tile.key === 'legendary')), 'standard packs affordable at 60; vault remains premium');
     });
 
     test('"What\'s inside" lists exactly the pool, with owned counts and the exact odds; Esc closes it', { timeout: 60000 }, async t => {
@@ -278,6 +278,7 @@ describe('Pack Shop', () => {
         await openShop(page);
         const before = await page.evaluate(k => localStorage.getItem(k), META);
         // A keyboard user: the button stays pressable when you can't afford it, and says why
+        await page.evaluate(() => { shopPage = PACK_THEMES.findIndex(p => p.key === 'lands'); renderShopPage(); });
         await page.focus('.shop-pack-btn[data-theme="lands"]');
         await page.keyboard.press('Enter');
         await page.clock.runFor(200);
