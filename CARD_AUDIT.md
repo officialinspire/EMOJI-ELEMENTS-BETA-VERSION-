@@ -149,15 +149,16 @@ The block below is generated and verified by the check.
 | artifacts | 29 |
 | alien | 17 |
 | robot | 16 |
+| legendary | 9 |
 | lands | 8 |
 
 **Packs per card**
 
 | Packs | Cards |
 |---|---|
-| in 2 packs | 185 |
-| in 3 packs | 47 |
-| in 4 packs | 26 |
+| in 2 packs | 177 |
+| in 3 packs | 54 |
+| in 4 packs | 27 |
 | in 5 packs | 6 |
 | in 1 pack | 4 |
 
@@ -245,6 +246,7 @@ The block below is generated and verified by the check.
 | swamp | 60 | 51 | 34 / 13 / 4 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 8.8% / 7.7% / 25% |
 | light | 60 | 63 | 41 / 18 / 4 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 7.3% / 5.6% / 25% |
 | artifacts | 60 | 29 | 29 / 0 / 0 | 3 × Common · 1 × Rare or Common · 1 × Epic/Legendary or Rare or Common | 17% / – / – |
+| legendary | 1000 | 9 | 0 / 0 / 9 | 3 × Common or Rare or Epic/Legendary · 1 × Rare or Common or Epic/Legendary · 1 × Epic/Legendary | – / – / 56% |
 | lands | 40 | 8 | 4 / 2 / 2 | 3 × Common · 1 × Rare · 1 × Epic/Legendary | 75% / 50% / 50% |
 
 **Availability:** 153 in the starter collection · 268 in at least one pack pool · 115 pack-only · 255 can appear in AI decks · 267 legal in at least one standard deck.

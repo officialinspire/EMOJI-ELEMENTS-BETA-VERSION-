@@ -1,3 +1,8 @@
+    const ACHIEVEMENT_CARD_REWARDS = {
+        'wins-10': 'creatures-ancient-dragon',
+        'hard-5': 'creatures-time-device',
+        'wins-50': 'artifacts-holy-chalice'
+    };
     // One writer per origin/profile. Other tabs can inspect/play, but cannot overwrite saves.
     let profileWriteState = 'pending';
     let profileSavedRaw = null;
@@ -2321,6 +2326,7 @@
                 version: 1,
                 initialized: true,
                 collection: {},
+                ...(Array.isArray(loaded.achievementRewards) ? { achievementRewards: [...new Set(loaded.achievementRewards.filter(id => Object.hasOwn(ACHIEVEMENT_CARD_REWARDS, id)))] } : {}),
                 decks: {},
                 selectedDeckKey: typeof loaded.selectedDeckKey === 'string' ? loaded.selectedDeckKey : 'FIRE',
                 stats: {
@@ -2785,6 +2791,36 @@
 
     // Packs for the Pack Shop and win rewards. Prices, pack size and the win-reward theme weights are the
     // same as before (PROGRESSION.md P3); the art colours for each key are in styles.css ("PACK SHOP").
+    // Only these three cards use achievement gates. Existing owned copies remain playable.
+    function cardGate(card) { return Object.keys(ACHIEVEMENT_CARD_REWARDS).find(id => ACHIEVEMENT_CARD_REWARDS[id] === card?.__id); }
+    function canAcquireCard(card) {
+        const gate = cardGate(card);
+        return !gate || !window.Achievements || Achievements.isUnlocked(gate);
+    }
+    function cardGateLabel(card) {
+        const gate = cardGate(card);
+        return gate && !canAcquireCard(card) ? `Unlock: ${Achievements.catalog.find(a => a.id === gate)?.name || gate}` : '';
+    }
+    function claimAchievementCard(id) {
+        const cardId = ACHIEVEMENT_CARD_REWARDS[id];
+        if (!cardId || !Achievements.isUnlocked(id) || !canSaveProfile() || (gameMeta.achievementRewards || []).includes(id)) return false;
+        const before = gameMeta;
+        gameMeta = JSON.parse(JSON.stringify(before));
+        gameMeta.collection[cardId] = (gameMeta.collection[cardId] || 0) + 1;
+        gameMeta.achievementRewards = [...(gameMeta.achievementRewards || []), id];
+        if (!metaSave(gameMeta)) { gameMeta = before; return false; }
+        reportAchievement('collection', {});
+        renderAchievements(document.getElementById('achievementsMenuView'));
+        renderAchievements(document.getElementById('achievementsDialogView'));
+        return true;
+    }
+    function achievementRewardMarkup(id, unlocked) {
+        const card = __CARD_BY_ID[ACHIEVEMENT_CARD_REWARDS[id]];
+        if (!card) return '';
+        const claimed = (gameMeta.achievementRewards || []).includes(id);
+        return `<span class="ach-reward">Card reward: ${card.name} ${claimed ? '(claimed)' : unlocked ? `<button type="button" onclick="claimAchievementCard('${id}')">Claim one copy</button>` : '(unlock to claim)'}</span>`;
+    }
+
     const PACK_THEMES = [
         { key: 'fantasy', label: 'Fantasy', weight: 24, icon: '🧙', tagline: 'Myth, magic and the wild creatures of the five elements' },
         { key: 'scifi', label: 'Science Fiction', weight: 18, icon: '🚀', tagline: 'Space, science and the future' },
@@ -2793,6 +2829,7 @@
         { key: 'robot', label: 'Robot', weight: 14, icon: '🤖', tagline: 'Robots, drones, mechs and machine minds' },
         ...['fire','water','earth','swamp','light'].map(key => ({ key, label: key[0].toUpperCase() + key.slice(1), weight: 0, icon: ELEMENTS[key].emoji, tagline: `Build around ${key}: creatures, spells and artifacts` })),
         { key: 'artifacts', label: 'Artifacts', weight: 0, icon: '💎', tagline: 'Tools and engines for creative combinations' },
+        { key: 'legendary', label: 'Legendary Vault', weight: 0, icon: '★', tagline: 'Five different legendary cards · unlocked cards only' },
         { key: 'lands', label: 'Lands', weight: 14, icon: '🌍', tagline: 'Only lands: basic, dual and special' }
     ];
 
@@ -2802,7 +2839,7 @@
         tech: 60,
         alien: 60,
         robot: 60,
-        lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60
+        legendary: 1000, lands: 40, fire: 60, water: 60, earth: 60, swamp: 60, light: 60, artifacts: 60
     };
 
     const PACK_THEME_KEYS = new Set(PACK_THEMES.map(theme => theme.key));
@@ -3098,6 +3135,7 @@
         const card = typeof cardOrId === 'string' ? __CARD_BY_ID[id] : cardOrId;
         const extra = card?.type === 'land' ? [] : Object.keys(card?.cost || {}).filter(key => ['fire','water','earth','swamp','light'].includes(key));
         if (card?.type === 'artifact') extra.push('artifacts');
+        if (card?.__rarity === 'legendary') extra.push('legendary');
         return [...(PACK_MEMBERSHIP[id] || []), ...extra];
     }
 
@@ -3105,6 +3143,7 @@
     function getThemePool(themeKey) {
         const key = String(themeKey || '').trim().toLowerCase();
         if (['fire','water','earth','swamp','light'].includes(key)) return __ALL_CARDS.filter(card => card.type !== 'land' && Object.keys(card.cost || {}).includes(key));
+        if (key === 'legendary') return __ALL_CARDS.filter(card => card.__rarity === 'legendary');
         if (key === 'artifacts') return __ALL_CARDS.filter(card => card.type === 'artifact');
         return __ALL_CARDS.filter(card => getPackMemberships(card).includes(key));
     }
@@ -3130,7 +3169,7 @@
     // A pack's pool, its tier counts, and for each slot the groups of tiers it tries in order. A slot takes
     // one card, uniformly, from the first group that still has cards left in this pack.
     function getPackSlotPlan(themeKey) {
-        const pool = getThemePool(themeKey);
+        const pool = getThemePool(themeKey).filter(card => typeof canAcquireCard !== 'function' || canAcquireCard(card));
         const counts = { common: 0, rare: 0, 'epic+': 0 };
         pool.forEach(card => { counts[packTierOf(card)]++; });
         const slots = PACK_SLOT_TIERS.map(tiers => {
@@ -3185,7 +3224,7 @@
                 }
             }
             for (const tier of PACK_SLOT_TIERS[slot]) {
-                const candidates = __ALL_CARDS.filter(card => !picked.includes(card.__id) && packTierOf(card) === tier);
+                const candidates = __ALL_CARDS.filter(card => !picked.includes(card.__id) && (typeof canAcquireCard !== 'function' || canAcquireCard(card)) && (plan.themeKey !== 'legendary' || card.__rarity === 'legendary') && packTierOf(card) === tier);
                 if (candidates.length) {
                     picked.push(pickOne(candidates).__id);
                     return;
@@ -4717,6 +4756,7 @@
 
     // "3 × Common · 1 × Rare · 1 × Epic/Legendary", from the same slot plan generatePack uses
     function describePackSlotsShort(themeKey) {
+        if (themeKey === 'legendary') return '5 × Legendary';
         return describePackSlots(themeKey).slots.map(slot => `${slot.count} × ${slot.label}`).join(' · ');
     }
 
@@ -4734,6 +4774,27 @@
 
     // The shop tiles are built once; prices, affordability and owned counts are refreshed in place so focus
     // stays on the button that was pressed.
+    let shopPage = 0;
+    function setShopTab(tab) {
+        setPackShopMessage(tab === 'cards' ? 'Choose a card. Prices are per copy.' : 'Choose a pack to buy with credits.');
+        document.getElementById('packShopGrid').hidden = tab !== 'packs';
+        document.getElementById('shopPager').hidden = tab !== 'packs';
+        document.querySelector('.single-card-shop').hidden = tab !== 'cards';
+        document.querySelectorAll('[data-shop-tab]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.shopTab === tab)));
+        if (tab === 'cards') renderSingleCardShop();
+    }
+    function changeShopPage(delta) {
+        shopPage += delta; renderShopPage();
+        document.querySelector(delta < 0 ? '#shopPager button:first-child' : '#shopPager button:last-child')?.focus();
+    }
+    function renderShopPage() {
+        const tiles = [...document.querySelectorAll('#packShopGrid .shop-pack')];
+        shopPage = Math.max(0, Math.min(shopPage, tiles.length - 1));
+        tiles.forEach((tile,i) => { tile.hidden = i !== shopPage; });
+        const pager = document.getElementById('shopPager');
+        pager.innerHTML = `<button type="button" onclick="changeShopPage(-1)" ${shopPage === 0 ? 'disabled' : ''}>Previous</button><span>Pack ${shopPage + 1} / ${tiles.length}</span><button type="button" onclick="changeShopPage(1)" ${shopPage === tiles.length - 1 ? 'disabled' : ''}>Next</button>`;
+    }
+
     function renderPackShop() {
         const grid = document.getElementById('packShopGrid');
         if (!grid) return;
@@ -4769,6 +4830,7 @@
                 grid.appendChild(tile);
             });
         }
+        renderShopPage();
         renderSingleCardShop();
         updatePackShopTiles();
     }
@@ -4782,7 +4844,7 @@
             const key = tile.dataset.theme;
             const theme = getPackTheme(key);
             const cost = PACK_SHOP_COSTS[key];
-            const pool = getThemePool(key);
+            const pool = getPackSlotPlan(key).pool;
             const owned = pool.filter(card => (collection[card.__id] || 0) > 0).length;
             const affordable = credits >= cost;
             const buy = tile.querySelector('.shop-pack-btn');
@@ -4890,6 +4952,7 @@
         playSFX('menuOpen');
         setStartMenuScreen('packShopScreen');
         renderPackShop();
+        setShopTab('packs');
         updatePackShopCreditsBadge();
         setPackShopMessage('Choose a pack to buy with credits.');
     }
@@ -4908,17 +4971,22 @@
         type: [['all', 'All types'], ['creature', '🐾 Creatures'], ['instant', '✨ Instants'], ['artifact', '⚙️ Artifacts'], ['land', '⛰️ Lands']],
         cost: [['all', 'Any cost'], ['0', 'Cost 0'], ['1', 'Cost 1'], ['2', 'Cost 2'], ['3', 'Cost 3'], ['4', 'Cost 4'], ['5', 'Cost 5'], ['6+', 'Cost 6+']],
         rarity: [['all', 'Any rarity'], ['common', '● Common'], ['rare', '◆ Rare'], ['epic', '⬢ Epic'], ['legendary', '★ Legendary']],
-        sort: [['name', 'Sort: name'], ['cost', 'Sort: mana value'], ['rarity', 'Sort: rarest first'], ['type', 'Sort: type'], ['owned', 'Sort: most owned']]
+        deck: [['all','Any deck status'], ['in','In selected deck'], ['out','Out of selected deck']],
+        quantity: [['all','Any quantity'], ['one','Exactly one'], ['multiple','Multiple copies']],
+        sort: [['color','Sort: color'], ['least','Sort: fewest owned'], ['name', 'Sort: name'], ['cost', 'Sort: mana value'], ['rarity', 'Sort: rarest first'], ['type', 'Sort: type'], ['owned', 'Sort: most owned']]
     };
     const CARD_OWNED_OPTIONS = {
+        shopFilters: [['all', 'All cards'], ['owned', 'Owned'], ['unowned', 'Not owned']],
         binderFilters: [['all', 'All cards'], ['owned', 'Owned'], ['unowned', 'Not owned']],
         deckBuilderFilters: [['owned', 'Owned cards'], ['all', 'All legal cards'], ['unowned', 'Not owned']]
     };
     const CARD_FILTER_DEFAULTS = {
-        binderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'all', sort: 'name' },
-        deckBuilderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'owned', sort: 'name' }
+        shopFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'all', deck: 'all', quantity: 'all', sort: 'name' },
+        binderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'all', deck: 'all', quantity: 'all', sort: 'name' },
+        deckBuilderFilters: { query: '', element: 'all', type: 'all', cost: 'all', rarity: 'all', owned: 'owned', deck: 'all', quantity: 'all', sort: 'name' }
     };
     const cardFilterState = {
+        shopFilters: { ...CARD_FILTER_DEFAULTS.shopFilters },
         binderFilters: { ...CARD_FILTER_DEFAULTS.binderFilters },
         deckBuilderFilters: { ...CARD_FILTER_DEFAULTS.deckBuilderFilters }
     };
@@ -4928,6 +4996,10 @@
 
     function cardMatchesFilters(card, filters, ownedCount) {
         const identity = getCardIdentity(card);
+        const inDeck = (document.getElementById('deckBuilderScreen')?.style.display !== 'none'
+            ? deckBuilderState.workingCardIds : gameMeta?.decks?.[gameMeta.selectedDeckKey]?.cardIds || []).includes(card.__id);
+        if (filters.deck === 'in' && !inDeck || filters.deck === 'out' && inDeck) return false;
+        if (filters.quantity === 'one' && ownedCount !== 1 || filters.quantity === 'multiple' && ownedCount < 2) return false;
         if (filters.query) {
             const keywords = (card.abilities || []).map(a => KEYWORD_RULES[a]?.label || a).join(' ');
             if (!`${card.name} ${card.desc || ''} ${keywords}`.toLowerCase().includes(filters.query.toLowerCase())) return false;
@@ -4948,6 +5020,8 @@
     function sortCardsForList(cards, sort, ownedOf) {
         const byName = (a, b) => (a.name || '').localeCompare(b.name || '') || a.__id.localeCompare(b.__id);
         const compare = {
+            color: (a,b) => getCardIdentity(a).join().localeCompare(getCardIdentity(b).join()) || byName(a,b),
+            least: (a,b) => ownedOf(a) - ownedOf(b) || byName(a,b),
             name: byName,
             cost: (a, b) => getCardManaValue(a) - getCardManaValue(b) || byName(a, b),
             rarity: (a, b) => CARD_RARITIES.indexOf(getCardRarity(b)) - CARD_RARITIES.indexOf(getCardRarity(a)) || byName(a, b),
@@ -4975,14 +5049,14 @@
             // The selects fold away on narrow screens (search stays visible); open by default elsewhere
             const more = document.createElement('details');
             more.className = 'card-filter-more';
-            more.open = scopeId !== 'deckBuilderFilters' && !window.matchMedia('(max-width: 519px)').matches;
+            more.open = !['deckBuilderFilters', 'shopFilters'].includes(scopeId) && !window.matchMedia('(max-width: 519px)').matches;
             const summary = document.createElement('summary');
             summary.className = 'card-filter-summary';
             summary.textContent = 'Filters & sort';
             more.appendChild(summary);
             const selects = document.createElement('div');
             selects.className = 'card-filter-selects';
-            const fields = { element: 'Element', type: 'Card type', cost: 'Mana value', rarity: 'Rarity', owned: 'Ownership', sort: 'Sort order' };
+            const fields = { element: 'Element', type: 'Card type', cost: 'Mana value', rarity: 'Rarity', owned: 'Ownership', deck: 'Deck status', quantity: 'Quantity', sort: 'Sort order' };
             Object.entries(fields).forEach(([name, label]) => {
                 const select = document.createElement('select');
                 select.dataset.filter = name;
@@ -5108,7 +5182,7 @@
             row.appendChild(nameEl);
             const countEl = document.createElement('div');
             countEl.className = 'binder-row-count';
-            countEl.textContent = count ? `x${count}` : 'Not owned · x0';
+            countEl.textContent = `${count ? `x${count}` : 'Not owned · x0'}${cardGateLabel(card) ? ' · ' + cardGateLabel(card) : ''}`;
             row.appendChild(countEl);
             row.title = getCardTooltipText(card);
             bindCardPress(row, {
@@ -5136,18 +5210,26 @@
     function singleCardPrice(card) { return SINGLE_PRICES[getCardRarity(card)] || 65; }
     function renderSingleCardShop() {
         const select = document.getElementById('singleCardSelect');
-        if (!select.options.length) [...__ALL_CARDS].sort((a,b) => a.name.localeCompare(b.name)).forEach(card => {
+        buildCardFilterBar('shopFilters', renderSingleCardShop);
+        const previous = select.value;
+        const ownedOf = card => gameMeta.collection[card.__id] || 0;
+        const cards = sortCardsForList(__ALL_CARDS.filter(card => cardMatchesFilters(card, cardFilterState.shopFilters, ownedOf(card))), cardFilterState.shopFilters.sort, ownedOf);
+        select.replaceChildren();
+        cards.forEach(card => {
             const option = document.createElement('option'); option.value = card.__id;
-            option.textContent = `${card.emoji} ${card.name} · ${singleCardPrice(card)} credits`;
+            option.textContent = `${card.name} · ${singleCardPrice(card)} credits${cardGateLabel(card) ? ' · Locked' : ''}`;
             select.appendChild(option);
         });
+        if (cards.some(card => card.__id === previous)) select.value = previous;
         const card = __CARD_BY_ID[select.value];
-        document.getElementById('singleCardOwned').textContent = `Owned: ${gameMeta.collection[card.__id] || 0} · Price: ${singleCardPrice(card)} credits`;
+        document.getElementById('singleCardOwned').textContent = card ? `${cardGateLabel(card) || 'Available'} · Owned: ${ownedOf(card)} · Price: ${singleCardPrice(card)} credits` : 'No cards match these filters.';
+        document.querySelectorAll('.single-card-shop > button').forEach(button => { button.disabled = !card; });
     }
     function purchaseSingleCard() {
         if (!canSaveProfile() || packOpeningState.active) return false;
         const card = __CARD_BY_ID[document.getElementById('singleCardSelect').value];
         if (!card) return false;
+        if (!canAcquireCard(card)) { setPackShopMessage(cardGateLabel(card), 'error'); return false; }
         const price = singleCardPrice(card);
         if (getShopCredits() < price) { setPackShopMessage(`Need ${price - getShopCredits()} more credits.`, 'error'); return false; }
         const before = gameMeta;
@@ -5192,7 +5274,7 @@
             }
 
             const cardIds = generatePack(normalizedTheme);
-            if (!Array.isArray(cardIds) || cardIds.length === 0) {
+            if (!Array.isArray(cardIds) || cardIds.length !== PACK_SIZE) {
                 console.warn('Pack Shop purchase failed: generatePack returned no cards.', normalizedTheme);
                 setPackShopMessage('Pack generation failed. Please try again.', 'error');
                 return { ok: false, reason: 'empty_pack', themeKey: normalizedTheme };
@@ -5842,6 +5924,27 @@
         return String(text).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
     }
 
+    function achievementIcon(def, secret = false) {
+        const n = Math.max(0, Achievements.catalog.findIndex(a => a.id === def?.id));
+        const motifs = {
+            first: 'M14 14v12m12-12v12m-12 0h4m8 0h-4',
+            matches: 'M14 27V12l13 4-13 5',
+            difficulty: 'M13 14h14m-14 6h14m-14 6h14M17 11v6m6 0v6m-8 0v6',
+            decks: 'M13 13h12v15H13Zm4-3h11v15',
+            elements: 'M20 11q-10 10-5 16q8 6 12-3q1-5-4-7q1 5-3 5q-4-3 0-11Z',
+            types: 'M13 13h6v6h-6Zm9 0h6v6h-6Zm-9 9h6v6h-6Zm9 0h6v6h-6Z',
+            mana: 'M22 10 14 22h6l-2 9 9-13h-7Z',
+            combat: 'M13 11 27 27m-14 0 14-16M12 24l5 5m6 0 5-5',
+            effects: 'M13 28 26 15m-3-4v7m-3-4h7m-12-3v5m-3-2h6',
+            collection: 'M12 16h16v13H12Zm0 0 8-5 8 5m-8-5v18m-8-13 8 5 8-5',
+            rare: 'M13 13h14l4 6-11 12L9 19Zm-4 6h22m-18-6 7 18 7-18',
+            combo: 'M18 15q-8-7-8 2q0 6 8 3m4 5q8 7 8-2q0-6-8-3m-6 4 8-8',
+            playful: 'M12 19q0-10 8-10q8 0 8 10q0 11-8 11q-8 0-8-11m4-2h1m6 0h1m-8 6q4 5 8 0'
+        };
+        const shapes = ['M8 9h24v16c0 9-12 13-12 13S8 34 8 25Z','M20 5 35 20 20 35 5 20Z','M9 8h22v24H9Z','M20 5 35 32H5Z'];
+        return `<svg class="achievement-glyph" viewBox="0 0 40 48" aria-hidden="true"><path d="${shapes[n % shapes.length]}" fill="none" stroke="currentColor" stroke-width="2"/><path d="${motifs[def?.cat] || motifs.rare}" fill="none" stroke="currentColor" stroke-width="2"/><text x="20" y="46" text-anchor="middle" fill="currentColor" font-size="9">${secret ? '?' : String(n + 1).padStart(3,'0')}</text></svg>`;
+    }
+
     function renderAchievements(root) {
         if (!root || !window.Achievements) return;
         const all = Achievements.catalog;
@@ -5868,7 +5971,7 @@
             </div>
             <div class="ach-filters" role="group" aria-label="Show achievements">
                 ${filters.map(([key, label, icon]) => `<button type="button" class="ach-filter" data-filter="${key}" aria-pressed="${achievementFilter === key}">
-                    <span aria-hidden="true">${icon}</span> ${escapeAchievementText(label)} <span class="ach-filter-count">${countIn(key)}</span></button>`).join('')}
+                    <span aria-hidden="true">${achievementIcon(Achievements.catalog.find(a => a.cat === key))}</span> ${escapeAchievementText(label)} <span class="ach-filter-count">${countIn(key)}</span></button>`).join('')}
             </div>
             <ul class="ach-list" tabindex="0" aria-label="${escapeAchievementText(filters.find(f => f[0] === achievementFilter)?.[1] || 'All')} achievements">
                 ${shown.map(a => {
@@ -5877,13 +5980,14 @@
                     const progress = !unlocked && a.goal ? Achievements.progressOf(a) : null;
                     const at = unlocked ? Achievements.unlockedAt(a.id) : null;
                     return `<li class="ach-item tier-${a.tier}" data-state="${unlocked ? 'unlocked' : secret ? 'secret' : 'locked'}" data-id="${a.id}">
-                        <span class="ach-icon" aria-hidden="true">${secret ? '❔' : a.icon}</span>
+                        <span class="ach-icon" aria-hidden="true">${achievementIcon(a, secret)}</span>
                         <span class="ach-body">
                             <span class="ach-name">${secret ? 'Hidden achievement' : escapeAchievementText(a.name)}</span>
                             <span class="ach-desc">${secret ? 'Keep playing to find this one.' : escapeAchievementText(a.desc)}</span>
                             <span class="ach-meta">
                                 <span class="ach-tier">${tierLabel[a.tier]}</span>
                                 ${unlocked ? `<span class="ach-when">✓ ${Achievements.wasBackfilled(a.id) ? 'From your saved progress' : `Unlocked${at && !at.startsWith('1970') ? ` ${date(at)}` : ''}`}</span>` : '<span class="ach-when">🔒 Locked</span>'}
+                                ${achievementRewardMarkup(a.id, unlocked)}
                                 ${progress ? `<span class="ach-progress" role="img" aria-label="${progress.value} of ${progress.goal}"><span class="ach-bar"><span style="width:${Math.round(progress.value / progress.goal * 100)}%"></span></span>${progress.value} / ${progress.goal}</span>` : ''}
                             </span>
                         </span>
@@ -5988,7 +6092,7 @@
         }
         const notice = achievementNoticeQueue.shift();
         currentAchievementNotice = notice;
-        toast.innerHTML = `<span class="ach-toast-icon" aria-hidden="true">${notice.icon}</span>
+        toast.innerHTML = `<span class="ach-toast-icon" aria-hidden="true">${achievementIcon(Achievements.catalog.find(a => a.id === notice.id))}</span>
             <span class="ach-toast-text"><span class="ach-toast-label">${escapeAchievementText(achievementNoticeLabel(notice))}</span>
             <span class="ach-toast-name">${escapeAchievementText(notice.name)}</span></span>`;
         toast.hidden = false;
@@ -6005,7 +6109,7 @@
 
     if (window.Achievements) {
         Achievements.onUnlock((def, { backfilled }) => {
-            if (!backfilled) queueAchievementNotice({ icon: def.icon, name: def.name });
+            if (!backfilled) queueAchievementNotice({ id: def.id, name: def.name });
             const label = document.getElementById('menuAchievements');
             if (label) label.textContent = achievementsSummary();
         });

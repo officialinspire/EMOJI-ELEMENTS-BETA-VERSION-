@@ -446,10 +446,9 @@
         } },
         // An achievement: a short three-note fanfare with a light chord tail
         achievement: { vary: 0, cooldown: 800, maxVoices: 1, play: (c, b, t) => {
-            const tb = timbre();
-            [67, 72, 76].forEach((n, i) => tone(c, b, t + i * 0.09, { type: tb.type, filter: tb.filter, freq: NOTE(n), decay: 0.14, gain: 0.07 * tb.level }));
-            [72, 76, 79].forEach(n => tone(c, b, t + 0.27, { type: 'sine', freq: NOTE(n), attack: 0.03, decay: 0.45, gain: 0.035 }));
-            return t + 0.78;
+            tone(c, b, t, { type: 'sine', freq: 880, to: 1320, attack: 0.012, decay: 0.19, gain: 0.11 });
+            tone(c, b, t + 0.12, { type: 'sine', freq: 1760, to: 1320, attack: 0.016, decay: 0.32, gain: 0.06 });
+            return t + 0.46;
         } },
         // Victory: a major arpeggio into a held chord, about 1.3 s
         victory: { vary: 0, cooldown: 1500, maxVoices: 1, priority: true, play: (c, b, t) => {
@@ -499,8 +498,8 @@
         const voice = { cue: name, sources: [], nodes: [], pending: 0, disposed: false };
         buildingVoice = voice;
         try {
-            voice.end = sampleBuffer ? playSample(name, ctx, sfxGain, t, options, v) : cue.play(ctx, sfxGain, t, options, v);
-            count(sampleBuffer ? 'sampled' : 'fallback', name);
+            voice.end = sampleBuffer && name !== 'achievement' ? playSample(name, ctx, sfxGain, t, options, v) : cue.play(ctx, sfxGain, t, options, v);
+            count(sampleBuffer && name !== 'achievement' ? 'sampled' : 'fallback', name);
             activeVoices.push(voice);
             // Briefly lower the background under effects; never duck the intro video.
             if (musicDuck) {
@@ -544,10 +543,10 @@
         buildingVoice = voice;
         let end;
         try {
-            try { end = sampleBuffer ? playSample(name, off, bus, 0.01, options, 1) : cue.play(off, bus, 0.01, options, 1); }
+            try { end = sampleBuffer && name !== 'achievement' ? playSample(name, off, bus, 0.01, options, 1) : cue.play(off, bus, 0.01, options, 1); }
             finally { buildingVoice = previousVoice; noiseBuffer = savedNoise; }
             const buffer = await off.startRendering();
-            return { buffer, scheduledEnd: end, engine: sampleBuffer ? 'samples' : 'synthesis-fallback' };
+            return { buffer, scheduledEnd: end, engine: name === 'achievement' ? 'synthesis' : sampleBuffer ? 'samples' : 'synthesis-fallback' };
         } finally { disposeVoice(voice); bus.disconnect(); }
     }
 

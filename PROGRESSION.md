@@ -207,3 +207,19 @@ QA mode now uses `emoji_elements_meta_qa_v1`, `emojiElementsStatsQA` and a separ
 It cannot write or backfill artificial payouts into the normal profile on a later reload.
 The smoke harness exercises its QA profile explicitly; production-profile persistence is
 covered by the progression, persistence and achievement suites.
+
+## Paged shop and achievement cards
+
+The Pack Shop shows one pack per page, with a separate Individual Cards tab. The original themed packs, five color packs, Lands (mana sources), and Artifacts remain available. Legendary Vault costs **1,000 credits** and awards **five distinct legendary cards** from the currently unlocked pool. Win reward weights and the original pack prices are unchanged.
+
+Only three cards are achievement gated for new acquisitions:
+
+| Achievement | Card unlocked | Claimable reward |
+| --- | --- | --- |
+| Double Digits (10 wins) | Ancient Dragon | One copy |
+| Hard Mode Regular (5 hard wins) | Time Device | One copy |
+| Seasoned Summoner (50 wins) | Holy Chalice | One copy |
+
+These cards are excluded from new pack rolls and blocked from direct purchase until unlocked. Old owned copies and existing decks are preserved. Claim a reward in Achievements; the card and its claim receipt save in one transaction. A failed save awards nothing and can be retried. Claimed rewards never repeat after reload or import. No other achievements grant cards.
+
+Card filters now include color, type, mana value, rarity, ownership, exact-one/multiple quantity and in/out of the selected deck (the working deck in Deck Builder). Sorting includes name, color, type, rarity, mana value, most owned and fewest owned.

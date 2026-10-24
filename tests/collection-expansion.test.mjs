@@ -17,7 +17,7 @@ test('binder pages and individual purchases preserve wallet and collection',asyn
   return {before,after,bought,credits,price,balance,owned,copies,failed,rollback:getShopCredits()===balance&&gameMeta.collection[id]===copies,packs:PACK_THEMES.map(p=>({key:p.key,size:getThemePool(p.key).length,pack:generatePack(p.key)}))};
  });
  assert.equal(r.before.length,4);assert.notDeepEqual(r.before,r.after);assert.equal(r.bought,true);assert.equal(r.balance,r.credits-r.price);assert.equal(r.copies,r.owned+1);assert.equal(r.failed,false);assert.equal(r.rollback,true);
- assert.equal(r.packs.length,12);for(const p of r.packs){assert.ok(p.size>=5,p.key);assert.equal(p.pack.length,5,p.key);assert.equal(new Set(p.pack).size,5,p.key);}
+ assert.equal(r.packs.length,13);for(const p of r.packs){assert.ok(p.size>=5,p.key);assert.equal(p.pack.length,5,p.key);assert.equal(new Set(p.pack).size,5,p.key);}
 });
 test('lead messages follow life thresholds without repeating on each render',async t=>{
  const page=await openGame(t);await startMatch(page);
