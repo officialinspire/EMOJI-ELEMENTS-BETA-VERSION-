@@ -1,0 +1,135 @@
+(function () {
+/** Per-tab attribution, scoped to this game. No identifiers are merged across sites. */
+function createAttribution(win = globalThis) {
+  const campaignKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  const clean = (value) => typeof value === 'string' && /^[a-zA-Z0-9 _.:+-]{1,100}$/.test(value) ? value : undefined;
+  const validId = (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  let context;
+  return function attributionProperties() {
+    try {
+      if (win.navigator?.globalPrivacyControl === true || win.navigator?.doNotTrack === '1' || win.doNotTrack === '1') return {};
+      const now = Date.now();
+      const url = new URL(win.location.href);
+      const storageKey = 'inspire:launch:v2:' + url.pathname.split('/').filter(Boolean)[0];
+      if (!context) {
+        let saved;
+        try { saved = JSON.parse(win.sessionStorage.getItem(storageKey) || 'null'); } catch { /* storage optional */ }
+        const props = { attribution_version: 'v2' };
+        let expires = now + 1800000;
+        if (saved && typeof saved.expires === 'number' && saved.expires > now && saved.expires <= now + 1800000) {
+          expires = saved.expires;
+          campaignKeys.forEach(k => { const value = clean(saved.props?.[k]); if (value) props[k] = value; });
+          if (validId(saved.props?.launch_id)) props.launch_id = saved.props.launch_id;
+          const placement = clean(saved.props?.cta_location);
+          if (placement) props.cta_location = placement;
+        }
+        campaignKeys.forEach(k => { const value = clean(url.searchParams.get(k)); if (value) props[k] = value; });
+        const hash = new URLSearchParams(url.hash.slice(1));
+        const id = hash.get('inspire_launch_id');
+        const at = Number(hash.get('inspire_launch_at'));
+        if (validId(id) && at > 0 && at <= now + 60000 && now - at < 1800000) {
+          props.launch_id = id;
+          expires = Math.min(now + 1800000, at + 1800000);
+          const placement = clean(hash.get('inspire_cta'));
+          if (placement) props.cta_location = placement;
+        }
+        if (hash.has('inspire_launch_id') || hash.has('inspire_launch_at') || hash.has('inspire_cta')) {
+          ['inspire_launch_id', 'inspire_launch_at', 'inspire_cta'].forEach(k => hash.delete(k));
+          url.hash = hash.toString();
+          try { win.history.replaceState(win.history.state, '', url.href); } catch { /* optional cleanup */ }
+        }
+        context = { expires, props };
+        try { win.sessionStorage.setItem(storageKey, JSON.stringify(context)); } catch { /* memory fallback */ }
+      }
+      if (context.expires <= now) return { attribution_version: 'v2' };
+      return { ...context.props };
+    } catch { return {}; }
+  };
+}
+/** Best-effort, anonymous game events. No SDK, storage, or network work on startup. */
+
+// A project token is public and can only send data; never put a personal API key here.
+const TOKEN = 'phc_wpvFbvptidYWtnkJG8EdMMhaXn6s2ZDznzNUha5V4KRm';
+const attributionProperties = createAttribution();
+const ENDPOINT = 'https://us.i.posthog.com/i/v0/e/';
+const EVENTS = new Set([
+  'game_opened', 'game_started', 'game_completed', 'game_over', 'high_score_achieved',
+  'achievement_unlocked', 'error_encountered',
+]);
+const FIELDS = new Set(['score', 'high_score', 'round', 'difficulty', 'achievement', 'duration_seconds', 'mode', 'error_type', 'error_name', 'layout', 'continued']);
+const seen = new Set();
+let anonymousId;
+let sequence = 0;
+let getContext = () => ({});
+let initialized = false;
+
+function sessionId() {
+  if (anonymousId) return anonymousId;
+  try { anonymousId = globalThis.crypto?.randomUUID?.(); } catch { /* optional crypto */ }
+  // Also works on older browsers; generated only inside trackGameEvent's safety guard.
+  anonymousId ||= 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const n = Math.floor(Math.random() * 16);
+    return (c === 'x' ? n : (n & 3) | 8).toString(16);
+  });
+  return anonymousId;
+}
+
+/** Read existing state only when an event occurs, without polling or writing saves. */
+function setAnalyticsContext(provider) {
+  if (typeof provider === 'function') getContext = provider;
+}
+
+function trackGameEvent(event, details = {}, once = null) {
+  try {
+    if (globalThis.navigator?.webdriver === true) return;
+    if (new URL(globalThis.location.href).searchParams.get('qa') === '1') return;
+    if (!EVENTS.has(event) || globalThis.navigator?.doNotTrack === '1' || globalThis.navigator?.globalPrivacyControl === true || globalThis.navigator?.onLine === false) return;
+    const key = once == null ? null : `${event}:${once}`;
+    if (key && seen.has(key)) return;
+    if (key) seen.add(key);
+    const id = sessionId();
+    const timestamp = new Date().toISOString(); // preserve occurrence time even if requests arrive out of order
+    const properties = { brand: 'inspire', game: 'EMOJI-ELEMENTS-BETA-VERSION-', game_version: 'unversioned', $process_person_profile: false, $geoip_disable: true, $session_id: id, event_sequence: ++sequence };
+    Object.assign(properties, attributionProperties(), { game_id: 'EMOJI-ELEMENTS-BETA-VERSION-' });
+    let context = {};
+    try { context = getContext() ?? {}; } catch { /* context is optional */ }
+    for (const [name, value] of Object.entries({ ...context, ...details })) {
+      if (!FIELDS.has(name)) continue;
+      if (typeof value === 'number' && Number.isFinite(value) || typeof value === 'string' && value.length <= 60) properties[name] = value;
+    }
+    // A zero-delay task leaves gameplay and startup free to continue before any network work.
+    globalThis.setTimeout(() => {
+      try {
+        if (typeof globalThis.fetch !== 'function') return;
+        void globalThis.fetch(ENDPOINT, {
+          method: 'POST', mode: 'cors', credentials: 'omit', keepalive: true,
+          referrerPolicy: 'no-referrer', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: TOKEN, distinct_id: id, event, properties, timestamp }),
+        }).catch(() => {});
+      } catch { /* analytics never affects the game */ }
+    }, 0);
+  } catch { /* analytics never affects the game */ }
+}
+
+function initAnalytics() {
+  try {
+    if (initialized) return;
+    initialized = true;
+    // No raw messages, URLs, stacks, player names, or input values leave the browser.
+    for (const [type, category] of [['error', 'uncaught_error'], ['unhandledrejection', 'unhandled_rejection']]) {
+      try {
+        globalThis.addEventListener?.(type, (event) => {
+          try {
+            const name = (event.error ?? event.reason)?.name;
+            const error_name = ['Error', 'TypeError', 'RangeError', 'ReferenceError', 'SyntaxError', 'URIError', 'EvalError'].includes(name) ? name : 'UnknownError';
+            trackGameEvent('error_encountered', { error_type: category, error_name }, `${category}:${error_name}`);
+          } catch { /* analytics never affects error handling */ }
+        });
+      } catch { /* error listeners are optional */ }
+    }
+    trackGameEvent('game_opened', {}, 'page-load');
+  } catch { /* analytics never affects startup */ }
+}
+
+window.EmojiAnalytics = { initAnalytics, trackGameEvent };
+})();

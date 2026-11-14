@@ -17,6 +17,8 @@ jobs:
           node-version: 22
       - name: Install Playwright (version pinned in package.json)
         run: npm ci --no-audit --no-fund
+      - name: Verify gameplay start analytics and launch attribution
+        run: node tests/analytics-runtime.mjs
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run catalog and all browser logic suites

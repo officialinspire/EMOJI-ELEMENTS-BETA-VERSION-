@@ -1,3 +1,4 @@
+window.EmojiAnalytics?.initAnalytics();
     const ACHIEVEMENT_CARD_REWARDS = {
         'wins-10': 'creatures-ancient-dragon',
         'hard-5': 'creatures-time-device',
@@ -7227,6 +7228,7 @@
 
         updateUI();
         updateDeckCounters();
+        window.EmojiAnalytics?.trackGameEvent('game_started', { mode: 'battle', difficulty: String(gameState.difficulty) });
         reportAchievement('match:start', {
             deckKey: getDeckKeyFromElements(gameState.selectedElements),
             elements: [...gameState.selectedElements],
