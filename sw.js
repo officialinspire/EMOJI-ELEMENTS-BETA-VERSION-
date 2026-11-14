@@ -1,9 +1,9 @@
 // Generated as sw.js by npm run pwa:build. One complete cache per app build.
-const BUILD_ID = '1f3838fb39e4';
+const BUILD_ID = '65a0282621e4';
 const REQUIRED = {
   "index.html": "a16773a20da99ff22427b908476dc1c51e4f9d5ee5136e4b4cf1111426c5ea98",
   "index.js": "416f2bb42094b0d8e5cc3ac54f1768ff372fdc2bc7429afddaed14aef3c6fc0f",
-  "analytics.js": "1a7d583ae95d88e7e1cd7789d79e83fb349cca72f1e8ffa5f7396a5486ec79fa",
+  "analytics.js": "e1c43ca60f51bc2542d429a47b6a91401c44d089f9f2cbf622ed2629cc84b93e",
   "styles.css": "140cf700b2bd48142dfa1768b8dee96ca64557d5c6ac1852fef51dc020215fcd",
   "feedback.js": "c016dd09c99e985796a8a68c72050dbb849d6bb15cb6c611ab3b0864585647d7",
   "achievements.js": "eb91b5201f2c96301ed2ccd913e55a1144279c7ad068b23bed4659c0374be247",
@@ -16,7 +16,7 @@ const REQUIRED = {
   "menu-sigil.svg": "60d4c32dde59efd80f7f93ba4c8c61f0c42be9346573eaf8799b97d2748e1227",
   "menu-divider.svg": "0fdc776c71bd37f550afb52eb669bbfaf6c723cd4dd30e70ee35932d8b07c279",
   "audio/sfx/sfx-bank.wav": "e9eee3b46245c25654c7e0b5f3f76073c8e11b5fd90ff40777f2ff90b341d4f3",
-  "pwa-build.js": "a75f26f189304d230da3fe518376e6b5306ba1740dbaeb8f0c836e8600038d95"
+  "pwa-build.js": "5f4876b16e493e6cb37a127edc713d748a0d3d6106119a351d38c768940ab375"
 };
 const OPTIONAL = ['minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
     'Emoji Elements - Winning Battle Theme.mp3', 'Emoji Elements - Losing Battle Theme.mp3', 'inspiresoftwareintro.mp4'];

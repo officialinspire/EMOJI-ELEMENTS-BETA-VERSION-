@@ -81,6 +81,8 @@ function setAnalyticsContext(provider) {
 
 function trackGameEvent(event, details = {}, once = null) {
   try {
+    if (globalThis.navigator?.webdriver === true) return;
+    if (new URL(globalThis.location.href).searchParams.get('qa') === '1') return;
     if (!EVENTS.has(event) || globalThis.navigator?.doNotTrack === '1' || globalThis.navigator?.globalPrivacyControl === true || globalThis.navigator?.onLine === false) return;
     const key = once == null ? null : `${event}:${once}`;
     if (key && seen.has(key)) return;

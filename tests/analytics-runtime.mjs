@@ -30,5 +30,6 @@ box.gameState.selectedElements=['fire'];box.startGame();box.startGame();while(pe
 const starts=events.filter(e=>e.event==='game_started');assert.equal(starts.length,1,'double start guarded');
 assert.equal(starts[0].properties.launch_id,id);assert.equal(starts[0].properties.utm_source,'newsletter');
 assert.equal(starts[0].properties.game_id,'EMOJI-ELEMENTS-BETA-VERSION-');
-box.navigator.globalPrivacyControl=true;box.finishStart();box.startGame();while(pending.length)pending.shift()();assert.equal(events.filter(e=>e.event==='game_started').length,1,'privacy signal respected');
+box.navigator.webdriver=true;box.finishStart();box.startGame();while(pending.length)pending.shift()();assert.equal(events.filter(e=>e.event==='game_started').length,1,'browser automation excluded');
+box.navigator.webdriver=false;box.navigator.globalPrivacyControl=true;box.finishStart();box.startGame();while(pending.length)pending.shift()();assert.equal(events.filter(e=>e.event==='game_started').length,1,'privacy signal respected');
 console.log('PASS real battle-start lifecycle: invalid setup, valid battle, duplicate guard, launch attribution, privacy');
