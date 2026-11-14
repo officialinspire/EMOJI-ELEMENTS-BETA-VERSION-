@@ -9,7 +9,7 @@ import { buildPwa } from '../scripts/build-pwa.mjs';
 
 test('real PWA: offline startup, explicit two-build update, failed deployment and preserved progress', { timeout: 120000 }, async t => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ee-pwa-'));
-    const files = ['index.html', 'index.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
+    const files = ['index.html', 'index.js', 'analytics.js', 'styles.css', 'feedback.js', 'achievements.js', 'pwa.js',
         'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
         'menu-sigil.svg', 'menu-divider.svg', 'audio/sfx/sfx-bank.wav',
         'minimalist menu theme.mp3', 'Emoji Elements - Celestial Battle Theme.mp3',
